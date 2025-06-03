@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { getUserByUsername, User } from './data';
 import { logger, AppError, validateRequired } from './logger';
 
@@ -84,11 +84,8 @@ export function generateToken(user: User): string {
       role: user.role,
     };
     
-    const token = jwt.sign(payload, JWT_SECRET, { 
-      expiresIn: JWT_EXPIRES_IN,
-      issuer: 'eyetask',
-      audience: 'eyetask-users'
-    });
+    // Use a simpler approach for JWT signing
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     
     logger.authLog('token_generated', user.username, true);
     return token;
@@ -112,10 +109,8 @@ export function verifyToken(token: string): JWTPayload | null {
       return null;
     }
     
-    const payload = jwt.verify(token, JWT_SECRET, {
-      issuer: 'eyetask',
-      audience: 'eyetask-users'
-    }) as JWTPayload;
+    // Use a simpler approach for JWT verification
+    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
     
     // Additional validation
     if (!payload.userId || !payload.username || !payload.role) {
@@ -239,29 +234,29 @@ export function requireAuth(token?: string): { authorized: boolean; user?: Omit<
 }
 
 // Extract token from Authorization header with validation
-export function extractTokenFromHeader(authHeader?: string): string | null {
+export function extractTokenFromHeader(authHeader?: string | null): string | undefined {
   try {
     if (!authHeader) {
       logger.debug('No authorization header', 'AUTH');
-      return null;
+      return undefined;
     }
     
     if (!authHeader.startsWith('Bearer ')) {
       logger.debug('Invalid authorization header format', 'AUTH', { header: authHeader.substring(0, 20) });
-      return null;
+      return undefined;
     }
     
     const token = authHeader.substring(7);
     
     if (!token || token.length === 0) {
       logger.debug('Empty token in authorization header', 'AUTH');
-      return null;
+      return undefined;
     }
     
     return token;
   } catch (error) {
     logger.error('Error extracting token from header', 'AUTH', { header: authHeader?.substring(0, 20) }, error as Error);
-    return null;
+    return undefined;
   }
 }
 

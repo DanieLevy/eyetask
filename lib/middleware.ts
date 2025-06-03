@@ -87,7 +87,7 @@ export function withApiHandler<T = any>(
         method,
         url: url.split('?')[0], // Remove query params for logging
         userAgent: req.headers.get('user-agent'),
-        ip: req.headers.get('x-forwarded-for') || req.ip,
+        ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
         hasAuth: !!req.headers.get('authorization')
       });
 
@@ -170,7 +170,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 export function rateLimit(maxRequests: number = 100, windowMs: number = 15 * 60 * 1000) {
   return (req: NextRequest): boolean => {
     try {
-      const clientId = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+      const clientId = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
       const now = Date.now();
       const windowStart = now - windowMs;
       
@@ -205,7 +205,7 @@ export function rateLimit(maxRequests: number = 100, windowMs: number = 15 * 60 
       
       return true;
     } catch (error) {
-      logger.error('Rate limit check failed', 'RATE_LIMIT', { clientId: req.ip }, error as Error);
+      logger.error('Rate limit check failed', 'RATE_LIMIT', { clientId: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown' }, error as Error);
       return true; // Allow on error
     }
   };
@@ -314,7 +314,7 @@ export function createRequestContext(req: NextRequest): RequestContext {
   return {
     requestId: generateRequestId(),
     startTime: Date.now(),
-    clientId: req.headers.get('x-forwarded-for') || req.ip || 'unknown',
+    clientId: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
   };
 }
 

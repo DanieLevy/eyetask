@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateTaskAmount } from '@/lib/data';
 import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 // POST /api/tasks/[id]/calculate-amount - Recalculate task amount from subtasks (admin only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');

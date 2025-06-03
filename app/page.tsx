@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, Calendar, Users, BarChart3, ArrowLeft } from 'lucide-react';
+import { Eye, BarChart3, ArrowLeft } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 interface Project {
@@ -84,7 +84,7 @@ export default function HomePage() {
 
         console.log('📦 Main page - Projects data:', projectsData);
         console.log('📦 Main page - Tasks data:', tasksData);
-        console.log('📦 Main page - Visible tasks:', tasksData.tasks?.filter(t => t.isVisible));
+        console.log('📦 Main page - Visible tasks:', tasksData.tasks?.filter((t: Task) => t.isVisible));
 
         setProjects(projectsData.projects || []);
         setTasks(tasksData.tasks || []);
@@ -133,56 +133,52 @@ export default function HomePage() {
     <div className="bg-background">
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <section className="text-center mb-12">
-          <h1 className={`text-4xl font-bold text-foreground mb-4 ${hebrewHeading.fontClass}`}>
-            ברוכים הבאים ל-EyeTask
-          </h1>
-          <p className={`text-xl text-muted-foreground max-w-2xl mx-auto ${mixedBody.fontClass}`}>
-            מערכת ניהול משימות נהיגה חכמה עבור Mobileye. נהלו פרויקטים, עקבו אחר משימות ותת-משימות בקלות ויעילות.
-          </p>
-        </section>
-
-        {/* Quick Stats */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-card rounded-lg border border-border p-6 text-center">
-            <Users className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-              {projects.length}
-            </h3>
-            <p className="text-muted-foreground">פרויקטים פעילים</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-6 text-center">
-            <BarChart3 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <h3 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-              {tasks.filter(task => task.isVisible).length}
-            </h3>
-            <p className="text-muted-foreground">משימות גלויות</p>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-6 text-center">
-            <Calendar className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-            <h3 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-              {tasks.filter(task => task.priority >= 1 && task.priority <= 3 && task.isVisible).length}
-            </h3>
-            <p className="text-muted-foreground">עדיפות גבוהה</p>
+        {/* Compact Stats */}
+        <section className="mb-8">
+          <div className="bg-card rounded-lg border border-border p-4">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-center">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <div>
+                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                    {projects.length}
+                  </span>
+                  <span className="text-sm text-muted-foreground mr-1">פרויקטים</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Eye className="h-5 w-5 text-green-500" />
+                <div>
+                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                    {tasks.filter(task => task.isVisible).length}
+                  </span>
+                  <span className="text-sm text-muted-foreground mr-1">משימות</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 bg-orange-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-bold">!</span>
+                </div>
+                <div>
+                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                    {tasks.filter(task => task.priority >= 1 && task.priority <= 3 && task.isVisible).length}
+                  </span>
+                  <span className="text-sm text-muted-foreground mr-1">עדיפות גבוהה</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Projects Section */}
         <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>פרויקטים אחרונים</h2>
-            <Link 
-              href="/admin"
-              className="text-primary hover:text-primary/80 transition-colors text-sm font-medium"
-            >
-              צפה בכל הפרויקטים ←
-            </Link>
+          <div className="mb-6">
+            <h2 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>פרויקטים</h2>
           </div>
           
           {projects.length === 0 ? (
             <div className="text-center py-12 bg-card rounded-lg border border-border">
-              <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">אין פרויקטים במערכת</h3>
               <p className="text-muted-foreground mb-4">התחילו ליצור פרויקטים חדשים כדי לנהל משימות</p>
               <Link
@@ -195,7 +191,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.slice(0, 6).map((project) => {
+              {projects.map((project) => {
                 const taskCount = getTaskCountForProject(project.id);
                 const highPriorityCount = getHighPriorityTasksForProject(project.id);
                 

@@ -71,17 +71,18 @@ export default function Header() {
   const isAdminLoginPage = pathname === '/admin';
   const isHomePage = pathname === '/';
   const showAdminActions = isAdminPage && user;
+  const showLogout = user; // Show logout for any authenticated user
   
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
           {/* Logo and Title */}
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="h-8 w-auto">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="h-6 w-auto">
               <svg
                 viewBox="0 0 407 68"
-                className="h-8 w-auto"
+                className="h-6 w-auto"
                 style={{ fill: 'currentColor' }}
               >
                 <g>
@@ -121,11 +122,11 @@ export default function Header() {
                 </g>
               </svg>
             </div>
-            <div>
-              <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+            <div className="flex flex-col justify-center">
+              <h1 className={`text-lg font-bold text-foreground leading-tight ${hebrewHeading.fontClass}`}>
                 {isAdminPage ? 'EyeTask - לוח בקרה' : 'EyeTask'}
               </h1>
-              <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
+              <p className={`text-xs text-muted-foreground leading-tight ${mixedBody.fontClass}`}>
                 {user ? `שלום ${user.username} | Mobileye${isAdminPage ? ' Admin' : ''}` : 'Mobileye'}
               </p>
             </div>
@@ -138,7 +139,7 @@ export default function Header() {
               {!isHomePage && (
                 <Link
                   href="/"
-                  className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                 >
                   <Home className="h-4 w-4" />
                   דף הבית
@@ -149,25 +150,28 @@ export default function Header() {
                 <>
                   <Link
                     href="/admin/dashboard"
-                    className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
                   >
                     <BarChart3 className="h-4 w-4" />
                     לוח בקרה
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    התנתק
-                  </button>
                 </>
               )}
               
-              {!showAdminActions && !isAdminPage && !isAdminLoginPage && (
+              {showLogout && (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  התנתק
+                </button>
+              )}
+              
+              {!showLogout && !isAdminPage && !isAdminLoginPage && (
                 <Link
                   href="/admin"
-                  className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
                   ניהול מנהל
@@ -181,14 +185,14 @@ export default function Header() {
               className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
               aria-label="תפריט"
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {menuOpen && (
-          <div className="md:hidden mt-4 p-4 bg-card rounded-lg border border-border">
+          <div className="md:hidden mt-3 p-3 bg-card rounded-lg border border-border">
             <nav className="space-y-2">
               {!isHomePage && (
                 <Link 
@@ -201,24 +205,25 @@ export default function Header() {
                 </Link>
               )}
               
-              {showAdminActions ? (
-                <>
-                  <Link 
-                    href="/admin/dashboard" 
-                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    לוח בקרה
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    התנתק
-                  </button>
-                </>
+              {showAdminActions && (
+                <Link 
+                  href="/admin/dashboard" 
+                  className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  לוח בקרה
+                </Link>
+              )}
+              
+              {showLogout ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 w-full p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
+                >
+                  <LogOut className="h-4 w-4" />
+                  התנתק
+                </button>
               ) : !isAdminPage && !isAdminLoginPage && (
                 <Link 
                   href="/admin" 

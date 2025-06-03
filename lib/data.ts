@@ -118,7 +118,7 @@ async function createBackup(filePath: string): Promise<void> {
     await fs.copyFile(filePath, backupPath);
     logger.debug(`Backup created: ${backupPath}`, 'BACKUP');
   } catch (error) {
-    logger.warn('Failed to create backup', 'BACKUP', { filePath }, error as Error);
+    logger.warn('Failed to create backup', 'BACKUP', { filePath, error: (error as Error).message });
   }
 }
 
@@ -159,7 +159,7 @@ async function readJsonFile<T>(filePath: string, defaultValue?: T): Promise<T> {
 }
 
 // Generic write function with enhanced error handling
-async function writeJsonFile<T>(filePath: string, data: T, createBackup: boolean = true): Promise<void> {
+async function writeJsonFile<T>(filePath: string, data: T, shouldCreateBackup: boolean = true): Promise<void> {
   try {
     await ensureDataDirectory();
     
@@ -169,7 +169,7 @@ async function writeJsonFile<T>(filePath: string, data: T, createBackup: boolean
     }
     
     // Create backup if file exists and backup is requested
-    if (createBackup) {
+    if (shouldCreateBackup) {
       try {
         await fs.access(filePath);
         await createBackup(filePath);
@@ -357,7 +357,7 @@ export async function deleteTask(id: string): Promise<boolean> {
       
       logger.info(`Deleted ${subtasks.length - filteredSubtasks.length} related subtasks`, 'DELETE_TASK');
     } catch (error) {
-      logger.warn('Failed to delete related subtasks', 'DELETE_TASK', { taskId: id }, error as Error);
+      logger.warn('Failed to delete related subtasks', 'DELETE_TASK', { taskId: id, error: (error as Error).message });
     }
     
     await writeJsonFile(TASKS_FILE, { tasks: filteredTasks });

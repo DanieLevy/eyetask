@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       // Tasks by project
       tasksByProject: projects.map(project => ({
         projectName: project.name,
-        taskCount: tasks.filter(task => task.project === project.name).length,
+        taskCount: tasks.filter(task => task.projectId === project.id).length,
       })),
       
       // Recent activity (last 7 days)

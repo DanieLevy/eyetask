@@ -17,7 +17,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     const body = await validateBody(req);
     
     const { username, password } = body;
-    const clientId = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const clientId = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     
     // Check rate limiting
     if (!checkRateLimit(username, 5, 15 * 60 * 1000)) { // 5 attempts per 15 minutes
@@ -87,7 +87,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     try {
       await incrementPageView('admin');
     } catch (error) {
-      logger.warn('Failed to track admin login analytics', 'AUTH', { username: sanitizedUsername }, error as Error);
+      logger.warn('Failed to track admin login analytics', 'AUTH', { username: sanitizedUsername, error: (error as Error).message });
     }
     
     // Log successful login
@@ -127,7 +127,7 @@ export const POST = withApiHandler(async (req: NextRequest) => {
     
   } catch (error) {
     // Enhanced error logging
-    const clientId = req.headers.get('x-forwarded-for') || req.ip || 'unknown';
+    const clientId = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     
     if (error instanceof AppError) {
       // Log application errors with context

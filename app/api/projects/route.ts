@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader || undefined);
-    const { authorized, user } = requireAuth(token || undefined);
+    const token = extractTokenFromHeader(authHeader);
+    const { authorized, user } = requireAuth(token);
     
     if (!authorized || !isAdmin(user)) {
       return NextResponse.json(

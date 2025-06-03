@@ -12,9 +12,11 @@ export const LOG_LEVELS: LogLevel = {
   DEBUG: 'debug'
 };
 
+type LogLevelValue = 'error' | 'warn' | 'info' | 'debug';
+
 interface LogEntry {
   timestamp: string;
-  level: keyof LogLevel;
+  level: LogLevelValue;
   message: string;
   context?: string;
   data?: any;
@@ -32,7 +34,7 @@ class Logger {
   private isDevelopment = process.env.NODE_ENV === 'development';
   private logLevel = process.env.LOG_LEVEL || 'info';
 
-  private shouldLog(level: keyof LogLevel): boolean {
+  private shouldLog(level: LogLevelValue): boolean {
     const levels = ['error', 'warn', 'info', 'debug'];
     const currentLevelIndex = levels.indexOf(this.logLevel);
     const messageLevelIndex = levels.indexOf(level);
@@ -133,7 +135,7 @@ class Logger {
       method: req.method,
       statusCode: res.status,
       executionTime,
-      ip: req.headers['x-forwarded-for'] || req.ip,
+      ip: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown',
       userAgent: req.headers['user-agent'],
       error
     };

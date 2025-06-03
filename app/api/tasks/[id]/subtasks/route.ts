@@ -15,12 +15,29 @@ const subtaskSchema = {
   scene: { required: true, type: 'string' }
 };
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 // GET /api/tasks/[id]/subtasks - Get all subtasks for a task
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
+  let taskId: string | undefined;
+  
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    taskId = id;
+    
+    if (!taskId || typeof taskId !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid task ID', success: false },
+        { status: 400 }
+      );
+    }
+    
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
     const { authorized } = requireAuth(token);
@@ -32,17 +49,7 @@ export async function GET(
       );
     }
     
-    // Await params to fix Next.js 15 requirement
-    const { id } = await params;
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Task ID is required', success: false },
-        { status: 400 }
-      );
-    }
-    
-    const task = await getTaskById(id);
+    const task = await getTaskById(taskId);
     
     if (!task) {
       return NextResponse.json(
@@ -52,14 +59,14 @@ export async function GET(
     }
     
     // Track page view
-    await incrementPageView(`task-${id}-subtasks`);
+    await incrementPageView(`task-${taskId}-subtasks`);
     
-    const subtasks = await getSubtasksByTaskId(id);
+    const subtasks = await getSubtasksByTaskId(taskId);
     
     return NextResponse.json({
       success: true,
       data: {
-        taskId: id,
+        taskId: taskId,
         subtasks
       },
       message: 'Subtasks retrieved successfully',
@@ -73,7 +80,7 @@ export async function GET(
     });
     
   } catch (error) {
-    logger.error('Error fetching subtasks', 'DATA', { taskId: id }, error as Error);
+    logger.error('Error fetching subtasks', 'DATA', { taskId }, error as Error);
     return NextResponse.json(
       { error: 'Failed to fetch subtasks', success: false },
       { status: 500 }
@@ -84,27 +91,32 @@ export async function GET(
 // POST /api/tasks/[id]/subtasks - Create a new subtask for a task
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
+  let taskId: string | undefined;
+  let user: any;
+  
   try {
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    taskId = id;
+    
+    if (!taskId || typeof taskId !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid task ID', success: false },
+        { status: 400 }
+      );
+    }
+    
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = requireAuth(token);
+    const { authorized, user: authUser } = requireAuth(token);
+    user = authUser;
     
     if (!authorized || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
-      );
-    }
-    
-    // Await params to fix Next.js 15 requirement
-    const { id } = await params;
-    
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Task ID is required', success: false },
-        { status: 400 }
       );
     }
     
@@ -118,7 +130,7 @@ export async function POST(
       );
     }
     
-    const task = await getTaskById(id);
+    const task = await getTaskById(taskId);
     
     if (!task) {
       return NextResponse.json(
@@ -168,14 +180,14 @@ export async function POST(
     // Create subtask with taskId
     const subtaskData = {
       ...requestBody,
-      taskId: id,
+      taskId: taskId,
     };
     
     const newSubtask = await createSubtask(subtaskData);
     
     logger.info('Subtask created successfully', 'SUBTASKS', {
       subtaskId: newSubtask.id,
-      taskId: id,
+      taskId: taskId,
       title: newSubtask.title,
       type: newSubtask.type || 'events',
       amountNeeded: newSubtask.amountNeeded,
@@ -201,7 +213,7 @@ export async function POST(
     
   } catch (error) {
     logger.error('Error creating subtask', 'SUBTASKS', { 
-      taskId: id,
+      taskId,
       userId: user?.id 
     }, error as Error);
     return NextResponse.json(

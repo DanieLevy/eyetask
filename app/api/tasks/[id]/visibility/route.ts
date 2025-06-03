@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTaskById, updateTask } from '@/lib/data';
 import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 // PATCH /api/tasks/[id]/visibility - Toggle task visibility (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');

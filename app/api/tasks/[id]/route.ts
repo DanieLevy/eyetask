@@ -2,14 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTaskById, updateTask, deleteTask, incrementPageView } from '@/lib/data';
 import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 // GET /api/tasks/[id] - Get a specific task by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
+    
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid task ID', success: false },
+        { status: 400 }
+      );
+    }
+    
     const task = await getTaskById(id);
     
     if (!task) {
@@ -51,7 +63,7 @@ export async function GET(
 // PUT /api/tasks/[id] - Update a task (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -90,7 +102,7 @@ export async function PUT(
 // DELETE /api/tasks/[id] - Delete a task (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');

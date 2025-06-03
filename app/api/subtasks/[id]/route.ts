@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSubtaskById, updateSubtask, deleteSubtask } from '@/lib/data';
 import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
 // GET /api/subtasks/[id] - Get a specific subtask by ID
 export async function GET(
   request: NextRequest,
@@ -35,7 +39,7 @@ export async function GET(
 // PUT /api/subtasks/[id] - Update a subtask (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -78,7 +82,7 @@ export async function PUT(
 // DELETE /api/subtasks/[id] - Delete a subtask (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
