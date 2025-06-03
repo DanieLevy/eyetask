@@ -103,10 +103,14 @@ export default function ProjectPage() {
         
         const tasksData = await tasksResponse.json();
         
-        // Find all visible tasks for this project
-        const projectTasks = tasksData.tasks
-          ?.filter((task: Task) => task.isVisible && 
-            projectsData.projects?.find((p: any) => p.id === task.projectId)?.name.toLowerCase().replace(/\s+/g, '-') === projectName.toLowerCase()) || [];
+        // Find all visible tasks for this project - simplified and more robust filtering
+        const allTasks = tasksData.tasks || [];
+        
+        const projectTasks = allTasks.filter((task: Task) => {
+          const isVisible = task.isVisible;
+          const belongsToProject = task.projectId === project.id;
+          return isVisible && belongsToProject;
+        });
         
         setTasks(projectTasks);
         

@@ -50,9 +50,26 @@ function loadServiceKey(): string | undefined {
     try {
       const envPath = join(process.cwd(), '.env.local');
       const envContent = readFileSync(envPath, 'utf-8');
-      const serviceKeyMatch = envContent.match(/SUPABASE_SERVICE_KEY=(.+)/);
-      if (serviceKeyMatch) {
-        serviceKey = serviceKeyMatch[1].trim();
+      
+      // Handle multi-line service key values
+      const lines = envContent.split('\n');
+      let serviceKeyLine = '';
+      let inServiceKey = false;
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('SUPABASE_SERVICE_KEY=')) {
+          inServiceKey = true;
+          serviceKeyLine = trimmedLine.replace('SUPABASE_SERVICE_KEY=', '');
+        } else if (inServiceKey && trimmedLine && !trimmedLine.includes('=')) {
+          serviceKeyLine += trimmedLine;
+        } else if (inServiceKey && (trimmedLine.includes('=') || !trimmedLine)) {
+          break;
+        }
+      }
+      
+      if (serviceKeyLine) {
+        serviceKey = serviceKeyLine.trim();
         logger.debug('Service key loaded from .env.local file', 'SUPABASE_CONFIG');
         return serviceKey;
       }

@@ -82,12 +82,14 @@ export default function HomePage() {
           tasksResponse.json()
         ]);
 
-        if (projectsData.success && projectsData.data?.projects) {
-          setProjects(projectsData.data.projects);
+        // Projects API returns { projects: [...], success: true }
+        if (projectsData.success && projectsData.projects) {
+          setProjects(projectsData.projects);
         }
         
-        if (tasksData.success && tasksData.data?.tasks) {
-          const visibleTasks = tasksData.data.tasks.filter((t: Task) => t.isVisible);
+        // Tasks API returns { tasks: [...], success: true }
+        if (tasksData.success && tasksData.tasks) {
+          const visibleTasks = tasksData.tasks.filter((t: Task) => t.isVisible);
           setTasks(visibleTasks);
         }
         setLoading(false);

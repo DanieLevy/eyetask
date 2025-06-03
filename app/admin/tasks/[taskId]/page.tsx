@@ -144,7 +144,7 @@ export default function TaskManagement() {
         fetch('/api/tasks', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/api/admin/dashboard', {
+        fetch('/api/projects', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch(`/api/tasks/${taskId}/subtasks`, {
@@ -162,25 +162,43 @@ export default function TaskManagement() {
         subtasksRes.json()
       ]);
 
-      if (tasksData.success && tasksData.data?.tasks) {
-        const foundTask = tasksData.data.tasks.find((t: Task) => t.id === taskId);
+      // Handle both response formats for tasks
+      let tasks = [];
+      if (tasksData.success && tasksData.tasks) {
+        tasks = tasksData.tasks;
+      }
+
+      if (tasks.length > 0) {
+        const foundTask = tasks.find((t: Task) => t.id === taskId);
         if (foundTask) {
           setTask(foundTask);
         }
       }
 
-      if (projectsData.data?.projects) {
-        setProject(projectsData.data.projects.find((p: Project) => p.id === task?.projectId) || null);
+      // Handle both response formats for projects
+      let projects = [];
+      if (projectsData.success && projectsData.projects) {
+        projects = projectsData.projects;
       }
 
+      if (projects.length > 0 && task) {
+        const foundProject = projects.find((p: Project) => p.id === task.projectId);
+        setProject(foundProject || null);
+      }
+
+      // Handle both response formats for subtasks
+      let taskSubtasks = [];
       if (subtasksData.success && Array.isArray(subtasksData.data)) {
-        const taskSubtasks = subtasksData.data;
-        setSubtasks(taskSubtasks);
+        taskSubtasks = subtasksData.data;
       } else if (subtasksData.success && subtasksData.data?.subtasks && Array.isArray(subtasksData.data.subtasks)) {
-        const taskSubtasks = subtasksData.data.subtasks;
-        setSubtasks(taskSubtasks);
+        taskSubtasks = subtasksData.data.subtasks;
+      } else if (Array.isArray(subtasksData.subtasks)) {
+        taskSubtasks = subtasksData.subtasks;
+      } else if (Array.isArray(subtasksData)) {
+        taskSubtasks = subtasksData;
       }
 
+      setSubtasks(taskSubtasks);
       setLoading(false);
     } catch (error) {
       console.error('💥 Error fetching task data:', error);
