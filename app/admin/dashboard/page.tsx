@@ -54,7 +54,7 @@ interface Task {
   id: string;
   title: string;
   datacoNumber: string;
-  project: string;
+  projectId: string;
   priority: number;
   isVisible: boolean;
   amountNeeded: number;
@@ -64,7 +64,7 @@ interface Task {
 interface Project {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,7 +72,7 @@ interface Project {
 interface EditTaskData {
   title: string;
   description: string;
-  project: string;
+  projectId: string;
   priority: number;
   amountNeeded: number;
 }
@@ -81,7 +81,7 @@ interface NewTaskData {
   title: string;
   datacoNumber: string;
   description: string;
-  project: string;
+  projectId: string;
   type: string[];
   locations: string[];
   amountNeeded: number;
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
   const [editFormData, setEditFormData] = useState<EditTaskData>({
     title: '',
     description: '',
-    project: '',
+    projectId: '',
     priority: 1,
     amountNeeded: 0
   });
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
     title: '',
     datacoNumber: '',
     description: '',
-    project: '',
+    projectId: '',
     type: ['events'],
     locations: ['Urban'],
     amountNeeded: 1,
@@ -381,7 +381,7 @@ export default function AdminDashboard() {
           main: newTaskData.description,
           howToExecute: "יש לעקוב אחר הוראות המשימה"
         },
-        project: newTaskData.project,
+        projectId: newTaskData.projectId,
         type: newTaskData.type,
         locations: newTaskData.locations,
         amountNeeded: newTaskData.amountNeeded,
@@ -411,7 +411,7 @@ export default function AdminDashboard() {
           title: '',
           datacoNumber: '',
           description: '',
-          project: '',
+          projectId: '',
           type: ['events'],
           locations: ['Urban'],
           amountNeeded: 1,
@@ -505,6 +505,11 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error refreshing data:', error);
     }
+  };
+
+  const getProjectName = (projectId: string): string => {
+    const project = projects.find(p => p.id === projectId);
+    return project ? project.name : 'Unknown Project';
   };
 
   const getPriorityColor = (priority: number) => {
@@ -699,7 +704,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>פרויקט: {task.project}</span>
+                          <span>פרויקט: {getProjectName(task.projectId)}</span>
                           <span>עדיפות: {task.priority}</span>
                           <span>כמות: {task.amountNeeded}</span>
                         </div>
@@ -711,7 +716,7 @@ export default function AdminDashboard() {
                             setEditFormData({
                               title: task.title,
                               description: task.description || '',
-                              project: task.project,
+                              projectId: task.projectId,
                               priority: task.priority,
                               amountNeeded: task.amountNeeded
                             });
@@ -824,12 +829,12 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">פרויקט</label>
                 <select
-                  value={editFormData.project}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, project: e.target.value }))}
+                  value={editFormData.projectId}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, projectId: e.target.value }))}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                 >
                   {projects.map(project => (
-                    <option key={project.id} value={project.name}>{project.name}</option>
+                    <option key={project.id} value={project.id}>{project.name}</option>
                   ))}
                 </select>
               </div>
@@ -912,13 +917,13 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">פרויקט</label>
                 <select
-                  value={newTaskData.project}
-                  onChange={(e) => setNewTaskData(prev => ({ ...prev, project: e.target.value }))}
+                  value={newTaskData.projectId}
+                  onChange={(e) => setNewTaskData(prev => ({ ...prev, projectId: e.target.value }))}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                 >
                   <option value="">בחר פרויקט</option>
                   {projects.map(project => (
-                    <option key={project.id} value={project.name}>{project.name}</option>
+                    <option key={project.id} value={project.id}>{project.name}</option>
                   ))}
                 </select>
               </div>
@@ -933,21 +938,11 @@ export default function AdminDashboard() {
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={newTaskData.amountNeeded}
-                  onChange={(e) => setNewTaskData(prev => ({ ...prev, amountNeeded: parseInt(e.target.value) }))}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                />
-              </div>
             </div>
             <div className="p-6 border-t border-border flex gap-3">
               <button
                 onClick={handleCreateTask}
-                disabled={operationLoading || !newTaskData.title || !newTaskData.project}
+                disabled={operationLoading || !newTaskData.title || !newTaskData.projectId}
                 className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {operationLoading ? 'יוצר...' : 'צור משימה'}

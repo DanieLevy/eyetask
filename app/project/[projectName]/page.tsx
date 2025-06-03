@@ -26,7 +26,7 @@ interface Task {
     main: string;
     howToExecute: string;
   };
-  project: string;
+  projectId: string;
   type: ('events' | 'hours')[];
   locations: string[];
   amountNeeded: number;
@@ -71,6 +71,23 @@ export default function ProjectPage() {
         // Add cache busting timestamp
         const timestamp = Date.now();
         
+        // First, fetch all projects to find the project ID by name
+        const projectsResponse = await fetch(`/api/projects?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        const projectsData = await projectsResponse.json();
+        const project = projectsData.projects?.find((p: any) => p.name === projectName);
+        
+        if (!project) {
+          console.error('Project not found:', projectName);
+          setLoading(false);
+          return;
+        }
+        
         // Fetch tasks for this project with cache busting
         const tasksResponse = await fetch(`/api/tasks?_t=${timestamp}`, {
           headers: {
@@ -83,7 +100,7 @@ export default function ProjectPage() {
         console.log('📦 Project page - All tasks:', tasksData.tasks);
         
         const projectTasks = (tasksData.tasks || []).filter(
-          (task: Task) => task.project === projectName && task.isVisible
+          (task: Task) => task.projectId === project.id && task.isVisible
         );
         
         console.log('📦 Project page - Filtered tasks for', projectName, ':', projectTasks);

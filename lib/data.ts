@@ -12,7 +12,7 @@ export interface Task {
     main: string;
     howToExecute: string;
   };
-  project: string;
+  projectId: string;
   type: ('events' | 'hours')[];
   locations: string[];
   amountNeeded: number;
@@ -35,6 +35,7 @@ export interface Subtask {
   type: 'events' | 'hours';
   amountNeeded: number;
   labels: string[];
+  targetCar: string[];
   weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
   createdAt: string;
@@ -44,7 +45,7 @@ export interface Subtask {
 export interface Project {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -218,6 +219,21 @@ export async function getTaskById(id: string): Promise<Task | null> {
   }
 }
 
+export async function getTasksByProjectId(projectId: string): Promise<Task[]> {
+  try {
+    validateRequired({ projectId }, ['projectId'], 'GET_TASKS_BY_PROJECT');
+    
+    const tasks = await getAllTasks();
+    const projectTasks = tasks.filter(task => task.projectId === projectId);
+    
+    logger.dataOperation('read', 'tasks_by_project', projectId, { count: projectTasks.length });
+    return projectTasks;
+  } catch (error) {
+    logger.dataOperation('read', 'tasks_by_project', projectId, undefined, error as Error);
+    throw error;
+  }
+}
+
 export async function getVisibleTasks(): Promise<Task[]> {
   try {
     const tasks = await getAllTasks();
@@ -233,18 +249,9 @@ export async function getVisibleTasks(): Promise<Task[]> {
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
   try {
-    // Validate required fields
-    const requiredFields = ['title', 'datacoNumber', 'description', 'project', 'type', 'locations', 'amountNeeded', 'targetCar', 'dayTime', 'priority'];
+    // Validate required fields (amountNeeded removed since it's auto-calculated)
+    const requiredFields = ['title', 'datacoNumber', 'description', 'projectId', 'type', 'locations', 'targetCar', 'dayTime', 'priority'];
     validateRequired(task, requiredFields, 'CREATE_TASK');
-    
-    // Additional validation
-    if (!Array.isArray(task.type) || task.type.length === 0) {
-      throw new AppError('Task type must be a non-empty array', 400, 'CREATE_TASK');
-    }
-    
-    if (task.priority < 0 || task.priority > 10) {
-      throw new AppError('Task priority must be between 0 and 10', 400, 'CREATE_TASK');
-    }
     
     const tasks = await getAllTasks();
     
@@ -253,9 +260,16 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedA
       throw new AppError(`Task with DATACO number ${task.datacoNumber} already exists`, 409, 'CREATE_TASK');
     }
     
+    // Verify project exists
+    const project = await getProjectById(task.projectId);
+    if (!project) {
+      throw new AppError(`Project ${task.projectId} not found`, 404, 'CREATE_TASK');
+    }
+    
     const newTask: Task = {
       ...task,
       id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      amountNeeded: 0, // Will be calculated from subtasks
       isVisible: task.isVisible !== undefined ? task.isVisible : true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -264,7 +278,11 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedA
     tasks.push(newTask);
     await writeJsonFile(TASKS_FILE, { tasks });
     
-    logger.dataOperation('create', 'task', newTask.id, { title: newTask.title, datacoNumber: newTask.datacoNumber });
+    logger.dataOperation('create', 'task', newTask.id, { 
+      title: newTask.title, 
+      projectId: newTask.projectId 
+    });
+    
     return newTask;
   } catch (error) {
     logger.dataOperation('create', 'task', undefined, undefined, error as Error);
@@ -397,20 +415,20 @@ export async function getSubtaskById(id: string): Promise<Subtask | null> {
 export async function createSubtask(subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subtask> {
   try {
     // Validate required fields
-    const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'weather', 'scene'];
+    const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'targetCar', 'weather', 'scene'];
     validateRequired(subtask, requiredFields, 'CREATE_SUBTASK');
-    
-    // Verify parent task exists
-    const parentTask = await getTaskById(subtask.taskId);
-    if (!parentTask) {
-      throw new AppError(`Parent task ${subtask.taskId} not found`, 404, 'CREATE_SUBTASK');
-    }
     
     const subtasks = await getAllSubtasks();
     
     // Check for duplicate DATACO number
     if (subtasks.some(s => s.datacoNumber === subtask.datacoNumber)) {
       throw new AppError(`Subtask with DATACO number ${subtask.datacoNumber} already exists`, 409, 'CREATE_SUBTASK');
+    }
+    
+    // Verify parent task exists
+    const parentTask = await getTaskById(subtask.taskId);
+    if (!parentTask) {
+      throw new AppError(`Parent task ${subtask.taskId} not found`, 404, 'CREATE_SUBTASK');
     }
     
     const newSubtask: Subtask = {
@@ -423,10 +441,12 @@ export async function createSubtask(subtask: Omit<Subtask, 'id' | 'createdAt' | 
     subtasks.push(newSubtask);
     await writeJsonFile(SUBTASKS_FILE, { subtasks });
     
+    // Auto-update parent task amount
+    await updateTaskAmount(subtask.taskId);
+    
     logger.dataOperation('create', 'subtask', newSubtask.id, { 
-      title: newSubtask.title, 
-      taskId: newSubtask.taskId,
-      datacoNumber: newSubtask.datacoNumber 
+      title: newSubtask.title,
+      taskId: newSubtask.taskId 
     });
     
     return newSubtask;
@@ -447,6 +467,8 @@ export async function updateSubtask(id: string, updates: Partial<Subtask>): Prom
       logger.dataOperation('update', 'subtask', id, { found: false });
       return null;
     }
+    
+    const oldTaskId = subtasks[subtaskIndex].taskId;
     
     // Validate updates
     if (updates.datacoNumber) {
@@ -472,6 +494,12 @@ export async function updateSubtask(id: string, updates: Partial<Subtask>): Prom
     
     await writeJsonFile(SUBTASKS_FILE, { subtasks });
     
+    // Auto-update parent task amounts
+    await updateTaskAmount(oldTaskId);
+    if (updates.taskId && updates.taskId !== oldTaskId) {
+      await updateTaskAmount(updates.taskId);
+    }
+    
     logger.dataOperation('update', 'subtask', id, { 
       changes: Object.keys(updates),
       title: subtasks[subtaskIndex].title 
@@ -489,15 +517,20 @@ export async function deleteSubtask(id: string): Promise<boolean> {
     validateRequired({ id }, ['id'], 'DELETE_SUBTASK');
     
     const subtasks = await getAllSubtasks();
-    const initialLength = subtasks.length;
-    const filteredSubtasks = subtasks.filter(subtask => subtask.id !== id);
+    const subtaskToDelete = subtasks.find(subtask => subtask.id === id);
     
-    if (filteredSubtasks.length === initialLength) {
+    if (!subtaskToDelete) {
       logger.dataOperation('delete', 'subtask', id, { found: false });
       return false;
     }
     
+    const taskId = subtaskToDelete.taskId;
+    const filteredSubtasks = subtasks.filter(subtask => subtask.id !== id);
+    
     await writeJsonFile(SUBTASKS_FILE, { subtasks: filteredSubtasks });
+    
+    // Auto-update parent task amount
+    await updateTaskAmount(taskId);
     
     logger.dataOperation('delete', 'subtask', id);
     return true;
@@ -536,7 +569,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
 
 export async function createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
   try {
-    validateRequired(project, ['name', 'description'], 'CREATE_PROJECT');
+    validateRequired(project, ['name'], 'CREATE_PROJECT');
     
     const projects = await getAllProjects();
     
@@ -755,4 +788,28 @@ export async function healthCheck(): Promise<{ status: string; checks: Record<st
     status: allHealthy ? 'healthy' : 'unhealthy',
     checks
   };
+}
+
+// Auto-calculate task amount from subtasks
+export async function calculateTaskAmount(taskId: string): Promise<number> {
+  try {
+    const subtasks = await getSubtasksByTaskId(taskId);
+    const totalAmount = subtasks.reduce((sum, subtask) => sum + subtask.amountNeeded, 0);
+    logger.debug(`Calculated amount for task ${taskId}: ${totalAmount}`, 'CALC_AMOUNT');
+    return totalAmount;
+  } catch (error) {
+    logger.error('Error calculating task amount', 'CALC_AMOUNT', { taskId }, error as Error);
+    return 0;
+  }
+}
+
+// Update task amount based on subtasks
+export async function updateTaskAmount(taskId: string): Promise<void> {
+  try {
+    const calculatedAmount = await calculateTaskAmount(taskId);
+    await updateTask(taskId, { amountNeeded: calculatedAmount });
+    logger.info('Task amount updated', 'UPDATE_AMOUNT', { taskId, amount: calculatedAmount });
+  } catch (error) {
+    logger.error('Error updating task amount', 'UPDATE_AMOUNT', { taskId }, error as Error);
+  }
 } 

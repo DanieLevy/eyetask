@@ -7,7 +7,7 @@ import { Menu, Eye, Calendar, Users, BarChart3 } from 'lucide-react';
 interface Project {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,7 +15,7 @@ interface Project {
 interface Task {
   id: string;
   title: string;
-  project: string;
+  projectId: string;
   priority: number;
   isVisible: boolean;
 }
@@ -101,13 +101,13 @@ export default function HomePage() {
     }
   }, []);
 
-  const getTaskCountForProject = (projectName: string) => {
-    return tasks.filter(task => task.project === projectName && task.isVisible).length;
+  const getTaskCountForProject = (projectId: string) => {
+    return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
   };
 
-  const getHighPriorityTasksForProject = (projectName: string) => {
+  const getHighPriorityTasksForProject = (projectId: string) => {
     return tasks.filter(task => 
-      task.project === projectName && 
+      task.projectId === projectId && 
       task.isVisible && 
       task.priority >= 1 && 
       task.priority <= 3
@@ -228,8 +228,8 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => {
-                const taskCount = getTaskCountForProject(project.name);
-                const highPriorityCount = getHighPriorityTasksForProject(project.name);
+                const taskCount = getTaskCountForProject(project.id);
+                const highPriorityCount = getHighPriorityTasksForProject(project.id);
                 
                 return (
                   <Link

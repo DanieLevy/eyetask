@@ -43,16 +43,12 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     
-    // Validate required fields
-    const requiredFields = ['name', 'description'];
-    
-    for (const field of requiredFields) {
-      if (!(field in body)) {
-        return NextResponse.json(
-          { error: `Missing required field: ${field}`, success: false },
-          { status: 400 }
-        );
-      }
+    // Validate required fields (description is optional)
+    if (!body.name) {
+      return NextResponse.json(
+        { error: 'Missing required field: name', success: false },
+        { status: 400 }
+      );
     }
     
     const newProject = await createProject(body);
