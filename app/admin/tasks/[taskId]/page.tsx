@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
+import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 
 interface Task {
   id: string;
@@ -93,6 +95,7 @@ export default function TaskManagement() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Form states
   const [showNewSubtaskForm, setShowNewSubtaskForm] = useState(false);
@@ -185,6 +188,87 @@ export default function TaskManagement() {
   useTasksRealtime(handleTaskChange);
   useSubtasksRealtime(taskId, handleSubtaskChange);
 
+  const fetchTaskData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Add cache busting timestamp
+      const timestamp = Date.now();
+      
+      // Fetch task details
+      const taskResponse = await fetch(`/api/tasks/${taskId}?_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!taskResponse.ok) {
+        const errorData = await taskResponse.json();
+        console.error('Failed to fetch task:', errorData);
+        setError(errorData.message || 'Failed to fetch task');
+        setLoading(false);
+        return;
+      }
+      
+      const taskData = await taskResponse.json();
+      
+      // Handle both formats for consistency
+      const taskInfo = taskData.data?.task || taskData.task;
+      
+      if (!taskInfo) {
+        setError('Task not found');
+        setLoading(false);
+        return;
+      }
+      
+      setTask(taskInfo);
+      
+      // Fetch project details
+      if (taskInfo.projectId) {
+        const projectResponse = await fetch(`/api/projects/${taskInfo.projectId}?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        if (projectResponse.ok) {
+          const projectData = await projectResponse.json();
+          setProject(projectData.data?.project || projectData.project);
+        }
+      }
+      
+      // Fetch subtasks
+      const subtasksResponse = await fetch(`/api/tasks/${taskId}/subtasks?_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (subtasksResponse.ok) {
+        const subtasksData = await subtasksResponse.json();
+        // Handle both formats
+        const subtasksList = subtasksData.data?.subtasks || subtasksData.subtasks || [];
+        setSubtasks(subtasksList);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching task data:', error);
+      setError('Failed to load task data');
+      setLoading(false);
+    }
+  }, [taskId]);
+
+  // Register this page's refresh function
+  usePageRefresh(fetchTaskData);
+
+  useEffect(() => {
+    fetchTaskData();
+  }, [fetchTaskData]);
+
   useEffect(() => {
     // Check authentication
     const token = localStorage.getItem('adminToken');
@@ -205,82 +289,7 @@ export default function TaskManagement() {
       router.push('/admin');
       return;
     }
-
-    fetchTaskData();
   }, [taskId, router]);
-
-  const fetchTaskData = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-
-      const [tasksRes, projectsRes, subtasksRes] = await Promise.all([
-        fetch('/api/tasks', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('/api/projects', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`/api/subtasks?taskId=${taskId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      if (!tasksRes.ok || !projectsRes.ok || !subtasksRes.ok) {
-        throw new Error('Failed to fetch data');
-      }
-
-      const [tasksData, projectsData, subtasksData] = await Promise.all([
-        tasksRes.json(),
-        projectsRes.json(),
-        subtasksRes.json()
-      ]);
-
-      // Handle both response formats for tasks
-      let tasks = [];
-      if (tasksData.success && tasksData.tasks) {
-        tasks = tasksData.tasks;
-      }
-
-      if (tasks.length > 0) {
-        const foundTask = tasks.find((t: Task) => t.id === taskId);
-        if (foundTask) {
-          setTask(foundTask);
-        }
-      }
-
-      // Handle both response formats for projects
-      let projects = [];
-      if (projectsData.success && projectsData.projects) {
-        projects = projectsData.projects;
-      }
-
-      if (projects.length > 0 && task) {
-        const foundProject = projects.find((p: Project) => p.id === task.projectId);
-        setProject(foundProject || null);
-      }
-
-      // Handle both response formats for subtasks
-      let taskSubtasks = [];
-      if (subtasksData.success && Array.isArray(subtasksData.data)) {
-        taskSubtasks = subtasksData.data;
-      } else if (subtasksData.success && subtasksData.subtasks && Array.isArray(subtasksData.subtasks)) {
-        taskSubtasks = subtasksData.subtasks;
-      } else if (Array.isArray(subtasksData.subtasks)) {
-        taskSubtasks = subtasksData.subtasks;
-      } else if (Array.isArray(subtasksData)) {
-        taskSubtasks = subtasksData;
-      }
-
-      setSubtasks(taskSubtasks);
-      setLoading(false);
-    } catch (error) {
-      console.error('💥 Error fetching task data:', error);
-      setLoading(false);
-    }
-  };
 
   const handleCreateSubtask = async () => {
     if (!task) return;
@@ -621,14 +630,14 @@ export default function TaskManagement() {
                 <MapPin className="h-4 w-4" />
                 מיקומים
               </h5>
-              <p className="text-sm">{task.locations.join(', ')}</p>
+              <p className="text-sm">{capitalizeEnglishArray(task.locations).join(', ')}</p>
             </div>
             <div className="bg-muted/30 rounded-lg p-4">
               <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
                 <Car className="h-4 w-4" />
                 רכבי יעד
               </h5>
-              <p className="text-sm">{task.targetCar.join(', ')}</p>
+              <p className="text-sm">{capitalizeEnglishArray(task.targetCar).join(', ')}</p>
             </div>
             <div className="bg-muted/30 rounded-lg p-4">
               <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
@@ -642,7 +651,7 @@ export default function TaskManagement() {
                 <FileText className="h-4 w-4" />
                 סוג משימה
               </h5>
-              <p className="text-sm">{task.type.join(', ')}</p>
+              <p className="text-sm">{capitalizeEnglishArray(task.type).join(', ')}</p>
             </div>
             {task.lidar && (
               <div className="bg-muted/30 rounded-lg p-4">
@@ -757,7 +766,7 @@ export default function TaskManagement() {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             subtask.type === 'events' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                           }`}>
-                            {subtask.type}
+                            {capitalizeEnglish(subtask.type)}
                           </span>
                         </div>
                         {subtask.subtitle && (
@@ -767,11 +776,11 @@ export default function TaskManagement() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                           <div className="flex items-center gap-1">
                             <Target className="h-3 w-3 text-muted-foreground" />
-                            <span>{subtask.amountNeeded} {subtask.type}</span>
+                            <span>{subtask.amountNeeded} {capitalizeEnglish(subtask.type)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Cloud className="h-3 w-3 text-muted-foreground" />
-                            <span>{subtask.weather}</span>
+                            <span>{capitalizeEnglish(subtask.weather)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Building className="h-3 w-3 text-muted-foreground" />
@@ -779,7 +788,7 @@ export default function TaskManagement() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Car className="h-3 w-3 text-muted-foreground" />
-                            <span>{subtask.targetCar.join(', ')}</span>
+                            <span>{capitalizeEnglishArray(subtask.targetCar).join(', ')}</span>
                           </div>
                         </div>
                         
@@ -922,16 +931,16 @@ export default function TaskManagement() {
                 <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
                 <input
                   type="text"
-                  value={newSubtaskData.labels.join(', ')}
+                  value={newSubtaskData.labels.join(' ')}
                   onChange={(e) => {
                     const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(',').map(label => label.trim()).filter(label => label.length > 0);
+                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
                     setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
                   }}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות בפסיק (למשל: urban, daytime, clear weather)"
+                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
                 />
-                <p className="text-xs text-muted-foreground mt-1">הזן תוויות מופרדות בפסיק</p>
+                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
               </div>
 
               <div>
@@ -988,7 +997,7 @@ export default function TaskManagement() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד (ירושה מהמשימה)</label>
                 <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {task?.targetCar.join(', ') || 'לא נבחרו רכבים'}
+                  {capitalizeEnglishArray(task?.targetCar || []).join(', ') || 'לא נבחרו רכבים'}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
               </div>
@@ -1094,16 +1103,16 @@ export default function TaskManagement() {
                 <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
                 <input
                   type="text"
-                  value={editingSubtask.labels.join(', ')}
+                  value={editingSubtask.labels.join(' ')}
                   onChange={(e) => {
                     const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(',').map(label => label.trim()).filter(label => label.length > 0);
+                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
                     setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
                   }}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות בפסיק"
+                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
                 />
-                <p className="text-xs text-muted-foreground mt-1">הזן תוויות מופרדות בפסיק</p>
+                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1142,7 +1151,7 @@ export default function TaskManagement() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד (ירושה מהמשימה)</label>
                 <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {editingSubtask.targetCar.join(', ')}
+                  {capitalizeEnglishArray(editingSubtask.targetCar).join(', ')}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
               </div>
@@ -1349,29 +1358,33 @@ export default function TaskManagement() {
                 </div>
               </div>
 
-              {/* Target Cars (Multi-select) */}
+              {/* Target Cars (Editable input) */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">רכבי יעד * (ניתן לבחור מספר)</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {['EQ', 'EQS', 'EQE', 'GLS', 'S-Class', 'E-Class'].map(car => (
-                    <label key={car} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editTaskData.targetCar?.includes(car) || false}
-                        onChange={(e) => {
-                          const currentCars = editTaskData.targetCar || [];
-                          if (e.target.checked) {
-                            setEditTaskData(prev => ({ ...prev, targetCar: [...currentCars, car] }));
-                          } else {
-                            setEditTaskData(prev => ({ ...prev, targetCar: currentCars.filter(c => c !== car) }));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      {car}
-                    </label>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
+                <input
+                  type="text"
+                  value={(editTaskData.targetCar || []).join(' ')}
+                  onChange={(e) => {
+                    const carsText = e.target.value;
+                    const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
+                    setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                  }}
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                  placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
+                />
+                <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
+                {(editTaskData.targetCar || []).length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editTaskData.targetCar?.map((car, index) => (
+                      <span 
+                        key={index}
+                        className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
+                      >
+                        {car}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Day Time (Multi-select) */}

@@ -9,8 +9,14 @@ import {
   Plus,
   RefreshCw,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft,
+  Trash2,
+  Save,
+  RotateCcw
 } from 'lucide-react';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 
 interface Project {
   id: string;
@@ -414,28 +420,33 @@ export default function NewTaskPage() {
                   </div>
                 </div>
 
-                {/* Target Cars (Multi-select) */}
+                {/* Target Cars (Editable input) */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">רכבי יעד * (ניתן לבחור מספר)</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {['EQ', 'EQS', 'EQE', 'GLS', 'S-Class', 'E-Class'].map(car => (
-                      <label key={car} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newTaskData.targetCar.includes(car)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewTaskData(prev => ({ ...prev, targetCar: [...prev.targetCar, car] }));
-                            } else {
-                              setNewTaskData(prev => ({ ...prev, targetCar: prev.targetCar.filter(c => c !== car) }));
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        {car}
-                      </label>
-                    ))}
-                  </div>
+                  <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
+                  <input
+                    type="text"
+                    value={newTaskData.targetCar.join(' ')}
+                    onChange={(e) => {
+                      const carsText = e.target.value;
+                      const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
+                      setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                    }}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
+                  {newTaskData.targetCar.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {newTaskData.targetCar.map((car, index) => (
+                        <span 
+                          key={index}
+                          className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
+                        >
+                          {car}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Day Time (Multi-select) */}

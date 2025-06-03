@@ -4,6 +4,8 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AdminClientLayout from "@/components/AdminClientLayout";
+import { RefreshProvider } from "@/hooks/usePageRefresh";
+import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -61,13 +63,17 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AdminClientLayout>
-          <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
-            <Header />
-            <main className="flex-1 overflow-auto bg-background">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          <RefreshProvider>
+            <GlobalPullToRefresh>
+              <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
+                <Header />
+                <main className="flex-1 overflow-auto bg-background">
+                  {children}
+                </main>
+                <Footer />
+              </div>
+            </GlobalPullToRefresh>
+          </RefreshProvider>
         </AdminClientLayout>
       </body>
     </html>

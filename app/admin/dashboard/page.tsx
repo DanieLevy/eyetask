@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 
 interface DashboardData {
   totalTasks: number;
@@ -164,8 +165,45 @@ export default function AdminDashboard() {
   }, []);
 
   // Set up realtime subscriptions
-  useProjectsRealtime(handleProjectChange);
   useTasksRealtime(handleTaskChange);
+  useProjectsRealtime(handleProjectChange);
+
+  const refreshData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const timestamp = Date.now();
+      
+      const [dashboardRes, projectsRes, tasksRes] = await Promise.all([
+        fetch(`/api/admin/dashboard?_t=${timestamp}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }).then(res => res.json()),
+        fetch(`/api/projects?_t=${timestamp}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }).then(res => res.json()),
+        fetch(`/api/tasks?_t=${timestamp}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        }).then(res => res.json())
+      ]);
+
+      if (dashboardRes.success) setDashboardData(dashboardRes.dashboard);
+      if (projectsRes.success) setProjects(projectsRes.projects);
+      if (tasksRes.success) setTasks(tasksRes.tasks);
+    } catch (error) {
+      // Silent fail for refresh operations
+    }
+  }, []);
+
+  // Register this page's refresh function
+  usePageRefresh(refreshData);
 
   // Cache invalidation utility
   const clearCaches = async () => {
@@ -292,40 +330,6 @@ export default function AdminDashboard() {
       alert('Error creating project');
     } finally {
       setOperationLoading(false);
-    }
-  };
-
-  const refreshData = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      const timestamp = Date.now();
-      
-      const [dashboardRes, projectsRes, tasksRes] = await Promise.all([
-        fetch(`/api/admin/dashboard?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/projects?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/tasks?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json())
-      ]);
-
-      if (dashboardRes.success) setDashboardData(dashboardRes.dashboard);
-      if (projectsRes.success) setProjects(projectsRes.projects);
-      if (tasksRes.success) setTasks(tasksRes.tasks);
-    } catch (error) {
-      // Silent fail for refresh operations
     }
   };
 

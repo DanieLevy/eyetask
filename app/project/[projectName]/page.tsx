@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
+import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 
 interface Task {
   id: string;
@@ -124,81 +126,84 @@ export default function ProjectPage() {
   // Set up realtime subscription for tasks
   useTasksRealtime(handleTaskChange);
 
-  useEffect(() => {
-    const fetchProjectData = async () => {
-      try {
-        // Add cache busting timestamp
-        const timestamp = Date.now();
-        
-        // First, fetch all projects to find the project ID by name
-        const projectsResponse = await fetch(`/api/projects?_t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        const projectsData = await projectsResponse.json();
-        const project = projectsData.projects?.find((p: any) => p.name === projectName);
-        
-        if (!project) {
-          console.error('Project not found:', projectName);
-          setLoading(false);
-          return;
+  const fetchProjectData = useCallback(async () => {
+    try {
+      // Add cache busting timestamp
+      const timestamp = Date.now();
+      
+      // First, fetch all projects to find the project ID by name
+      const projectsResponse = await fetch(`/api/projects?_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
-        
-        // Fetch tasks for this project with cache busting
-        const tasksResponse = await fetch(`/api/tasks?_t=${timestamp}`, {
+      });
+      
+      const projectsData = await projectsResponse.json();
+      const project = projectsData.projects?.find((p: any) => p.name === projectName);
+      
+      if (!project) {
+        console.error('Project not found:', projectName);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch tasks for this project with cache busting
+      const tasksResponse = await fetch(`/api/tasks?_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      const tasksData = await tasksResponse.json();
+      
+      // Find all visible tasks for this project - simplified and more robust filtering
+      const allTasks = tasksData.tasks || [];
+      
+      const projectTasks = allTasks.filter((task: Task) => {
+        const isVisible = task.isVisible;
+        const belongsToProject = task.projectId === project.id;
+        return isVisible && belongsToProject;
+      });
+      
+      setTasks(projectTasks);
+      
+      // Fetch subtasks for each task with cache busting
+      const subtaskPromises = projectTasks.map(async (task: Task) => {
+        const subtaskResponse = await fetch(`/api/tasks/${task.id}/subtasks?_t=${timestamp}`, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
           }
         });
-        
-        const tasksData = await tasksResponse.json();
-        
-        // Find all visible tasks for this project - simplified and more robust filtering
-        const allTasks = tasksData.tasks || [];
-        
-        const projectTasks = allTasks.filter((task: Task) => {
-          const isVisible = task.isVisible;
-          const belongsToProject = task.projectId === project.id;
-          return isVisible && belongsToProject;
-        });
-        
-        setTasks(projectTasks);
-        
-        // Fetch subtasks for each task with cache busting
-        const subtaskPromises = projectTasks.map(async (task: Task) => {
-          const subtaskResponse = await fetch(`/api/tasks/${task.id}/subtasks?_t=${timestamp}`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          });
-          const subtaskData = await subtaskResponse.json();
-          // Handle both old and new response formats
-          const subtasks = subtaskData.data?.subtasks || subtaskData.subtasks || [];
-          return { taskId: task.id, subtasks };
-        });
-        
-        const subtaskResults = await Promise.all(subtaskPromises);
-        const subtaskMap: Record<string, Subtask[]> = {};
-        subtaskResults.forEach(({ taskId, subtasks }) => {
-          subtaskMap[taskId] = subtasks;
-        });
-        
-        setSubtasks(subtaskMap);
-        setLoading(false);
-        setProjectId(project.id);
-      } catch (error) {
-        console.error('Error fetching project data:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchProjectData();
+        const subtaskData = await subtaskResponse.json();
+        // Handle both old and new response formats
+        const subtasks = subtaskData.data?.subtasks || subtaskData.subtasks || [];
+        return { taskId: task.id, subtasks };
+      });
+      
+      const subtaskResults = await Promise.all(subtaskPromises);
+      const subtaskMap: Record<string, Subtask[]> = {};
+      subtaskResults.forEach(({ taskId, subtasks }) => {
+        subtaskMap[taskId] = subtasks;
+      });
+      
+      setSubtasks(subtaskMap);
+      setLoading(false);
+      setProjectId(project.id);
+    } catch (error) {
+      console.error('Error fetching project data:', error);
+      setLoading(false);
+    }
   }, [projectName]);
+
+  // Register this page's refresh function
+  usePageRefresh(fetchProjectData);
+
+  useEffect(() => {
+    fetchProjectData();
+  }, [fetchProjectData]);
 
   const toggleTaskExpansion = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -359,15 +364,15 @@ export default function ProjectPage() {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              <strong>סוג:</strong> {task.type.join(', ')}
+                              <strong>סוג:</strong> {capitalizeEnglishArray(task.type).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
                               <MapPin className="h-4 w-4" />
-                              <strong>מיקומים:</strong> {task.locations.join(', ')}
+                              <strong>מיקומים:</strong> {capitalizeEnglishArray(task.locations).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
                               <Car className="h-4 w-4" />
-                              <strong>רכבי יעד:</strong> {task.targetCar.join(', ')}
+                              <strong>רכבי יעד:</strong> {capitalizeEnglishArray(task.targetCar).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
@@ -422,13 +427,11 @@ export default function ProjectPage() {
                                         className="w-full p-3 text-right hover:bg-muted/50 transition-colors"
                                       >
                                         <div className="flex items-center justify-between">
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-3">
-                                              <h5 className="font-medium text-foreground">{subtask.title}</h5>
-                                              <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-background rounded">
-                                                {formatDatacoNumber(subtask.datacoNumber)}
-                                              </span>
-                                            </div>
+                                          <div className="flex items-center gap-3">
+                                            <h5 className="font-medium text-foreground">{subtask.title}</h5>
+                                            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-background rounded">
+                                              {formatDatacoNumber(subtask.datacoNumber)}
+                                            </span>
                                           </div>
                                           <div className="flex items-center gap-2">
                                             {isSubtaskExpanded ? (
@@ -443,7 +446,7 @@ export default function ProjectPage() {
                                       {/* Subtask Details - Collapsible */}
                                       {isSubtaskExpanded && (
                                         <div className="px-3 pb-3 border-t border-border/50">
-                                          <div className="pt-3 space-y-3">
+                                          <div className="pt-3 space-y-4">
                                             {/* Subtitle */}
                                             {subtask.subtitle && (
                                               <div>
@@ -451,46 +454,47 @@ export default function ProjectPage() {
                                               </div>
                                             )}
                                             
-                                            {/* Basic Info */}
+                                            {/* Basic Info with Clear Labels */}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                              <div>
-                                                <span className="text-muted-foreground">
-                                                  <strong>סוג:</strong> {subtask.type === 'events' ? 'אירועים' : 'שעות'}
-                                                </span>
+                                              <div className="space-y-2">
+                                                <div>
+                                                  <span className="font-medium text-foreground">סוג: </span>
+                                                  <span className="text-muted-foreground">
+                                                    {subtask.type === 'events' ? 'אירועים' : 'שעות'} ({capitalizeEnglish(subtask.type)})
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  <span className="font-medium text-foreground">כמות נדרשת: </span>
+                                                  <span className="text-primary font-semibold">{subtask.amountNeeded}</span>
+                                                </div>
                                               </div>
-                                              <div>
-                                                <span className="text-muted-foreground">
-                                                  <strong>כמות נדרשת:</strong> {subtask.amountNeeded}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                <span className="text-muted-foreground">
-                                                  <strong>מזג אוויר:</strong> {subtask.weather}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                <span className="text-muted-foreground">
-                                                  <strong>סצנה:</strong> {subtask.scene}
-                                                </span>
+                                              <div className="space-y-2">
+                                                <div>
+                                                  <span className="font-medium text-foreground">מזג אוויר: </span>
+                                                  <span className="text-muted-foreground">{subtask.weather}</span>
+                                                </div>
+                                                <div>
+                                                  <span className="font-medium text-foreground">סצנה: </span>
+                                                  <span className="text-muted-foreground">{subtask.scene}</span>
+                                                </div>
                                               </div>
                                             </div>
 
                                             {/* Target Cars */}
                                             <div>
-                                              <p className="text-sm text-muted-foreground">
-                                                <strong>רכבי יעד:</strong> {subtask.targetCar.join(', ')}
-                                              </p>
+                                              <span className="font-medium text-foreground">רכבי יעד: </span>
+                                              <span className="text-muted-foreground">{capitalizeEnglishArray(subtask.targetCar).join(', ')}</span>
                                             </div>
 
-                                            {/* Labels */}
+                                            {/* Labels Section */}
                                             {subtask.labels.length > 0 && (
                                               <div>
-                                                <h6 className="text-sm font-medium text-foreground mb-2">לייבלים</h6>
+                                                <h6 className="font-medium text-foreground mb-2">לייבלים</h6>
                                                 <div className="flex flex-wrap gap-2">
                                                   {subtask.labels.map((label, index) => (
                                                     <span 
                                                       key={index}
-                                                      className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
+                                                      className="px-3 py-1 bg-black text-white text-sm rounded-md font-medium"
                                                     >
                                                       {label}
                                                     </span>
