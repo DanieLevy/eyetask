@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHealthCheckResponse, withApiHandler, createSuccessResponse } from '@/lib/middleware';
+import { createSuccessResponse, withApiHandler } from '@/lib/middleware';
 import { healthCheck } from '@/lib/data';
+import { getDatabase } from '@/lib/database';
 import { logger, AppError } from '@/lib/logger';
 
 // GET /api/health - Health check endpoint
@@ -8,6 +9,16 @@ export const GET = withApiHandler(async (req: NextRequest) => {
   try {
     // Perform comprehensive health checks
     const systemHealth = await healthCheck();
+    
+    // Test database connectivity
+    const db = getDatabase();
+    let dbStatus = 'disconnected';
+    try {
+      await db.getAllProjects();
+      dbStatus = 'connected';
+    } catch (error) {
+      logger.warn('Database health check failed', 'HEALTH', { error: (error as Error).message });
+    }
     
     // Check memory usage
     const memoryUsage = process.memoryUsage();
@@ -21,6 +32,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
+      netlify: process.env.NETLIFY ? 'yes' : 'no',
       uptime: {
         seconds: uptime,
         formatted: formatUptime(uptime)
@@ -33,17 +45,23 @@ export const GET = withApiHandler(async (req: NextRequest) => {
       },
       system: systemHealth.checks,
       database: {
-        status: systemHealth.status === 'healthy' ? 'connected' : 'disconnected',
-        type: 'json_files'
+        status: dbStatus,
+        type: 'in_memory'
+      },
+      features: {
+        auth: true,
+        projects: true,
+        tasks: true,
+        subtasks: true,
+        analytics: true
       }
     };
     
     // Determine overall status
-    const isHealthy = systemHealth.status === 'healthy' && memoryUsagePercent < 90;
+    const isHealthy = systemHealth.status === 'healthy' && memoryUsagePercent < 90 && dbStatus === 'connected';
     
     if (!isHealthy) {
       logger.warn('Health check failed', 'HEALTH', healthData);
-      
       return createSuccessResponse(healthData, 'Service degraded', 503, (req as any).requestId);
     }
     
