@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -17,6 +17,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 
 interface DashboardData {
   totalTasks: number;
@@ -92,6 +93,79 @@ export default function AdminDashboard() {
   const [operationLoading, setOperationLoading] = useState(false);
   
   const router = useRouter();
+
+  // Realtime handlers
+  const handleProjectChange = useCallback((payload: any) => {
+    console.log('🔄 Project realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setProjects(current => {
+      switch (eventType) {
+        case 'INSERT':
+          if (newRecord) {
+            const exists = current.find(p => p.id === newRecord.id);
+            return exists ? current : [...current, newRecord];
+          }
+          return current;
+          
+        case 'UPDATE':
+          if (newRecord) {
+            return current.map(project => 
+              project.id === newRecord.id ? newRecord : project
+            );
+          }
+          return current;
+          
+        case 'DELETE':
+          if (oldRecord) {
+            return current.filter(project => project.id !== oldRecord.id);
+          }
+          return current;
+          
+        default:
+          return current;
+      }
+    });
+  }, []);
+
+  const handleTaskChange = useCallback((payload: any) => {
+    console.log('🔄 Task realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setTasks(current => {
+      switch (eventType) {
+        case 'INSERT':
+          if (newRecord) {
+            const exists = current.find(t => t.id === newRecord.id);
+            return exists ? current : [...current, newRecord];
+          }
+          return current;
+          
+        case 'UPDATE':
+          if (newRecord) {
+            return current.map(task => 
+              task.id === newRecord.id ? newRecord : task
+            );
+          }
+          return current;
+          
+        case 'DELETE':
+          if (oldRecord) {
+            return current.filter(task => task.id !== oldRecord.id);
+          }
+          return current;
+          
+        default:
+          return current;
+      }
+    });
+  }, []);
+
+  // Set up realtime subscriptions
+  useProjectsRealtime(handleProjectChange);
+  useTasksRealtime(handleTaskChange);
 
   // Cache invalidation utility
   const clearCaches = async () => {

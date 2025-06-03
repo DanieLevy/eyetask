@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -8,18 +8,12 @@ import {
   Eye, 
   Target, 
   Plus,
-  Edit,
-  Trash2,
   EyeOff,
   RefreshCw,
-  Calendar,
-  MapPin,
-  Car,
-  Zap,
-  Clock,
   AlertTriangle,
   ChevronRight
 } from 'lucide-react';
+import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 
 interface Task {
   id: string;
@@ -89,7 +83,65 @@ export default function ProjectManagement() {
     priority: 5
   });
   const [operationLoading, setOperationLoading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Realtime handlers
+  const handleProjectChange = useCallback((payload: any) => {
+    console.log('🔄 Project realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    if (eventType === 'UPDATE' && newRecord && newRecord.id === projectId) {
+      // Update the current project
+      setProject(newRecord);
+    } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === projectId) {
+      // Project was deleted, redirect to dashboard
+      router.push('/admin/dashboard');
+    }
+  }, [projectId, router]);
+
+  const handleTaskChange = useCallback((payload: any) => {
+    console.log('🔄 Task realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setTasks(current => {
+      switch (eventType) {
+        case 'INSERT':
+          if (newRecord && newRecord.project_id === projectId) {
+            // Add new task
+            const exists = current.find(t => t.id === newRecord.id);
+            return exists ? current : [...current, newRecord];
+          }
+          return current;
+          
+        case 'UPDATE':
+          if (newRecord && newRecord.project_id === projectId) {
+            // Update existing task
+            return current.map(task => 
+              task.id === newRecord.id ? newRecord : task
+            );
+          } else if (newRecord && newRecord.project_id !== projectId) {
+            // Task was moved to another project, remove it
+            return current.filter(task => task.id !== newRecord.id);
+          }
+          return current;
+          
+        case 'DELETE':
+          if (oldRecord) {
+            // Remove deleted task
+            return current.filter(task => task.id !== oldRecord.id);
+          }
+          return current;
+          
+        default:
+          return current;
+      }
+    });
+  }, [projectId]);
+
+  // Set up realtime subscriptions
+  useProjectsRealtime(handleProjectChange);
+  useTasksRealtime(handleTaskChange);
 
   useEffect(() => {
     // Check authentication
@@ -237,29 +289,6 @@ export default function ProjectManagement() {
       }
     } catch (error) {
       console.error('Error toggling task visibility:', error);
-    }
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${taskId}?_t=${Date.now()}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-
-      if (response.ok) {
-        await fetchProjectData();
-        setDeleteConfirm(null);
-      }
-    } catch (error) {
-      console.error('Error deleting task:', error);
-    } finally {
-      setOperationLoading(false);
     }
   };
 
@@ -430,74 +459,55 @@ export default function ProjectManagement() {
                 {tasks
                   .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
                   .map((task) => (
-                    <div key={task.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-foreground">{task.title}</h4>
-                          <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded font-mono">
-                            {task.datacoNumber}
-                          </span>
-                          {task.priority > 0 && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
+                    <div key={task.id} className="relative bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+                      {/* Main clickable card area */}
+                      <Link
+                        href={`/admin/tasks/${task.id}`}
+                        className="block p-3 pr-14 cursor-pointer"
+                      >
+                        <div className="flex flex-col gap-2">
+                          {/* Title row with badges */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="font-medium text-foreground truncate flex-1 min-w-0">{task.title}</h4>
+                            <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded font-mono flex-shrink-0">
+                              {task.datacoNumber}
                             </span>
-                          )}
-                          {!task.isVisible && (
-                            <span className="text-xs text-red-500 px-2 py-1 bg-red-50 rounded flex items-center gap-1">
-                              <EyeOff className="h-3 w-3" />
-                              מוסתר
-                            </span>
-                          )}
-                        </div>
-                        {task.subtitle && (
-                          <p className="text-sm text-muted-foreground mb-2">{task.subtitle}</p>
-                        )}
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Target className="h-3 w-3" />
-                            {task.amountNeeded} נדרש
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {task.locations.join(', ')}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Car className="h-3 w-3" />
-                            {task.targetCar.join(', ')}
-                          </span>
-                          {task.lidar && (
-                            <span className="flex items-center gap-1">
-                              <Zap className="h-3 w-3" />
-                              LiDAR
-                            </span>
+                            {task.priority > 0 && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                                {getPriorityLabel(task.priority)}
+                              </span>
+                            )}
+                            {!task.isVisible && (
+                              <span className="text-xs text-red-500 px-2 py-1 bg-red-50 rounded flex items-center gap-1 flex-shrink-0">
+                                <EyeOff className="h-3 w-3" />
+                                מוסתר
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Subtitle */}
+                          {task.subtitle && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">{task.subtitle}</p>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/tasks/${task.id}`}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="נהל משימה"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
+                      </Link>
+                      
+                      {/* Action buttons - positioned on the right side */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
                         <button
-                          onClick={() => handleToggleVisibility(task.id, task.isVisible)}
-                          className={`p-2 rounded transition-colors ${
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleVisibility(task.id, task.isVisible);
+                          }}
+                          className={`p-1.5 rounded-full transition-colors ${
                             task.isVisible 
-                              ? 'text-orange-600 hover:bg-orange-50' 
-                              : 'text-green-600 hover:bg-green-50'
+                              ? 'text-orange-600 hover:bg-orange-50 bg-white/80' 
+                              : 'text-green-600 hover:bg-green-50 bg-white/80'
                           }`}
                           title={task.isVisible ? 'הסתר משימה' : 'הצג משימה'}
                         >
                           {task.isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(task.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="מחק משימה"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -718,34 +728,6 @@ export default function ProjectManagement() {
               >
                 ביטול
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-sm">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">אישור מחיקה</h3>
-              <p className="text-muted-foreground mb-4">האם אתה בטוח שברצונך למחוק את המשימה? פעולה זו תמחק גם את כל התת-משימות הקשורות.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleDeleteTask(deleteConfirm)}
-                  disabled={operationLoading}
-                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {operationLoading ? 'מוחק...' : 'מחק'}
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={operationLoading}
-                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
             </div>
           </div>
         </div>

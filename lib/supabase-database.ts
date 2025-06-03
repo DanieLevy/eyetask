@@ -1,16 +1,45 @@
-import { supabase, handleSupabaseError, createAdminClient, getSupabaseClient } from './supabase';
+import { supabase, handleSupabaseError } from './supabase';
 import { Database as DatabaseTypes } from './database-types';
 import type { Database, Project, Task, Subtask, User, Analytics } from './database';
 import { logger, AppError, validateRequired } from './logger';
 
 export class SupabaseDatabase implements Database {
   private adminClient: any;
+  private adminClientPromise: Promise<any>;
   
   constructor() {
-    // Initialize admin client for write operations
-    this.adminClient = createAdminClient();
+    // Initialize admin client for write operations (server-side only)
+    this.adminClientPromise = this.initializeAdminClient();
     // Initialize connection test
     this.testConnection();
+  }
+
+  private async initializeAdminClient() {
+    // Only create admin client on server side
+    if (typeof window === 'undefined') {
+      try {
+        const { createAdminClient } = await import('./supabase-server');
+        this.adminClient = createAdminClient();
+        logger.debug('Admin client initialized for server-side operations', 'SUPABASE_DB');
+        return this.adminClient;
+      } catch (error) {
+        logger.warn('Failed to initialize admin client, using regular client', 'SUPABASE_DB');
+        this.adminClient = supabase;
+        return this.adminClient;
+      }
+    } else {
+      // On client side, use regular supabase client
+      this.adminClient = supabase;
+      logger.debug('Using regular client for client-side operations', 'SUPABASE_DB');
+      return this.adminClient;
+    }
+  }
+
+  private async getAdminClient() {
+    if (!this.adminClient) {
+      await this.adminClientPromise;
+    }
+    return this.adminClient;
   }
 
   private async testConnection() {
@@ -27,7 +56,8 @@ export class SupabaseDatabase implements Database {
   // Tasks
   async getAllTasks(): Promise<Task[]> {
     try {
-      const { data, error } = await supabase
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: false });
@@ -46,7 +76,8 @@ export class SupabaseDatabase implements Database {
     try {
       validateRequired({ id }, ['id'], 'GET_TASK_BY_ID');
       
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('tasks')
         .select('*')
         .eq('id', id)
@@ -70,7 +101,8 @@ export class SupabaseDatabase implements Database {
     try {
       validateRequired({ projectId }, ['projectId'], 'GET_TASKS_BY_PROJECT');
       
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('tasks')
         .select('*')
         .eq('project_id', projectId)
@@ -93,7 +125,8 @@ export class SupabaseDatabase implements Database {
       const supabaseTask = this.mapTaskToSupabase(task);
       
       // Use admin client for creating tasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('tasks')
         .insert(supabaseTask)
         .select()
@@ -102,7 +135,7 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const newTask = this.mapTaskFromSupabase(data);
-      logger.info(`Created task ${newTask.id}`, 'SUPABASE_DB');
+      logger.debug(`Created task ${newTask.id}`, 'SUPABASE_DB');
       return newTask;
     } catch (error) {
       handleSupabaseError(error, 'createTask');
@@ -117,7 +150,8 @@ export class SupabaseDatabase implements Database {
       const supabaseUpdates = this.mapTaskToSupabase(updates, true);
       
       // Use admin client for updating tasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('tasks')
         .update(supabaseUpdates)
         .eq('id', id)
@@ -130,7 +164,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const updatedTask = this.mapTaskFromSupabase(data);
-      logger.info(`Updated task ${id}`, 'SUPABASE_DB');
+      logger.debug(`Updated task ${id}`, 'SUPABASE_DB');
       return updatedTask;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -144,14 +178,15 @@ export class SupabaseDatabase implements Database {
       validateRequired({ id }, ['id'], 'DELETE_TASK');
       
       // Use admin client for deleting tasks to bypass RLS policies
-      const { error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { error } = await client
         .from('tasks')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
       
-      logger.info(`Deleted task ${id}`, 'SUPABASE_DB');
+      logger.debug(`Deleted task ${id}`, 'SUPABASE_DB');
       return true;
     } catch (error) {
       handleSupabaseError(error, 'deleteTask');
@@ -163,7 +198,8 @@ export class SupabaseDatabase implements Database {
   async getAllSubtasks(): Promise<Subtask[]> {
     try {
       // Use admin client for reading subtasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('subtasks')
         .select('*')
         .order('created_at', { ascending: false });
@@ -183,7 +219,8 @@ export class SupabaseDatabase implements Database {
       validateRequired({ taskId }, ['taskId'], 'GET_SUBTASKS_BY_TASK');
       
       // Use admin client for reading subtasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('subtasks')
         .select('*')
         .eq('task_id', taskId)
@@ -205,7 +242,8 @@ export class SupabaseDatabase implements Database {
       validateRequired({ id }, ['id'], 'GET_SUBTASK_BY_ID');
       
       // Use admin client for reading subtasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('subtasks')
         .select('*')
         .eq('id', id)
@@ -230,7 +268,8 @@ export class SupabaseDatabase implements Database {
       const supabaseSubtask = this.mapSubtaskToSupabase(subtask);
       
       // Use admin client for creating subtasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('subtasks')
         .insert(supabaseSubtask)
         .select()
@@ -239,7 +278,7 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const newSubtask = this.mapSubtaskFromSupabase(data);
-      logger.info(`Created subtask ${newSubtask.id}`, 'SUPABASE_DB');
+      logger.debug(`Created subtask ${newSubtask.id}`, 'SUPABASE_DB');
       return newSubtask;
     } catch (error) {
       handleSupabaseError(error, 'createSubtask');
@@ -254,7 +293,8 @@ export class SupabaseDatabase implements Database {
       const supabaseUpdates = this.mapSubtaskToSupabase(updates, true);
       
       // Use admin client for updating subtasks to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('subtasks')
         .update(supabaseUpdates)
         .eq('id', id)
@@ -267,7 +307,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const updatedSubtask = this.mapSubtaskFromSupabase(data);
-      logger.info(`Updated subtask ${id}`, 'SUPABASE_DB');
+      logger.debug(`Updated subtask ${id}`, 'SUPABASE_DB');
       return updatedSubtask;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -281,14 +321,15 @@ export class SupabaseDatabase implements Database {
       validateRequired({ id }, ['id'], 'DELETE_SUBTASK');
       
       // Use admin client for deleting subtasks to bypass RLS policies
-      const { error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { error } = await client
         .from('subtasks')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
       
-      logger.info(`Deleted subtask ${id}`, 'SUPABASE_DB');
+      logger.debug(`Deleted subtask ${id}`, 'SUPABASE_DB');
       return true;
     } catch (error) {
       handleSupabaseError(error, 'deleteSubtask');
@@ -341,7 +382,8 @@ export class SupabaseDatabase implements Database {
   async createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     try {
       // Use admin client for creating projects to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('projects')
         .insert({
           name: project.name,
@@ -374,7 +416,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const newProject = this.mapProjectFromSupabase(data);
-      logger.info(`Created project ${newProject.id}`, 'SUPABASE_DB');
+      logger.debug(`Created project ${newProject.id}`, 'SUPABASE_DB');
       return newProject;
     } catch (error) {
       if (error instanceof AppError) {
@@ -395,7 +437,8 @@ export class SupabaseDatabase implements Database {
       validateRequired({ id }, ['id'], 'UPDATE_PROJECT');
       
       // Use admin client for updating projects to bypass RLS policies
-      const { data, error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { data, error } = await client
         .from('projects')
         .update({
           name: updates.name,
@@ -412,7 +455,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const updatedProject = this.mapProjectFromSupabase(data);
-      logger.info(`Updated project ${id}`, 'SUPABASE_DB');
+      logger.debug(`Updated project ${id}`, 'SUPABASE_DB');
       return updatedProject;
     } catch (error) {
       handleSupabaseError(error, 'updateProject');
@@ -425,14 +468,15 @@ export class SupabaseDatabase implements Database {
       validateRequired({ id }, ['id'], 'DELETE_PROJECT');
       
       // Use admin client for deleting projects to bypass RLS policies
-      const { error } = await this.adminClient
+      const client = await this.getAdminClient();
+      const { error } = await client
         .from('projects')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
       
-      logger.info(`Deleted project ${id}`, 'SUPABASE_DB');
+      logger.debug(`Deleted project ${id}`, 'SUPABASE_DB');
       return true;
     } catch (error) {
       handleSupabaseError(error, 'deleteProject');

@@ -32,7 +32,7 @@ interface LogEntry {
 
 class Logger {
   private isDevelopment = process.env.NODE_ENV === 'development';
-  private logLevel = process.env.LOG_LEVEL || 'info';
+  private logLevel = process.env.LOG_LEVEL || (this.isDevelopment ? 'info' : 'warn');
 
   private shouldLog(level: LogLevelValue): boolean {
     const levels = ['error', 'warn', 'info', 'debug'];

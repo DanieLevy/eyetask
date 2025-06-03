@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
     const { authorized, user } = await requireAuthEnhanced(token);
     const isAdmin = authorized && isAdminEnhanced(user);
     
+    // Check for taskId query parameter
+    const { searchParams } = new URL(request.url);
+    const taskIdFilter = searchParams.get('taskId');
+    
     const subtasks = await getAllSubtasks();
     
     // If not admin, filter to only show subtasks from visible tasks
@@ -21,6 +25,11 @@ export async function GET(request: NextRequest) {
       const allTasks = await getAllTasks();
       const visibleTaskIds = new Set(allTasks.filter(task => task.isVisible).map(task => task.id));
       filteredSubtasks = subtasks.filter(subtask => visibleTaskIds.has(subtask.taskId));
+    }
+    
+    // Apply taskId filter if provided
+    if (taskIdFilter) {
+      filteredSubtasks = filteredSubtasks.filter(subtask => subtask.taskId === taskIdFilter);
     }
     
     return NextResponse.json({

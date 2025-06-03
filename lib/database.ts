@@ -109,7 +109,12 @@ export interface Database {
 // Database factory
 export function createDatabase(): Database {
   // Use Supabase database for production
-  return new SupabaseDatabase();
+  const db = new SupabaseDatabase();
+
+  // Log that database is ready
+  logger.debug('Database instance created', 'DATABASE');
+
+  return db;
 }
 
 // Singleton instance
@@ -118,7 +123,6 @@ let dbInstance: Database | null = null;
 export function getDatabase(): Database {
   if (!dbInstance) {
     dbInstance = createDatabase();
-    logger.info('Database instance created', 'DATABASE');
   }
   return dbInstance;
 } 

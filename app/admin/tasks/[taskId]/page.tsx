@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -23,6 +23,8 @@ import {
   FileText,
   Image as ImageIcon
 } from 'lucide-react';
+import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
+import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 
 interface Task {
   id: string;
@@ -108,6 +110,80 @@ export default function TaskManagement() {
   const [operationLoading, setOperationLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
+  const [editingTask, setEditingTask] = useState(false);
+  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState(false);
+  const [editTaskData, setEditTaskData] = useState<Partial<Task>>({});
+
+  // Realtime notifications
+  const { notification, showNotification } = useRealtimeNotification();
+
+  // Realtime handlers
+  const handleTaskChange = useCallback((payload: any) => {
+    console.log('🔄 Task realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    if (eventType === 'UPDATE' && newRecord && newRecord.id === taskId) {
+      // Update the current task
+      setTask(newRecord);
+      showNotification('המשימה עודכנה', 'update');
+    } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === taskId) {
+      // Task was deleted, redirect back
+      showNotification('המשימה נמחקה', 'error');
+      if (project) {
+        router.push(`/admin/projects/${project.id}`);
+      } else {
+        router.push('/admin/dashboard');
+      }
+    }
+  }, [taskId, project, router, showNotification]);
+
+  const handleSubtaskChange = useCallback((payload: any) => {
+    console.log('🔄 Subtask realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setSubtasks(current => {
+      switch (eventType) {
+        case 'INSERT':
+          if (newRecord && newRecord.task_id === taskId) {
+            // Add new subtask
+            const exists = current.find(s => s.id === newRecord.id);
+            if (!exists) {
+              showNotification('תת-משימה חדשה נוספה', 'success');
+              return [...current, newRecord];
+            }
+            return current;
+          }
+          return current;
+          
+        case 'UPDATE':
+          if (newRecord && newRecord.task_id === taskId) {
+            // Update existing subtask
+            showNotification('תת-משימה עודכנה', 'update');
+            return current.map(subtask => 
+              subtask.id === newRecord.id ? newRecord : subtask
+            );
+          }
+          return current;
+          
+        case 'DELETE':
+          if (oldRecord) {
+            // Remove deleted subtask
+            showNotification('תת-משימה נמחקה', 'error');
+            return current.filter(subtask => subtask.id !== oldRecord.id);
+          }
+          return current;
+          
+        default:
+          return current;
+      }
+    });
+  }, [taskId, showNotification]);
+
+  // Set up realtime subscriptions
+  useTasksRealtime(handleTaskChange);
+  useSubtasksRealtime(taskId, handleSubtaskChange);
 
   useEffect(() => {
     // Check authentication
@@ -147,7 +223,7 @@ export default function TaskManagement() {
         fetch('/api/projects', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`/api/tasks/${taskId}/subtasks`, {
+        fetch(`/api/subtasks?taskId=${taskId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -190,8 +266,8 @@ export default function TaskManagement() {
       let taskSubtasks = [];
       if (subtasksData.success && Array.isArray(subtasksData.data)) {
         taskSubtasks = subtasksData.data;
-      } else if (subtasksData.success && subtasksData.data?.subtasks && Array.isArray(subtasksData.data.subtasks)) {
-        taskSubtasks = subtasksData.data.subtasks;
+      } else if (subtasksData.success && subtasksData.subtasks && Array.isArray(subtasksData.subtasks)) {
+        taskSubtasks = subtasksData.subtasks;
       } else if (Array.isArray(subtasksData.subtasks)) {
         taskSubtasks = subtasksData.subtasks;
       } else if (Array.isArray(subtasksData)) {
@@ -244,16 +320,7 @@ export default function TaskManagement() {
         });
         setShowNewSubtaskForm(false);
         
-        // Update task amount after creating subtask
-        try {
-          await fetch(`/api/tasks/${task.id}/calculate-amount`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } catch (error) {
-          // Silently continue if amount calculation fails
-        }
-        
+        // Refresh the data without calling calculate-amount
         await fetchTaskData();
       } else {
         alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
@@ -294,16 +361,7 @@ export default function TaskManagement() {
       if (result.success) {
         setEditingSubtask(null);
         
-        // Update task amount after updating subtask
-        try {
-          await fetch(`/api/tasks/${task?.id}/calculate-amount`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } catch (error) {
-          // Silently continue if amount calculation fails
-        }
-        
+        // Refresh the data without calling calculate-amount
         await fetchTaskData();
       } else {
         alert('Failed to update subtask: ' + (result.error || 'Unknown error'));
@@ -320,30 +378,70 @@ export default function TaskManagement() {
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/subtasks/${subtaskId}?_t=${Date.now()}`, {
+      const response = await fetch(`/api/subtasks/${subtaskId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
 
       if (response.ok) {
-        // Update task amount after deleting subtask
-        try {
-          await fetch(`/api/tasks/${task?.id}/calculate-amount`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-        } catch (error) {
-          // Silently continue if amount calculation fails
-        }
-        
         await fetchTaskData();
         setDeleteConfirm(null);
       }
     } catch (error) {
       console.error('Error deleting subtask:', error);
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(editTaskData)
+      });
+
+      if (response.ok) {
+        await fetchTaskData();
+        setEditingTask(false);
+        setEditTaskData({});
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        // Navigate back to project page or dashboard
+        if (project) {
+          router.push(`/admin/projects/${project.id}`);
+        } else {
+          router.push('/admin/dashboard');
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
     } finally {
       setOperationLoading(false);
     }
@@ -572,13 +670,30 @@ export default function TaskManagement() {
         {/* Quick Actions */}
         <div className="bg-card rounded-lg border border-border p-6 mb-8">
           <h3 className="text-lg font-semibold text-foreground mb-4">פעולות מהירות</h3>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <button
               onClick={() => setShowNewSubtaskForm(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" />
               הוסף תת-משימה חדשה
+            </button>
+            <button
+              onClick={() => {
+                setEditTaskData(task);
+                setEditingTask(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Edit className="h-4 w-4" />
+              ערוך משימה
+            </button>
+            <button
+              onClick={() => setDeleteTaskConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              מחק משימה
             </button>
           </div>
         </div>
@@ -1014,6 +1129,297 @@ export default function TaskManagement() {
           </div>
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      {editingTask && editTaskData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg border border-border w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground">ערוך משימה</h3>
+              <p className="text-sm text-muted-foreground mt-1">ערוך את המשימה "{task?.title}"</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">כותרת *</label>
+                  <input
+                    type="text"
+                    value={editTaskData.title || ''}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="הזן כותרת למשימה"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">כותרת משנה</label>
+                  <input
+                    type="text"
+                    value={editTaskData.subtitle || ''}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, subtitle: e.target.value }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="כותרת משנה (אופציונלי)"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
+                  <input
+                    type="text"
+                    value={editTaskData.datacoNumber || ''}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, datacoNumber: e.target.value }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="DATACO-XXXX"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    value={editTaskData.priority || 5}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="1 = גבוהה ביותר, 0 = ללא עדיפות"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">תיאור המשימה *</label>
+                <textarea
+                  value={typeof editTaskData.description === 'object' ? editTaskData.description?.main || '' : editTaskData.description || ''}
+                  onChange={(e) => setEditTaskData(prev => ({ 
+                    ...prev, 
+                    description: typeof prev.description === 'object' 
+                      ? { ...prev.description, main: e.target.value }
+                      : { main: e.target.value, howToExecute: "יש לעקוב אחר הוראות המשימה" }
+                  }))}
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground h-20"
+                  placeholder="תאר את המשימה בפירוט"
+                />
+              </div>
+
+              {/* Type Selection (Multi-select) */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">סוג משימה * (ניתן לבחור מספר)</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={editTaskData.type?.includes('events') || false}
+                      onChange={(e) => {
+                        const currentTypes = editTaskData.type || [];
+                        if (e.target.checked) {
+                          setEditTaskData(prev => ({ ...prev, type: [...currentTypes.filter(t => t !== 'events'), 'events'] }));
+                        } else {
+                          setEditTaskData(prev => ({ ...prev, type: currentTypes.filter(t => t !== 'events') }));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    Events (אירועים)
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={editTaskData.type?.includes('hours') || false}
+                      onChange={(e) => {
+                        const currentTypes = editTaskData.type || [];
+                        if (e.target.checked) {
+                          setEditTaskData(prev => ({ ...prev, type: [...currentTypes.filter(t => t !== 'hours'), 'hours'] }));
+                        } else {
+                          setEditTaskData(prev => ({ ...prev, type: currentTypes.filter(t => t !== 'hours') }));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    Hours (שעות)
+                  </label>
+                </div>
+              </div>
+
+              {/* Locations (Multi-select) */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">מיקומים * (ניתן לבחור מספר)</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {['Urban', 'Highway', 'Rural', 'Sub-Urban', 'Mixed'].map(location => (
+                    <label key={location} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editTaskData.locations?.includes(location) || false}
+                        onChange={(e) => {
+                          const currentLocations = editTaskData.locations || [];
+                          if (e.target.checked) {
+                            setEditTaskData(prev => ({ ...prev, locations: [...currentLocations, location] }));
+                          } else {
+                            setEditTaskData(prev => ({ ...prev, locations: currentLocations.filter(l => l !== location) }));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {location === 'Urban' ? 'עירוני' : 
+                       location === 'Highway' ? 'כביש מהיר' :
+                       location === 'Rural' ? 'כפרי' :
+                       location === 'Sub-Urban' ? 'פרברי' : 'מעורב'}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Cars (Multi-select) */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">רכבי יעד * (ניתן לבחור מספר)</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {['EQ', 'EQS', 'EQE', 'GLS', 'S-Class', 'E-Class'].map(car => (
+                    <label key={car} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editTaskData.targetCar?.includes(car) || false}
+                        onChange={(e) => {
+                          const currentCars = editTaskData.targetCar || [];
+                          if (e.target.checked) {
+                            setEditTaskData(prev => ({ ...prev, targetCar: [...currentCars, car] }));
+                          } else {
+                            setEditTaskData(prev => ({ ...prev, targetCar: currentCars.filter(c => c !== car) }));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {car}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Day Time (Multi-select) */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">זמני יום * (ניתן לבחור מספר)</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {['day', 'night', 'dusk', 'dawn'].map(time => (
+                    <label key={time} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editTaskData.dayTime?.includes(time as any) || false}
+                        onChange={(e) => {
+                          const currentTimes = editTaskData.dayTime || [];
+                          if (e.target.checked) {
+                            setEditTaskData(prev => ({ ...prev, dayTime: [...currentTimes, time] as any }));
+                          } else {
+                            setEditTaskData(prev => ({ ...prev, dayTime: currentTimes.filter(t => t !== time) }));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      {time === 'day' ? 'יום' : 
+                       time === 'night' ? 'לילה' :
+                       time === 'dusk' ? 'דמדומים' : 'שחר'}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Amount and LiDAR */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editTaskData.amountNeeded || 0}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, amountNeeded: parseInt(e.target.value) || 0 }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 mt-7">
+                    <input
+                      type="checkbox"
+                      checked={editTaskData.lidar || false}
+                      onChange={(e) => setEditTaskData(prev => ({ ...prev, lidar: e.target.checked }))}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm font-medium text-foreground">נדרש LiDAR</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Visibility */}
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editTaskData.isVisible !== false}
+                    onChange={(e) => setEditTaskData(prev => ({ ...prev, isVisible: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm font-medium text-foreground">המשימה גלויה למשתמשים</span>
+                </label>
+              </div>
+            </div>
+            <div className="p-6 border-t border-border flex gap-3">
+              <button
+                onClick={handleUpdateTask}
+                disabled={operationLoading || !editTaskData.title || !editTaskData.datacoNumber}
+                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {operationLoading ? 'שומר...' : 'שמור שינויים'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingTask(false);
+                  setEditTaskData({});
+                }}
+                disabled={operationLoading}
+                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Dialog */}
+      {deleteTaskConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg border border-border w-full max-w-sm">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2">אישור מחיקת משימה</h3>
+              <p className="text-muted-foreground mb-4">
+                האם אתה בטוח שברצונך למחוק את המשימה "{task?.title}"? 
+                פעולה זו תמחק גם את כל התת-משימות הקשורות ולא ניתנת לביטול.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeleteTask}
+                  disabled={operationLoading}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {operationLoading ? 'מוחק...' : 'מחק משימה'}
+                </button>
+                <button
+                  onClick={() => setDeleteTaskConfirm(false)}
+                  disabled={operationLoading}
+                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Realtime Notifications */}
+      <RealtimeNotification 
+        message={notification.message}
+        type={notification.type}
+        show={notification.show}
+      />
     </div>
   );
 } 

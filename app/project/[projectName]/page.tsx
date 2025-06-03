@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -17,6 +17,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { useTasksRealtime } from '@/hooks/useRealtime';
 
 interface Task {
   id: string;
@@ -65,10 +66,61 @@ export default function ProjectPage() {
   const [subtasks, setSubtasks] = useState<Record<string, Subtask[]>>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
+
+  // Realtime handler for tasks
+  const handleTaskChange = useCallback((payload: any) => {
+    console.log('🔄 Public Task realtime update:', payload);
+    
+    const { eventType, new: newRecord, old: oldRecord } = payload;
+    
+    setTasks(current => {
+      switch (eventType) {
+        case 'INSERT':
+          if (newRecord && newRecord.project_id === projectId && newRecord.is_visible) {
+            // Add new visible task
+            const exists = current.find(t => t.id === newRecord.id);
+            return exists ? current : [...current, newRecord];
+          }
+          return current;
+          
+        case 'UPDATE':
+          if (newRecord && newRecord.project_id === projectId) {
+            if (newRecord.is_visible) {
+              // Update existing task or add if it became visible
+              const exists = current.find(t => t.id === newRecord.id);
+              return exists 
+                ? current.map(task => task.id === newRecord.id ? newRecord : task)
+                : [...current, newRecord];
+            } else {
+              // Remove task if it became hidden
+              return current.filter(task => task.id !== newRecord.id);
+            }
+          } else if (newRecord && newRecord.project_id !== projectId) {
+            // Task was moved to another project, remove it
+            return current.filter(task => task.id !== newRecord.id);
+          }
+          return current;
+          
+        case 'DELETE':
+          if (oldRecord) {
+            // Remove deleted task
+            return current.filter(task => task.id !== oldRecord.id);
+          }
+          return current;
+          
+        default:
+          return current;
+      }
+    });
+  }, [projectId]);
+
+  // Set up realtime subscription for tasks
+  useTasksRealtime(handleTaskChange);
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -136,6 +188,7 @@ export default function ProjectPage() {
         
         setSubtasks(subtaskMap);
         setLoading(false);
+        setProjectId(project.id);
       } catch (error) {
         console.error('Error fetching project data:', error);
         setLoading(false);
