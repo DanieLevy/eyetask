@@ -19,7 +19,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/tasks/[id]/subtasks - Get all subtasks for a task
+// GET /api/tasks/[id]/subtasks - Get all subtasks for a task (PUBLIC ACCESS)
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
@@ -38,20 +38,24 @@ export async function GET(
       );
     }
     
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized } = await requireAuthEnhanced(token);
-    
-    if (!authorized) {
-      return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
-        { status: 401 }
-      );
-    }
-    
+    // Check if task exists and is visible (no authentication required for public access)
     const task = await getTaskById(taskId);
     
     if (!task) {
+      return NextResponse.json(
+        { error: 'Task not found', success: false },
+        { status: 404 }
+      );
+    }
+    
+    // For public access, only show subtasks if the parent task is visible
+    // For admin access, show all subtasks regardless of visibility
+    const authHeader = request.headers.get('Authorization');
+    const token = extractTokenFromHeader(authHeader);
+    const { authorized, user } = await requireAuthEnhanced(token);
+    const isAdmin = authorized && isAdminEnhanced(user);
+    
+    if (!task.isVisible && !isAdmin) {
       return NextResponse.json(
         { error: 'Task not found', success: false },
         { status: 404 }

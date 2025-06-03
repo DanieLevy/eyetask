@@ -2,25 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllSubtasks, createSubtask } from '@/lib/data';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 
-// GET /api/subtasks - Fetch all subtasks (admin only)
+// GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
   try {
+    // Check if user is authenticated admin
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
     const { authorized, user } = await requireAuthEnhanced(token);
-    
-    if (!authorized || !isAdminEnhanced(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
-        { status: 401 }
-      );
-    }
+    const isAdmin = authorized && isAdminEnhanced(user);
     
     const subtasks = await getAllSubtasks();
     
+    // If not admin, filter to only show subtasks from visible tasks
+    let filteredSubtasks = subtasks;
+    if (!isAdmin) {
+      // Get all tasks and filter subtasks by visible tasks only
+      const { getAllTasks } = await import('@/lib/data');
+      const allTasks = await getAllTasks();
+      const visibleTaskIds = new Set(allTasks.filter(task => task.isVisible).map(task => task.id));
+      filteredSubtasks = subtasks.filter(subtask => visibleTaskIds.has(subtask.taskId));
+    }
+    
     return NextResponse.json({
-      subtasks,
-      total: subtasks.length,
+      subtasks: filteredSubtasks,
+      total: filteredSubtasks.length,
       success: true
     }, {
       headers: {
