@@ -384,28 +384,61 @@ export class SupabaseDatabase implements Database {
       const updatedData = {
         ...current,
         ...updates,
-        last_updated: new Date().toISOString()
+        lastUpdated: new Date().toISOString()
       };
       
-      const { data, error } = await supabase
+      // Check if analytics record exists
+      const { data: existingData, error: selectError } = await supabase
         .from('analytics')
-        .upsert({
-          total_visits: updatedData.totalVisits,
-          unique_visitors: updatedData.uniqueVisitors,
-          daily_stats: updatedData.dailyStats,
-          page_views: updatedData.pageViews,
-          last_updated: updatedData.lastUpdated
-        })
-        .select()
+        .select('id')
+        .limit(1)
         .single();
 
-      if (error) throw error;
+      if (selectError && selectError.code !== 'PGRST116') {
+        throw selectError;
+      }
+
+      let result;
+      if (existingData) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('analytics')
+          .update({
+            total_visits: updatedData.totalVisits,
+            unique_visitors: updatedData.uniqueVisitors,
+            daily_stats: updatedData.dailyStats,
+            page_views: updatedData.pageViews,
+            last_updated: updatedData.lastUpdated
+          })
+          .eq('id', existingData.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new record
+        const { data, error } = await supabase
+          .from('analytics')
+          .insert({
+            total_visits: updatedData.totalVisits,
+            unique_visitors: updatedData.uniqueVisitors,
+            daily_stats: updatedData.dailyStats,
+            page_views: updatedData.pageViews,
+            last_updated: updatedData.lastUpdated
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      }
       
-      const analytics = this.mapAnalyticsFromSupabase(data);
-      logger.debug('Updated analytics in Supabase', 'SUPABASE_DB');
+      const analytics = this.mapAnalyticsFromSupabase(result);
+      logger.debug('Updated analytics', 'SUPABASE_DB');
       return analytics;
     } catch (error) {
-      handleSupabaseError(error, 'updateAnalytics');
+      logger.error('Failed to update analytics', 'SUPABASE_DB', undefined, error as Error);
       return this.createDefaultAnalytics();
     }
   }
