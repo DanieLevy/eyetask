@@ -119,8 +119,76 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  html {
+    @apply bg-background;
+    /* iOS specific fixes for seamless color */
+    height: 100%;
+    -webkit-overflow-scrolling: touch;
+    /* Prevent over-scroll blank areas */
+    overscroll-behavior: none;
+    -webkit-overscroll-behavior: none;
+  }
+  
   body {
     @apply bg-background text-foreground;
+    /* Ensure body takes full height and maintains background */
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS fix */
+    /* Prevent over-scroll blank areas */
+    overscroll-behavior: none;
+    -webkit-overscroll-behavior: none;
+    /* iOS safe area support */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* iOS PWA specific fixes */
+  @supports (-webkit-touch-callout: none) {
+    html {
+      height: -webkit-fill-available;
+    }
+    
+    body {
+      min-height: -webkit-fill-available;
+      /* Fix iOS bounce/rubber band effect showing blank areas */
+      position: fixed;
+      width: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* Ensure main content scrolls properly */
+    main {
+      height: 100vh;
+      height: -webkit-fill-available;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+  }
+
+  /* Prevent zoom on input focus (iOS) */
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    select,
+    textarea,
+    input[type="text"],
+    input[type="password"],
+    input[type="datetime"],
+    input[type="datetime-local"],
+    input[type="date"],
+    input[type="month"],
+    input[type="time"],
+    input[type="week"],
+    input[type="number"],
+    input[type="email"],
+    input[type="url"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="color"] {
+      font-size: 16px !important;
+    }
   }
 
   /* RTL specific styles */
