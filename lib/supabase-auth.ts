@@ -20,38 +20,23 @@ export interface AuthResponse {
   error?: string;
 }
 
-// Sign up admin user (one-time setup)
+// Admin configuration
+const ADMIN_EMAIL = 'daniellofficial@gmail.com';
+const ADMIN_PASSWORD = 'admin123';
+
+// Sign up admin user (one-time setup) - now just checks if admin exists
 export async function signUpAdmin(): Promise<AuthResponse> {
   try {
-    const { data, error } = await supabase.auth.signUp({
-      email: 'admin@eyetask.com',
-      password: 'admin123',
-      options: {
-        data: {
-          username: 'admin',
-          role: 'admin'
-        }
-      }
-    });
-
-    if (error) {
-      logger.error('Failed to sign up admin', 'SUPABASE_AUTH', { error: error.message });
-      return { success: false, error: error.message };
+    // Try to sign in the existing admin user
+    const result = await signInWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    
+    if (result.success) {
+      logger.info('Admin user already exists and is functional', 'SUPABASE_AUTH');
+      return result;
+    } else {
+      logger.error('Admin user exists but login failed', 'SUPABASE_AUTH', { error: result.error });
+      return { success: false, error: 'Admin user exists but login failed' };
     }
-
-    if (data.user) {
-      const authUser: AuthUser = {
-        id: data.user.id,
-        email: data.user.email || '',
-        username: data.user.user_metadata?.username || 'admin',
-        role: data.user.user_metadata?.role || 'admin'
-      };
-
-      logger.info('Admin user signed up successfully', 'SUPABASE_AUTH', { userId: authUser.id });
-      return { success: true, user: authUser, token: data.session?.access_token };
-    }
-
-    return { success: false, error: 'Failed to create user' };
   } catch (error) {
     logger.error('Sign up error', 'SUPABASE_AUTH', undefined, error as Error);
     return { success: false, error: 'Sign up failed' };
@@ -93,8 +78,8 @@ export async function signInWithPassword(email: string, password: string): Promi
 // Login with username (convert to email)
 export async function loginUser(credentials: LoginCredentials): Promise<AuthResponse> {
   try {
-    // Convert username to email for Supabase Auth
-    const email = credentials.username === 'admin' ? 'admin@eyetask.com' : `${credentials.username}@eyetask.com`;
+    // Convert username to the real admin email
+    const email = credentials.username === 'admin' ? ADMIN_EMAIL : `${credentials.username}@eyetask.com`;
     
     return await signInWithPassword(email, credentials.password);
   } catch (error) {
@@ -154,20 +139,12 @@ export function isAdmin(user?: AuthUser): boolean {
 export async function initializeAdminUser(): Promise<void> {
   try {
     // Try to sign in first to see if admin exists
-    const loginResult = await signInWithPassword('admin@eyetask.com', 'admin123');
+    const loginResult = await signInWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
     
     if (!loginResult.success) {
-      // Admin doesn't exist, create it
-      logger.info('Creating admin user', 'SUPABASE_AUTH');
-      const signUpResult = await signUpAdmin();
-      
-      if (signUpResult.success) {
-        logger.info('Admin user created successfully', 'SUPABASE_AUTH');
-      } else {
-        logger.error('Failed to create admin user', 'SUPABASE_AUTH', { error: signUpResult.error });
-      }
+      logger.error('Admin user does not exist or login failed', 'SUPABASE_AUTH', { error: loginResult.error });
     } else {
-      logger.info('Admin user already exists', 'SUPABASE_AUTH');
+      logger.info('Admin user is ready', 'SUPABASE_AUTH');
     }
   } catch (error) {
     logger.error('Failed to initialize admin user', 'SUPABASE_AUTH', undefined, error as Error);
