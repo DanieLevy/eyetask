@@ -1,54 +1,54 @@
-# 🔧 Environment Variables Setup Guide
+# Environment Setup Guide
 
-## 📋 **Required Environment Variables**
+This document outlines the environment variables and configuration needed for the EyeTask application.
 
-For Netlify deployment, add these 4 variables in **Netlify Dashboard → Site Settings → Environment Variables**:
+## Required Environment Variables
 
-### **Production Environment Variables**
+### Supabase Configuration
 
-#### Variable 1:
 - **Key**: `NEXT_PUBLIC_SUPABASE_URL`
-- **Value**: `https://gpgenilthxcpiwcpipns.supabase.co`
+- **Value**: Your Supabase project URL
+- **Description**: Public URL for your Supabase project
 
-#### Variable 2:
 - **Key**: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- **Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds`
+- **Value**: Your Supabase anonymous/public key
+- **Description**: Public key for client-side Supabase operations
 
-#### Variable 3:
 - **Key**: `SUPABASE_SERVICE_KEY`
-- **Value**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODk1MzM1MSwiZXhwIjoyMDY0NTI5MzUxfQ.SJe07JCxDJv4gfbmAdZUxXuBLrn92JbVcDyC5lDQ51Q`
+- **Value**: Your Supabase service role key
+- **Description**: Service role key for admin operations (server-side only)
 
-#### Variable 4:
-- **Key**: `JWT_SECRET`
-- **Value**: `941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766`
+## Setup Instructions
 
-### **For Local Development**
+### 1. Local Development
 
-Create a `.env.local` file in your project root:
+Create a `.env.local` file in the root directory:
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://gpgenilthxcpiwcpipns.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODk1MzM1MSwiZXhwIjoyMDY0NTI5MzUxfQ.SJe07JCxDJv4gfbmAdZUxXuBLrn92JbVcDyC5lDQ51Q
-
-# JWT Configuration
-JWT_SECRET=941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766
-JWT_EXPIRES_IN=7d
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_KEY=your_service_key_here
 ```
 
-## 🔐 **Security Notes**
+### 2. Production Deployment (Netlify)
 
-- All credentials are configured for the EyeTask Supabase project
-- JWT secret is cryptographically secure (64 hex characters)
-- Supabase RLS policies protect data access
-- All credentials are ready for production use
+Add the environment variables to your Netlify dashboard:
+1. Go to Site settings → Environment variables
+2. Add each variable with its corresponding value
 
-## 🚀 **Deployment**
+## Security Notes
 
-1. Set the environment variables in Netlify dashboard
-2. Push code to GitHub to trigger deployment
-3. Access the admin panel with credentials: `admin` / `admin123`
+- **Never commit API keys to version control**
+- The anon key is safe to expose in client-side code
+- The service key should only be used server-side
+- All keys should be stored as environment variables
+- Regenerate keys if they are accidentally exposed
+
+## Getting Your Supabase Keys
+
+1. Visit your Supabase dashboard
+2. Go to Settings → API
+3. Copy the URL and keys to your environment variables
 
 ---
 
