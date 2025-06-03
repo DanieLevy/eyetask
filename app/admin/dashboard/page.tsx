@@ -256,13 +256,12 @@ export default function AdminDashboard() {
   };
 
   const getTaskCountForProject = (projectId: string) => {
-    return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
+    return tasks.filter(task => task.projectId === projectId).length;
   };
 
   const getHighPriorityTasksForProject = (projectId: string) => {
     return tasks.filter(task => 
       task.projectId === projectId && 
-      task.isVisible && 
       task.priority >= 1 && 
       task.priority <= 3
     ).length;
