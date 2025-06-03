@@ -67,9 +67,24 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Create task with default visibility
+    // Convert priority to number if it's a string
+    let priority = body.priority;
+    if (typeof priority === 'string') {
+      if (priority === 'high') priority = 2;
+      else if (priority === 'medium') priority = 5;
+      else if (priority === 'low') priority = 8;
+      else priority = parseInt(priority) || 5;
+    }
+    
+    // Ensure priority is within valid range
+    if (typeof priority !== 'number' || priority < 0 || priority > 10) {
+      priority = 5; // Default to medium priority
+    }
+    
+    // Create task with default visibility and converted priority
     const taskData = {
       ...body,
+      priority,
       isVisible: body.isVisible ?? true,
     };
     

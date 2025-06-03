@@ -340,25 +340,52 @@ export class SupabaseDatabase implements Database {
 
   async createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     try {
-      validateRequired(project, ['name'], 'CREATE_PROJECT');
-      
       // Use admin client for creating projects to bypass RLS policies
       const { data, error } = await this.adminClient
         .from('projects')
         .insert({
           name: project.name,
-          description: project.description
+          description: project.description || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        logger.error('Supabase project creation failed', 'SUPABASE_DB', {
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          projectName: project.name
+        });
+        
+        // Provide more specific error messages
+        if (error.code === '42501') {
+          throw new AppError('Insufficient privileges - check RLS policies and service key', 403, 'CREATE_PROJECT');
+        } else if (error.code === '23505') {
+          throw new AppError(`Project with name "${project.name}" already exists`, 409, 'CREATE_PROJECT');
+        } else if (error.message?.includes('JWT')) {
+          throw new AppError('Authentication token invalid or expired', 401, 'CREATE_PROJECT');
+        } else {
+          throw new AppError(`Database error: ${error.message}`, 500, 'CREATE_PROJECT');
+        }
+      }
       
       const newProject = this.mapProjectFromSupabase(data);
       logger.info(`Created project ${newProject.id}`, 'SUPABASE_DB');
       return newProject;
     } catch (error) {
-      handleSupabaseError(error, 'createProject');
+      if (error instanceof AppError) {
+        throw error;
+      }
+      
+      logger.error('Unexpected error in createProject', 'SUPABASE_DB', {
+        projectName: project.name,
+        errorType: error?.constructor?.name
+      }, error as Error);
+      
       throw new AppError('Failed to create project', 500, 'CREATE_PROJECT');
     }
   }
@@ -581,12 +608,12 @@ export class SupabaseDatabase implements Database {
     if (task.datacoNumber !== undefined) mapped.dataco_number = task.datacoNumber;
     if (task.description !== undefined) mapped.description = task.description;
     if (task.projectId !== undefined) mapped.project_id = task.projectId;
-    if (task.type !== undefined) mapped.type = task.type;
-    if (task.locations !== undefined) mapped.locations = task.locations;
+    if (task.type !== undefined) mapped.type = Array.isArray(task.type) ? task.type : [task.type];
+    if (task.locations !== undefined) mapped.locations = Array.isArray(task.locations) ? task.locations : [task.locations];
     if (task.amountNeeded !== undefined) mapped.amount_needed = task.amountNeeded;
-    if (task.targetCar !== undefined) mapped.target_car = task.targetCar;
+    if (task.targetCar !== undefined) mapped.target_car = Array.isArray(task.targetCar) ? task.targetCar : [task.targetCar];
     if (task.lidar !== undefined) mapped.lidar = task.lidar;
-    if (task.dayTime !== undefined) mapped.day_time = task.dayTime;
+    if (task.dayTime !== undefined) mapped.day_time = Array.isArray(task.dayTime) ? task.dayTime : [task.dayTime];
     if (task.priority !== undefined) mapped.priority = task.priority;
     if (task.isVisible !== undefined) mapped.is_visible = task.isVisible;
     
@@ -622,8 +649,8 @@ export class SupabaseDatabase implements Database {
     if (subtask.datacoNumber !== undefined) mapped.dataco_number = subtask.datacoNumber;
     if (subtask.type !== undefined) mapped.type = subtask.type;
     if (subtask.amountNeeded !== undefined) mapped.amount_needed = subtask.amountNeeded;
-    if (subtask.labels !== undefined) mapped.labels = subtask.labels;
-    if (subtask.targetCar !== undefined) mapped.target_car = subtask.targetCar;
+    if (subtask.labels !== undefined) mapped.labels = Array.isArray(subtask.labels) ? subtask.labels : [subtask.labels];
+    if (subtask.targetCar !== undefined) mapped.target_car = Array.isArray(subtask.targetCar) ? subtask.targetCar : [subtask.targetCar];
     if (subtask.weather !== undefined) mapped.weather = subtask.weather;
     if (subtask.scene !== undefined) mapped.scene = subtask.scene;
     

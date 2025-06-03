@@ -84,7 +84,7 @@ export async function getVisibleTasks() {
 export async function createTask(task: any) {
   try {
     // Validate required fields
-    const requiredFields = ['title', 'datacoNumber', 'description', 'projectId', 'type', 'locations', 'targetCar', 'dayTime', 'priority'];
+    const requiredFields = ['title', 'datacoNumber', 'description', 'projectId', 'type', 'locations', 'targetCar', 'lidar', 'dayTime', 'priority'];
     validateRequired(task, requiredFields, 'CREATE_TASK');
     
     // Check for duplicate DATACO number
