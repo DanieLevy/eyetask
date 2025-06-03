@@ -2,13 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Lock, User, AlertCircle } from 'lucide-react';
+import { Lock, User, AlertCircle } from 'lucide-react';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 export default function AdminLoginPage() {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // Font configurations
+  const hebrewHeading = useHebrewFont('heading');
+  const mixedBody = useMixedFont('body');
 
   useEffect(() => {
     // Check if already logged in
@@ -48,64 +53,32 @@ export default function AdminLoginPage() {
       });
 
       if (data.success) {
-        // Extract token and user from the response - they're nested in data object
-        const token = data.data?.token;
-        const user = data.data?.user;
+        // Handle both direct response and nested data structure
+        const token = data.token || data.data?.token;
+        const user = data.user || data.data?.user;
         
-        console.log('✅ Login successful, storing data...');
-        console.log('🔑 Token to store:', token);
-        console.log('👤 User to store:', user);
-        console.log('👤 User JSON string:', JSON.stringify(user));
+        console.log('✅ Login successful, storing data:', { token: !!token, user });
         
-        // Validate data before storing
-        if (!token) {
-          console.error('❌ No token in response!');
-          setError('שגיאה: לא התקבל טוקן מהשרת');
-          return;
-        }
-        
-        if (!user) {
-          console.error('❌ No user data in response!');
-          setError('שגיאה: לא התקבלו נתוני משתמש מהשרת');
-          return;
-        }
-        
-        // Store with additional validation
-        try {
+        if (token && user) {
           localStorage.setItem('adminToken', token);
-          console.log('💾 Token stored. Verification:', localStorage.getItem('adminToken'));
+          localStorage.setItem('adminUser', JSON.stringify(user));
           
-          const userJson = JSON.stringify(user);
-          localStorage.setItem('adminUser', userJson);
-          console.log('💾 User stored. Verification:', localStorage.getItem('adminUser'));
+          console.log('📱 Data stored in localStorage');
+          console.log('📱 Token stored:', !!localStorage.getItem('adminToken'));
+          console.log('📱 User stored:', !!localStorage.getItem('adminUser'));
           
-          // Double-check what was actually stored
-          const storedToken = localStorage.getItem('adminToken');
-          const storedUser = localStorage.getItem('adminUser');
-          
-          console.log('🔍 Final verification:');
-          console.log('  Stored token:', storedToken);
-          console.log('  Stored user:', storedUser);
-          console.log('  Stored user type:', typeof storedUser);
-          
-          if (storedToken && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-            console.log('🚀 Redirecting to dashboard...');
-            router.push('/admin/dashboard');
-          } else {
-            console.error('❌ Storage verification failed!');
-            setError('שגיאה בשמירת נתוני התחברות');
-          }
-        } catch (storageError) {
-          console.error('❌ Error storing to localStorage:', storageError);
-          setError('שגיאה בשמירת נתוני התחברות');
+          router.push('/admin/dashboard');
+        } else {
+          console.error('❌ Missing token or user in response');
+          setError('שגיאה בתגובת השרת');
         }
       } else {
-        console.error('❌ Login failed:', data.error);
-        setError(data.error || 'שגיאה בהתחברות');
+        console.error('❌ Login failed:', data.error || 'Unknown error');
+        setError(data.error || 'פרטי התחברות שגויים');
       }
     } catch (error) {
-      console.error('❌ Login request failed:', error);
-      setError('שגיאה בחיבור לשרת');
+      console.error('❌ Login error:', error);
+      setError('שגיאה בהתחברות לשרת');
     } finally {
       setLoading(false);
     }
@@ -116,108 +89,72 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Eye className="h-10 w-10 text-primary" />
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">EyeTask</h1>
-              <p className="text-sm text-muted-foreground">Mobileye</p>
-            </div>
-          </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">כניסת מנהל</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className={`text-2xl font-bold text-foreground mb-2 ${hebrewHeading.fontClass}`}>כניסת מנהל</h2>
+          <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
             היכנס עם פרטי המנהל שלך לגישה לפאנל הניהול
           </p>
         </div>
 
         {/* Login Form */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Username Field */}
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
-                שם משתמש
-              </label>
-              <div className="relative">
-                <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="username"
-                  type="text"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                  className="w-full pr-10 pl-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="הכנס שם משתמש"
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                סיסמה
-              </label>
-              <div className="relative">
-                <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="password"
-                  type="password"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  className="w-full pr-10 pl-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="הכנס סיסמה"
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            {/* Error Message */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-destructive" />
                 <span className="text-sm text-destructive">{error}</span>
               </div>
             )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || !credentials.username || !credentials.password}
-              className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
-                  <span>מתחבר...</span>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-foreground mb-1">
+                  שם משתמש
+                </label>
+                <div className="relative">
+                  <User className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    id="username"
+                    type="text"
+                    value={credentials.username}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+                    className="w-full pr-10 pl-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="הזן שם משתמש"
+                    required
+                  />
                 </div>
-              ) : (
-                'התחבר'
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-muted-foreground">
-            © 2025 Mobileye - EyeTask. כל הזכויות שמורות.
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm text-primary hover:underline mt-2"
-          >
-            חזור לדף הבית
-          </button>
-        </div>
-
-        {/* Demo Credentials Info */}
-        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
-          <h3 className="text-sm font-medium text-foreground mb-2">פרטי התחברות לדמו:</h3>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p><strong>שם משתמש:</strong> admin</p>
-            <p><strong>סיסמה:</strong> admin123</p>
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+                  סיסמה
+                </label>
+                <div className="relative">
+                  <Lock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    id="password"
+                    type="password"
+                    value={credentials.password}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full pr-10 pl-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="הזן סיסמה"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-lg font-medium hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'מתחבר...' : 'התחבר'}
+          </button>
+        </form>
+        
+        <div className="mt-6 text-center text-xs text-muted-foreground">
+          <p>© 2025 Mobileye - EyeTask</p>
         </div>
       </div>
     </div>

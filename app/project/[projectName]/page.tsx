@@ -16,6 +16,7 @@ import {
   Target,
   AlertTriangle
 } from 'lucide-react';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 interface Task {
   id: string;
@@ -64,6 +65,10 @@ export default function ProjectPage() {
   const [subtasks, setSubtasks] = useState<Record<string, Subtask[]>>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+
+  // Font configurations
+  const hebrewHeading = useHebrewFont('heading');
+  const mixedBody = useMixedFont('body');
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -184,9 +189,9 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
+      {/* Page Header */}
+      <div className="bg-card border-b border-border">
+        <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -198,15 +203,17 @@ export default function ProjectPage() {
             <div className="flex items-center gap-3">
               <Eye className="h-6 w-6 text-primary" />
               <div>
-                <h1 className="text-lg font-bold text-foreground">{projectName}</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                  {projectName}
+                </h1>
+                <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
                   {tasks.length} משימות זמינות
                 </p>
               </div>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -214,14 +221,7 @@ export default function ProjectPage() {
           <div className="text-center py-12">
             <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">אין משימות זמינות</h3>
-            <p className="text-muted-foreground">משימות יופיעו כאן כאשר יתווספו לפרויקט זה</p>
-            <Link 
-              href="/"
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <ArrowRight className="h-4 w-4" />
-              חזור לדף הבית
-            </Link>
+            <p className="text-muted-foreground">משימות יופיעו כאן כאשר יתווספו על ידי המנהל</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -241,46 +241,35 @@ export default function ProjectPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-foreground">
-                              {task.title}
-                            </h3>
-                            <span className="text-sm text-muted-foreground font-mono">
-                              {task.datacoNumber}
-                            </span>
-                            {task.priority > 0 && (
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                                {getPriorityLabel(task.priority)}
-                              </span>
-                            )}
+                            <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                              {getPriorityLabel(task.priority)}
+                            </div>
                           </div>
                           {task.subtitle && (
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {task.subtitle}
-                            </p>
+                            <p className="text-sm text-muted-foreground mb-2">{task.subtitle}</p>
                           )}
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Target className="h-4 w-4" />
-                              {task.amountNeeded} נדרש
+                              {task.datacoNumber}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {task.type.join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
                               <MapPin className="h-4 w-4" />
                               {task.locations.join(', ')}
                             </span>
-                            {task.lidar && (
-                              <span className="flex items-center gap-1">
-                                <Zap className="h-4 w-4" />
-                                LiDAR
+                            {taskSubtasks.length > 0 && (
+                              <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs">
+                                {taskSubtasks.length} תת-משימות
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {taskSubtasks.length > 0 && (
-                            <span className="text-sm text-muted-foreground">
-                              {taskSubtasks.length} תת-משימות
-                            </span>
-                          )}
                           {isExpanded ? (
                             <ChevronUp className="h-5 w-5 text-muted-foreground" />
                           ) : (
@@ -290,94 +279,84 @@ export default function ProjectPage() {
                       </div>
                     </button>
 
-                    {/* Expanded Task Content */}
-                    <div 
-                      className={`collapsible-content ${isExpanded ? 'max-h-none' : 'max-h-0'}`}
-                      data-state={isExpanded ? 'open' : 'closed'}
-                    >
+                    {/* Task Details - Collapsible */}
+                    <div className={`collapsible-content ${isExpanded ? 'open' : 'closed'}`}>
                       <div className="px-6 pb-6 border-t border-border">
-                        {/* Task Description */}
-                        <div className="mb-6 pt-4">
-                          <h4 className="font-semibold text-foreground mb-2">תיאור המשימה</h4>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            {task.description.main}
-                          </p>
-                          <h4 className="font-semibold text-foreground mb-2">אופן ביצוע</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {task.description.howToExecute}
-                          </p>
-                        </div>
-
-                        {/* Task Details */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div className="space-y-6 pt-6">
+                          {/* Description */}
                           <div>
-                            <h5 className="font-medium text-foreground mb-2">פרטי המשימה</h5>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <span>סוג: {task.type.join(', ')}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>זמן: {task.dayTime.map(getDayTimeLabel).join(', ')}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Car className="h-4 w-4 text-muted-foreground" />
-                                <span>רכבים: {task.targetCar.join(', ')}</span>
-                              </div>
-                            </div>
+                            <h4 className="font-semibold text-foreground mb-2">תיאור המשימה</h4>
+                            <p className="text-muted-foreground">{task.description.main}</p>
                           </div>
-                        </div>
 
-                        {/* Subtasks */}
-                        {taskSubtasks.length > 0 && (
+                          {/* Execution Instructions */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-4">תת-משימות</h4>
-                            <div className="space-y-3">
-                              {taskSubtasks.map((subtask) => (
-                                <div key={subtask.id} className="bg-muted/30 rounded-lg p-4">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1">
-                                      <h5 className="font-medium text-foreground">
-                                        {subtask.title}
-                                      </h5>
-                                      {subtask.subtitle && (
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                          {subtask.subtitle}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <span className="text-sm text-muted-foreground font-mono">
-                                      {subtask.datacoNumber}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Target className="h-3 w-3" />
-                                      {subtask.amountNeeded} {subtask.type}
-                                    </span>
-                                    <span>מזג אוויר: {subtask.weather}</span>
-                                    <span>סצנה: {subtask.scene}</span>
-                                  </div>
-                                  
-                                  {subtask.labels.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-3">
-                                      {subtask.labels.map((label, index) => (
-                                        <span 
-                                          key={index}
-                                          className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-                                        >
-                                          {label}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
+                            <h4 className="font-semibold text-foreground mb-2">הוראות ביצוע</h4>
+                            <p className="text-muted-foreground">{task.description.howToExecute}</p>
+                          </div>
+
+                          {/* Technical Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-2">פרטים טכניים</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <Car className="h-4 w-4 text-muted-foreground" />
+                                  <span>רכב יעד: {task.targetCar.join(', ')}</span>
                                 </div>
-                              ))}
+                                <div className="flex items-center gap-2">
+                                  <Zap className="h-4 w-4 text-muted-foreground" />
+                                  <span>LiDAR: {task.lidar ? 'כן' : 'לא'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                                  <span>זמן: {task.dayTime.map(getDayTimeLabel).join(', ')}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-2">כמות נדרשת</h4>
+                              <div className="text-2xl font-bold text-primary">
+                                {task.amountNeeded}
+                              </div>
                             </div>
                           </div>
-                        )}
+
+                          {/* Subtasks */}
+                          {taskSubtasks.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-3">תת-משימות</h4>
+                              <div className="space-y-3">
+                                {taskSubtasks.map((subtask) => (
+                                  <div key={subtask.id} className="bg-muted/30 rounded-lg p-4">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <h5 className="font-medium text-foreground">{subtask.title}</h5>
+                                        {subtask.subtitle && (
+                                          <p className="text-sm text-muted-foreground mt-1">{subtask.subtitle}</p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                          <span>{subtask.datacoNumber}</span>
+                                          <span className="capitalize">{subtask.type}</span>
+                                          <span>{subtask.weather}</span>
+                                          <span>{subtask.scene}</span>
+                                          {subtask.labels.length > 0 && (
+                                            <span className="bg-secondary/50 px-2 py-1 rounded text-xs">
+                                              {subtask.labels.join(', ')}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-lg font-semibold text-primary">
+                                        {subtask.amountNeeded}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

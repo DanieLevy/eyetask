@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  Eye, 
   LogOut, 
   BarChart3, 
   Users, 
@@ -290,20 +289,20 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
+      {/* Top Action Bar */}
+      <div className="bg-card border-b border-border">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Eye className="h-8 w-8 text-primary" />
-              <div>
-                <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>EyeTask - לוח בקרה</h1>
-                <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                  שלום {user?.username} | Mobileye Admin
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <h2 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+                לוח בקרה מנהל
+              </h2>
+              {user && (
+                <span className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
+                  | {user.username}
+                </span>
+              )}
             </div>
-            
             <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
@@ -317,23 +316,10 @@ export default function AdminDashboard() {
                 <RefreshCw className="h-4 w-4" />
                 רענן
               </button>
-              <Link
-                href="/"
-                className="px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
-              >
-                דף הבית
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                התנתק
-              </button>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -472,7 +458,7 @@ export default function AdminDashboard() {
                             </p>
                           )}
                         </div>
-                        <Eye className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <BarChart3 className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       
                       <div className="flex items-center justify-between text-sm">
