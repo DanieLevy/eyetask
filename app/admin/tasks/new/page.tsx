@@ -41,6 +41,7 @@ export default function NewTaskPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [operationLoading, setOperationLoading] = useState(false);
+  const [createAnother, setCreateAnother] = useState(false);
   
   const [newTaskData, setNewTaskData] = useState<NewTaskData>({
     title: '',
@@ -140,8 +141,28 @@ export default function NewTaskPage() {
       const result = await response.json();
       
       if (result.success) {
-        // Redirect to the project management page where the task was created
-        router.push(`/admin/projects/${newTaskData.projectId}`);
+        if (createAnother) {
+          // Reset form but keep project selection and show success message
+          setNewTaskData(prev => ({
+            title: '',
+            subtitle: '',
+            datacoNumber: '',
+            description: '',
+            projectId: prev.projectId, // Keep selected project
+            type: ['events'],
+            locations: ['Urban'],
+            targetCar: ['EQ'],
+            lidar: false,
+            dayTime: ['day'],
+            priority: 5
+          }));
+          
+          // Show success message
+          alert('משימה נוצרה בהצלחה! אתה יכול ליצור משימה נוספת.');
+        } else {
+          // Redirect to the project management page where the task was created
+          router.push(`/admin/projects/${newTaskData.projectId}`);
+        }
       } else {
         alert('Failed to create task: ' + (result.error || 'Unknown error'));
       }
@@ -417,20 +438,36 @@ export default function NewTaskPage() {
                 </div>
               </div>
               
-              <div className="p-6 border-t border-border flex gap-3">
-                <button
-                  onClick={handleCreateTask}
-                  disabled={operationLoading || !newTaskData.title || !newTaskData.datacoNumber || !newTaskData.projectId || !newTaskData.description || newTaskData.type.length === 0 || newTaskData.locations.length === 0 || newTaskData.targetCar.length === 0 || newTaskData.dayTime.length === 0}
-                  className="flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 font-medium"
-                >
-                  {operationLoading ? 'יוצר משימה...' : 'צור משימה'}
-                </button>
-                <Link
-                  href="/admin/dashboard"
-                  className="px-6 py-3 border border-border rounded-lg hover:bg-accent transition-colors font-medium"
-                >
-                  ביטול
-                </Link>
+              <div className="p-6 border-t border-border">
+                {/* Create Another Task Option */}
+                <div className="mb-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={createAnother}
+                      onChange={(e) => setCreateAnother(e.target.checked)}
+                      className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
+                    />
+                    <span className="text-sm font-medium text-foreground">צור משימה נוספת לאחר השמירה</span>
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, הטופס יישאר פתוח לאחר יצירת המשימה</p>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCreateTask}
+                    disabled={operationLoading || !newTaskData.title || !newTaskData.datacoNumber || !newTaskData.projectId || !newTaskData.description || newTaskData.type.length === 0 || newTaskData.locations.length === 0 || newTaskData.targetCar.length === 0 || newTaskData.dayTime.length === 0}
+                    className="flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 font-medium"
+                  >
+                    {operationLoading ? 'יוצר משימה...' : 'צור משימה'}
+                  </button>
+                  <Link
+                    href="/admin/dashboard"
+                    className="px-6 py-3 border border-border rounded-lg hover:bg-accent transition-colors font-medium"
+                  >
+                    ביטול
+                  </Link>
+                </div>
               </div>
             </div>
           </div>

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTaskById, updateTask, deleteTask, incrementPageView } from '@/lib/data';
+import { getProjectById, updateProject, deleteProject } from '@/lib/data';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/tasks/[id] - Get a specific task by ID
+// GET /api/projects/[id] - Get a specific project by ID
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
@@ -17,50 +17,34 @@ export async function GET(
     
     if (!id || typeof id !== 'string') {
       return NextResponse.json(
-        { error: 'Invalid task ID', success: false },
+        { error: 'Invalid project ID', success: false },
         { status: 400 }
       );
     }
     
-    const task = await getTaskById(id);
+    const project = await getProjectById(id);
     
-    if (!task) {
+    if (!project) {
       return NextResponse.json(
-        { error: 'Task not found', success: false },
+        { error: 'Project not found', success: false },
         { status: 404 }
       );
     }
-
-    // Check authentication and visibility
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-
-    // If task is hidden and user is not admin, return 404
-    if (!task.isVisible && (!authorized || !isAdminEnhanced(user))) {
-      return NextResponse.json(
-        { error: 'Task not found', success: false },
-        { status: 404 }
-      );
-    }
-
-    // Track page view
-    await incrementPageView(`task-${id}`);
 
     return NextResponse.json({
-      task,
+      project,
       success: true,
     });
   } catch (error) {
-    console.error('Error fetching task:', error);
+    console.error('Error fetching project:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch task', success: false },
+      { error: 'Failed to fetch project', success: false },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/tasks/[id] - Update a task (admin only)
+// PUT /api/projects/[id] - Update a project (admin only)
 export async function PUT(
   request: NextRequest,
   { params }: RouteParams
@@ -80,26 +64,39 @@ export async function PUT(
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
     const body = await request.json();
-    const updatedTask = await updateTask(id, body);
     
-    if (!updatedTask) {
+    // Validate required fields
+    if (!body.name) {
       return NextResponse.json(
-        { error: 'Task not found', success: false },
+        { error: 'Project name is required', success: false },
+        { status: 400 }
+      );
+    }
+    
+    const updatedProject = await updateProject(id, body);
+    
+    if (!updatedProject) {
+      return NextResponse.json(
+        { error: 'Project not found', success: false },
         { status: 404 }
       );
     }
     
-    return NextResponse.json({ task: updatedTask, success: true });
+    return NextResponse.json({ 
+      project: updatedProject, 
+      message: 'Project updated successfully',
+      success: true 
+    });
   } catch (error) {
-    console.error('Error updating task:', error);
+    console.error('Error updating project:', error);
     return NextResponse.json(
-      { error: 'Failed to update task', success: false },
+      { error: 'Failed to update project', success: false },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/tasks/[id] - Delete a task (admin only)
+// DELETE /api/projects/[id] - Delete a project (admin only)
 export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
@@ -118,23 +115,23 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const deleted = await deleteTask(id);
+    const deleted = await deleteProject(id);
     
     if (!deleted) {
       return NextResponse.json(
-        { error: 'Task not found', success: false },
+        { error: 'Project not found', success: false },
         { status: 404 }
       );
     }
     
     return NextResponse.json({ 
-      message: 'Task deleted successfully', 
+      message: 'Project deleted successfully', 
       success: true 
     });
   } catch (error) {
-    console.error('Error deleting task:', error);
+    console.error('Error deleting project:', error);
     return NextResponse.json(
-      { error: 'Failed to delete task', success: false },
+      { error: 'Failed to delete project', success: false },
       { status: 500 }
     );
   }

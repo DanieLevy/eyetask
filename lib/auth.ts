@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { getUserByUsername, User } from './data';
 import { logger, AppError, validateRequired } from './logger';
+import { verifyToken as verifySupabaseToken, AuthUser } from './supabase-auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || '941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -380,4 +381,71 @@ export function clearRateLimit(username: string): void {
   } catch (error) {
     logger.error('Error clearing rate limit', 'AUTH', { username }, error as Error);
   }
+}
+
+// NEW: Supabase Auth verification function
+export async function requireSupabaseAuth(token?: string): Promise<{ authorized: boolean; user?: AuthUser; error?: string }> {
+  try {
+    if (!token) {
+      logger.debug('No token provided', 'SUPABASE_AUTH');
+      return { authorized: false, error: 'No token provided' };
+    }
+    
+    const user = await verifySupabaseToken(token);
+    
+    if (!user) {
+      logger.warn('Invalid token', 'SUPABASE_AUTH', { error: 'invalid signature' });
+      return { authorized: false, error: 'Invalid or expired token' };
+    }
+    
+    logger.debug('Token verified successfully via Supabase', 'SUPABASE_AUTH', { username: user.username });
+    return { authorized: true, user };
+  } catch (error) {
+    logger.error('Supabase token verification failed', 'SUPABASE_AUTH', undefined, error as Error);
+    return { authorized: false, error: 'Token verification failed' };
+  }
+}
+
+// NEW: Check if Supabase user is admin
+export function isSupabaseAdmin(user?: AuthUser): boolean {
+  return user?.role === 'admin';
+}
+
+// Enhanced version that tries both Supabase and custom JWT
+export async function requireAuthEnhanced(token?: string): Promise<{ authorized: boolean; user?: any; error?: string }> {
+  try {
+    // First try Supabase Auth
+    const supabaseAuth = await requireSupabaseAuth(token);
+    if (supabaseAuth.authorized && supabaseAuth.user) {
+      return { 
+        authorized: true, 
+        user: {
+          id: supabaseAuth.user.id,
+          username: supabaseAuth.user.username,
+          email: supabaseAuth.user.email,
+          role: supabaseAuth.user.role
+        }
+      };
+    }
+    
+    // Fallback to custom JWT
+    logger.debug('Falling back to custom JWT verification', 'AUTH');
+    return requireAuth(token);
+  } catch (error) {
+    logger.error('Enhanced auth verification failed', 'AUTH', undefined, error as Error);
+    return { authorized: false, error: 'Authentication failed' };
+  }
+}
+
+// Enhanced admin check that works with both systems
+export function isAdminEnhanced(user?: any): boolean {
+  if (!user) return false;
+  
+  // Check if it's a Supabase user
+  if (user.email && user.username) {
+    return user.role === 'admin';
+  }
+  
+  // Fallback to custom user check
+  return isAdmin(user);
 } 

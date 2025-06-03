@@ -306,11 +306,13 @@ export class SupabaseDatabase implements Database {
 
   async createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     try {
+      validateRequired(project, ['name'], 'CREATE_PROJECT');
+      
       const { data, error } = await supabase
         .from('projects')
         .insert({
           name: project.name,
-          description: project.description || null
+          description: project.description
         })
         .select()
         .single();
@@ -323,6 +325,54 @@ export class SupabaseDatabase implements Database {
     } catch (error) {
       handleSupabaseError(error, 'createProject');
       throw new AppError('Failed to create project', 500, 'CREATE_PROJECT');
+    }
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project | null> {
+    try {
+      validateRequired({ id }, ['id'], 'UPDATE_PROJECT');
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .update({
+          name: updates.name,
+          description: updates.description,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        throw error;
+      }
+      
+      const updatedProject = this.mapProjectFromSupabase(data);
+      logger.info(`Updated project ${id}`, 'SUPABASE_DB');
+      return updatedProject;
+    } catch (error) {
+      handleSupabaseError(error, 'updateProject');
+      throw new AppError('Failed to update project', 500, 'UPDATE_PROJECT');
+    }
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    try {
+      validateRequired({ id }, ['id'], 'DELETE_PROJECT');
+      
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      logger.info(`Deleted project ${id}`, 'SUPABASE_DB');
+      return true;
+    } catch (error) {
+      handleSupabaseError(error, 'deleteProject');
+      throw new AppError('Failed to delete project', 500, 'DELETE_PROJECT');
     }
   }
 

@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTaskById, updateTask } from '@/lib/data';
-import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// PATCH /api/tasks/[id]/visibility - Toggle task visibility (admin only)
-export async function PATCH(
+async function handleVisibilityToggle(
   request: NextRequest,
   { params }: RouteParams
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = requireAuth(token);
+    const { authorized, user } = await requireAuthEnhanced(token);
     
-    if (!authorized || !isAdmin(user)) {
+    if (!authorized || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
@@ -58,4 +57,20 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+// PATCH /api/tasks/[id]/visibility - Toggle task visibility (admin only)
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams
+) {
+  return handleVisibilityToggle(request, context);
+}
+
+// PUT /api/tasks/[id]/visibility - Toggle task visibility (admin only) - alias for PATCH
+export async function PUT(
+  request: NextRequest,
+  context: RouteParams
+) {
+  return handleVisibilityToggle(request, context);
 } 

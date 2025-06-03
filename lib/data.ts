@@ -325,6 +325,55 @@ export async function createProject(project: any) {
   }
 }
 
+export async function updateProject(id: string, updates: any) {
+  try {
+    validateRequired({ id }, ['id'], 'UPDATE_PROJECT');
+    
+    // If name is being updated, check for duplicates
+    if (updates.name) {
+      const existingProjects = await db.getAllProjects();
+      const duplicateProject = existingProjects.find(p => p.name === updates.name && p.id !== id);
+      if (duplicateProject) {
+        throw new AppError(`Project with name "${updates.name}" already exists`, 409, 'UPDATE_PROJECT');
+      }
+    }
+    
+    const updatedProject = await db.updateProject(id, updates);
+    if (!updatedProject) {
+      throw new AppError('Project not found', 404, 'UPDATE_PROJECT');
+    }
+    
+    logger.dataOperation('update', 'project', id, { updates: Object.keys(updates) });
+    return updatedProject;
+  } catch (error) {
+    logger.dataOperation('update', 'project', id, undefined, error as Error);
+    throw error;
+  }
+}
+
+export async function deleteProject(id: string) {
+  try {
+    validateRequired({ id }, ['id'], 'DELETE_PROJECT');
+    
+    // Check if project has associated tasks
+    const tasks = await db.getTasksByProjectId(id);
+    if (tasks.length > 0) {
+      throw new AppError('Cannot delete project with existing tasks. Please delete all tasks first.', 400, 'DELETE_PROJECT');
+    }
+    
+    const deleted = await db.deleteProject(id);
+    if (!deleted) {
+      throw new AppError('Project not found', 404, 'DELETE_PROJECT');
+    }
+    
+    logger.dataOperation('delete', 'project', id);
+    return true;
+  } catch (error) {
+    logger.dataOperation('delete', 'project', id, undefined, error as Error);
+    throw error;
+  }
+}
+
 // Users functions
 export async function getUserByUsername(username: string) {
   try {

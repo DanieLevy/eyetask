@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSubtasksByTaskId, createSubtask, getTaskById, incrementPageView } from '@/lib/data';
-import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 import { createSuccessResponse } from '@/lib/middleware';
 import { logger } from '@/lib/logger';
 
@@ -40,7 +40,7 @@ export async function GET(
     
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
-    const { authorized } = requireAuth(token);
+    const { authorized } = await requireAuthEnhanced(token);
     
     if (!authorized) {
       return NextResponse.json(
@@ -110,10 +110,10 @@ export async function POST(
     
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
-    const { authorized, user: authUser } = requireAuth(token);
+    const { authorized, user: authUser } = await requireAuthEnhanced(token);
     user = authUser;
     
-    if (!authorized || !isAdmin(user)) {
+    if (!authorized || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
