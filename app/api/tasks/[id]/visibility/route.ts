@@ -5,7 +5,7 @@ import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 // PATCH /api/tasks/[id]/visibility - Toggle task visibility (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
@@ -19,7 +19,9 @@ export async function PATCH(
       );
     }
     
-    const task = await getTaskById(params.id);
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    const task = await getTaskById(id);
     
     if (!task) {
       return NextResponse.json(
@@ -29,7 +31,7 @@ export async function PATCH(
     }
     
     // Toggle visibility
-    const updatedTask = await updateTask(params.id, {
+    const updatedTask = await updateTask(id, {
       isVisible: !task.isVisible,
     });
     

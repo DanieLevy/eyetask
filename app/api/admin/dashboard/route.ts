@@ -67,9 +67,15 @@ export async function GET(request: NextRequest) {
         }),
     };
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       dashboard: dashboardData,
-      success: true 
+      success: true,
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);

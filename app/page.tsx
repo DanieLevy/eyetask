@@ -27,27 +27,71 @@ export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Log visit for analytics
-    fetch('/api/analytics', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isUniqueVisitor: true }),
-    }).catch(console.error);
+    // Clear any cached data to ensure fresh content
+    const clearPageCache = async () => {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          if (cacheName.includes('eyetask-api')) {
+            await caches.delete(cacheName);
+          }
+        }
+      }
+    };
 
-    // Fetch projects and tasks
-    Promise.all([
-      fetch('/api/projects').then(res => res.json()),
-      fetch('/api/tasks').then(res => res.json())
-    ])
-    .then(([projectsData, tasksData]) => {
-      setProjects(projectsData.projects || []);
-      setTasks(tasksData.tasks || []);
-      setLoading(false);
-    })
-    .catch(error => {
-      console.error('Error fetching data:', error);
-      setLoading(false);
-    });
+    const fetchData = async () => {
+      try {
+        // Clear cache first
+        await clearPageCache();
+        
+        // Log visit for analytics
+        await fetch('/api/analytics', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          body: JSON.stringify({ isUniqueVisitor: true }),
+        }).catch(console.error);
+
+        // Add cache busting timestamp
+        const timestamp = Date.now();
+        
+        // Fetch projects and tasks with cache busting
+        const [projectsResponse, tasksResponse] = await Promise.all([
+          fetch(`/api/projects?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          }),
+          fetch(`/api/tasks?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          })
+        ]);
+
+        const [projectsData, tasksData] = await Promise.all([
+          projectsResponse.json(),
+          tasksResponse.json()
+        ]);
+
+        console.log('📦 Main page - Projects data:', projectsData);
+        console.log('📦 Main page - Tasks data:', tasksData);
+        console.log('📦 Main page - Visible tasks:', tasksData.tasks?.filter(t => t.isVisible));
+
+        setProjects(projectsData.projects || []);
+        setTasks(tasksData.tasks || []);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
 
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {

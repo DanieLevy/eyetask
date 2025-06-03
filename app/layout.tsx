@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,16 +16,18 @@ export const metadata: Metadata = {
   title: "EyeTask - מערכת ניהול משימות נהגים",
   description: "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
   manifest: "/manifest.json",
-  themeColor: "#000000",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "EyeTask",
   },
-  icons: {
-    apple: "/icons/apple-touch-icon.png",
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

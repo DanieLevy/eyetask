@@ -24,6 +24,8 @@ export default function AdminLoginPage() {
     setError('');
 
     try {
+      console.log('🔐 Starting login process...', { username: credentials.username });
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -32,17 +34,77 @@ export default function AdminLoginPage() {
         body: JSON.stringify(credentials),
       });
 
+      console.log('🌐 Login response status:', response.status);
+      console.log('🌐 Login response headers:', Object.fromEntries(response.headers.entries()));
+
       const data = await response.json();
+      console.log('📦 Login response data:', data);
+      console.log('📦 Response data structure:', {
+        success: data.success,
+        hasToken: !!data.token || !!data.data?.token,
+        hasUser: !!data.user || !!data.data?.user,
+        tokenValue: data.token || data.data?.token,
+        userValue: data.user || data.data?.user
+      });
 
       if (data.success) {
-        localStorage.setItem('adminToken', data.token);
-        localStorage.setItem('adminUser', JSON.stringify(data.user));
-        router.push('/admin/dashboard');
+        // Extract token and user from the response - they're nested in data object
+        const token = data.data?.token;
+        const user = data.data?.user;
+        
+        console.log('✅ Login successful, storing data...');
+        console.log('🔑 Token to store:', token);
+        console.log('👤 User to store:', user);
+        console.log('👤 User JSON string:', JSON.stringify(user));
+        
+        // Validate data before storing
+        if (!token) {
+          console.error('❌ No token in response!');
+          setError('שגיאה: לא התקבל טוקן מהשרת');
+          return;
+        }
+        
+        if (!user) {
+          console.error('❌ No user data in response!');
+          setError('שגיאה: לא התקבלו נתוני משתמש מהשרת');
+          return;
+        }
+        
+        // Store with additional validation
+        try {
+          localStorage.setItem('adminToken', token);
+          console.log('💾 Token stored. Verification:', localStorage.getItem('adminToken'));
+          
+          const userJson = JSON.stringify(user);
+          localStorage.setItem('adminUser', userJson);
+          console.log('💾 User stored. Verification:', localStorage.getItem('adminUser'));
+          
+          // Double-check what was actually stored
+          const storedToken = localStorage.getItem('adminToken');
+          const storedUser = localStorage.getItem('adminUser');
+          
+          console.log('🔍 Final verification:');
+          console.log('  Stored token:', storedToken);
+          console.log('  Stored user:', storedUser);
+          console.log('  Stored user type:', typeof storedUser);
+          
+          if (storedToken && storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+            console.log('🚀 Redirecting to dashboard...');
+            router.push('/admin/dashboard');
+          } else {
+            console.error('❌ Storage verification failed!');
+            setError('שגיאה בשמירת נתוני התחברות');
+          }
+        } catch (storageError) {
+          console.error('❌ Error storing to localStorage:', storageError);
+          setError('שגיאה בשמירת נתוני התחברות');
+        }
       } else {
+        console.error('❌ Login failed:', data.error);
         setError(data.error || 'שגיאה בהתחברות');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login request failed:', error);
       setError('שגיאה בחיבור לשרת');
     } finally {
       setLoading(false);

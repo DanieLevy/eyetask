@@ -7,7 +7,17 @@ export async function GET(request: NextRequest) {
   try {
     const projects = await getAllProjects();
     
-    return NextResponse.json({ projects, success: true });
+    return NextResponse.json({
+      projects,
+      total: projects.length,
+      success: true
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(
@@ -21,8 +31,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = requireAuth(token);
+    const token = extractTokenFromHeader(authHeader || undefined);
+    const { authorized, user } = requireAuth(token || undefined);
     
     if (!authorized || !isAdmin(user)) {
       return NextResponse.json(

@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { logger, AppError, validateRequired, retryOperation, safeJsonParse } from './logger';
 
 // Type definitions based on workplan
 export interface Task {
@@ -99,218 +100,659 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ANALYTICS_FILE = path.join(DATA_DIR, 'analytics.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
-// Generic read function
-async function readJsonFile<T>(filePath: string): Promise<T> {
+// Ensure data directory exists
+async function ensureDataDirectory(): Promise<void> {
   try {
+    await fs.access(DATA_DIR);
+  } catch (error) {
+    logger.info('Creating data directory', 'DATA_INIT');
+    await fs.mkdir(DATA_DIR, { recursive: true });
+  }
+}
+
+// Create backup of data file before major operations
+async function createBackup(filePath: string): Promise<void> {
+  try {
+    const backupPath = `${filePath}.backup.${Date.now()}`;
+    await fs.copyFile(filePath, backupPath);
+    logger.debug(`Backup created: ${backupPath}`, 'BACKUP');
+  } catch (error) {
+    logger.warn('Failed to create backup', 'BACKUP', { filePath }, error as Error);
+  }
+}
+
+// Generic read function with enhanced error handling
+async function readJsonFile<T>(filePath: string, defaultValue?: T): Promise<T> {
+  try {
+    await ensureDataDirectory();
+    
     const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
+    const parsed = safeJsonParse(data, null, `READ_${path.basename(filePath)}`);
+    
+    if (parsed === null) {
+      if (defaultValue !== undefined) {
+        logger.warn(`Using default value for ${filePath}`, 'DATA_READ');
+        return defaultValue;
+      }
+      throw new AppError(`Invalid JSON in file: ${filePath}`, 500, 'DATA_READ');
+    }
+    
+    logger.debug(`Successfully read file: ${path.basename(filePath)}`, 'DATA_READ');
+    return parsed;
   } catch (error) {
-    console.error(`Error reading ${filePath}:`, error);
-    throw new Error(`Failed to read data from ${filePath}`);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    if ((error as any).code === 'ENOENT') {
+      if (defaultValue !== undefined) {
+        logger.info(`File not found, using default: ${filePath}`, 'DATA_READ');
+        return defaultValue;
+      }
+      throw new AppError(`File not found: ${filePath}`, 404, 'DATA_READ');
+    }
+    
+    logger.error(`Error reading file: ${filePath}`, 'DATA_READ', undefined, error as Error);
+    throw new AppError(`Failed to read data from ${filePath}`, 500, 'DATA_READ');
   }
 }
 
-// Generic write function
-async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+// Generic write function with enhanced error handling
+async function writeJsonFile<T>(filePath: string, data: T, createBackup: boolean = true): Promise<void> {
   try {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+    await ensureDataDirectory();
+    
+    // Validate data before writing
+    if (data === null || data === undefined) {
+      throw new AppError('Cannot write null or undefined data', 400, 'DATA_WRITE');
+    }
+    
+    // Create backup if file exists and backup is requested
+    if (createBackup) {
+      try {
+        await fs.access(filePath);
+        await createBackup(filePath);
+      } catch (error) {
+        // File doesn't exist, no backup needed
+      }
+    }
+    
+    const jsonString = JSON.stringify(data, null, 2);
+    await fs.writeFile(filePath, jsonString, 'utf8');
+    
+    logger.debug(`Successfully wrote file: ${path.basename(filePath)}`, 'DATA_WRITE');
   } catch (error) {
-    console.error(`Error writing ${filePath}:`, error);
-    throw new Error(`Failed to write data to ${filePath}`);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    logger.error(`Error writing file: ${filePath}`, 'DATA_WRITE', undefined, error as Error);
+    throw new AppError(`Failed to write data to ${filePath}`, 500, 'DATA_WRITE');
   }
 }
 
-// Tasks functions
+// Tasks functions with enhanced error handling
 export async function getAllTasks(): Promise<Task[]> {
-  const data = await readJsonFile<{ tasks: Task[] }>(TASKS_FILE);
-  return data.tasks;
+  try {
+    const data = await readJsonFile<{ tasks: Task[] }>(TASKS_FILE, { tasks: [] });
+    logger.dataOperation('read', 'tasks', undefined, { count: data.tasks.length });
+    return data.tasks;
+  } catch (error) {
+    logger.dataOperation('read', 'tasks', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function getTaskById(id: string): Promise<Task | null> {
-  const tasks = await getAllTasks();
-  return tasks.find(task => task.id === id) || null;
+  try {
+    validateRequired({ id }, ['id'], 'GET_TASK_BY_ID');
+    
+    const tasks = await getAllTasks();
+    const task = tasks.find(task => task.id === id) || null;
+    
+    logger.dataOperation('read', 'task', id, { found: !!task });
+    return task;
+  } catch (error) {
+    logger.dataOperation('read', 'task', id, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function getVisibleTasks(): Promise<Task[]> {
-  const tasks = await getAllTasks();
-  return tasks.filter(task => task.isVisible);
+  try {
+    const tasks = await getAllTasks();
+    const visibleTasks = tasks.filter(task => task.isVisible);
+    
+    logger.dataOperation('read', 'visible_tasks', undefined, { count: visibleTasks.length });
+    return visibleTasks;
+  } catch (error) {
+    logger.dataOperation('read', 'visible_tasks', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
-  const tasks = await getAllTasks();
-  const newTask: Task = {
-    ...task,
-    id: `task_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  
-  tasks.push(newTask);
-  await writeJsonFile(TASKS_FILE, { tasks });
-  return newTask;
+  try {
+    // Validate required fields
+    const requiredFields = ['title', 'datacoNumber', 'description', 'project', 'type', 'locations', 'amountNeeded', 'targetCar', 'dayTime', 'priority'];
+    validateRequired(task, requiredFields, 'CREATE_TASK');
+    
+    // Additional validation
+    if (!Array.isArray(task.type) || task.type.length === 0) {
+      throw new AppError('Task type must be a non-empty array', 400, 'CREATE_TASK');
+    }
+    
+    if (task.priority < 0 || task.priority > 10) {
+      throw new AppError('Task priority must be between 0 and 10', 400, 'CREATE_TASK');
+    }
+    
+    const tasks = await getAllTasks();
+    
+    // Check for duplicate DATACO number
+    if (tasks.some(t => t.datacoNumber === task.datacoNumber)) {
+      throw new AppError(`Task with DATACO number ${task.datacoNumber} already exists`, 409, 'CREATE_TASK');
+    }
+    
+    const newTask: Task = {
+      ...task,
+      id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      isVisible: task.isVisible !== undefined ? task.isVisible : true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    tasks.push(newTask);
+    await writeJsonFile(TASKS_FILE, { tasks });
+    
+    logger.dataOperation('create', 'task', newTask.id, { title: newTask.title, datacoNumber: newTask.datacoNumber });
+    return newTask;
+  } catch (error) {
+    logger.dataOperation('create', 'task', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
-  const tasks = await getAllTasks();
-  const taskIndex = tasks.findIndex(task => task.id === id);
-  
-  if (taskIndex === -1) return null;
-  
-  tasks[taskIndex] = {
-    ...tasks[taskIndex],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  
-  await writeJsonFile(TASKS_FILE, { tasks });
-  return tasks[taskIndex];
+  try {
+    validateRequired({ id }, ['id'], 'UPDATE_TASK');
+    
+    const tasks = await getAllTasks();
+    const taskIndex = tasks.findIndex(task => task.id === id);
+    
+    if (taskIndex === -1) {
+      logger.dataOperation('update', 'task', id, { found: false });
+      return null;
+    }
+    
+    // Validate updates
+    if (updates.datacoNumber) {
+      const existingTask = tasks.find(t => t.datacoNumber === updates.datacoNumber && t.id !== id);
+      if (existingTask) {
+        throw new AppError(`Task with DATACO number ${updates.datacoNumber} already exists`, 409, 'UPDATE_TASK');
+      }
+    }
+    
+    if (updates.priority !== undefined && (updates.priority < 0 || updates.priority > 10)) {
+      throw new AppError('Task priority must be between 0 and 10', 400, 'UPDATE_TASK');
+    }
+    
+    const originalTask = { ...tasks[taskIndex] };
+    tasks[taskIndex] = {
+      ...tasks[taskIndex],
+      ...updates,
+      id, // Ensure ID cannot be changed
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await writeJsonFile(TASKS_FILE, { tasks });
+    
+    logger.dataOperation('update', 'task', id, { 
+      changes: Object.keys(updates),
+      title: tasks[taskIndex].title 
+    });
+    
+    return tasks[taskIndex];
+  } catch (error) {
+    logger.dataOperation('update', 'task', id, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function deleteTask(id: string): Promise<boolean> {
-  const tasks = await getAllTasks();
-  const filteredTasks = tasks.filter(task => task.id !== id);
-  
-  if (filteredTasks.length === tasks.length) return false;
-  
-  await writeJsonFile(TASKS_FILE, { tasks: filteredTasks });
-  return true;
+  try {
+    validateRequired({ id }, ['id'], 'DELETE_TASK');
+    
+    const tasks = await getAllTasks();
+    const initialLength = tasks.length;
+    const filteredTasks = tasks.filter(task => task.id !== id);
+    
+    if (filteredTasks.length === initialLength) {
+      logger.dataOperation('delete', 'task', id, { found: false });
+      return false;
+    }
+    
+    // Also delete related subtasks
+    try {
+      const subtasks = await getAllSubtasks();
+      const filteredSubtasks = subtasks.filter(subtask => subtask.taskId !== id);
+      await writeJsonFile(SUBTASKS_FILE, { subtasks: filteredSubtasks });
+      
+      logger.info(`Deleted ${subtasks.length - filteredSubtasks.length} related subtasks`, 'DELETE_TASK');
+    } catch (error) {
+      logger.warn('Failed to delete related subtasks', 'DELETE_TASK', { taskId: id }, error as Error);
+    }
+    
+    await writeJsonFile(TASKS_FILE, { tasks: filteredTasks });
+    
+    logger.dataOperation('delete', 'task', id, { deletedSubtasks: true });
+    return true;
+  } catch (error) {
+    logger.dataOperation('delete', 'task', id, undefined, error as Error);
+    throw error;
+  }
 }
 
-// Subtasks functions
+// Subtasks functions with enhanced error handling
 export async function getAllSubtasks(): Promise<Subtask[]> {
-  const data = await readJsonFile<{ subtasks: Subtask[] }>(SUBTASKS_FILE);
-  return data.subtasks;
+  try {
+    const data = await readJsonFile<{ subtasks: Subtask[] }>(SUBTASKS_FILE, { subtasks: [] });
+    logger.dataOperation('read', 'subtasks', undefined, { count: data.subtasks.length });
+    return data.subtasks;
+  } catch (error) {
+    logger.dataOperation('read', 'subtasks', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function getSubtasksByTaskId(taskId: string): Promise<Subtask[]> {
-  const subtasks = await getAllSubtasks();
-  return subtasks.filter(subtask => subtask.taskId === taskId);
+  try {
+    validateRequired({ taskId }, ['taskId'], 'GET_SUBTASKS_BY_TASK');
+    
+    const subtasks = await getAllSubtasks();
+    const taskSubtasks = subtasks.filter(subtask => subtask.taskId === taskId);
+    
+    logger.dataOperation('read', 'subtasks_by_task', taskId, { count: taskSubtasks.length });
+    return taskSubtasks;
+  } catch (error) {
+    logger.dataOperation('read', 'subtasks_by_task', taskId, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function getSubtaskById(id: string): Promise<Subtask | null> {
-  const subtasks = await getAllSubtasks();
-  return subtasks.find(subtask => subtask.id === id) || null;
+  try {
+    validateRequired({ id }, ['id'], 'GET_SUBTASK_BY_ID');
+    
+    const subtasks = await getAllSubtasks();
+    const subtask = subtasks.find(subtask => subtask.id === id) || null;
+    
+    logger.dataOperation('read', 'subtask', id, { found: !!subtask });
+    return subtask;
+  } catch (error) {
+    logger.dataOperation('read', 'subtask', id, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function createSubtask(subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>): Promise<Subtask> {
-  const subtasks = await getAllSubtasks();
-  const newSubtask: Subtask = {
-    ...subtask,
-    id: `subtask_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  
-  subtasks.push(newSubtask);
-  await writeJsonFile(SUBTASKS_FILE, { subtasks });
-  return newSubtask;
+  try {
+    // Validate required fields
+    const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'weather', 'scene'];
+    validateRequired(subtask, requiredFields, 'CREATE_SUBTASK');
+    
+    // Verify parent task exists
+    const parentTask = await getTaskById(subtask.taskId);
+    if (!parentTask) {
+      throw new AppError(`Parent task ${subtask.taskId} not found`, 404, 'CREATE_SUBTASK');
+    }
+    
+    const subtasks = await getAllSubtasks();
+    
+    // Check for duplicate DATACO number
+    if (subtasks.some(s => s.datacoNumber === subtask.datacoNumber)) {
+      throw new AppError(`Subtask with DATACO number ${subtask.datacoNumber} already exists`, 409, 'CREATE_SUBTASK');
+    }
+    
+    const newSubtask: Subtask = {
+      ...subtask,
+      id: `subtask_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    subtasks.push(newSubtask);
+    await writeJsonFile(SUBTASKS_FILE, { subtasks });
+    
+    logger.dataOperation('create', 'subtask', newSubtask.id, { 
+      title: newSubtask.title, 
+      taskId: newSubtask.taskId,
+      datacoNumber: newSubtask.datacoNumber 
+    });
+    
+    return newSubtask;
+  } catch (error) {
+    logger.dataOperation('create', 'subtask', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function updateSubtask(id: string, updates: Partial<Subtask>): Promise<Subtask | null> {
-  const subtasks = await getAllSubtasks();
-  const subtaskIndex = subtasks.findIndex(subtask => subtask.id === id);
-  
-  if (subtaskIndex === -1) return null;
-  
-  subtasks[subtaskIndex] = {
-    ...subtasks[subtaskIndex],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  
-  await writeJsonFile(SUBTASKS_FILE, { subtasks });
-  return subtasks[subtaskIndex];
+  try {
+    validateRequired({ id }, ['id'], 'UPDATE_SUBTASK');
+    
+    const subtasks = await getAllSubtasks();
+    const subtaskIndex = subtasks.findIndex(subtask => subtask.id === id);
+    
+    if (subtaskIndex === -1) {
+      logger.dataOperation('update', 'subtask', id, { found: false });
+      return null;
+    }
+    
+    // Validate updates
+    if (updates.datacoNumber) {
+      const existingSubtask = subtasks.find(s => s.datacoNumber === updates.datacoNumber && s.id !== id);
+      if (existingSubtask) {
+        throw new AppError(`Subtask with DATACO number ${updates.datacoNumber} already exists`, 409, 'UPDATE_SUBTASK');
+      }
+    }
+    
+    if (updates.taskId) {
+      const parentTask = await getTaskById(updates.taskId);
+      if (!parentTask) {
+        throw new AppError(`Parent task ${updates.taskId} not found`, 404, 'UPDATE_SUBTASK');
+      }
+    }
+    
+    subtasks[subtaskIndex] = {
+      ...subtasks[subtaskIndex],
+      ...updates,
+      id, // Ensure ID cannot be changed
+      updatedAt: new Date().toISOString(),
+    };
+    
+    await writeJsonFile(SUBTASKS_FILE, { subtasks });
+    
+    logger.dataOperation('update', 'subtask', id, { 
+      changes: Object.keys(updates),
+      title: subtasks[subtaskIndex].title 
+    });
+    
+    return subtasks[subtaskIndex];
+  } catch (error) {
+    logger.dataOperation('update', 'subtask', id, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function deleteSubtask(id: string): Promise<boolean> {
-  const subtasks = await getAllSubtasks();
-  const filteredSubtasks = subtasks.filter(subtask => subtask.id !== id);
-  
-  if (filteredSubtasks.length === subtasks.length) return false;
-  
-  await writeJsonFile(SUBTASKS_FILE, { subtasks: filteredSubtasks });
-  return true;
+  try {
+    validateRequired({ id }, ['id'], 'DELETE_SUBTASK');
+    
+    const subtasks = await getAllSubtasks();
+    const initialLength = subtasks.length;
+    const filteredSubtasks = subtasks.filter(subtask => subtask.id !== id);
+    
+    if (filteredSubtasks.length === initialLength) {
+      logger.dataOperation('delete', 'subtask', id, { found: false });
+      return false;
+    }
+    
+    await writeJsonFile(SUBTASKS_FILE, { subtasks: filteredSubtasks });
+    
+    logger.dataOperation('delete', 'subtask', id);
+    return true;
+  } catch (error) {
+    logger.dataOperation('delete', 'subtask', id, undefined, error as Error);
+    throw error;
+  }
 }
 
-// Projects functions
+// Projects functions with enhanced error handling
 export async function getAllProjects(): Promise<Project[]> {
-  const data = await readJsonFile<{ projects: Project[] }>(PROJECTS_FILE);
-  return data.projects;
+  try {
+    const data = await readJsonFile<{ projects: Project[] }>(PROJECTS_FILE, { projects: [] });
+    logger.dataOperation('read', 'projects', undefined, { count: data.projects.length });
+    return data.projects;
+  } catch (error) {
+    logger.dataOperation('read', 'projects', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function getProjectById(id: string): Promise<Project | null> {
-  const projects = await getAllProjects();
-  return projects.find(project => project.id === id) || null;
+  try {
+    validateRequired({ id }, ['id'], 'GET_PROJECT_BY_ID');
+    
+    const projects = await getAllProjects();
+    const project = projects.find(project => project.id === id) || null;
+    
+    logger.dataOperation('read', 'project', id, { found: !!project });
+    return project;
+  } catch (error) {
+    logger.dataOperation('read', 'project', id, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
-  const projects = await getAllProjects();
-  const newProject: Project = {
-    ...project,
-    id: `project_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  
-  projects.push(newProject);
-  await writeJsonFile(PROJECTS_FILE, { projects });
-  return newProject;
+  try {
+    validateRequired(project, ['name', 'description'], 'CREATE_PROJECT');
+    
+    const projects = await getAllProjects();
+    
+    // Check for duplicate name
+    if (projects.some(p => p.name === project.name)) {
+      throw new AppError(`Project with name "${project.name}" already exists`, 409, 'CREATE_PROJECT');
+    }
+    
+    const newProject: Project = {
+      ...project,
+      id: `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    projects.push(newProject);
+    await writeJsonFile(PROJECTS_FILE, { projects });
+    
+    logger.dataOperation('create', 'project', newProject.id, { name: newProject.name });
+    return newProject;
+  } catch (error) {
+    logger.dataOperation('create', 'project', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
-// Users functions
+// Users functions with enhanced error handling
 export async function getUserByUsername(username: string): Promise<User | null> {
-  const data = await readJsonFile<{ users: User[] }>(USERS_FILE);
-  return data.users.find(user => user.username === username) || null;
+  try {
+    validateRequired({ username }, ['username'], 'GET_USER_BY_USERNAME');
+    
+    const data = await readJsonFile<{ users: User[] }>(USERS_FILE, { users: [] });
+    const user = data.users.find(user => user.username === username) || null;
+    
+    logger.dataOperation('read', 'user', username, { found: !!user });
+    return user;
+  } catch (error) {
+    logger.dataOperation('read', 'user', username, undefined, error as Error);
+    throw error;
+  }
 }
 
-// Analytics functions
+// Analytics functions with enhanced error handling
 export async function getAnalytics(): Promise<Analytics> {
-  const data = await readJsonFile<{ analytics: Analytics }>(ANALYTICS_FILE);
-  return data.analytics;
+  try {
+    const defaultAnalytics: Analytics = {
+      totalVisits: 0,
+      uniqueVisitors: 0,
+      dailyStats: {},
+      pageViews: {
+        homepage: 0,
+        projects: {},
+        tasks: {},
+        admin: 0,
+      },
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    const data = await readJsonFile<{ analytics: Analytics }>(ANALYTICS_FILE, { analytics: defaultAnalytics });
+    logger.dataOperation('read', 'analytics');
+    return data.analytics;
+  } catch (error) {
+    logger.dataOperation('read', 'analytics', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function updateAnalytics(updates: Partial<Analytics>): Promise<Analytics> {
-  const currentAnalytics = await getAnalytics();
-  const updatedAnalytics = {
-    ...currentAnalytics,
-    ...updates,
-    lastUpdated: new Date().toISOString(),
-  };
-  
-  await writeJsonFile(ANALYTICS_FILE, { analytics: updatedAnalytics });
-  return updatedAnalytics;
+  try {
+    const currentAnalytics = await getAnalytics();
+    const updatedAnalytics = {
+      ...currentAnalytics,
+      ...updates,
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    await writeJsonFile(ANALYTICS_FILE, { analytics: updatedAnalytics });
+    
+    logger.dataOperation('update', 'analytics', undefined, { updates: Object.keys(updates) });
+    return updatedAnalytics;
+  } catch (error) {
+    logger.dataOperation('update', 'analytics', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function incrementPageView(page: string, id?: string): Promise<void> {
-  const analytics = await getAnalytics();
-  
-  if (page === 'homepage') {
-    analytics.pageViews.homepage++;
-  } else if (page === 'admin') {
-    analytics.pageViews.admin++;
-  } else if (page === 'projects' && id) {
-    analytics.pageViews.projects[id] = (analytics.pageViews.projects[id] || 0) + 1;
-  } else if (page === 'tasks' && id) {
-    analytics.pageViews.tasks[id] = (analytics.pageViews.tasks[id] || 0) + 1;
+  try {
+    validateRequired({ page }, ['page'], 'INCREMENT_PAGE_VIEW');
+    
+    const analytics = await getAnalytics();
+    
+    if (page === 'homepage') {
+      analytics.pageViews.homepage++;
+    } else if (page === 'admin') {
+      analytics.pageViews.admin++;
+    } else if (page === 'projects' && id) {
+      analytics.pageViews.projects[id] = (analytics.pageViews.projects[id] || 0) + 1;
+    } else if (page === 'tasks' && id) {
+      analytics.pageViews.tasks[id] = (analytics.pageViews.tasks[id] || 0) + 1;
+    }
+    
+    await updateAnalytics(analytics);
+    
+    logger.dataOperation('increment', 'page_view', id, { page });
+  } catch (error) {
+    logger.dataOperation('increment', 'page_view', id, { page }, error as Error);
+    throw error;
   }
-  
-  await updateAnalytics(analytics);
 }
 
-// Settings functions
+// Settings functions with enhanced error handling
 export async function getSettings(): Promise<Settings> {
-  const data = await readJsonFile<{ settings: Settings }>(SETTINGS_FILE);
-  return data.settings;
+  try {
+    const defaultSettings: Settings = {
+      appName: 'EyeTask',
+      companyName: 'Mobileye',
+      language: 'he',
+      rtl: true,
+      theme: 'light',
+      version: '1.0.0',
+      maintenanceMode: false,
+      allowPublicAccess: true,
+      realTimeUpdates: true,
+      maxImageSize: 5242880,
+      supportedImageFormats: ['jpg', 'jpeg', 'png', 'webp'],
+      pagination: {
+        tasksPerPage: 20,
+        subtasksPerPage: 50,
+      },
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    const data = await readJsonFile<{ settings: Settings }>(SETTINGS_FILE, { settings: defaultSettings });
+    logger.dataOperation('read', 'settings');
+    return data.settings;
+  } catch (error) {
+    logger.dataOperation('read', 'settings', undefined, undefined, error as Error);
+    throw error;
+  }
 }
 
 export async function updateSettings(updates: Partial<Settings>): Promise<Settings> {
-  const currentSettings = await getSettings();
-  const updatedSettings = {
-    ...currentSettings,
-    ...updates,
-    lastUpdated: new Date().toISOString(),
-  };
+  try {
+    const currentSettings = await getSettings();
+    const updatedSettings = {
+      ...currentSettings,
+      ...updates,
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    await writeJsonFile(SETTINGS_FILE, { settings: updatedSettings });
+    
+    logger.dataOperation('update', 'settings', undefined, { updates: Object.keys(updates) });
+    return updatedSettings;
+  } catch (error) {
+    logger.dataOperation('update', 'settings', undefined, undefined, error as Error);
+    throw error;
+  }
+}
+
+// Health check function
+export async function healthCheck(): Promise<{ status: string; checks: Record<string, boolean> }> {
+  const checks: Record<string, boolean> = {};
   
-  await writeJsonFile(SETTINGS_FILE, { settings: updatedSettings });
-  return updatedSettings;
+  try {
+    await ensureDataDirectory();
+    checks.dataDirectory = true;
+  } catch {
+    checks.dataDirectory = false;
+  }
+  
+  try {
+    await getAllTasks();
+    checks.tasksFile = true;
+  } catch {
+    checks.tasksFile = false;
+  }
+  
+  try {
+    await getAllSubtasks();
+    checks.subtasksFile = true;
+  } catch {
+    checks.subtasksFile = false;
+  }
+  
+  try {
+    await getAllProjects();
+    checks.projectsFile = true;
+  } catch {
+    checks.projectsFile = false;
+  }
+  
+  try {
+    await getAnalytics();
+    checks.analyticsFile = true;
+  } catch {
+    checks.analyticsFile = false;
+  }
+  
+  try {
+    await getSettings();
+    checks.settingsFile = true;
+  } catch {
+    checks.settingsFile = false;
+  }
+  
+  const allHealthy = Object.values(checks).every(Boolean);
+  
+  logger.info('Health check completed', 'HEALTH', { 
+    status: allHealthy ? 'healthy' : 'unhealthy',
+    checks 
+  });
+  
+  return {
+    status: allHealthy ? 'healthy' : 'unhealthy',
+    checks
+  };
 } 

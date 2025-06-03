@@ -19,7 +19,17 @@ export async function GET(request: NextRequest) {
       tasks = await getVisibleTasks();
     }
     
-    return NextResponse.json({ tasks, success: true });
+    return NextResponse.json({
+      tasks: tasks,
+      total: tasks.length,
+      success: true,
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(

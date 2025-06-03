@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTaskById, updateTask, deleteTask } from '@/lib/data';
+import { getTaskById, updateTask, deleteTask, incrementPageView } from '@/lib/data';
 import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
 
-// GET /api/tasks/[id] - Fetch specific task
+// GET /api/tasks/[id] - Get a specific task by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const task = await getTaskById(params.id);
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    const task = await getTaskById(id);
     
     if (!task) {
       return NextResponse.json(
@@ -16,20 +18,27 @@ export async function GET(
         { status: 404 }
       );
     }
-    
-    // Check if task is visible or user is admin
+
+    // Check authentication and visibility
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
     const { authorized, user } = requireAuth(token);
-    
+
+    // If task is hidden and user is not admin, return 404
     if (!task.isVisible && (!authorized || !isAdmin(user))) {
       return NextResponse.json(
         { error: 'Task not found', success: false },
         { status: 404 }
       );
     }
-    
-    return NextResponse.json({ task, success: true });
+
+    // Track page view
+    await incrementPageView(`task-${id}`);
+
+    return NextResponse.json({
+      task,
+      success: true,
+    });
   } catch (error) {
     console.error('Error fetching task:', error);
     return NextResponse.json(
@@ -39,25 +48,27 @@ export async function GET(
   }
 }
 
-// PUT /api/tasks/[id] - Update existing task (admin only)
+// PUT /api/tasks/[id] - Update a task (admin only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
     const { authorized, user } = requireAuth(token);
-    
+
     if (!authorized || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
       );
     }
-    
+
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
     const body = await request.json();
-    const updatedTask = await updateTask(params.id, body);
+    const updatedTask = await updateTask(id, body);
     
     if (!updatedTask) {
       return NextResponse.json(
@@ -76,24 +87,26 @@ export async function PUT(
   }
 }
 
-// DELETE /api/tasks/[id] - Delete task (admin only)
+// DELETE /api/tasks/[id] - Delete a task (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
     const { authorized, user } = requireAuth(token);
-    
+
     if (!authorized || !isAdmin(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
       );
     }
-    
-    const deleted = await deleteTask(params.id);
+
+    // Await params to fix Next.js 15 requirement
+    const { id } = await params;
+    const deleted = await deleteTask(id);
     
     if (!deleted) {
       return NextResponse.json(

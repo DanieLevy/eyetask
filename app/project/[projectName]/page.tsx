@@ -66,36 +66,58 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch tasks for this project
-    fetch('/api/tasks')
-      .then(res => res.json())
-      .then(data => {
-        const projectTasks = (data.tasks || []).filter(
+    const fetchProjectData = async () => {
+      try {
+        // Add cache busting timestamp
+        const timestamp = Date.now();
+        
+        // Fetch tasks for this project with cache busting
+        const tasksResponse = await fetch(`/api/tasks?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        const tasksData = await tasksResponse.json();
+        console.log('📦 Project page - All tasks:', tasksData.tasks);
+        
+        const projectTasks = (tasksData.tasks || []).filter(
           (task: Task) => task.project === projectName && task.isVisible
         );
+        
+        console.log('📦 Project page - Filtered tasks for', projectName, ':', projectTasks);
         setTasks(projectTasks);
         
-        // Fetch subtasks for each task
-        const subtaskPromises = projectTasks.map((task: Task) =>
-          fetch(`/api/tasks/${task.id}/subtasks`)
-            .then(res => res.json())
-            .then(data => ({ taskId: task.id, subtasks: data.subtasks || [] }))
-        );
-        
-        return Promise.all(subtaskPromises);
-      })
-      .then(subtaskData => {
-        const subtaskMap: Record<string, Subtask[]> = {};
-        subtaskData.forEach(({ taskId, subtasks: taskSubtasks }) => {
-          subtaskMap[taskId] = taskSubtasks;
+        // Fetch subtasks for each task with cache busting
+        const subtaskPromises = projectTasks.map(async (task: Task) => {
+          const subtaskResponse = await fetch(`/api/tasks/${task.id}/subtasks?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          const subtaskData = await subtaskResponse.json();
+          // Handle both old and new response formats
+          const subtasks = subtaskData.data?.subtasks || subtaskData.subtasks || [];
+          return { taskId: task.id, subtasks };
         });
+        
+        const subtaskResults = await Promise.all(subtaskPromises);
+        const subtaskMap: Record<string, Subtask[]> = {};
+        subtaskResults.forEach(({ taskId, subtasks }) => {
+          subtaskMap[taskId] = subtasks;
+        });
+        
         setSubtasks(subtaskMap);
         setLoading(false);
-      })
-      .catch(error => {
+      } catch (error) {
         console.error('Error fetching project data:', error);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchProjectData();
   }, [projectName]);
 
   const toggleTaskExpansion = (taskId: string) => {

@@ -1,9 +1,9 @@
 {
   "analytics": {
-    "totalVisits": 2,
-    "uniqueVisitors": 2,
+    "totalVisits": 25,
+    "uniqueVisitors": 25,
     "dailyStats": {
-      "2025-06-03": 2
+      "2025-06-03": 25
     },
     "pageViews": {
       "homepage": 0,
@@ -11,6 +11,6 @@
       "tasks": {},
       "admin": 0
     },
-    "lastUpdated": "2025-06-03T09:46:50.386Z"
+    "lastUpdated": "2025-06-03T10:49:02.029Z"
   }
 }
