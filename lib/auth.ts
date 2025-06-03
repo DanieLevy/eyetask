@@ -3,7 +3,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import { getUserByUsername, User } from './data';
 import { logger, AppError, validateRequired } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'eyetask-mobileye-secret-key-2025';
+const JWT_SECRET = process.env.JWT_SECRET || '941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 export interface LoginCredentials {

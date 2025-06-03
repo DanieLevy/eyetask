@@ -8,9 +8,23 @@
   NODE_VERSION = "18"
 
 # Environment variables (set these in Netlify dashboard)
-# NEXT_PUBLIC_SUPABASE_URL = "https://gpgenilthxcpiwcpipns.supabase.co"
-# NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds"
-# JWT_SECRET = "941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766"
+# Copy these exact values to Netlify Dashboard → Site Settings → Environment Variables
+
+# Variable 1:
+# Key: NEXT_PUBLIC_SUPABASE_URL
+# Value: https://gpgenilthxcpiwcpipns.supabase.co
+
+# Variable 2: 
+# Key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+# Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds
+
+# Variable 3:
+# Key: SUPABASE_SERVICE_KEY  
+# Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODk1MzM1MSwiZXhwIjoyMDY0NTI5MzUxfQ.SJe07JCxDJv4gfbmAdZUxXuBLrn92JbVcDyC5lDQ51Q
+
+# Variable 4:
+# Key: JWT_SECRET
+# Value: 941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766
 
 # The @netlify/plugin-nextjs handles API routes and static files automatically
 
