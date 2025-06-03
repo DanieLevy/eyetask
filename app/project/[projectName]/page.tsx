@@ -51,6 +51,7 @@ interface Subtask {
   type: 'events' | 'hours';
   amountNeeded: number;
   labels: string[];
+  targetCar: string[];
   weather: string;
   scene: string;
   createdAt: string;
@@ -65,6 +66,7 @@ export default function ProjectPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [subtasks, setSubtasks] = useState<Record<string, Subtask[]>>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [projectId, setProjectId] = useState<string | null>(null);
 
@@ -208,6 +210,23 @@ export default function ProjectPage() {
     setExpandedTasks(newExpanded);
   };
 
+  const toggleSubtaskExpansion = (subtaskId: string) => {
+    const newExpanded = new Set(expandedSubtasks);
+    if (newExpanded.has(subtaskId)) {
+      newExpanded.delete(subtaskId);
+    } else {
+      newExpanded.add(subtaskId);
+    }
+    setExpandedSubtasks(newExpanded);
+  };
+
+  // Format DATACO number to always show with DATACO- prefix
+  const formatDatacoNumber = (datacoNumber: string) => {
+    if (!datacoNumber) return '';
+    const cleanNumber = datacoNumber.replace(/^DATACO-?/i, '');
+    return `DATACO-${cleanNumber}`;
+  };
+
   const getPriorityColor = (priority: number) => {
     if (priority >= 1 && priority <= 3) return 'text-red-500 bg-red-50';
     if (priority >= 4 && priority <= 6) return 'text-yellow-500 bg-yellow-50';
@@ -289,41 +308,31 @@ export default function ProjectPage() {
                 
                 return (
                   <div key={task.id} className="bg-card rounded-lg border border-border overflow-hidden">
-                    {/* Task Header - Always Visible */}
+                    {/* Task Header - Always Visible (Collapsed View) */}
                     <button
                       onClick={() => toggleTaskExpansion(task.id)}
-                      className="w-full p-6 text-right hover:bg-accent/50 transition-colors"
+                      className="w-full p-4 text-right hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
+                            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
+                              {formatDatacoNumber(task.datacoNumber)}
+                            </span>
                             <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
                               {getPriorityLabel(task.priority)}
                             </div>
                           </div>
-                          {task.subtitle && (
-                            <p className="text-sm text-muted-foreground mb-2">{task.subtitle}</p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Target className="h-4 w-4" />
-                              {task.datacoNumber}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {task.type.join(', ')}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
-                              {task.locations.join(', ')}
-                            </span>
-                            {taskSubtasks.length > 0 && (
-                              <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs">
+                          
+                          {/* Only show subtask count when collapsed */}
+                          {!isExpanded && taskSubtasks.length > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                              <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
                                 {taskSubtasks.length} תת-משימות
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           {isExpanded ? (
@@ -336,9 +345,36 @@ export default function ProjectPage() {
                     </button>
 
                     {/* Task Details - Collapsible */}
-                    <div className={`collapsible-content ${isExpanded ? 'open' : 'closed'}`}>
+                    {isExpanded && (
                       <div className="px-6 pb-6 border-t border-border">
                         <div className="space-y-6 pt-6">
+                          {/* Subtitle when expanded */}
+                          {task.subtitle && (
+                            <div>
+                              <p className="text-muted-foreground">{task.subtitle}</p>
+                            </div>
+                          )}
+
+                          {/* Task type and basic info when expanded */}
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              <strong>סוג:</strong> {task.type.join(', ')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              <strong>מיקומים:</strong> {task.locations.join(', ')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Car className="h-4 w-4" />
+                              <strong>רכבי יעד:</strong> {task.targetCar.join(', ')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              <strong>זמני יום:</strong> {task.dayTime.map(getDayTimeLabel).join(', ')}
+                            </span>
+                          </div>
+
                           {/* Description */}
                           <div>
                             <h4 className="font-semibold text-foreground mb-2">תיאור המשימה</h4>
@@ -357,16 +393,8 @@ export default function ProjectPage() {
                               <h4 className="font-semibold text-foreground mb-2">פרטים טכניים</h4>
                               <div className="space-y-2 text-sm">
                                 <div className="flex items-center gap-2">
-                                  <Car className="h-4 w-4 text-muted-foreground" />
-                                  <span>רכב יעד: {task.targetCar.join(', ')}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
                                   <Zap className="h-4 w-4 text-muted-foreground" />
-                                  <span>LiDAR: {task.lidar ? 'כן' : 'לא'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                                  <span>זמן: {task.dayTime.map(getDayTimeLabel).join(', ')}</span>
+                                  <span><strong>LiDAR:</strong> {task.lidar ? 'כן' : 'לא'}</span>
                                 </div>
                               </div>
                             </div>
@@ -382,39 +410,106 @@ export default function ProjectPage() {
                           {taskSubtasks.length > 0 && (
                             <div>
                               <h4 className="font-semibold text-foreground mb-3">תת-משימות</h4>
-                              <div className="space-y-3">
-                                {taskSubtasks.map((subtask) => (
-                                  <div key={subtask.id} className="bg-muted/30 rounded-lg p-4">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <h5 className="font-medium text-foreground">{subtask.title}</h5>
-                                        {subtask.subtitle && (
-                                          <p className="text-sm text-muted-foreground mt-1">{subtask.subtitle}</p>
-                                        )}
-                                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                          <span>{subtask.datacoNumber}</span>
-                                          <span className="capitalize">{subtask.type}</span>
-                                          <span>{subtask.weather}</span>
-                                          <span>{subtask.scene}</span>
-                                          {subtask.labels.length > 0 && (
-                                            <span className="bg-secondary/50 px-2 py-1 rounded text-xs">
-                                              {subtask.labels.join(', ')}
-                                            </span>
-                                          )}
+                              <div className="space-y-2">
+                                {taskSubtasks.map((subtask) => {
+                                  const isSubtaskExpanded = expandedSubtasks.has(subtask.id);
+                                  
+                                  return (
+                                    <div key={subtask.id} className="bg-muted/30 rounded-lg overflow-hidden">
+                                      {/* Subtask Header - Minimal Info (Collapsed) */}
+                                      <button
+                                        onClick={() => toggleSubtaskExpansion(subtask.id)}
+                                        className="w-full p-3 text-right hover:bg-muted/50 transition-colors"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-3">
+                                              <h5 className="font-medium text-foreground">{subtask.title}</h5>
+                                              <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-background rounded">
+                                                {formatDatacoNumber(subtask.datacoNumber)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {isSubtaskExpanded ? (
+                                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                            ) : (
+                                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                      <div className="text-lg font-semibold text-primary">
-                                        {subtask.amountNeeded}
-                                      </div>
+                                      </button>
+
+                                      {/* Subtask Details - Collapsible */}
+                                      {isSubtaskExpanded && (
+                                        <div className="px-3 pb-3 border-t border-border/50">
+                                          <div className="pt-3 space-y-3">
+                                            {/* Subtitle */}
+                                            {subtask.subtitle && (
+                                              <div>
+                                                <p className="text-sm text-muted-foreground">{subtask.subtitle}</p>
+                                              </div>
+                                            )}
+                                            
+                                            {/* Basic Info */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  <strong>סוג:</strong> {subtask.type === 'events' ? 'אירועים' : 'שעות'}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  <strong>כמות נדרשת:</strong> {subtask.amountNeeded}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  <strong>מזג אוויר:</strong> {subtask.weather}
+                                                </span>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">
+                                                  <strong>סצנה:</strong> {subtask.scene}
+                                                </span>
+                                              </div>
+                                            </div>
+
+                                            {/* Target Cars */}
+                                            <div>
+                                              <p className="text-sm text-muted-foreground">
+                                                <strong>רכבי יעד:</strong> {subtask.targetCar.join(', ')}
+                                              </p>
+                                            </div>
+
+                                            {/* Labels */}
+                                            {subtask.labels.length > 0 && (
+                                              <div>
+                                                <h6 className="text-sm font-medium text-foreground mb-2">לייבלים</h6>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {subtask.labels.map((label, index) => (
+                                                    <span 
+                                                      key={index}
+                                                      className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
+                                                    >
+                                                      {label}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}

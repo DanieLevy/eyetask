@@ -512,7 +512,15 @@ export class SupabaseDatabase implements Database {
   // Analytics
   async getAnalytics(): Promise<Analytics> {
     try {
-      const { data, error } = await supabase
+      // Try admin client first, then fallback to regular client
+      let client;
+      try {
+        client = await this.getAdminClient();
+      } catch {
+        client = supabase;
+      }
+      
+      const { data, error } = await client
         .from('analytics')
         .select('*')
         .limit(1)
@@ -523,13 +531,12 @@ export class SupabaseDatabase implements Database {
           // Create default analytics if none exist
           return this.createDefaultAnalytics();
         }
-        throw error;
+        return this.createDefaultAnalytics();
       }
       
       const analytics = this.mapAnalyticsFromSupabase(data);
       return analytics;
     } catch (error) {
-      handleSupabaseError(error, 'getAnalytics');
       return this.createDefaultAnalytics();
     }
   }
@@ -545,80 +552,71 @@ export class SupabaseDatabase implements Database {
         lastUpdated: new Date().toISOString()
       };
       
-      // Check if analytics record exists
-      const { data: existingData, error: selectError } = await supabase
+      const client = await this.getAdminClient();
+      
+      // Check if record exists
+      const { data: existing } = await client
         .from('analytics')
         .select('id')
         .limit(1)
         .single();
-
-      if (selectError && selectError.code !== 'PGRST116') {
-        throw selectError;
-      }
-
-      let result;
-      if (existingData) {
-        // Update existing record
-        const { data, error } = await supabase
-          .from('analytics')
-          .update({
-            total_visits: updatedData.totalVisits,
-            unique_visitors: updatedData.uniqueVisitors,
-            daily_stats: updatedData.dailyStats,
-            page_views: updatedData.pageViews,
-            last_updated: updatedData.lastUpdated
-          })
-          .eq('id', existingData.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        result = data;
-      } else {
-        // Insert new record
-        const { data, error } = await supabase
-          .from('analytics')
-          .insert({
-            total_visits: updatedData.totalVisits,
-            unique_visitors: updatedData.uniqueVisitors,
-            daily_stats: updatedData.dailyStats,
-            page_views: updatedData.pageViews,
-            last_updated: updatedData.lastUpdated
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        result = data;
-      }
       
-      const analytics = this.mapAnalyticsFromSupabase(result);
-      logger.debug('Updated analytics', 'SUPABASE_DB');
-      return analytics;
+      if (existing) {
+        // Update existing record
+        const { data, error } = await client
+          .from('analytics')
+          .update(this.mapAnalyticsToSupabase(updatedData))
+          .eq('id', existing.id)
+          .select()
+          .single();
+        
+        if (error) {
+          if (error.code === '42501') {
+            throw new Error(`RLS_POLICY_ERROR: ${error.message}`);
+          }
+          throw error;
+        }
+        
+        return this.mapAnalyticsFromSupabase(data);
+      } else {
+        // Create new record
+        const { data, error } = await client
+          .from('analytics')
+          .insert(this.mapAnalyticsToSupabase(updatedData))
+          .select()
+          .single();
+        
+        if (error) {
+          if (error.code === '42501') {
+            throw new Error(`RLS_POLICY_ERROR: ${error.message}`);
+          }
+          throw error;
+        }
+        
+        return this.mapAnalyticsFromSupabase(data);
+      }
     } catch (error) {
-      logger.error('Failed to update analytics', 'SUPABASE_DB', undefined, error as Error);
-      return this.createDefaultAnalytics();
+      handleSupabaseError(error, 'updateAnalytics');
+      throw error;
     }
   }
 
-  async incrementPageView(page: string, id?: string): Promise<void> {
+  async incrementPageView(page: string): Promise<void> {
     try {
-      const analytics = await this.getAnalytics();
+      const current = await this.getAnalytics();
+      const today = new Date().toISOString().split('T')[0];
+      const dailyStats = current.dailyStats || {};
       
-      if (page === 'homepage') {
-        analytics.pageViews.homepage++;
-      } else if (page === 'admin') {
-        analytics.pageViews.admin++;
-      } else if (page === 'projects' && id) {
-        analytics.pageViews.projects[id] = (analytics.pageViews.projects[id] || 0) + 1;
-      } else if (page === 'tasks' && id) {
-        analytics.pageViews.tasks[id] = (analytics.pageViews.tasks[id] || 0) + 1;
-      }
-      
-      await this.updateAnalytics(analytics);
-      logger.debug(`Incremented page view for ${page}${id ? `:${id}` : ''}`, 'SUPABASE_DB');
+      await this.updateAnalytics({
+        totalVisits: current.totalVisits + 1,
+        dailyStats: {
+          ...dailyStats,
+          [today]: (dailyStats[today] || 0) + 1
+        }
+      });
     } catch (error) {
-      logger.error('Failed to increment page view', 'SUPABASE_DB', { page, id }, error as Error);
+      handleSupabaseError(error, 'incrementPageView');
+      // Don't throw here - page views should be non-blocking
     }
   }
 
@@ -746,5 +744,17 @@ export class SupabaseDatabase implements Database {
       },
       lastUpdated: new Date().toISOString()
     };
+  }
+
+  private mapAnalyticsToSupabase(analytics: Analytics): any {
+    const mapped: any = {};
+    
+    if (analytics.totalVisits !== undefined) mapped.total_visits = analytics.totalVisits;
+    if (analytics.uniqueVisitors !== undefined) mapped.unique_visitors = analytics.uniqueVisitors;
+    if (analytics.dailyStats !== undefined) mapped.daily_stats = analytics.dailyStats;
+    if (analytics.pageViews !== undefined) mapped.page_views = analytics.pageViews;
+    if (analytics.lastUpdated !== undefined) mapped.last_updated = analytics.lastUpdated;
+    
+    return mapped;
   }
 } 

@@ -18,9 +18,12 @@ export async function GET(request: NextRequest) {
     
     const analytics = await getAnalytics();
     
-    return NextResponse.json({ analytics, success: true });
-  } catch (error) {
-    console.error('Error fetching analytics:', error);
+    return NextResponse.json({
+      success: true,
+      data: analytics
+    });
+  } catch (error: any) {
+    console.error('❌ Analytics GET failed:', error.message);
     return NextResponse.json(
       { error: 'Failed to fetch analytics', success: false },
       { status: 500 }
@@ -28,33 +31,40 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/analytics - Log visitor data
+// POST /api/analytics - Log a visit (public endpoint)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const today = new Date().toISOString().split('T')[0];
+    const { date, isUniqueVisitor } = body;
     
-    const analytics = await getAnalytics();
+    // Get current analytics
+    const current = await getAnalytics();
+    
+    // Calculate new values
+    const newTotalVisits = current.totalVisits + 1;
+    const newUniqueVisitors = isUniqueVisitor ? current.uniqueVisitors + 1 : current.uniqueVisitors;
     
     // Update daily stats
-    analytics.dailyStats[today] = (analytics.dailyStats[today] || 0) + 1;
+    const today = date || new Date().toISOString().split('T')[0];
+    const dailyStats = current.dailyStats || {};
+    const newTodayStats = (dailyStats[today] || 0) + 1;
     
-    // Increment total visits
-    analytics.totalVisits++;
-    
-    // If unique visitor tracking is requested
-    if (body.isUniqueVisitor) {
-      analytics.uniqueVisitors++;
-    }
-    
-    await updateAnalytics(analytics);
-    
-    return NextResponse.json({ 
-      message: 'Visit logged successfully', 
-      success: true 
+    // Update analytics
+    await updateAnalytics({
+      totalVisits: newTotalVisits,
+      uniqueVisitors: newUniqueVisitors,
+      dailyStats: {
+        ...dailyStats,
+        [today]: newTodayStats
+      }
     });
-  } catch (error) {
-    console.error('Error logging visit:', error);
+    
+    return NextResponse.json({
+      success: true,
+      data: { totalVisits: newTotalVisits, uniqueVisitors: newUniqueVisitors, todayStats: newTodayStats }
+    });
+  } catch (error: any) {
+    console.error('❌ Analytics POST failed:', error.message);
     return NextResponse.json(
       { error: 'Failed to log visit', success: false },
       { status: 500 }

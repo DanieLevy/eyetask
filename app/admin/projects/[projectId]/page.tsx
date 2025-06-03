@@ -306,6 +306,19 @@ export default function ProjectManagement() {
     return 'ללא';
   };
 
+  // Handle DATACO number input - only allow numbers
+  const handleDatacoNumberChange = (value: string) => {
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setNewTaskData(prev => ({ ...prev, datacoNumber: numericValue }));
+  };
+
+  // Format DATACO number for display
+  const formatDatacoDisplay = (datacoNumber: string) => {
+    if (!datacoNumber) return '';
+    return `DATACO-${datacoNumber}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -554,13 +567,27 @@ export default function ProjectManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <input
-                    type="text"
-                    value={newTaskData.datacoNumber}
-                    onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="DATACO-XXXX"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newTaskData.datacoNumber}
+                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      placeholder="הזן מספר"
+                      dir="ltr"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                      DATACO-
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                  </p>
+                  {newTaskData.datacoNumber && (
+                    <p className="text-xs text-primary mt-1">
+                      תוצג כ: {formatDatacoDisplay(newTaskData.datacoNumber)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>

@@ -148,24 +148,36 @@
   /* iOS PWA specific fixes */
   @supports (-webkit-touch-callout: none) {
     html {
-      height: -webkit-fill-available;
+      height: 100%;
+      /* Remove overscroll-behavior from html to allow scrolling */
     }
     
     body {
-      min-height: -webkit-fill-available;
-      /* Fix iOS bounce/rubber band effect showing blank areas */
-      position: fixed;
-      width: 100%;
-      overflow-x: hidden;
-    }
-    
-    /* Ensure main content scrolls properly */
-    main {
-      height: 100vh;
-      height: -webkit-fill-available;
-      overflow-y: auto;
+      /* Only prevent over-scroll bouncing, not regular scrolling */
+      overscroll-behavior-y: contain;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
+      /* Use viewport height instead of fill-available for better compatibility */
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+
+    /* Prevent zoom on input focus in PWA mode */
+    input, select, textarea {
+      font-size: 16px !important;
+      transform-origin: left top;
+    }
+
+    /* Smooth scrolling for touch devices */
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent text selection on UI elements but allow on content */
+    .no-select {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
   }
 
@@ -374,4 +386,53 @@ html[lang="en"] {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+/* Specific fixes for installed PWA (standalone mode) */
+@media (display-mode: standalone) {
+  html, body {
+    /* Ensure scrolling works in standalone PWA mode */
+    overflow: auto !important;
+    height: auto !important;
+    overscroll-behavior: auto;
+  }
+  
+  /* Fix for viewport in PWA */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+/* Additional PWA scrolling fixes */
+@media (display-mode: standalone) and (-webkit-touch-callout: none) {
+  /* iOS PWA specific scrolling fixes */
+  html {
+    overflow: auto;
+    height: 100%;
+  }
+  
+  body {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+    /* Prevent over-scroll bounce but allow scrolling */
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+  }
+  
+  /* Ensure all scrollable containers work */
+  .overflow-y-auto, .overflow-auto {
+    -webkit-overflow-scrolling: touch !important;
+    overflow: auto !important;
+  }
+}
+
+/* Anti-alias and smooth rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

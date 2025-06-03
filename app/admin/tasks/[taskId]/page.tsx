@@ -471,6 +471,30 @@ export default function TaskManagement() {
     return labels[dayTime] || dayTime;
   };
 
+  // Handle DATACO number input - only allow numbers
+  const handleDatacoNumberChange = (value: string, isEdit = false) => {
+    // Remove any non-numeric characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    
+    if (isEdit && editingSubtask) {
+      setEditingSubtask(prev => prev ? ({ ...prev, datacoNumber: numericValue }) : null);
+    } else {
+      setNewSubtaskData(prev => ({ ...prev, datacoNumber: numericValue }));
+    }
+  };
+
+  // Handle DATACO number input for task editing
+  const handleTaskDatacoNumberChange = (value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setEditTaskData(prev => ({ ...prev, datacoNumber: numericValue }));
+  };
+
+  // Format DATACO number for display
+  const formatDatacoDisplay = (datacoNumber: string) => {
+    if (!datacoNumber) return '';
+    return `DATACO-${datacoNumber}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -553,7 +577,7 @@ export default function TaskManagement() {
               <div className="flex items-center gap-3 mb-2">
                 <h2 className="text-xl font-semibold text-foreground">{task.title}</h2>
                 <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
-                  {task.datacoNumber}
+                  {formatDatacoDisplay(task.datacoNumber)}
                 </span>
                 {task.priority > 0 && (
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
@@ -728,7 +752,7 @@ export default function TaskManagement() {
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-medium text-foreground">{subtask.title}</h4>
                           <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded font-mono">
-                            {subtask.datacoNumber}
+                            {formatDatacoDisplay(subtask.datacoNumber)}
                           </span>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             subtask.type === 'events' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
@@ -832,13 +856,27 @@ export default function TaskManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <input
-                    type="text"
-                    value={newSubtaskData.datacoNumber}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, datacoNumber: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="DATACO-XXXX"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={newSubtaskData.datacoNumber}
+                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      placeholder="הזן מספר"
+                      dir="ltr"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                      DATACO-
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                  </p>
+                  {newSubtaskData.datacoNumber && (
+                    <p className="text-xs text-primary mt-1">
+                      תוצג כ: {formatDatacoDisplay(newSubtaskData.datacoNumber)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת *</label>
@@ -1007,6 +1045,30 @@ export default function TaskManagement() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={editingSubtask.datacoNumber}
+                      onChange={(e) => handleDatacoNumberChange(e.target.value, true)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      placeholder="הזן מספר"
+                      dir="ltr"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                      DATACO-
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                  </p>
+                  {editingSubtask.datacoNumber && (
+                    <p className="text-xs text-primary mt-1">
+                      תוצג כ: {formatDatacoDisplay(editingSubtask.datacoNumber)}
+                    </p>
+                  )}
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת *</label>
                   <input
                     type="number"
@@ -1016,6 +1078,9 @@ export default function TaskManagement() {
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
                   <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
@@ -1166,13 +1231,27 @@ export default function TaskManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <input
-                    type="text"
-                    value={editTaskData.datacoNumber || ''}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, datacoNumber: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="DATACO-XXXX"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={editTaskData.datacoNumber || ''}
+                      onChange={(e) => handleTaskDatacoNumberChange(e.target.value)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      placeholder="הזן מספר"
+                      dir="ltr"
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
+                      DATACO-
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                  </p>
+                  {editTaskData.datacoNumber && (
+                    <p className="text-xs text-primary mt-1">
+                      תוצג כ: {formatDatacoDisplay(editTaskData.datacoNumber)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>
