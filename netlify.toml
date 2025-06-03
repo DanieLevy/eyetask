@@ -26,23 +26,10 @@
 # Key: JWT_SECRET
 # Value: 941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766
 
-# The @netlify/plugin-nextjs handles API routes and static files automatically
+# The @netlify/plugin-nextjs plugin automatically handles:
+# - API routes (/api/*)
+# - Static file serving
+# - Client-side routing
+# - Server-side rendering
 
-# API Routes configuration
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/__nextjs"
-  status = 200
-
-# Handle client-side routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  conditions = {Role = ["admin"]}
-
-# Default fallback for SPA routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200 
+# No manual redirects needed - the plugin handles everything 
