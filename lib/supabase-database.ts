@@ -1,15 +1,30 @@
 import { supabase, handleSupabaseError } from './supabase';
+import { Database as DatabaseTypes } from './database-types';
+import type { Database, Project, Task, Subtask, User, Analytics } from './database';
 import { logger, AppError, validateRequired } from './logger';
-import type { Database } from './database';
-import type { 
-  Task, 
-  Subtask, 
-  Project, 
-  User, 
-  Analytics 
-} from './database';
+
+console.log('🏗️ [SupabaseDatabase] Initializing class...');
 
 export class SupabaseDatabase implements Database {
+  constructor() {
+    console.log('🏗️ [SupabaseDatabase] Constructor called');
+    this.testConnection();
+  }
+
+  private async testConnection() {
+    console.log('🧪 [SupabaseDatabase] Testing connection...');
+    try {
+      const { data, error } = await supabase.from('projects').select('count').limit(1);
+      if (error) {
+        console.error('❌ [SupabaseDatabase] Connection test failed:', error.message);
+      } else {
+        console.log('✅ [SupabaseDatabase] Connection test successful');
+      }
+    } catch (error) {
+      console.error('❌ [SupabaseDatabase] Connection test error:', error);
+    }
+  }
+
   // Tasks
   async getAllTasks(): Promise<Task[]> {
     try {

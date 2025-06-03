@@ -1,15 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from './logger';
+import { Database } from './database-types';
 
-// Supabase configuration with environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gpgenilthxcpiwcpipns.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds';
+// Debug environment variables
+console.log('🔗 [Supabase] Initializing connection...');
+console.log('🔗 [Supabase] URL present:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+console.log('🔗 [Supabase] Anon key present:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+console.log('🔗 [Supabase] Service key present:', !!process.env.SUPABASE_SERVICE_KEY);
+
+if (typeof window !== 'undefined') {
+  console.log('🔗 [Supabase] Running in browser environment');
+} else {
+  console.log('🔗 [Supabase] Running in server environment');
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+
+// Only throw error at runtime, not build time
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.NETLIFY;
+if (!isBuildTime && (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+  console.error('❌ [Supabase] Missing environment variables!');
+  console.error('❌ [Supabase] URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Present' : 'Missing');
+  console.error('❌ [Supabase] Anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
+  throw new Error('Missing Supabase environment variables');
+}
+
+console.log('✅ [Supabase] Creating client with URL:', supabaseUrl.substring(0, 30) + '...');
 
 // Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
-    persistSession: true,
+    persistSession: false, // For server-side usage
+    autoRefreshToken: false,
     detectSessionInUrl: false
   },
   realtime: {
@@ -19,220 +42,30 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Database types for TypeScript
-export interface Database {
-  public: {
-    Tables: {
-      projects: {
-        Row: {
-          id: string;
-          name: string;
-          description: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          description?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      tasks: {
-        Row: {
-          id: string;
-          title: string;
-          subtitle: string | null;
-          dataco_number: string;
-          description: {
-            main: string;
-            howToExecute: string;
-          };
-          project_id: string;
-          type: string[];
-          locations: string[];
-          amount_needed: number;
-          target_car: string[];
-          lidar: boolean;
-          day_time: string[];
-          priority: number;
-          is_visible: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          title: string;
-          subtitle?: string | null;
-          dataco_number: string;
-          description: {
-            main: string;
-            howToExecute: string;
-          };
-          project_id: string;
-          type: string[];
-          locations: string[];
-          amount_needed?: number;
-          target_car: string[];
-          lidar?: boolean;
-          day_time: string[];
-          priority?: number;
-          is_visible?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          title?: string;
-          subtitle?: string | null;
-          dataco_number?: string;
-          description?: {
-            main: string;
-            howToExecute: string;
-          };
-          project_id?: string;
-          type?: string[];
-          locations?: string[];
-          amount_needed?: number;
-          target_car?: string[];
-          lidar?: boolean;
-          day_time?: string[];
-          priority?: number;
-          is_visible?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      subtasks: {
-        Row: {
-          id: string;
-          task_id: string;
-          title: string;
-          subtitle: string | null;
-          image: string | null;
-          dataco_number: string;
-          type: 'events' | 'hours';
-          amount_needed: number;
-          labels: string[];
-          target_car: string[];
-          weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed' | null;
-          scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed' | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          task_id: string;
-          title: string;
-          subtitle?: string | null;
-          image?: string | null;
-          dataco_number: string;
-          type: 'events' | 'hours';
-          amount_needed: number;
-          labels: string[];
-          target_car: string[];
-          weather?: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed' | null;
-          scene?: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed' | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          task_id?: string;
-          title?: string;
-          subtitle?: string | null;
-          image?: string | null;
-          dataco_number?: string;
-          type?: 'events' | 'hours';
-          amount_needed?: number;
-          labels?: string[];
-          target_car?: string[];
-          weather?: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed' | null;
-          scene?: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed' | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      app_users: {
-        Row: {
-          id: string;
-          username: string;
-          email: string;
-          password_hash: string;
-          role: 'admin';
-          created_at: string;
-          last_login: string | null;
-        };
-        Insert: {
-          id?: string;
-          username: string;
-          email: string;
-          password_hash: string;
-          role?: 'admin';
-          created_at?: string;
-          last_login?: string | null;
-        };
-        Update: {
-          id?: string;
-          username?: string;
-          email?: string;
-          password_hash?: string;
-          role?: 'admin';
-          created_at?: string;
-          last_login?: string | null;
-        };
-      };
-      analytics: {
-        Row: {
-          id: string;
-          total_visits: number;
-          unique_visitors: number;
-          daily_stats: Record<string, number>;
-          page_views: {
-            homepage: number;
-            projects: Record<string, number>;
-            tasks: Record<string, number>;
-            admin: number;
-          };
-          last_updated: string;
-        };
-        Insert: {
-          id?: string;
-          total_visits?: number;
-          unique_visitors?: number;
-          daily_stats?: Record<string, number>;
-          page_views?: {
-            homepage: number;
-            projects: Record<string, number>;
-            tasks: Record<string, number>;
-            admin: number;
-          };
-          last_updated?: string;
-        };
-        Update: {
-          id?: string;
-          total_visits?: number;
-          unique_visitors?: number;
-          daily_stats?: Record<string, number>;
-          page_views?: {
-            homepage: number;
-            projects: Record<string, number>;
-            tasks: Record<string, number>;
-            admin: number;
-          };
-          last_updated?: string;
-        };
-      };
-    };
-  };
+console.log('✅ [Supabase] Client created successfully');
+
+// Test connection
+export async function testSupabaseConnection() {
+  console.log('🧪 [Supabase] Testing connection...');
+  
+  // Skip connection test during build
+  if (isBuildTime) {
+    console.log('⏭️ [Supabase] Skipping connection test during build');
+    return true;
+  }
+  
+  try {
+    const { data, error } = await supabase.from('projects').select('count').limit(1);
+    if (error) {
+      console.error('❌ [Supabase] Connection test failed:', error.message);
+      return false;
+    }
+    console.log('✅ [Supabase] Connection test successful');
+    return true;
+  } catch (error) {
+    console.error('❌ [Supabase] Connection test error:', error);
+    return false;
+  }
 }
 
 // Helper function to handle Supabase errors

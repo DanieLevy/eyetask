@@ -1,6 +1,5 @@
 [build]
   command = "npm run build"
-  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
@@ -10,8 +9,10 @@
 
 # Environment variables (set these in Netlify dashboard)
 # NEXT_PUBLIC_SUPABASE_URL = "https://gpgenilthxcpiwcpipns.supabase.co"
-# NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-anon-key"
-# JWT_SECRET = "your-jwt-secret"
+# NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds"
+# JWT_SECRET = "941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766"
+
+# The @netlify/plugin-nextjs handles API routes and static files automatically
 
 # API Routes configuration
 [[redirects]]
