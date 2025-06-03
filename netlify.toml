@@ -8,6 +8,11 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Environment variables (set these in Netlify dashboard)
+# NEXT_PUBLIC_SUPABASE_URL = "https://gpgenilthxcpiwcpipns.supabase.co"
+# NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-anon-key"
+# JWT_SECRET = "your-jwt-secret"
+
 # API Routes configuration
 [[redirects]]
   from = "/api/*"
