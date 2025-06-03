@@ -76,6 +76,9 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+  --font-english: 'Intel Display', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-hebrew: 'Ploni', 'Arial Hebrew', 'Arial Unicode MS', sans-serif;
+  --font-mixed: 'Ploni', 'Intel Display', 'Arial Hebrew', 'Segoe UI', sans-serif;
 }
 
 .dark {
@@ -169,4 +172,116 @@
 
 .collapsible-content[data-state="open"] {
   max-height: 1000px;
+}
+
+/* Intel Fonts for English */
+@font-face {
+  font-family: 'Intel Display';
+  src: url('/Fonts/intelone-display-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Intel Display';
+  src: url('/Fonts/intelone-display-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Intel Display';
+  src: url('/Fonts/intelone-display-medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ploni Fonts for Hebrew */
+@font-face {
+  font-family: 'Ploni';
+  src: url('/Fonts/ploni-ultralight-aaa.otf') format('opentype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ploni';
+  src: url('/Fonts/ploni-light-aaa.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ploni';
+  src: url('/Fonts/ploni-regular-aaa.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Global font configuration */
+html {
+  font-family: var(--font-mixed);
+  direction: rtl; /* RTL by default for Hebrew */
+}
+
+/* Override for English content */
+html[lang="en"] {
+  font-family: var(--font-english);
+  direction: ltr;
+}
+
+/* Language-specific font classes */
+.font-hebrew {
+  font-family: var(--font-hebrew);
+  direction: rtl;
+}
+
+.font-english {
+  font-family: var(--font-english);
+  direction: ltr;
+}
+
+.font-mixed {
+  font-family: var(--font-mixed);
+}
+
+/* Hebrew text styling */
+[lang="he"], .hebrew {
+  font-family: var(--font-hebrew);
+  direction: rtl;
+  text-align: right;
+}
+
+/* English text styling */
+[lang="en"], .english {
+  font-family: var(--font-english);
+  direction: ltr;
+  text-align: left;
+}
+
+/* Font weight utilities for custom fonts */
+.font-ultralight {
+  font-weight: 200;
+}
+
+.font-light {
+  font-weight: 300;
+}
+
+.font-regular {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-bold {
+  font-weight: 700;
 }

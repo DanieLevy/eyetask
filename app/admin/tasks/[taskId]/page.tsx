@@ -224,6 +224,17 @@ export default function TaskManagement() {
           scene: 'Urban'
         });
         setShowNewSubtaskForm(false);
+        
+        // Update task amount after creating subtask
+        try {
+          await fetch(`/api/tasks/${task.id}/calculate-amount`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (error) {
+          console.log('Could not update task amount, but subtask created successfully');
+        }
+        
         await fetchTaskData();
       } else {
         alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
@@ -263,6 +274,17 @@ export default function TaskManagement() {
       
       if (result.success) {
         setEditingSubtask(null);
+        
+        // Update task amount after updating subtask
+        try {
+          await fetch(`/api/tasks/${task?.id}/calculate-amount`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (error) {
+          console.log('Could not update task amount, but subtask updated successfully');
+        }
+        
         await fetchTaskData();
       } else {
         alert('Failed to update subtask: ' + (result.error || 'Unknown error'));
@@ -288,6 +310,16 @@ export default function TaskManagement() {
       });
 
       if (response.ok) {
+        // Update task amount after deleting subtask
+        try {
+          await fetch(`/api/tasks/${task?.id}/calculate-amount`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (error) {
+          console.log('Could not update task amount, but subtask deleted successfully');
+        }
+        
         await fetchTaskData();
         setDeleteConfirm(null);
       }

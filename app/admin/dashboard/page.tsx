@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ArrowLeft
 } from 'lucide-react';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 interface DashboardData {
   totalTasks: number;
@@ -75,6 +76,12 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  
+  // Font configurations
+  const hebrewHeading = useHebrewFont('heading');
+  const hebrewBody = useHebrewFont('body');
+  const mixedHeading = useMixedFont('heading');
+  const mixedBody = useMixedFont('body');
   
   // Quick action states
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
@@ -290,8 +297,8 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-3">
               <Eye className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-xl font-bold text-foreground">EyeTask - לוח בקרה</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>EyeTask - לוח בקרה</h1>
+                <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
                   שלום {user?.username} | Mobileye Admin
                 </p>
               </div>
@@ -395,7 +402,7 @@ export default function AdminDashboard() {
 
         {/* Quick Actions */}
         <div className="bg-card rounded-lg border border-border p-6 mb-8">
-          <h2 className="text-lg font-semibold text-foreground mb-4">פעולות מהירות</h2>
+          <h2 className={`text-lg font-semibold text-foreground mb-4 ${hebrewHeading.fontClass}`}>פעולות מהירות</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/admin/tasks/new"
@@ -426,7 +433,7 @@ export default function AdminDashboard() {
 
         {/* Project Management Section */}
         <section>
-          <h2 className="text-2xl font-bold text-foreground mb-6">ניהול פרויקטים</h2>
+          <h2 className={`text-2xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>ניהול פרויקטים</h2>
           
           {projects.length === 0 ? (
             <div className="text-center py-12">
