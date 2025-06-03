@@ -1,13 +1,30 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from './logger';
 
-// Require environment variables - fail if not provided
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get environment variables with fallbacks for production
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gpgenilthxcpiwcpipns.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwZ2VuaWx0aHhjcGl3Y3BpcG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5NTMzNTEsImV4cCI6MjA2NDUyOTM1MX0.5NcUeToWyej_UrxNKjuPSOejE1tZ1IPEDo3P838kRds';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing required Supabase environment variables. Please check your .env.local file.');
+// Validate that we have the required values
+if (!supabaseUrl || supabaseUrl === 'your_supabase_url_here') {
+  const errorMsg = 'NEXT_PUBLIC_SUPABASE_URL is not configured. Please set your Supabase URL.';
+  logger.error(errorMsg, 'SUPABASE_CONFIG');
+  throw new Error(errorMsg);
 }
+
+if (!supabaseAnonKey || supabaseAnonKey === 'your_anon_key_here') {
+  const errorMsg = 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured. Please set your Supabase anon key.';
+  logger.error(errorMsg, 'SUPABASE_CONFIG');
+  throw new Error(errorMsg);
+}
+
+// Log configuration status (without exposing keys)
+logger.info('Supabase client configuration', 'SUPABASE_CONFIG', {
+  url: supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  anonKeyLength: supabaseAnonKey.length,
+  environment: process.env.NODE_ENV
+});
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -57,6 +74,6 @@ export async function testSupabaseConnection(): Promise<boolean> {
 // Service role key for admin operations (server-side only)
 export const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-if (!supabaseServiceKey) {
+if (!supabaseServiceKey && process.env.NODE_ENV === 'development') {
   logger.warn('SUPABASE_SERVICE_KEY not provided - admin operations may fail', 'SUPABASE_CONFIG');
 } 

@@ -21,10 +21,6 @@
 # Key: SUPABASE_SERVICE_KEY
 # Value: [Your Supabase service role key]
 
-# Variable 4:
-# Key: JWT_SECRET
-# Value: 941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766
-
 # The @netlify/plugin-nextjs plugin automatically handles:
 # - API routes (/api/*)
 # - Static file serving
