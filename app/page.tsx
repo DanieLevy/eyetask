@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Eye, BarChart3, ArrowLeft } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
+import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
 
 interface Project {
   id: string;
@@ -30,9 +32,9 @@ export default function HomePage() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
-  useEffect(() => {
-    // Clear any cached data to ensure fresh content
-    const clearPageCache = async () => {
+  const fetchData = useCallback(async () => {
+    try {
+      // Clear any cached data to ensure fresh content
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         for (const cacheName of cacheNames) {
@@ -41,64 +43,62 @@ export default function HomePage() {
           }
         }
       }
-    };
+      
+      // Log visit for analytics
+      await fetch('/api/analytics', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ isUniqueVisitor: true }),
+      }).catch(console.error);
 
-    const fetchData = async () => {
-      try {
-        // Clear cache first
-        await clearPageCache();
-        
-        // Log visit for analytics
-        await fetch('/api/analytics', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
-          body: JSON.stringify({ isUniqueVisitor: true }),
-        }).catch(console.error);
+      // Add cache busting timestamp
+      const timestamp = Date.now();
+      
+      // Fetch projects and tasks with cache busting
+      const [projectsResponse, tasksResponse] = await Promise.all([
+        fetch(`/api/projects?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch(`/api/tasks?_t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+      ]);
 
-        // Add cache busting timestamp
-        const timestamp = Date.now();
-        
-        // Fetch projects and tasks with cache busting
-        const [projectsResponse, tasksResponse] = await Promise.all([
-          fetch(`/api/projects?_t=${timestamp}`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          }),
-          fetch(`/api/tasks?_t=${timestamp}`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          })
-        ]);
+      const [projectsData, tasksData] = await Promise.all([
+        projectsResponse.json(),
+        tasksResponse.json()
+      ]);
 
-        const [projectsData, tasksData] = await Promise.all([
-          projectsResponse.json(),
-          tasksResponse.json()
-        ]);
-
-        // Projects API returns { projects: [...], success: true }
-        if (projectsData.success && projectsData.projects) {
-          setProjects(projectsData.projects);
-        }
-        
-        // Tasks API returns { tasks: [...], success: true }
-        if (tasksData.success && tasksData.tasks) {
-          const visibleTasks = tasksData.tasks.filter((t: Task) => t.isVisible);
-          setTasks(visibleTasks);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
+      // Projects API returns { projects: [...], success: true }
+      if (projectsData.success && projectsData.projects) {
+        setProjects(projectsData.projects);
       }
-    };
+      
+      // Tasks API returns { tasks: [...], success: true }
+      if (tasksData.success && tasksData.tasks) {
+        const visibleTasks = tasksData.tasks.filter((t: Task) => t.isVisible);
+        setTasks(visibleTasks);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLoading(false);
+    }
+  }, []);
 
+  // Register refresh function for pull-to-refresh
+  usePageRefresh(fetchData);
+
+  useEffect(() => {
     fetchData();
 
     // Register service worker for offline functionality
@@ -111,7 +111,7 @@ export default function HomePage() {
           // Service worker registration failed
         });
     }
-  }, []);
+  }, [fetchData]);
 
   const getTaskCountForProject = (projectId: string) => {
     return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
@@ -139,6 +139,11 @@ export default function HomePage() {
 
   return (
     <div className="bg-background">
+      {/* Daily Updates Carousel - Top positioned clean design */}
+      <section className="border-b border-border">
+        <DailyUpdatesCarousel className="container mx-auto px-4" />
+      </section>
+
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         {/* Compact Stats */}

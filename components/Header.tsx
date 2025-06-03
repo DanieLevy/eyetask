@@ -224,15 +224,17 @@ export default function Header() {
                   <LogOut className="h-4 w-4" />
                   התנתק
                 </button>
-              ) : !isAdminPage && !isAdminLoginPage && (
-                <Link 
-                  href="/admin" 
-                  className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Settings className="h-4 w-4" />
-                  ניהול מנהל
-                </Link>
+              ) : (
+                !isAdminPage && !isAdminLoginPage && (
+                  <Link 
+                    href="/admin" 
+                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Settings className="h-4 w-4" />
+                    ניהול מנהל
+                  </Link>
+                )
               )}
             </nav>
           </div>

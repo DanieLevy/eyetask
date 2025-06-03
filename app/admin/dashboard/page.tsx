@@ -14,7 +14,8 @@ import {
   Plus,
   FolderPlus,
   RefreshCw,
-  ArrowLeft
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
@@ -458,7 +459,7 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-card rounded-lg border border-border p-6 mb-8">
           <h2 className={`text-lg font-semibold text-foreground mb-4 ${hebrewHeading.fontClass}`}>פעולות מהירות</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
               href="/admin/tasks/new"
               className="bg-primary text-primary-foreground p-4 rounded-lg hover:bg-primary/90 transition-colors text-right group"
@@ -475,6 +476,14 @@ export default function AdminDashboard() {
               <h3 className="font-semibold">צור פרויקט חדש</h3>
               <p className="text-sm opacity-90">הוסף פרויקט חדש לניהול</p>
             </button>
+            <Link
+              href="/admin/daily-updates"
+              className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition-colors text-right group"
+            >
+              <Bell className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold">עדכונים יומיים</h3>
+              <p className="text-sm opacity-90">נהל הודעות ועדכונים</p>
+            </Link>
             <button 
               onClick={() => setShowAnalytics(true)}
               className="bg-accent text-accent-foreground p-4 rounded-lg hover:bg-accent/90 transition-colors text-right group"
