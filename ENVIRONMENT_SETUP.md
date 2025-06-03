@@ -2,11 +2,9 @@
 
 ## 📋 **Required Environment Variables**
 
-Copy these exact values to your environment configuration:
+For Netlify deployment, add these 4 variables in **Netlify Dashboard → Site Settings → Environment Variables**:
 
-### **For Netlify Deployment**
-
-Go to **Netlify Dashboard → Site Settings → Environment Variables** and add:
+### **Production Environment Variables**
 
 #### Variable 1:
 - **Key**: `NEXT_PUBLIC_SUPABASE_URL`
@@ -37,85 +35,21 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 # JWT Configuration
 JWT_SECRET=941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766
 JWT_EXPIRES_IN=7d
-
-# Development Environment
-NODE_ENV=development
-LOG_LEVEL=debug
 ```
-
-## 🧪 **Testing Configuration**
-
-### **1. Test API Routes**
-
-After setting environment variables, test these endpoints:
-
-- **Health Check**: `GET /api/health`
-- **Test Route**: `GET /api/test`
-- **Login**: `POST /api/auth/login`
-
-### **2. Expected Response from Test Route**
-
-```json
-{
-  "success": true,
-  "message": "Test API route working",
-  "timestamp": "2025-01-31T13:15:00.000Z",
-  "environment": {
-    "nodeEnv": "production",
-    "netlify": true,
-    "supabaseConfigured": true,
-    "jwtConfigured": true
-  }
-}
-```
-
-### **3. Browser Console Logs**
-
-You should see these logs indicating successful Supabase connection:
-
-```
-🔗 [Supabase] Initializing connection...
-🔗 [Supabase] URL present: true
-🔗 [Supabase] Anon key present: true
-🔗 [Supabase] Service key present: true
-🔗 [Supabase] Running in browser environment
-✅ [Supabase] Creating client with URL: https://gpgenilthxcpiwcpipns...
-✅ [Supabase] Client created successfully
-```
-
-## 🚀 **Deployment Checklist**
-
-- [ ] Environment variables added to Netlify dashboard
-- [ ] Code pushed to GitHub
-- [ ] Netlify deployment triggered
-- [ ] Test API routes working
-- [ ] Admin login working (`admin` / `admin123`)
-- [ ] Supabase connection established
-- [ ] Tasks and projects creation working
-
-## 🔍 **Troubleshooting**
-
-### **Common Issues**
-
-1. **404 on API routes**: Environment variables not set in Netlify
-2. **Supabase connection failed**: Check URL and keys are correct
-3. **Login fails**: Verify JWT_SECRET is set
-4. **Build fails**: Check TypeScript errors
-
-### **Debug Steps**
-
-1. Check `/api/test` endpoint for environment status
-2. Check browser console for Supabase connection logs
-3. Verify Netlify function logs in dashboard
-4. Test local development with `.env.local`
 
 ## 🔐 **Security Notes**
 
-- These keys are configured for the EyeTask Supabase project
+- All credentials are configured for the EyeTask Supabase project
 - JWT secret is cryptographically secure (64 hex characters)
 - Supabase RLS policies protect data access
 - All credentials are ready for production use
 
+## 🚀 **Deployment**
+
+1. Set the environment variables in Netlify dashboard
+2. Push code to GitHub to trigger deployment
+3. Access the admin panel with credentials: `admin` / `admin123`
+
 ---
 
-**🎉 Ready for deployment!** All configuration values are properly integrated into the codebase with fallbacks. 
+**© 2025 Mobileye - EyeTask** 

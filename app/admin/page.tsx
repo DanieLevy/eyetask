@@ -29,8 +29,6 @@ export default function AdminLoginPage() {
     setError('');
 
     try {
-      console.log('🔐 Starting login process...', { username: credentials.username });
-      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -39,45 +37,24 @@ export default function AdminLoginPage() {
         body: JSON.stringify(credentials),
       });
 
-      console.log('🌐 Login response status:', response.status);
-      console.log('🌐 Login response headers:', Object.fromEntries(response.headers.entries()));
-
       const data = await response.json();
-      console.log('📦 Login response data:', data);
-      console.log('📦 Response data structure:', {
-        success: data.success,
-        hasToken: !!data.token || !!data.data?.token,
-        hasUser: !!data.user || !!data.data?.user,
-        tokenValue: data.token || data.data?.token,
-        userValue: data.user || data.data?.user
-      });
 
       if (data.success) {
         // Handle both direct response and nested data structure
         const token = data.token || data.data?.token;
         const user = data.user || data.data?.user;
         
-        console.log('✅ Login successful, storing data:', { token: !!token, user });
-        
         if (token && user) {
           localStorage.setItem('adminToken', token);
           localStorage.setItem('adminUser', JSON.stringify(user));
-          
-          console.log('📱 Data stored in localStorage');
-          console.log('📱 Token stored:', !!localStorage.getItem('adminToken'));
-          console.log('📱 User stored:', !!localStorage.getItem('adminUser'));
-          
           router.push('/admin/dashboard');
         } else {
-          console.error('❌ Missing token or user in response');
           setError('שגיאה בתגובת השרת');
         }
       } else {
-        console.error('❌ Login failed:', data.error || 'Unknown error');
         setError(data.error || 'פרטי התחברות שגויים');
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
       setError('שגיאה בהתחברות לשרת');
     } finally {
       setLoading(false);

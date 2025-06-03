@@ -107,16 +107,13 @@ export default function AdminDashboard() {
       
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         const messageChannel = new MessageChannel();
-        messageChannel.port1.onmessage = (event) => {
-          console.log('Service worker cache cleared:', event.data);
-        };
         navigator.serviceWorker.controller.postMessage(
           { type: 'CLEAR_API_CACHE' }, 
           [messageChannel.port2]
         );
       }
     } catch (error) {
-      console.error('Error clearing caches:', error);
+      // Silent fail for cache clearing
     }
   };
 
@@ -141,7 +138,6 @@ export default function AdminDashboard() {
       }
       setUser(parsedUser);
     } catch (error) {
-      console.error('Error parsing user data:', error);
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');
       router.push('/admin');
@@ -179,8 +175,7 @@ export default function AdminDashboard() {
       setLoading(false);
     })
     .catch(error => {
-      console.error('Error fetching dashboard data:', error);
-      if (error.message.includes('401') || error.message.includes('403')) {
+      if (error.message?.includes('401') || error.message?.includes('403')) {
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
         router.push('/admin');
@@ -213,16 +208,13 @@ export default function AdminDashboard() {
       const result = await response.json();
       
       if (result.success) {
-        console.log('Project created successfully');
         setNewProjectData({ name: '', description: '' });
         setShowNewProjectForm(false);
         await refreshData();
       } else {
-        console.error('Failed to create project:', result.error);
         alert('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error creating project:', error);
       alert('Error creating project');
     } finally {
       setOperationLoading(false);
@@ -259,7 +251,7 @@ export default function AdminDashboard() {
       if (projectsRes.success) setProjects(projectsRes.projects);
       if (tasksRes.success) setTasks(tasksRes.tasks);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      // Silent fail for refresh operations
     }
   };
 

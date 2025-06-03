@@ -3,25 +3,20 @@ import { Database as DatabaseTypes } from './database-types';
 import type { Database, Project, Task, Subtask, User, Analytics } from './database';
 import { logger, AppError, validateRequired } from './logger';
 
-console.log('🏗️ [SupabaseDatabase] Initializing class...');
-
 export class SupabaseDatabase implements Database {
   constructor() {
-    console.log('🏗️ [SupabaseDatabase] Constructor called');
+    // Initialize connection test
     this.testConnection();
   }
 
   private async testConnection() {
-    console.log('🧪 [SupabaseDatabase] Testing connection...');
     try {
       const { data, error } = await supabase.from('projects').select('count').limit(1);
       if (error) {
-        console.error('❌ [SupabaseDatabase] Connection test failed:', error.message);
-      } else {
-        console.log('✅ [SupabaseDatabase] Connection test successful');
+        logger.error('SupabaseDatabase connection test failed', 'SUPABASE_DB', { error: error.message });
       }
     } catch (error) {
-      console.error('❌ [SupabaseDatabase] Connection test error:', error);
+      logger.error('SupabaseDatabase connection test error', 'SUPABASE_DB', undefined, error as Error);
     }
   }
 
@@ -36,7 +31,6 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const tasks = data.map(this.mapTaskFromSupabase);
-      logger.debug(`Retrieved ${tasks.length} tasks from Supabase`, 'SUPABASE_DB');
       return tasks;
     } catch (error) {
       handleSupabaseError(error, 'getAllTasks');
@@ -60,7 +54,6 @@ export class SupabaseDatabase implements Database {
       }
       
       const task = this.mapTaskFromSupabase(data);
-      logger.debug(`Retrieved task ${id} from Supabase`, 'SUPABASE_DB');
       return task;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -83,7 +76,7 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const newTask = this.mapTaskFromSupabase(data);
-      logger.info(`Created task ${newTask.id} in Supabase`, 'SUPABASE_DB');
+      logger.info(`Created task ${newTask.id}`, 'SUPABASE_DB');
       return newTask;
     } catch (error) {
       handleSupabaseError(error, 'createTask');
@@ -110,7 +103,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const updatedTask = this.mapTaskFromSupabase(data);
-      logger.info(`Updated task ${id} in Supabase`, 'SUPABASE_DB');
+      logger.info(`Updated task ${id}`, 'SUPABASE_DB');
       return updatedTask;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -130,7 +123,7 @@ export class SupabaseDatabase implements Database {
 
       if (error) throw error;
       
-      logger.info(`Deleted task ${id} from Supabase`, 'SUPABASE_DB');
+      logger.info(`Deleted task ${id}`, 'SUPABASE_DB');
       return true;
     } catch (error) {
       handleSupabaseError(error, 'deleteTask');
@@ -149,7 +142,6 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const subtasks = data.map(this.mapSubtaskFromSupabase);
-      logger.debug(`Retrieved ${subtasks.length} subtasks from Supabase`, 'SUPABASE_DB');
       return subtasks;
     } catch (error) {
       handleSupabaseError(error, 'getAllSubtasks');
@@ -170,7 +162,6 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const subtasks = data.map(this.mapSubtaskFromSupabase);
-      logger.debug(`Retrieved ${subtasks.length} subtasks for task ${taskId} from Supabase`, 'SUPABASE_DB');
       return subtasks;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -195,7 +186,6 @@ export class SupabaseDatabase implements Database {
       }
       
       const subtask = this.mapSubtaskFromSupabase(data);
-      logger.debug(`Retrieved subtask ${id} from Supabase`, 'SUPABASE_DB');
       return subtask;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -217,7 +207,7 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const newSubtask = this.mapSubtaskFromSupabase(data);
-      logger.info(`Created subtask ${newSubtask.id} in Supabase`, 'SUPABASE_DB');
+      logger.info(`Created subtask ${newSubtask.id}`, 'SUPABASE_DB');
       return newSubtask;
     } catch (error) {
       handleSupabaseError(error, 'createSubtask');
@@ -244,7 +234,7 @@ export class SupabaseDatabase implements Database {
       }
       
       const updatedSubtask = this.mapSubtaskFromSupabase(data);
-      logger.info(`Updated subtask ${id} in Supabase`, 'SUPABASE_DB');
+      logger.info(`Updated subtask ${id}`, 'SUPABASE_DB');
       return updatedSubtask;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -264,7 +254,7 @@ export class SupabaseDatabase implements Database {
 
       if (error) throw error;
       
-      logger.info(`Deleted subtask ${id} from Supabase`, 'SUPABASE_DB');
+      logger.info(`Deleted subtask ${id}`, 'SUPABASE_DB');
       return true;
     } catch (error) {
       handleSupabaseError(error, 'deleteSubtask');
@@ -283,7 +273,6 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const projects = data.map(this.mapProjectFromSupabase);
-      logger.debug(`Retrieved ${projects.length} projects from Supabase`, 'SUPABASE_DB');
       return projects;
     } catch (error) {
       handleSupabaseError(error, 'getAllProjects');
@@ -307,7 +296,6 @@ export class SupabaseDatabase implements Database {
       }
       
       const project = this.mapProjectFromSupabase(data);
-      logger.debug(`Retrieved project ${id} from Supabase`, 'SUPABASE_DB');
       return project;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -330,7 +318,7 @@ export class SupabaseDatabase implements Database {
       if (error) throw error;
       
       const newProject = this.mapProjectFromSupabase(data);
-      logger.info(`Created project ${newProject.id} in Supabase`, 'SUPABASE_DB');
+      logger.info(`Created project ${newProject.id}`, 'SUPABASE_DB');
       return newProject;
     } catch (error) {
       handleSupabaseError(error, 'createProject');
@@ -355,7 +343,6 @@ export class SupabaseDatabase implements Database {
       }
       
       const user = this.mapUserFromSupabase(data);
-      logger.debug(`Retrieved user ${username} from Supabase`, 'SUPABASE_DB');
       return user;
     } catch (error) {
       if (error instanceof AppError) throw error;
@@ -382,7 +369,6 @@ export class SupabaseDatabase implements Database {
       }
       
       const analytics = this.mapAnalyticsFromSupabase(data);
-      logger.debug('Retrieved analytics from Supabase', 'SUPABASE_DB');
       return analytics;
     } catch (error) {
       handleSupabaseError(error, 'getAnalytics');
