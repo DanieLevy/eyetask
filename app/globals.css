@@ -119,4 +119,54 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* RTL specific styles */
+  [dir="rtl"] {
+    text-align: right;
+  }
+
+  /* Hebrew font improvements */
+  html[lang="he"] {
+    font-feature-settings: "kern" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Form inputs RTL */
+  [dir="rtl"] input,
+  [dir="rtl"] textarea,
+  [dir="rtl"] select {
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Mobile touch improvements */
+  @media (max-width: 768px) {
+    button, a, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+}
+
+/* Utility classes for RTL */
+.rtl-flip {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(1);
+}
+
+/* Collapsible animations */
+.collapsible-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.collapsible-content[data-state="closed"] {
+  max-height: 0;
+}
+
+.collapsible-content[data-state="open"] {
+  max-height: 1000px;
 }

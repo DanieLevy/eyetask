@@ -1,0 +1,20 @@
+{
+  "settings": {
+    "appName": "EyeTask",
+    "companyName": "Mobileye",
+    "language": "he",
+    "rtl": true,
+    "theme": "light",
+    "version": "1.0.0",
+    "maintenanceMode": false,
+    "allowPublicAccess": true,
+    "realTimeUpdates": true,
+    "maxImageSize": 5242880,
+    "supportedImageFormats": ["jpg", "jpeg", "png", "webp"],
+    "pagination": {
+      "tasksPerPage": 20,
+      "subtasksPerPage": 50
+    },
+    "lastUpdated": "2025-01-01T10:00:00Z"
+  }
+} 
