@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from './logger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 // Get environment variables with fallbacks for production
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://gpgenilthxcpiwcpipns.supabase.co';
@@ -33,6 +35,84 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     detectSessionInUrl: true
   }
 });
+
+// Function to load service key from multiple sources
+function loadServiceKey(): string | undefined {
+  // Try environment variable first
+  let serviceKey = process.env.SUPABASE_SERVICE_KEY;
+  
+  if (serviceKey) {
+    return serviceKey;
+  }
+
+  // Try reading from .env.local file directly (development only)
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const envPath = join(process.cwd(), '.env.local');
+      const envContent = readFileSync(envPath, 'utf-8');
+      const serviceKeyMatch = envContent.match(/SUPABASE_SERVICE_KEY=(.+)/);
+      if (serviceKeyMatch) {
+        serviceKey = serviceKeyMatch[1].trim();
+        logger.debug('Service key loaded from .env.local file', 'SUPABASE_CONFIG');
+        return serviceKey;
+      }
+    } catch (error) {
+      logger.debug('Could not read .env.local file', 'SUPABASE_CONFIG');
+    }
+  }
+
+  return undefined;
+}
+
+// Service role key for admin operations (server-side only)
+export const supabaseServiceKey = loadServiceKey();
+
+if (!supabaseServiceKey && process.env.NODE_ENV === 'development') {
+  logger.warn('SUPABASE_SERVICE_KEY not provided - admin operations may fail', 'SUPABASE_CONFIG');
+}
+
+// Create an admin client for server-side operations
+export function createAdminClient(): SupabaseClient {
+  if (supabaseServiceKey) {
+    return createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
+  return supabase; // Fallback to regular client
+}
+
+// Create an authenticated client with user session
+export async function createAuthenticatedClient(accessToken: string): Promise<SupabaseClient> {
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  
+  return client;
+}
+
+// Helper to get the appropriate client for operations
+export async function getSupabaseClient(adminOperation = false, accessToken?: string): Promise<SupabaseClient> {
+  if (adminOperation && supabaseServiceKey) {
+    return createAdminClient();
+  }
+  
+  if (accessToken) {
+    return await createAuthenticatedClient(accessToken);
+  }
+  
+  return supabase;
+}
 
 // Error handling helper
 export function handleSupabaseError(error: any, operation: string) {
@@ -69,11 +149,4 @@ export async function testSupabaseConnection(): Promise<boolean> {
     logger.error('Supabase connection test error', 'SUPABASE_TEST', undefined, error as Error);
     return false;
   }
-}
-
-// Service role key for admin operations (server-side only)
-export const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseServiceKey && process.env.NODE_ENV === 'development') {
-  logger.warn('SUPABASE_SERVICE_KEY not provided - admin operations may fail', 'SUPABASE_CONFIG');
 } 

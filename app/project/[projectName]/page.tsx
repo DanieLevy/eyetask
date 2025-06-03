@@ -102,13 +102,12 @@ export default function ProjectPage() {
         });
         
         const tasksData = await tasksResponse.json();
-        console.log('📦 Project page - All tasks:', tasksData.tasks);
         
-        const projectTasks = (tasksData.tasks || []).filter(
-          (task: Task) => task.projectId === project.id && task.isVisible
-        );
+        // Find all visible tasks for this project
+        const projectTasks = tasksData.tasks
+          ?.filter((task: Task) => task.isVisible && 
+            projectsData.projects?.find((p: any) => p.id === task.projectId)?.name.toLowerCase().replace(/\s+/g, '-') === projectName.toLowerCase()) || [];
         
-        console.log('📦 Project page - Filtered tasks for', projectName, ':', projectTasks);
         setTasks(projectTasks);
         
         // Fetch subtasks for each task with cache busting

@@ -82,12 +82,14 @@ export default function HomePage() {
           tasksResponse.json()
         ]);
 
-        console.log('📦 Main page - Projects data:', projectsData);
-        console.log('📦 Main page - Tasks data:', tasksData);
-        console.log('📦 Main page - Visible tasks:', tasksData.tasks?.filter((t: Task) => t.isVisible));
-
-        setProjects(projectsData.projects || []);
-        setTasks(tasksData.tasks || []);
+        if (projectsData.success && projectsData.data?.projects) {
+          setProjects(projectsData.data.projects);
+        }
+        
+        if (tasksData.success && tasksData.data?.tasks) {
+          const visibleTasks = tasksData.data.tasks.filter((t: Task) => t.isVisible);
+          setTasks(visibleTasks);
+        }
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -97,11 +99,15 @@ export default function HomePage() {
 
     fetchData();
 
-    // Register service worker for PWA
+    // Register service worker for offline functionality
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(registration => console.log('SW registered:', registration))
-        .catch(error => console.log('SW registration failed:', error));
+        .then(registration => {
+          // Service worker registered successfully
+        })
+        .catch(error => {
+          // Service worker registration failed
+        });
     }
   }, []);
 

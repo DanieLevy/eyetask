@@ -77,6 +77,7 @@ export interface Database {
   // Tasks
   getAllTasks(): Promise<Task[]>;
   getTaskById(id: string): Promise<Task | null>;
+  getTasksByProjectId(projectId: string): Promise<Task[]>;
   createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task>;
   updateTask(id: string, updates: Partial<Task>): Promise<Task | null>;
   deleteTask(id: string): Promise<boolean>;
@@ -93,6 +94,8 @@ export interface Database {
   getAllProjects(): Promise<Project[]>;
   getProjectById(id: string): Promise<Project | null>;
   createProject(project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project>;
+  updateProject(id: string, updates: Partial<Project>): Promise<Project | null>;
+  deleteProject(id: string): Promise<boolean>;
   
   // Users
   getUserByUsername(username: string): Promise<User | null>;

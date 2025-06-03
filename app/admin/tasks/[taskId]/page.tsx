@@ -136,53 +136,54 @@ export default function TaskManagement() {
   const fetchTaskData = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const timestamp = Date.now();
-      
-      // Fetch task details, project info, and subtasks
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
       const [tasksRes, projectsRes, subtasksRes] = await Promise.all([
-        fetch(`/api/tasks?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/projects?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/tasks/${taskId}/subtasks?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json())
+        fetch('/api/tasks', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/api/admin/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`/api/tasks/${taskId}/subtasks`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
       ]);
 
-      if (tasksRes.success) {
-        const foundTask = tasksRes.tasks.find((t: Task) => t.id === taskId);
-        if (!foundTask) {
-          router.push('/admin/dashboard');
-          return;
-        }
-        setTask(foundTask);
-        
-        // Find the project for this task
-        if (projectsRes.success) {
-          const foundProject = projectsRes.projects.find((p: Project) => p.id === foundTask.projectId);
-          setProject(foundProject || null);
+      if (!tasksRes.ok || !projectsRes.ok || !subtasksRes.ok) {
+        throw new Error('Failed to fetch data');
+      }
+
+      const [tasksData, projectsData, subtasksData] = await Promise.all([
+        tasksRes.json(),
+        projectsRes.json(),
+        subtasksRes.json()
+      ]);
+
+      if (tasksData.success && tasksData.data?.tasks) {
+        const foundTask = tasksData.data.tasks.find((t: Task) => t.id === taskId);
+        if (foundTask) {
+          setTask(foundTask);
         }
       }
 
-      if (subtasksRes.success || subtasksRes.data?.subtasks) {
-        const taskSubtasks = subtasksRes.data?.subtasks || subtasksRes.subtasks || [];
+      if (projectsData.data?.projects) {
+        setProject(projectsData.data.projects.find((p: Project) => p.id === task?.projectId) || null);
+      }
+
+      if (subtasksData.success && Array.isArray(subtasksData.data)) {
+        const taskSubtasks = subtasksData.data;
+        setSubtasks(taskSubtasks);
+      } else if (subtasksData.success && subtasksData.data?.subtasks && Array.isArray(subtasksData.data.subtasks)) {
+        const taskSubtasks = subtasksData.data.subtasks;
         setSubtasks(taskSubtasks);
       }
 
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching task data:', error);
+      console.error('💥 Error fetching task data:', error);
       setLoading(false);
     }
   };
@@ -232,7 +233,7 @@ export default function TaskManagement() {
             headers: { Authorization: `Bearer ${token}` }
           });
         } catch (error) {
-          console.log('Could not update task amount, but subtask created successfully');
+          // Silently continue if amount calculation fails
         }
         
         await fetchTaskData();
@@ -282,7 +283,7 @@ export default function TaskManagement() {
             headers: { Authorization: `Bearer ${token}` }
           });
         } catch (error) {
-          console.log('Could not update task amount, but subtask updated successfully');
+          // Silently continue if amount calculation fails
         }
         
         await fetchTaskData();
@@ -317,7 +318,7 @@ export default function TaskManagement() {
             headers: { Authorization: `Bearer ${token}` }
           });
         } catch (error) {
-          console.log('Could not update task amount, but subtask deleted successfully');
+          // Silently continue if amount calculation fails
         }
         
         await fetchTaskData();
@@ -772,7 +773,6 @@ export default function TaskManagement() {
                     if (file) {
                       // For now, we'll just store the filename
                       // In a real implementation, you'd upload the file to a storage service
-                      console.log('Image file selected:', file.name);
                       // You could implement image upload here
                     }
                   }}
