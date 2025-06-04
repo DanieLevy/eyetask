@@ -20,6 +20,7 @@ import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
+import { ImageDisplay } from '@/components/ImageUpload';
 
 interface Task {
   id: string;
@@ -500,6 +501,18 @@ export default function ProjectPage() {
                                                     </span>
                                                   ))}
                                                 </div>
+                                              </div>
+                                            )}
+
+                                            {/* Image Section */}
+                                            {subtask.image && (
+                                              <div>
+                                                <h6 className="font-medium text-foreground mb-2">תמונה</h6>
+                                                <ImageDisplay 
+                                                  imageUrl={subtask.image} 
+                                                  alt={`תמונה עבור ${subtask.title}`}
+                                                  className="w-40"
+                                                />
                                               </div>
                                             )}
                                           </div>

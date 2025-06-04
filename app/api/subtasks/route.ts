@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     
-    // Validate required fields
+    // Validate required fields (image is optional)
     const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'targetCar', 'weather', 'scene'];
     
     for (const field of requiredFields) {
@@ -78,6 +78,51 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+    
+    // Validate field types and values
+    if (typeof body.title !== 'string' || body.title.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Title must be a non-empty string', success: false },
+        { status: 400 }
+      );
+    }
+    
+    if (body.subtitle && typeof body.subtitle !== 'string') {
+      return NextResponse.json(
+        { error: 'Subtitle must be a string', success: false },
+        { status: 400 }
+      );
+    }
+    
+    if (body.image && typeof body.image !== 'string') {
+      return NextResponse.json(
+        { error: 'Image must be a string URL', success: false },
+        { status: 400 }
+      );
+    }
+    
+    if (!Array.isArray(body.labels)) {
+      return NextResponse.json(
+        { error: 'Labels must be an array', success: false },
+        { status: 400 }
+      );
+    }
+    
+    const validWeatherTypes = ['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'];
+    if (!validWeatherTypes.includes(body.weather)) {
+      return NextResponse.json(
+        { error: `Invalid weather type. Must be one of: ${validWeatherTypes.join(', ')}`, success: false },
+        { status: 400 }
+      );
+    }
+    
+    const validSceneTypes = ['Highway', 'Urban', 'Rural', 'Sub-Urban', 'Test Track', 'Mixed'];
+    if (!validSceneTypes.includes(body.scene)) {
+      return NextResponse.json(
+        { error: `Invalid scene type. Must be one of: ${validSceneTypes.join(', ')}`, success: false },
+        { status: 400 }
+      );
     }
     
     const newSubtask = await createSubtask(body);

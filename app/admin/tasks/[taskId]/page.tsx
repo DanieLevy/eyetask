@@ -27,6 +27,7 @@ import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
+import ImageUpload, { ImageDisplay } from '@/components/ImageUpload';
 
 interface Task {
   id: string;
@@ -76,6 +77,7 @@ interface Project {
 interface NewSubtaskData {
   title: string;
   subtitle?: string;
+  image?: string | null;
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded: number;
@@ -102,6 +104,7 @@ export default function TaskManagement() {
   const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
     title: '',
     subtitle: '',
+    image: null,
     datacoNumber: '',
     type: 'events',
     amountNeeded: 1,
@@ -319,6 +322,7 @@ export default function TaskManagement() {
         setNewSubtaskData({
           title: '',
           subtitle: '',
+          image: null,
           datacoNumber: '',
           type: 'events',
           amountNeeded: 1,
@@ -804,6 +808,17 @@ export default function TaskManagement() {
                             ))}
                           </div>
                         )}
+
+                        {/* Image Display */}
+                        {subtask.image && (
+                          <div className="mt-3">
+                            <ImageDisplay 
+                              imageUrl={subtask.image} 
+                              alt={`תמונה עבור ${subtask.title}`}
+                              className="w-32"
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -945,20 +960,12 @@ export default function TaskManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">תמונה (אופציונלי)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      // For now, we'll just store the filename
-                      // In a real implementation, you'd upload the file to a storage service
-                      // You could implement image upload here
-                    }
-                  }}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                <ImageUpload
+                  onImageSelect={(imageUrl) => setNewSubtaskData(prev => ({ ...prev, image: imageUrl }))}
+                  currentImage={newSubtaskData.image}
+                  disabled={operationLoading}
                 />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה (JPG, PNG, GIF)</p>
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1089,14 +1096,12 @@ export default function TaskManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
-                  <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                    {editingSubtask.type === 'events' ? 'Events (אירועים)' : 'Hours (שעות)'}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">לא ניתן לשנות את סוג התת-משימה</p>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
+                <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
+                  {editingSubtask.type === 'events' ? 'Events (אירועים)' : 'Hours (שעות)'}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">לא ניתן לשנות את סוג התת-משימה</p>
               </div>
 
               <div>
@@ -1113,6 +1118,16 @@ export default function TaskManagement() {
                   placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
                 />
                 <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">תמונה (אופציונלי)</label>
+                <ImageUpload
+                  onImageSelect={(imageUrl) => setEditingSubtask(prev => prev ? ({ ...prev, image: imageUrl }) : null)}
+                  currentImage={editingSubtask.image}
+                  disabled={operationLoading}
+                />
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
