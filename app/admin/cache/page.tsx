@@ -150,18 +150,18 @@ export default function CacheManagementPage() {
           </p>
         </div>
 
-        {/* Message */}
+        {/* Message - Enhanced for Mobile PWA */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg border ${
+          <div className={`fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] p-4 rounded-lg border max-w-md mx-auto md:mx-0 ${
             message.type === 'success' 
               ? 'bg-green-50 border-green-200 text-green-800' 
               : 'bg-red-50 border-red-200 text-red-800'
           }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' ? (
-                <CheckCircle className="h-5 w-5" />
+                <CheckCircle className="h-5 w-5 flex-shrink-0" />
               ) : (
-                <XCircle className="h-5 w-5" />
+                <XCircle className="h-5 w-5 flex-shrink-0" />
               )}
               <span className={hebrewFont.fontClass}>{message.text}</span>
             </div>

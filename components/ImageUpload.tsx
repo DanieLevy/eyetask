@@ -41,76 +41,76 @@ export default function ImageUpload({
         throw new Error('No authentication token found. Please log in again.');
       }
 
-      // Log the upload attempt for debugging
-      console.log('🔄 Starting image upload:', {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        hasToken: !!token,
-        tokenLength: token.length,
-        environment: process.env.NODE_ENV || 'unknown'
-      });
-
-      // Upload to server with enhanced error handling
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          // Add cache-busting headers for production
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        body: formData,
-      });
-
-      console.log('📡 Upload response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (parseError) {
-        console.error('❌ Failed to parse response JSON:', parseError);
-        throw new Error(`Server responded with status ${response.status} but response is not valid JSON`);
-      }
-
-      console.log('📋 Upload result:', result);
-
-      if (result.success) {
-        console.log('✅ Upload successful:', result.data.publicUrl);
-        onImageSelect(result.data.publicUrl);
-      } else {
-        console.error('❌ Upload failed:', result);
+      // Enhanced upload logic with retry and better error handling
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        attempts++;
         
-        // Enhanced error handling with specific messages
-        if (response.status === 401) {
-          // Authentication failure - clear token and show helpful message
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          
-          let errorMessage = 'Authentication failed. Please log in again.';
-          if (result.debug) {
-            errorMessage += `\n\nDebug info:\n- Has auth header: ${result.debug.hasAuthHeader}\n- Has token: ${result.debug.hasToken}\n- Error: ${result.debug.authError || 'Unknown'}\n- Time: ${result.debug.timestamp}`;
+        try {
+          console.log(`🔄 Upload attempt ${attempts}/${maxAttempts}:`, {
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            hasToken: !!token,
+            tokenLength: token ? token.length : 0,
+            timestamp: new Date().toISOString(),
+            environment: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'development' : 'production'
+          });
+
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+
+          console.log('📡 Upload response:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+          });
+
+          const result = await response.json();
+          console.log('📋 Upload result:', result);
+
+          if (response.ok && result.success) {
+            console.log('✅ Upload successful:', {
+              fileName: result.data.fileName,
+              fileSize: result.data.fileSize,
+              method: result.data.method,
+              publicUrl: result.data.publicUrl?.substring(0, 100) + (result.data.publicUrl?.length > 100 ? '...' : ''),
+              timestamp: new Date().toISOString()
+            });
+
+            // Handle both file system URLs and base64 data URLs
+            const imageUrl = result.data.publicUrl;
+            setPreview(imageUrl);
+            
+            onImageSelect(imageUrl);
+            
+            break; // Success - exit retry loop
+          } else {
+            throw new Error(result.error || `Server returned ${response.status}: ${response.statusText}`);
           }
+        } catch (error) {
+          console.log(`❌ Upload attempt ${attempts} failed:`, error);
           
-          throw new Error(errorMessage);
-        } else if (response.status === 400) {
-          throw new Error(result.error || 'Invalid file upload request');
-        } else if (response.status === 500) {
-          let errorMessage = 'Server error occurred. Please try again.';
-          if (result.debug && process.env.NODE_ENV === 'development') {
-            errorMessage += `\n\nDebug: ${result.debug.errorMessage}`;
+          if (attempts === maxAttempts) {
+            console.error('💥 All upload attempts failed:', error);
+            throw error;
+          } else {
+            // Wait before retry (exponential backoff)
+            const delay = Math.pow(2, attempts) * 1000; // 2s, 4s, 8s
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
-          throw new Error(errorMessage);
-        } else {
-          throw new Error(result.error || `Upload failed with status ${response.status}`);
         }
       }
     } catch (error) {

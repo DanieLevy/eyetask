@@ -325,3 +325,30 @@ Visit http://localhost:3000 to test all functionality.
 3. **Long-term**: Add file upload functionality for task images
 
 Your deployment should now work correctly at: https://drivershub.netlify.app/ 
+
+## 🚀 Image Upload System
+
+### **Development vs Production**
+
+#### **Development (Local)**
+- **File System Storage**: Images are saved to `/public/uploads/subtasks/`
+- **Direct File Access**: Images served directly from the file system
+- **File Size Limit**: 5MB maximum
+
+#### **Production (Netlify/Serverless)**
+- **Base64 Data URLs**: Images converted to base64 and embedded in database
+- **No File System Dependencies**: Works in serverless environments
+- **File Size Limit**: 2MB maximum (optimized for performance)
+
+### **Why This Approach?**
+
+1. **Serverless Compatibility**: Netlify Functions cannot write to file system
+2. **Zero Configuration**: No need for external storage services
+3. **Automatic Fallback**: Development uses files, production uses base64
+4. **Cost Effective**: No additional storage costs
+
+### **Migration Notes**
+
+- **Existing Images**: Will continue to work in development
+- **New Images**: Automatically use the appropriate method based on environment
+- **Database Storage**: Base64 images are stored directly in subtask documents 

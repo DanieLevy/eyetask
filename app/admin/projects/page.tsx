@@ -257,16 +257,16 @@ export default function ProjectsManagementPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Notification */}
+      {/* Notification - Enhanced for Mobile PWA */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border transition-all ${
+        <div className={`fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] p-4 rounded-lg shadow-lg border transition-all max-w-md mx-auto md:mx-0 ${
           notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
           notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
           'bg-blue-50 border-blue-200 text-blue-800'
         }`}>
           <div className="flex items-center gap-2">
-            {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
-            {notification.type === 'error' && <AlertTriangle className="h-5 w-5" />}
+            {notification.type === 'success' && <CheckCircle className="h-5 w-5 flex-shrink-0" />}
+            {notification.type === 'error' && <AlertTriangle className="h-5 w-5 flex-shrink-0" />}
             <span className="text-sm font-medium">{notification.message}</span>
           </div>
         </div>

@@ -454,6 +454,19 @@ html[lang="en"] {
     padding-right: env(safe-area-inset-right);
     min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
+
+  /* Enhanced notification visibility for PWA */
+  .notification-overlay,
+  [class*="fixed"][class*="z-[9999]"] {
+    z-index: 999999 !important;
+    pointer-events: auto;
+  }
+  
+  /* Ensure notifications appear above iOS status bar */
+  .notification-mobile-pwa {
+    margin-top: env(safe-area-inset-top, 20px);
+    z-index: 999999;
+  }
 }
 
 /* Additional PWA scrolling fixes */

@@ -12,55 +12,68 @@ interface AdminClientLayoutProps {
   children: React.ReactNode;
 }
 
+// Enhanced authentication state management
+type AuthState = 'checking' | 'authenticated' | 'unauthenticated' | 'redirecting';
+
 export default function AdminClientLayout({ children }: AdminClientLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>('checking');
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     // Only run on admin pages
     if (!pathname.startsWith('/admin')) {
-      setIsLoading(false);
+      setAuthState('authenticated'); // Non-admin pages don't need auth
       return;
     }
 
     // Skip auth check for login page
     if (pathname === '/admin') {
-      setIsLoading(false);
+      setAuthState('unauthenticated'); // Login page should show immediately
       return;
     }
 
-    // Check authentication for protected admin pages
-    const checkAuth = async () => {
-      const token = localStorage.getItem('adminToken');
-      const userData = localStorage.getItem('adminUser');
-      
-      if (!token || !userData || userData === 'undefined' || userData === 'null') {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-        router.push('/admin');
-        return;
-      }
-
+    // Fast synchronous auth check for protected admin pages
+    const checkAuthSync = () => {
       try {
+        const token = localStorage.getItem('adminToken');
+        const userData = localStorage.getItem('adminUser');
+        
+        // Quick validation
+        if (!token || !userData || userData === 'undefined' || userData === 'null') {
+          setAuthState('redirecting');
+          // Clear invalid data
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.replace('/admin'); // Use replace to avoid back button issues
+          return;
+        }
+
+        // Parse and validate user data
         const parsedUser = JSON.parse(userData);
         if (!parsedUser || !parsedUser.id || !parsedUser.username) {
-          throw new Error('Invalid user data structure');
+          setAuthState('redirecting');
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.replace('/admin');
+          return;
         }
+
+        // Successfully authenticated
         setUser(parsedUser);
+        setAuthState('authenticated');
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        console.error('Error checking authentication:', error);
+        setAuthState('redirecting');
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
-        router.push('/admin');
-        return;
+        router.replace('/admin');
       }
-      
-      setIsLoading(false);
     };
 
-    checkAuth();
+    // Run immediately - no async delay
+    checkAuthSync();
   }, [pathname, router]);
 
   // Update global header context when user changes
@@ -77,16 +90,20 @@ export default function AdminClientLayout({ children }: AdminClientLayoutProps) 
     }
   }, [user, pathname]);
 
-  if (isLoading && pathname.startsWith('/admin') && pathname !== '/admin') {
+  // Handle different auth states
+  if (authState === 'checking' || authState === 'redirecting') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">בודק אימות...</p>
+          <p className="text-muted-foreground">
+            {authState === 'checking' ? 'בודק אימות...' : 'מעביר לכניסה...'}
+          </p>
         </div>
       </div>
     );
   }
 
+  // Render content for authenticated or public pages
   return <>{children}</>;
 } 

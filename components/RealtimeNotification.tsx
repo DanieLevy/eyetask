@@ -51,9 +51,11 @@ export function RealtimeNotification({
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+    <div className="fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] animate-in slide-in-from-top-2 duration-300 max-w-md mx-auto md:mx-0">
       <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg ${getBgColor()}`}>
-        {getIcon()}
+        <div className="flex-shrink-0">
+          {getIcon()}
+        </div>
         <span className="text-sm font-medium">{message}</span>
       </div>
     </div>

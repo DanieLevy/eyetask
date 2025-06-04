@@ -9,6 +9,7 @@ export default function AdminLoginPage() {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
 
   // Font configurations
@@ -16,12 +17,40 @@ export default function AdminLoginPage() {
   const mixedBody = useMixedFont('body');
 
   useEffect(() => {
-    // Check if already logged in
+    // Immediate synchronous check for existing authentication
     const token = localStorage.getItem('adminToken');
-    if (token) {
-      router.push('/admin/dashboard');
+    const userData = localStorage.getItem('adminUser');
+    
+    if (token && userData && userData !== 'undefined' && userData !== 'null') {
+      try {
+        const parsedUser = JSON.parse(userData);
+        if (parsedUser && parsedUser.id && parsedUser.username) {
+          // User is already authenticated, redirect immediately
+          router.replace('/admin/dashboard');
+          return; // Don't set checking to false, keep showing loader
+        }
+      } catch (error) {
+        // Invalid data, clear it
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+      }
     }
+    
+    // No valid authentication found, show login form
+    setChecking(false);
   }, [router]);
+
+  // Show loader while checking authentication or during login
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">בודק אימות...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +76,10 @@ export default function AdminLoginPage() {
         if (token && user) {
           localStorage.setItem('adminToken', token);
           localStorage.setItem('adminUser', JSON.stringify(user));
-          router.push('/admin/dashboard');
+          
+          // Set a brief loading state for smooth transition
+          setChecking(true);
+          router.replace('/admin/dashboard');
         } else {
           setError('שגיאה בתגובת השרת');
         }
