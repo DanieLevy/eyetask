@@ -104,33 +104,33 @@ export default function DailyUpdates({
     localStorage.setItem('dismissedDailyUpdates', JSON.stringify([...newDismissed]));
   };
 
-  const getUpdateIcon = (type: string) => {
+  const getIcon = (type: string) => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+        return <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />;
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />;
       case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'announcement':
-        return <Bell className="h-5 w-5 text-blue-500" />;
+        return <XCircle className="h-5 w-5 text-destructive" />;
+      case 'notification':
+        return <Bell className="h-5 w-5 text-primary" />;
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-primary" />;
     }
   };
 
-  const getUpdateStyles = (type: string) => {
+  const getBackgroundColor = (type: string) => {
     switch (type) {
       case 'warning':
-        return 'border-yellow-200 bg-yellow-50 text-yellow-800';
+        return 'border-yellow-200 dark:!border-yellow-700 bg-yellow-50 dark:!bg-yellow-800/80 text-yellow-800 dark:text-yellow-100';
       case 'success':
-        return 'border-green-200 bg-green-50 text-green-800';
+        return 'border-green-200 dark:!border-green-700 bg-green-50 dark:!bg-green-800/80 text-green-800 dark:text-green-100';
       case 'error':
-        return 'border-red-200 bg-red-50 text-red-800';
-      case 'announcement':
-        return 'border-blue-200 bg-blue-50 text-blue-800';
+        return 'border-destructive/20 dark:!border-destructive-700 bg-destructive/10 dark:!bg-red-800/80 text-destructive dark:text-red-100';
+      case 'notification':
+        return 'border-primary/20 dark:!border-primary-700 bg-primary/10 dark:!bg-blue-800/80 text-primary dark:text-blue-100';
       default:
-        return 'border-gray-200 bg-gray-50 text-gray-800';
+        return 'border-border bg-background dark:!bg-slate-700 text-foreground dark:text-slate-200';
     }
   };
 
@@ -193,8 +193,8 @@ export default function DailyUpdates({
             </h2>
           </div>
         )}
-        <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-600">
+        <div className="border border-destructive/20 bg-destructive/10 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-destructive">
             <XCircle className="h-5 w-5" />
             <span className={hebrewBody.fontClass}>{error}</span>
           </div>
@@ -244,7 +244,7 @@ export default function DailyUpdates({
         {visibleUpdates.map((update) => (
           <div
             key={update.id}
-            className={`relative border rounded-lg p-4 ${getUpdateStyles(update.type)}`}
+            className={`relative border rounded-lg p-4 ${getBackgroundColor(update.type)}`}
           >
             {/* Dismiss button */}
             <button
@@ -258,14 +258,14 @@ export default function DailyUpdates({
             {/* Pinned indicator */}
             {update.is_pinned && (
               <div className="absolute top-2 right-2">
-                <Pin className="h-4 w-4 text-orange-500" />
+                <Pin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               </div>
             )}
 
             <div className="pr-6 pl-8">
               {/* Header */}
               <div className="flex items-start gap-3 mb-2">
-                {getUpdateIcon(update.type)}
+                {getIcon(update.type)}
                 <div className="flex-1">
                   <h3 className={`font-semibold text-lg ${hebrewHeading.fontClass}`}>
                     {update.title}

@@ -21,7 +21,6 @@ import {
   BarChart3,
   CheckSquare,
   AlertCircle,
-  Target,
   Layers,
   Filter,
   Search,
@@ -39,8 +38,10 @@ import {
   Cpu,
   Shield,
   Server,
-  HardDrive
+  HardDrive,
+  FolderOpen
 } from 'lucide-react';
+import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
 
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
@@ -236,35 +237,33 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-background">
       {/* Modern Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-                  <Target className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className={`text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent ${hebrewHeading.fontClass}`}>
-                    פאנל ניהול משימות
-                  </h1>
-                  {user && (
-                    <p className={`text-sm text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
-                      שלום, {user.username}
-                    </p>
-                  )}
-                </div>
+            {/* Left side: Logo and Title */}
+            <div className="flex items-center gap-3">
+              <MobileyeLogoIcon className="h-8 w-auto text-slate-800 dark:text-white" /> 
+              <div>
+                <h1 className={`text-xl font-bold text-slate-900 dark:text-white ${hebrewHeading.fontClass}`}>
+                  פאנל ניהול משימות
+                </h1>
+                {user && (
+                  <p className={`text-xs text-slate-500 dark:text-slate-200 ${hebrewBody.fontClass}`}>
+                    שלום, {user.username}
+                  </p>
+                )}
               </div>
             </div>
 
+            {/* Right side: Actions */}
             <div className="flex items-center gap-3">
               {/* Quick Refresh Button */}
               <button
                 onClick={refreshData}
                 disabled={refreshing}
-                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
                 title="רענן נתונים"
               >
                 <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''} text-slate-600 dark:text-slate-400`} />
@@ -365,15 +364,15 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions - Modern Cards */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h2 className={`text-xl font-bold text-slate-900 dark:text-white mb-6 ${hebrewHeading.fontClass}`}>
+        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
+          <h2 className={`text-xl font-bold text-card-foreground mb-6 ${hebrewHeading.fontClass}`}>
             פעולות מהירות
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Project Management */}
             <Link href="/admin/projects" 
-              className="group p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-900/30 dark:hover:to-blue-800/30 transition-all border border-blue-200 dark:border-blue-700">
+              className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 dark:!bg-blue-900 dark:hover:!bg-blue-800 transition-all border border-blue-200 dark:border-blue-700">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500 rounded-lg group-hover:scale-110 transition-transform">
                   <Layers className="h-5 w-5 text-white" />
@@ -391,7 +390,7 @@ export default function AdminDashboard() {
 
             {/* New Task */}
             <Link href="/admin/tasks/new" 
-              className="group p-4 rounded-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 hover:from-green-100 hover:to-green-200 dark:hover:from-green-900/30 dark:hover:to-green-800/30 transition-all border border-green-200 dark:border-green-700">
+              className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 dark:!bg-green-900 dark:hover:!bg-green-800 transition-all border border-green-200 dark:border-green-700">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-500 rounded-lg group-hover:scale-110 transition-transform">
                   <Plus className="h-5 w-5 text-white" />
@@ -409,16 +408,16 @@ export default function AdminDashboard() {
 
             {/* Daily Updates */}
             <Link href="/admin/daily-updates" 
-              className="group p-4 rounded-lg bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-900/30 dark:hover:to-yellow-800/30 transition-all border border-yellow-200 dark:border-yellow-700">
+              className="group p-4 rounded-lg bg-yellow-50 hover:bg-yellow-100 dark:!bg-amber-900 dark:hover:!bg-amber-800 transition-all border border-yellow-200 dark:border-amber-700">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-yellow-500 rounded-lg group-hover:scale-110 transition-transform">
                   <Bell className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h3 className={`font-semibold text-yellow-900 dark:text-yellow-100 ${hebrewBody.fontClass}`}>
+                  <h3 className={`font-semibold text-yellow-900 dark:text-amber-100 ${hebrewBody.fontClass}`}>
                     עדכונים יומיים
                   </h3>
-                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                  <p className="text-xs text-yellow-700 dark:text-amber-300">
                     ניהול הודעות יומיות
                   </p>
                 </div>
@@ -426,7 +425,7 @@ export default function AdminDashboard() {
             </Link>
 
             {/* Cache Management */}
-            <div className="group p-4 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-900/30 dark:hover:to-purple-800/30 transition-all border border-purple-200 dark:border-purple-700">
+            <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 dark:!bg-purple-900 dark:hover:!bg-purple-800 transition-all border border-purple-200 dark:border-purple-700">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-purple-500 rounded-lg group-hover:scale-110 transition-transform">
                   <HardDrive className="h-5 w-5 text-white" />
@@ -445,12 +444,12 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => clearCache('soft')}
                   disabled={cacheLoading}
-                  className="flex-1 px-3 py-1 bg-purple-200 dark:bg-purple-700 text-purple-900 dark:text-purple-100 rounded text-xs hover:bg-purple-300 dark:hover:bg-purple-600 transition-colors disabled:opacity-50"
+                  className="flex-1 px-3 py-1 bg-purple-200 text-purple-900 rounded text-xs hover:bg-purple-300 transition-colors disabled:opacity-50 dark:!bg-purple-700 dark:!text-purple-100 dark:hover:!bg-purple-600"
                 >
                   עדכון רך
                 </button>
                 <Link href="/admin/cache"
-                  className="flex-1 px-3 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors text-center"
+                  className="flex-1 px-3 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors flex items-center justify-center"
                 >
                   ניהול מלא
                 </Link>
@@ -459,7 +458,7 @@ export default function AdminDashboard() {
 
             {/* Analytics */}
             <Link href="/admin/analytics" 
-              className="group p-4 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-900/30 dark:hover:to-orange-800/30 transition-all border border-orange-200 dark:border-orange-700">
+              className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 dark:!bg-orange-900 dark:hover:!bg-orange-800 transition-all border border-orange-200 dark:border-orange-700">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-500 rounded-lg group-hover:scale-110 transition-transform">
                   <BarChart3 className="h-5 w-5 text-white" />
@@ -478,9 +477,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent Projects */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
           <div className="flex items-center justify-between mb-6">
-            <h2 className={`text-xl font-bold text-slate-900 dark:text-white ${hebrewHeading.fontClass}`}>
+            <h2 className={`text-xl font-bold text-card-foreground ${hebrewHeading.fontClass}`}>
               פרויקטים אחרונים
             </h2>
             <Link href="/admin/projects" 
@@ -492,8 +491,8 @@ export default function AdminDashboard() {
 
           {projects.length === 0 ? (
             <div className="text-center py-12">
-              <FolderPlus className="h-12 w-12 text-slate-400 dark:text-slate-600 mx-auto mb-4" />
-              <p className={`text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
+              <FolderPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className={`text-muted-foreground ${hebrewBody.fontClass}`}>
                 אין פרויקטים עדיין
               </p>
               <Link href="/admin/projects" 
@@ -505,19 +504,19 @@ export default function AdminDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {projects.slice(0, 6).map((project) => (
-                <div key={project.id} className="group p-4 bg-slate-50 dark:bg-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-all border border-slate-200 dark:border-slate-600">
+                <div key={project.id} className="group p-4 bg-muted rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-all border border-border">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold text-slate-900 dark:text-white truncate ${hebrewBody.fontClass}`}>
+                      <h3 className={`font-semibold text-foreground truncate ${hebrewBody.fontClass}`}>
                         {project.name}
                       </h3>
                       {project.description && (
-                        <p className={`text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2 ${hebrewBody.fontClass}`}>
+                        <p className={`text-sm text-muted-foreground mt-1 line-clamp-2 ${hebrewBody.fontClass}`}>
                           {project.description}
                         </p>
                       )}
                       
-                      <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <CheckSquare className="h-3 w-3" />
                           {getTaskCountForProject(project.id)} משימות
@@ -545,8 +544,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* System Status */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h2 className={`text-xl font-bold text-slate-900 dark:text-white mb-6 ${hebrewHeading.fontClass}`}>
+        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
+          <h2 className={`text-xl font-bold text-card-foreground mb-6 ${hebrewHeading.fontClass}`}>
             מצב המערכת
           </h2>
           

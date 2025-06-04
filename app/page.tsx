@@ -258,7 +258,7 @@ function HomePageCore() {
     <div className="container mx-auto p-6 space-y-8">
       {/* Offline indicator */}
       {!offlineStatus.isOnline && (projects.length > 0 || tasks.length > 0) && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg p-4 text-yellow-800 dark:text-yellow-200">
           <p className="text-sm font-medium">
             📱 מציג נתונים שמורים במטמון • הנתונים עשויים להיות לא מעודכנים
           </p>
@@ -305,10 +305,10 @@ function HomePageFallback() {
   return (
     <div className="container mx-auto p-6">
       <div className="animate-pulse space-y-8">
-        <div className="h-8 bg-gray-200 rounded w-1/3 mx-auto"></div>
+        <div className="h-8 bg-muted rounded w-1/3 mx-auto"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+            <div key={i} className="h-48 bg-muted rounded-lg"></div>
           ))}
         </div>
       </div>

@@ -31,22 +31,22 @@ export function RealtimeNotification({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />;
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
       default:
-        return <RefreshCw className="h-4 w-4 text-blue-500" />;
+        return <RefreshCw className="h-4 w-4 text-primary" />;
     }
   };
 
   const getBgColor = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 border-green-200 text-green-800';
+        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200';
       case 'error':
-        return 'bg-red-50 border-red-200 text-red-800';
+        return 'bg-destructive/10 border-destructive/20 text-destructive';
       default:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-primary/10 border-primary/20 text-primary';
     }
   };
 

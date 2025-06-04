@@ -49,7 +49,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
           {/* Status Indicators - Only when offline and after mount */}
           {showOfflineIndicators && (
             <div className="absolute top-3 left-3">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="מצב אופליין" />
+              <div className="w-2 h-2 bg-yellow-600 dark:bg-yellow-400 rounded-full animate-pulse" title="מצב אופליין" />
             </div>
           )}
           
@@ -69,13 +69,13 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
             {/* Stats Row - Right aligned */}
             <div className="flex items-center justify-end gap-4 text-sm pt-1">
               {highPriorityCount > 0 && (
-                <span className="bg-red-50 text-red-600 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 border border-red-100">
+                <span className="bg-destructive/10 text-destructive px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 border border-destructive/20">
                   <AlertTriangle className="h-3 w-3" />
                   {highPriorityCount} דחוף
                 </span>
               )}
               <span className={`text-muted-foreground flex items-center gap-1 ${hebrewFont.fontClass}`}>
-                <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="w-2 h-2 bg-primary rounded-full" />
                 {taskCount} משימות
               </span>
             </div>
@@ -95,10 +95,10 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
 
       {/* Loading State Overlay - Only show after mount */}
       {showOfflineIndicators && (
-        <div className="absolute inset-0 bg-yellow-50/80 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <div className="text-right">
-            <Clock className="h-6 w-6 text-yellow-600 mx-auto mb-2" />
-            <p className={`text-xs text-yellow-800 ${hebrewFont.fontClass}`}>
+        <div className="absolute inset-0 bg-yellow-50/80 dark:bg-yellow-900/20 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <div className="text-center">
+            <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
+            <p className={`text-xs text-yellow-800 dark:text-yellow-200 ${hebrewFont.fontClass}`}>
               נתונים לא מעודכנים
             </p>
           </div>

@@ -202,40 +202,40 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     switch (type) {
       case 'warning':
         return {
-          bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20',
-          border: 'border-amber-200 dark:border-amber-700/50',
+          bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:!bg-amber-700',
+          border: 'border-amber-200 dark:!border-amber-600',
           icon: 'text-amber-600 dark:text-amber-400',
           text: 'text-amber-900 dark:text-amber-100',
           glow: 'shadow-amber-500/20'
         };
       case 'error':
         return {
-          bg: 'bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20',
-          border: 'border-red-200 dark:border-red-700/50',
+          bg: 'bg-gradient-to-r from-red-50 to-rose-50 dark:!bg-red-700',
+          border: 'border-red-200 dark:!border-red-600',
           icon: 'text-red-600 dark:text-red-400',
           text: 'text-red-900 dark:text-red-100',
           glow: 'shadow-red-500/20'
         };
       case 'success':
         return {
-          bg: 'bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20',
-          border: 'border-emerald-200 dark:border-emerald-700/50',
+          bg: 'bg-gradient-to-r from-emerald-50 to-green-50 dark:!bg-emerald-700',
+          border: 'border-emerald-200 dark:!border-emerald-600',
           icon: 'text-emerald-600 dark:text-emerald-400',
           text: 'text-emerald-900 dark:text-emerald-100',
           glow: 'shadow-emerald-500/20'
         };
       case 'announcement':
         return {
-          bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20',
-          border: 'border-blue-200 dark:border-blue-700/50',
+          bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:!bg-blue-700',
+          border: 'border-blue-200 dark:!border-blue-600',
           icon: 'text-blue-600 dark:text-blue-400',
           text: 'text-blue-900 dark:text-blue-100',
           glow: 'shadow-blue-500/20'
         };
       default:
         return {
-          bg: 'bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50',
-          border: 'border-slate-200 dark:border-slate-700/50',
+          bg: 'bg-gradient-to-r from-slate-50 to-gray-50 dark:!bg-slate-700',
+          border: 'border-slate-200 dark:!border-slate-600',
           icon: 'text-slate-600 dark:text-slate-400',
           text: 'text-slate-800 dark:text-slate-200',
           glow: 'shadow-slate-500/20'
@@ -291,7 +291,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         >
           {/* Progress indicator for multiple updates */}
           {hasUpdates && updates.length > 1 && (
-            <div className="absolute top-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/10 rounded-t-lg">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-muted/20 rounded-t-lg">
               <div 
                 className="h-full bg-current rounded-t-lg transition-all duration-4000 ease-linear"
                 style={{ 
@@ -309,7 +309,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 e.stopPropagation();
                 hideUpdate(currentUpdate.id);
               }}
-              className="absolute top-2 left-2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors z-10"
+              className="absolute top-2 left-2 p-1 hover:bg-muted/20 rounded-full transition-colors z-10"
               title="הסתר עדכון זה"
             >
               <X className="h-3 w-3 opacity-60 hover:opacity-100" />
@@ -322,7 +322,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
               <div className={`
                 ${colors.icon}
                 p-2 rounded-lg
-                bg-white/50 dark:bg-black/20
+                bg-background/50 dark:bg-muted/20
                 shadow-sm backdrop-blur-sm
                 flex-shrink-0
                 transition-all duration-300 ease-out
@@ -343,7 +343,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                         {currentUpdate!.title}
                       </h3>
                       {currentUpdate!.isPinned && (
-                        <Pin className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                        <Pin className="h-3 w-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                       )}
                     </div>
                     <p className={`
@@ -369,7 +369,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 <div className="flex-shrink-0">
                   <div className={`
                     text-xs px-2 py-1 rounded-full
-                    bg-white/30 dark:bg-black/20
+                    bg-background/30 dark:bg-muted/20
                     ${colors.text}
                     font-medium
                   `}>

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, Eye, ImageIcon, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, X, Eye, ImageIcon, ChevronRight, ChevronLeft, Plus } from 'lucide-react';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string | null) => void;
@@ -244,10 +244,10 @@ export default function ImageUpload({
                     e.stopPropagation();
                     setShowFullImage(true);
                   }}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                  className="p-2 bg-background/20 hover:bg-background/30 rounded-full transition-colors"
                   title="הצג תמונה"
                 >
-                  <Eye className="h-4 w-4 text-white" />
+                  <Eye className="h-4 w-4 text-foreground" />
                 </button>
                 <button
                   type="button"
@@ -255,11 +255,11 @@ export default function ImageUpload({
                     e.stopPropagation();
                     handleRemoveImage();
                   }}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                  className="p-2 bg-background/20 hover:bg-background/30 rounded-full transition-colors"
                   title="הסר תמונה"
                   disabled={disabled}
                 >
-                  <X className="h-4 w-4 text-white" />
+                  <X className="h-4 w-4 text-foreground" />
                 </button>
               </div>
             </div>
@@ -294,7 +294,7 @@ export default function ImageUpload({
           <div className="relative max-w-4xl max-h-full">
             <button
               onClick={() => setShowFullImage(false)}
-              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 transition-colors"
+              className="absolute -top-10 right-0 p-2 text-foreground hover:text-muted-foreground transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
@@ -333,6 +333,14 @@ export function ImageDisplay({
     return null;
   }
 
+  const handleCloseModal = () => {
+    setShowFullImage(false);
+  };
+
+  const handleModalContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   // Size configurations
   const sizeClasses = {
     sm: 'h-20 w-20',
@@ -343,45 +351,54 @@ export function ImageDisplay({
   return (
     <>
       <div className={`
-        relative group cursor-pointer bg-muted rounded-lg overflow-hidden
+        relative group cursor-pointer 
         ${sizeClasses[size]}
         ${className}
-      `}>
-        <img
-          src={imageUrl}
-          alt={alt}
-          className="w-full h-full object-cover"
-          onClick={() => showExpand && setShowFullImage(true)}
+        bg-muted rounded-lg overflow-hidden
+        flex items-center justify-center 
+        shadow-sm hover:shadow-md transition-shadow
+      `}
+      onClick={() => showExpand && setShowFullImage(true)}
+      >
+        <img 
+            src={imageUrl} 
+            alt={alt} 
+            className="max-w-full max-h-full object-contain" 
+            draggable="false" 
         />
-        
         {showExpand && (
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-            <button
-              onClick={() => setShowFullImage(true)}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-              title="הצג תמונה"
-            >
-              <Eye className="h-4 w-4 text-white" />
-            </button>
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <Eye className="h-6 w-6 text-white" />
           </div>
         )}
       </div>
 
-      {/* Full Image Modal */}
       {showFullImage && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
-          <div className="relative max-w-4xl max-h-full bg-white rounded-lg overflow-hidden">
-            <button
-              onClick={() => setShowFullImage(false)}
-              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <img
-              src={imageUrl}
-              alt={alt}
-              className="w-full h-full object-contain"
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 cursor-zoom-out"
+          onClick={handleCloseModal} // Click on backdrop closes modal
+        >
+          <div 
+            className="relative max-w-[90vw] max-h-[90vh] cursor-default"
+            onClick={handleModalContentClick} // Clicks on content area (image) don't close modal
+          >
+            <img 
+              src={imageUrl} 
+              alt={alt} 
+              className="block w-full h-full object-contain shadow-2xl rounded-lg" 
+              draggable="false"
             />
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation(); // Prevent modal close
+                    handleCloseModal(); // Explicitly close
+                }}
+                className="absolute -top-3 -right-3 sm:top-2 sm:right-2 z-10 p-2 bg-background/80 hover:bg-background/90 rounded-full text-foreground shadow-lg transition-colors"
+                title="Close image"
+                aria-label="Close image"
+            >
+                <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
@@ -555,7 +572,7 @@ export function MultipleImageUpload({
               {!disabled && (
                 <button
                   onClick={() => handleRemoveImage(index)}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  className="absolute -top-2 -right-2 p-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                   title="הסר תמונה"
                 >
                   <X className="h-3 w-3" />
@@ -641,168 +658,141 @@ export function ImageGallery({
   showExpand = true,
   maxDisplay = 4
 }: ImageGalleryProps) {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  if (!images || images.length === 0) return null;
-
-  const displayImages = images.slice(0, maxDisplay);
-  const remainingCount = images.length - maxDisplay;
-
-  const nextImage = () => {
-    const newIndex = (currentIndex + 1) % images.length;
-    setCurrentIndex(newIndex);
-    setSelectedImage(images[newIndex]);
-  };
-
-  const prevImage = () => {
-    const newIndex = (currentIndex - 1 + images.length) % images.length;
-    setCurrentIndex(newIndex);
-    setSelectedImage(images[newIndex]);
-  };
+  if (!images || images.length === 0) {
+    return null;
+  }
 
   const openGallery = (imageUrl: string, index: number) => {
-    setSelectedImage(imageUrl);
-    setCurrentIndex(index);
+    if (!showExpand) return;
+    setSelectedImageIndex(index);
+    setIsGalleryOpen(true);
   };
 
   const closeGallery = () => {
-    setSelectedImage(null);
+    setIsGalleryOpen(false);
+  };
+  
+  const handleModalContentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (!selectedImage) return;
-    
-    switch (e.key) {
-      case 'Escape':
-        closeGallery();
-        break;
-      case 'ArrowLeft':
-        if (images.length > 1) prevImage();
-        break;
-      case 'ArrowRight':
-        if (images.length > 1) nextImage();
-        break;
-    }
+  const nextImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedImageIndex((prevIndex) => (prevIndex + 1) % images.length);
   };
 
-  // Add/remove keyboard event listener
-  React.useEffect(() => {
-    if (selectedImage) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [selectedImage, images.length, currentIndex]);
+  const prevImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedImageIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
+  };
 
-  // Prevent body scroll when modal is open
-  React.useEffect(() => {
-    if (selectedImage) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = 'auto';
-      };
-    }
-  }, [selectedImage]);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isGalleryOpen) return;
+    if (e.key === 'Escape') closeGallery();
+    if (e.key === 'ArrowRight') nextImage();
+    if (e.key === 'ArrowLeft') prevImage();
+  }, [isGalleryOpen, images.length]); // Added images.length dependency
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  const displayImages = images.slice(0, maxDisplay);
+  const remainingImagesCount = images.length - maxDisplay;
 
   return (
-    <>
-      <div className={`space-y-2 ${className}`}>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {displayImages.map((imageUrl, index) => (
-            <div 
-              key={`gallery-image-${index}`} 
-              className="relative group cursor-pointer overflow-hidden rounded-lg bg-muted aspect-square hover:scale-105 transition-transform duration-200"
-              onClick={() => showExpand && openGallery(imageUrl, index)}
-            >
-              <img
-                src={imageUrl}
-                alt={`תמונה ${index + 1}`}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-              
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  <Eye className="h-6 w-6 text-white drop-shadow-lg" />
-                </div>
+    <div className={` ${className}`}>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+        {displayImages.map((imageUrl, index) => (
+          <div 
+            key={`gallery-thumb-${imageUrl}-${index}`} 
+            className="relative group aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+            onClick={() => openGallery(imageUrl, index)}
+          >
+            <img 
+              src={imageUrl} 
+              alt={`Gallery image ${index + 1}`} 
+              className="w-full h-full object-cover"
+              draggable="false"
+            />
+            {showExpand && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <Eye className="h-6 w-6 text-white" />
               </div>
-              
-              {/* Show remaining count on last image */}
-              {index === maxDisplay - 1 && remainingCount > 0 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                  <span className="text-white text-lg font-bold">+{remainingCount}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            )}
+            {index === maxDisplay - 1 && remainingImagesCount > 0 && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-white text-xl font-bold">+{remainingImagesCount}</span>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Enhanced Gallery Modal */}
-      {selectedImage && (
+      {isGalleryOpen && images[selectedImageIndex] && (
         <div 
-          className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[9999] flex items-center justify-center"
-          onClick={closeGallery}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 cursor-default"
+          onClick={closeGallery} // Click on backdrop closes modal
         >
-          {/* Modal Container */}
           <div 
-            className="relative w-full h-full flex items-center justify-center p-4"
-            onClick={(e) => e.stopPropagation()}
+            className="relative w-full h-full flex items-center justify-center cursor-default"
+            onClick={handleModalContentClick} // Clicks on content area (image + controls) don't close modal
           >
-            {/* Top Bar */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-              <div className="flex items-center gap-4">
-                {/* Image Counter */}
-                <div className="px-3 py-1 bg-black/50 text-white text-sm rounded-full backdrop-blur-sm">
-                  {currentIndex + 1} מתוך {images.length}
-                </div>
-              </div>
-              
-              {/* Close Button */}
-              <button
-                onClick={closeGallery}
-                className="p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-all duration-200 backdrop-blur-sm hover:scale-110"
-                title="סגור (ESC)"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Navigation Buttons */}
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-3 bg-black/50 hover:bg-black/70 rounded-full text-white z-20 transition-all duration-200 backdrop-blur-sm hover:scale-110"
-                  title="תמונה קודמת (←)"
-                >
-                  <ChevronRight className="h-6 w-6 rotate-180" />
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-3 bg-black/50 hover:bg-black/70 rounded-full text-white z-20 transition-all duration-200 backdrop-blur-sm hover:scale-110"
-                  title="תמונה הבאה (→)"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-              </>
-            )}
-
-            {/* Image Container */}
-            <div 
-              className="relative max-w-full max-h-full flex items-center justify-center"
-            >
-              <img
-                src={selectedImage}
-                alt={`תמונה ${currentIndex + 1}`}
-                className="max-w-[90vw] max-h-[90vh] object-contain select-none rounded-lg"
-                draggable={false}
+            {/* Image container */}
+            <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+              <img 
+                src={images[selectedImageIndex]} 
+                alt={`Enlarged gallery image ${selectedImageIndex + 1}`} 
+                className="block object-contain shadow-2xl rounded-lg max-w-full max-h-full" 
+                draggable="false"
               />
             </div>
+
+            {/* Close Button */}
+            <button 
+              onClick={(e) => { // Ensure stopPropagation for this button too
+                e.stopPropagation();
+                closeGallery();
+              }}
+              className="absolute top-4 right-4 z-[10001] p-2 bg-background/80 hover:bg-background/90 rounded-full text-foreground shadow-lg transition-colors"
+              title="Close gallery"
+              aria-label="Close gallery"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Prev Button */}
+            {images.length > 1 && (
+              <button 
+                onClick={prevImage} // stopPropagation is handled inside prevImage
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-[10000] p-2 bg-background/50 hover:bg-background/70 rounded-full text-foreground shadow-lg transition-all hover:scale-110"
+                title="Previous image"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
+              </button>
+            )}
+
+            {/* Next Button */}
+            {images.length > 1 && (
+              <button 
+                onClick={nextImage} // stopPropagation is handled inside nextImage
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-[10000] p-2 bg-background/50 hover:bg-background/70 rounded-full text-foreground shadow-lg transition-all hover:scale-110"
+                title="Next image"
+                aria-label="Next image"
+              >
+                <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
+              </button>
+            )}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 } 

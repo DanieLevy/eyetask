@@ -25,7 +25,12 @@ import {
   Home,
   AlertTriangle,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  AlertCircle,
+  Info,
+  List,
+  Grid,
+  Download
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -59,6 +64,9 @@ export default function ProjectsManagementPage() {
   const [operationLoading, setOperationLoading] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
   
   const router = useRouter();
   
@@ -206,6 +214,36 @@ export default function ProjectsManagementPage() {
     }
   };
 
+  const exportProjectsCsv = async () => {
+    setIsExporting(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/projects/export', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'projects.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+        showNotification('הייצוא נספק בהצלחה', 'success');
+      } else {
+        showNotification('שגיאה בייצוא פרויקטים', 'error');
+      }
+    } catch (error) {
+      console.error('Error exporting projects:', error);
+      showNotification('שגיאה בייצוא פרויקטים', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -221,15 +259,16 @@ export default function ProjectsManagementPage() {
     <div className="min-h-screen bg-background">
       {/* Notification - Enhanced for Mobile PWA */}
       {notification && (
-        <div className={`fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] p-4 rounded-lg shadow-lg border transition-all max-w-md mx-auto md:mx-0 ${
-          notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-          notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-          'bg-blue-50 border-blue-200 text-blue-800'
+        <div className={`p-4 mb-6 rounded-lg border transition-all ${
+          notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200' :
+          notification.type === 'error' ? 'bg-destructive/10 border-destructive/20 text-destructive' :
+          'bg-primary/10 border-primary/20 text-primary'
         }`}>
           <div className="flex items-center gap-2">
-            {notification.type === 'success' && <CheckCircle className="h-5 w-5 flex-shrink-0" />}
-            {notification.type === 'error' && <AlertTriangle className="h-5 w-5 flex-shrink-0" />}
-            <span className="text-sm font-medium">{notification.message}</span>
+            {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
+            {notification.type === 'error' && <AlertCircle className="h-5 w-5" />}
+            {notification.type === 'info' && <Info className="h-5 w-5" />}
+            <span className="font-medium">{notification.message}</span>
           </div>
         </div>
       )}
@@ -377,7 +416,7 @@ export default function ProjectsManagementPage() {
                           <button
                             onClick={() => setEditingProject(null)}
                             disabled={operationLoading}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
+                            className="p-2 hover:bg-muted text-muted-foreground rounded-lg transition-colors border border-border"
                             title="בטל עריכה"
                           >
                             <X className="h-4 w-4" />

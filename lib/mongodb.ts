@@ -81,10 +81,62 @@ class MongoDBConnection {
   }
 
   async getDatabase(): Promise<Db> {
+    // Ensure the client is connected.
+    // this.connect() handles establishing or verifying the connection.
+    // If establishConnection is called within connect(), it sets this.db.
+    // If connect() uses an existing client (after a successful ping), this.db should ideally already be valid.
+    await this.connect();
+
+    // After connect() resolves, check if this.db is populated.
+    // This handles the edge case where connect() might succeed (e.g., ping success)
+    // but this.db was null or became null.
     if (!this.db) {
-      await this.connect();
+      logger.warn(
+        'MongoDBConnection: this.db is null after connect(). Attempting to re-initialize from client.',
+        'MONGODB_RECOVERY'
+      );
+      if (this.client) {
+        const dbName = process.env.MONGODB_DB_NAME;
+        if (!dbName) {
+          logger.error(
+            'MongoDBConnection: MONGODB_DB_NAME is not set. Cannot re-initialize db.',
+            'MONGODB_CRITICAL'
+          );
+          throw new Error(
+            'MONGODB_DB_NAME environment variable is not set for DB re-initialization.'
+          );
+        }
+        this.db = this.client.db(dbName); // Attempt to re-initialize db from the existing client.
+        
+        if (!this.db) {
+          // If still null, the client might be in a strange state or dbName is invalid.
+          logger.error(
+            'MongoDBConnection: Failed to re-initialize this.db from existing client. Forcing full reconnect.',
+            'MONGODB_CRITICAL'
+          );
+          this.client = null; // Force full reconnect path
+          this.connectionPromise = null;
+          await this.connect(); // Try one more full connection attempt
+        }
+      } else {
+        // If there's no client either, a full connect was needed but might have failed to set db.
+        logger.error(
+          'MongoDBConnection: this.db and this.client are null after connect(). This indicates a connection failure.',
+          'MONGODB_CRITICAL'
+        );
+      }
     }
-    return this.db!;
+
+    // Final check after all recovery attempts
+    if (!this.db) {
+      logger.error(
+        'MongoDBConnection: Unable to obtain a valid DB instance after all attempts.',
+        'MONGODB_CRITICAL'
+      );
+      throw new Error('Failed to get a valid database instance.');
+    }
+    
+    return this.db; // Now this.db should be valid, or an error would have been thrown.
   }
 
   async getCollections(): Promise<DatabaseCollections> {

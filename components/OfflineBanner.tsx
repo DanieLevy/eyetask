@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Clock, RefreshCw, AlertTriangle, X, Info } from 'lucide-react';
+import { Wifi, WifiOff, Clock, RefreshCw, AlertTriangle, X, Info, ChevronUp } from 'lucide-react';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useHebrewFont } from '@/hooks/useFont';
 
@@ -194,7 +194,7 @@ export default function OfflineBanner() {
   const getStatusInfo = () => {
     return {
       icon: <WifiOff className="h-4 w-4" />,
-      color: 'border-red-200 bg-red-50 text-red-800',
+      color: 'border-destructive/20 bg-destructive/10 text-destructive',
       title: 'מצב אופליין',
       message: 'אין חיבור לאינטרנט. מציג נתונים שמורים במטמון.',
       severity: 'error' as const
@@ -204,9 +204,14 @@ export default function OfflineBanner() {
   const statusInfo = getStatusInfo();
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 z-40 border-t transition-all duration-300 ${statusInfo.color} ${
-      isExpanded ? 'bg-white/95 backdrop-blur-sm' : 'bg-white/90 backdrop-blur-sm'
-    }`}>
+    <div className={`
+      fixed bottom-0 left-0 right-0 z-50 p-4 transition-all duration-300 transform
+      ${
+        isExpanded ? 'bg-background/95 backdrop-blur-sm' : 'bg-background/90 backdrop-blur-sm'
+      }
+      border-t border-border
+      ${isExpanded ? 'translate-y-0' : 'translate-y-[70%]'}
+    `}>
       <div className="max-w-md mx-auto px-3 py-2">
         {/* Compact View */}
         <div 
@@ -228,7 +233,7 @@ export default function OfflineBanner() {
                   e.stopPropagation();
                   setShowDetails(!showDetails);
                 }}
-                className="p-1 hover:bg-black/10 rounded transition-colors"
+                className="p-1 hover:bg-accent rounded transition-colors"
                 title="פרטים נוספים"
               >
                 <Info className="h-3 w-3" />
@@ -240,7 +245,7 @@ export default function OfflineBanner() {
                 e.stopPropagation();
                 setIsExpanded(false);
               }}
-              className="p-1 hover:bg-black/10 rounded transition-colors"
+              className="p-1 hover:bg-accent rounded transition-colors"
               title="סגור"
             >
               <X className="h-3 w-3" />
@@ -257,7 +262,7 @@ export default function OfflineBanner() {
 
             {/* Cache Details */}
             {showDetails && cacheInfo.isServedFromCache && (
-              <div className="bg-black/5 rounded p-3 space-y-2 text-xs">
+              <div className="bg-muted/30 rounded p-3 space-y-2 text-xs">
                 <div className={`flex justify-between ${hebrewFont.fontClass}`}>
                   <span>מקור הנתונים:</span>
                   <span>מטמון מקומי</span>
@@ -279,7 +284,7 @@ export default function OfflineBanner() {
 
             {/* Offline Capabilities Info */}
             {showDetails && (
-              <div className="bg-black/5 rounded p-3 space-y-2">
+              <div className="bg-muted/30 rounded p-3 space-y-2">
                 <h4 className={`text-xs font-semibold ${hebrewFont.fontClass}`}>
                   זמין במצב אופליין:
                 </h4>
@@ -306,7 +311,7 @@ export default function OfflineBanner() {
                 onClick={handleRefresh}
                 className={`
                   flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded
-                  bg-white/50 hover:bg-white/70 transition-colors
+                  bg-card/50 hover:bg-card/70 transition-colors
                   ${hebrewFont.fontClass}
                 `}
               >
@@ -321,7 +326,7 @@ export default function OfflineBanner() {
                 }}
                 className={`
                   flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded
-                  bg-white/50 hover:bg-white/70 transition-colors
+                  bg-card/50 hover:bg-card/70 transition-colors
                   ${hebrewFont.fontClass}
                 `}
               >

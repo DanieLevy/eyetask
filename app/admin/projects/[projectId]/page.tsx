@@ -19,7 +19,9 @@ import {
   Zap,
   Clock,
   Building,
-  FileText
+  FileText,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
@@ -226,10 +228,10 @@ export default function ProjectManagement() {
   };
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 1 && priority <= 3) return 'text-red-500 bg-red-50';
-    if (priority >= 4 && priority <= 6) return 'text-yellow-500 bg-yellow-50';
-    if (priority >= 7 && priority <= 10) return 'text-green-500 bg-green-50';
-    return 'text-gray-500 bg-gray-50';
+    if (priority >= 1 && priority <= 3) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+    if (priority >= 4 && priority <= 6) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20';
+    if (priority >= 7 && priority <= 10) return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+    return 'text-muted-foreground bg-muted';
   };
 
   const getPriorityLabel = (priority: number) => {
@@ -337,23 +339,19 @@ export default function ProjectManagement() {
               </div>
               <p className="text-2xl font-bold text-primary">{tasks.length}</p>
             </div>
-            <div className="bg-green-500/10 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Eye className="h-5 w-5 text-green-600" />
-                <span className="font-semibold">משימות גלויות</span>
+            <div className="bg-accent/5 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-accent-foreground mb-2">
+                <CheckCircle className="h-5 w-5" />
+                <span className="font-medium">משימות גלויות</span>
               </div>
-              <p className="text-2xl font-bold text-green-600">
-                {tasks.filter(task => task.isVisible).length}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{tasks.filter(task => task.isVisible).length}</p>
             </div>
-            <div className="bg-red-500/10 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-                <span className="font-semibold">עדיפות גבוהה</span>
+            <div className="bg-destructive/5 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-destructive mb-2">
+                <XCircle className="h-5 w-5" />
+                <span className="font-medium">משימות מוסתרות</span>
               </div>
-              <p className="text-2xl font-bold text-red-600">
-                {tasks.filter(task => task.priority >= 1 && task.priority <= 3).length}
-              </p>
+              <p className="text-2xl font-bold text-foreground">{tasks.filter(task => !task.isVisible).length}</p>
             </div>
           </div>
         </div>
@@ -417,9 +415,9 @@ export default function ProjectManagement() {
                             </span>
                           )}
                           {!task.isVisible && (
-                              <span className="text-xs text-red-500 px-2 py-1 bg-red-50 rounded flex items-center gap-1 flex-shrink-0">
-                              <EyeOff className="h-3 w-3" />
-                              מוסתר
+                              <span className="text-xs text-destructive px-2 py-1 bg-destructive/10 rounded flex items-center gap-1 flex-shrink-0">
+                              <AlertTriangle className="h-3 w-3" />
+                              דחוף
                             </span>
                           )}
                         </div>
@@ -441,8 +439,8 @@ export default function ProjectManagement() {
                           }}
                           className={`p-1.5 rounded-full transition-colors ${
                             task.isVisible 
-                              ? 'text-orange-600 hover:bg-orange-50 bg-white/80' 
-                              : 'text-green-600 hover:bg-green-50 bg-white/80'
+                              ? 'text-warning hover:bg-warning/10 bg-card/80' 
+                              : 'text-accent-foreground hover:bg-accent/10 bg-card/80'
                           }`}
                           title={task.isVisible ? 'הסתר משימה' : 'הצג משימה'}
                         >

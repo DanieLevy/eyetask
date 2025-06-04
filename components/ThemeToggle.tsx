@@ -40,6 +40,7 @@ export default function ThemeToggle() {
     
     const applyThemeLogic = () => {
       const root = document.documentElement;
+      const body = document.body;
       
       // Determine the actual theme to apply
       let resolvedTheme: 'light' | 'dark';
@@ -51,36 +52,193 @@ export default function ThemeToggle() {
         console.log('[ThemeToggle] Resolved theme set to:', resolvedTheme);
       }
       
-      // iOS-specific: Remove classes first, then force reflow
-      root.classList.remove('light', 'dark');
-      root.offsetHeight; // Force reflow for iOS
+      // Phase 1: Enhanced iOS class removal with forced reflows
+      root.classList.remove('light', 'dark', 'theme-transition');
       
-      // Apply new theme
+      // iOS-specific: Multiple forced reflows for better WebKit compatibility
+      if (isIOS()) {
+        try {
+          if (root.offsetHeight !== undefined) root.offsetHeight;
+          root.scrollTop = root.scrollTop;
+          if (body.offsetHeight !== undefined) body.offsetHeight;
+        } catch (error) {
+          console.warn('[ThemeToggle] iOS reflow error:', error);
+        }
+        
+        // Force CSS custom properties to update on iOS
+        try {
+          root.style.setProperty('--ios-theme-force', Date.now().toString());
+          root.style.removeProperty('--ios-theme-force');
+        } catch (error) {
+          console.warn('[ThemeToggle] iOS CSS property error:', error);
+        }
+      }
+      
+      // Phase 2: Add transition class for smooth animation
+      root.classList.add('theme-transition');
+      
+      // Phase 3: Apply new theme class and properties
       root.classList.add(resolvedTheme);
       root.style.colorScheme = resolvedTheme;
+      root.setAttribute('data-theme', resolvedTheme);
+      body.style.colorScheme = resolvedTheme;
       
       console.log('[ThemeToggle] Applied theme class:', resolvedTheme, 'New root classList:', root.classList.toString());
       
-      // iOS-specific: Force additional reflow with RAF
+      // Phase 4: Enhanced iOS DOM manipulation with multiple RAF
       if (typeof requestAnimationFrame !== 'undefined') {
         requestAnimationFrame(() => {
+          // First RAF: Set CSS properties
           root.style.setProperty('color-scheme', resolvedTheme);
-          // Toggle a dummy class to ensure iOS recognizes the change
-          root.classList.add('theme-transition');
+          body.style.setProperty('color-scheme', resolvedTheme);
+          
+          // iOS-specific: Force hardware acceleration
+          if (isIOS()) {
+            try {
+              root.style.transform = 'translateZ(0)';
+              root.style.willChange = 'transform';
+            } catch (error) {
+              console.warn('[ThemeToggle] iOS hardware acceleration error:', error);
+            }
+          }
+          
+          // Force another reflow
+          try {
+            if (root.offsetHeight !== undefined) root.offsetHeight;
+          } catch (error) {
+            console.warn('[ThemeToggle] RAF reflow error:', error);
+          }
+          
           requestAnimationFrame(() => {
-            root.classList.remove('theme-transition');
+            // Second RAF: Update meta theme-color with proper error handling
+            try {
+              const metaThemeColor = document.querySelector('meta[name="theme-color"]:not([media])');
+              if (metaThemeColor) {
+                metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+              } else {
+                // Create theme-color meta tag if it doesn't exist
+                const newMetaThemeColor = document.createElement('meta');
+                newMetaThemeColor.name = 'theme-color';
+                newMetaThemeColor.content = resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff';
+                document.head.appendChild(newMetaThemeColor);
+              }
+            } catch (error) {
+              console.warn('[ThemeToggle] Meta theme-color update error:', error);
+            }
+            
+            // iOS-specific: Force viewport update with error handling
+            if (isIOS()) {
+              try {
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) {
+                  const content = viewport.getAttribute('content');
+                  if (content) {
+                    const tempContent = content + ', theme-color=' + (resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                    viewport.setAttribute('content', tempContent);
+                    setTimeout(() => {
+                      viewport.setAttribute('content', content);
+                    }, 100);
+                  }
+                }
+              } catch (error) {
+                console.warn('[ThemeToggle] iOS viewport update error:', error);
+              }
+            }
+            
+            requestAnimationFrame(() => {
+              // Third RAF: Clean up and force element recalculation
+              root.classList.remove('theme-transition');
+              
+              // iOS-specific: Reset hardware acceleration
+              if (isIOS()) {
+                try {
+                  root.style.transform = '';
+                  root.style.willChange = 'auto';
+                  
+                  // Force all elements to recalculate styles on iOS
+                  const allElements = document.querySelectorAll('*');
+                  for (let i = 0; i < Math.min(allElements.length, 100); i++) {
+                    try {
+                      const el = allElements[i] as HTMLElement;
+                      if (el && el.offsetHeight !== undefined) {
+                        el.offsetHeight; // Force style recalculation
+                      }
+                    } catch (error) {
+                      // Ignore individual element errors
+                    }
+                  }
+                  
+                  // Additional iOS force reflows
+                  setTimeout(() => {
+                    try {
+                      const htmlElement = document.documentElement;
+                      const currentDisplay = htmlElement.style.display;
+                      htmlElement.style.display = 'none';
+                      if (htmlElement.offsetHeight !== undefined) htmlElement.offsetHeight; // Trigger reflow
+                      htmlElement.style.display = currentDisplay || '';
+                    } catch (error) {
+                      console.warn('[ThemeToggle] iOS final reflow error:', error);
+                    }
+                  }, 10);
+                } catch (error) {
+                  console.warn('[ThemeToggle] iOS cleanup error:', error);
+                }
+              }
+            });
           });
         });
       }
 
-      // iOS-specific: Force re-render if needed
+      // iOS-specific: Additional force re-render with enhanced checks
       if (isIOS()) {
         setTimeout(() => {
-          const currentDisplay = root.style.display;
-          root.style.display = 'none';
-          root.offsetHeight; // Trigger reflow
-          root.style.display = currentDisplay || '';
-        }, 0);
+          try {
+            // Enhanced style recalculation for iOS WebKit
+            const currentDisplay = document.body.style.display;
+            document.body.style.display = 'none';
+            if (document.body.offsetHeight !== undefined) document.body.offsetHeight; // Trigger reflow
+            document.body.style.display = currentDisplay || '';
+            
+            // Verify theme application and retry if needed
+            setTimeout(() => {
+              if (!root.classList.contains(resolvedTheme)) {
+                console.warn('[ThemeToggle] iOS theme application failed, retrying...');
+                root.classList.add(resolvedTheme);
+                root.style.colorScheme = resolvedTheme;
+                body.style.colorScheme = resolvedTheme;
+                
+                // Force one more recalculation
+                setTimeout(() => {
+                  try {
+                    if (root.offsetHeight !== undefined) root.offsetHeight;
+                    if (body.offsetHeight !== undefined) body.offsetHeight;
+                  } catch (error) {
+                    console.warn('[ThemeToggle] iOS retry reflow error:', error);
+                  }
+                }, 50);
+              }
+            }, 100);
+          } catch (error) {
+            console.warn('[ThemeToggle] iOS additional rerender error:', error);
+          }
+        }, 10);
+        
+        // iOS-specific: Listen for orientation changes during theme switch
+        const handleOrientationChange = () => {
+          setTimeout(() => {
+            if (root.classList.contains(resolvedTheme)) {
+              root.style.colorScheme = resolvedTheme;
+              body.style.colorScheme = resolvedTheme;
+            }
+          }, 100);
+        };
+        
+        window.addEventListener('orientationchange', handleOrientationChange, { once: true });
+        
+        // Clean up after 5 seconds
+        setTimeout(() => {
+          window.removeEventListener('orientationchange', handleOrientationChange);
+        }, 5000);
       }
     };
 
@@ -104,8 +262,8 @@ export default function ThemeToggle() {
     
     // Apply theme with proper timing
     const initializeTheme = () => {
-      console.log('[ThemeToggle] Applying initial theme:', storedTheme);
-      applyTheme(storedTheme);
+    console.log('[ThemeToggle] Applying initial theme:', storedTheme);
+    applyTheme(storedTheme);
     };
 
     // iOS-specific: Ensure DOM is fully ready
@@ -136,12 +294,25 @@ export default function ThemeToggle() {
     };
   }, []);
 
-  // Enhanced toggle with iOS event handling and error handling
-  const toggleTheme = (e?: React.MouseEvent | React.TouchEvent) => {
-    // Prevent default behavior on iOS
+  // Enhanced toggle with iOS event handling and proper error handling
+  const toggleTheme = (e?: React.MouseEvent | React.TouchEvent | Event) => {
+    // Prevent default behavior on iOS and stop propagation with proper error handling
     if (e) {
-      e.preventDefault();
-      e.stopPropagation();
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // iOS-specific: Prevent double-tap zoom
+        if (isIOS() && e.type === 'touchend') {
+          // Access stopImmediatePropagation on the native event for TouchEvents
+          const reactTouchEvent = e as React.TouchEvent; // Cast to React.TouchEvent to access nativeEvent
+          if (reactTouchEvent.nativeEvent && typeof reactTouchEvent.nativeEvent.stopImmediatePropagation === 'function') {
+            reactTouchEvent.nativeEvent.stopImmediatePropagation();
+          }
+        }
+      } catch (error) {
+        console.warn('[ThemeToggle] Event handling error:', error);
+      }
     }
     
     console.log('[ThemeToggle] toggleTheme called. Current theme:', theme);
@@ -154,20 +325,50 @@ export default function ThemeToggle() {
     // Update state first
     setTheme(newTheme);
     
-    // Save to localStorage with error handling
-    saveTheme(newTheme);
-    console.log('[ThemeToggle] Attempted to store new theme in localStorage:', newTheme);
+    // Save to localStorage with enhanced error handling
+    try {
+      saveTheme(newTheme);
+      console.log('[ThemeToggle] Successfully stored new theme in localStorage:', newTheme);
+    } catch (error) {
+      console.warn('[ThemeToggle] Failed to store theme in localStorage:', error);
+    }
     
-    // Apply theme with iOS-specific timing
-    if (isIOS()) {
-      // iOS needs more time between state update and DOM manipulation
+    // Apply theme with iOS-specific timing and error handling
+    try {
+      if (isIOS()) {
+        // iOS needs more time between state update and DOM manipulation
+        // Use multiple timing strategies for better compatibility
+        setTimeout(() => {
+          applyTheme(newTheme);
+        }, 50);
+        
+        // Backup application with longer delay
+        setTimeout(() => {
+          const root = document.documentElement;
+          const expectedTheme = newTheme === 'system' ? 
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
+            newTheme;
+          if (!root.classList.contains(expectedTheme)) {
+            console.warn('[ThemeToggle] Backup iOS theme application triggered');
+            applyTheme(newTheme);
+          }
+        }, 200);
+      } else {
+        // For non-iOS devices, apply immediately
+        setTimeout(() => {
+          applyTheme(newTheme);
+        }, 0);
+      }
+    } catch (error) {
+      console.error('[ThemeToggle] Error applying theme:', error);
+      // Fallback: try to apply theme again
       setTimeout(() => {
-        applyTheme(newTheme);
-      }, 50);
-    } else {
-      setTimeout(() => {
-        applyTheme(newTheme);
-      }, 0);
+        try {
+    applyTheme(newTheme);
+        } catch (fallbackError) {
+          console.error('[ThemeToggle] Fallback theme application also failed:', fallbackError);
+        }
+      }, 100);
     }
   };
 
@@ -196,21 +397,21 @@ export default function ThemeToggle() {
       case 'light':
         return <Sun className="w-5 h-5 text-amber-500" />;
       case 'dark':
-        return <Moon className="w-5 h-5 text-blue-400" />;
+        return <Moon className="w-5 h-5 text-primary" />;
       case 'system':
         return resolvedTheme === 'dark' ? (
           <div className="relative">
-            <Monitor className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-            <Moon className="w-2.5 h-2.5 text-blue-400 absolute -top-0.5 -right-0.5" />
+            <Monitor className="w-5 h-5 text-muted-foreground" />
+            <Moon className="w-2.5 h-2.5 text-primary absolute -top-0.5 -right-0.5" />
           </div>
         ) : (
           <div className="relative">
-            <Monitor className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            <Monitor className="w-5 h-5 text-muted-foreground" />
             <Sun className="w-2.5 h-2.5 text-amber-500 absolute -top-0.5 -right-0.5" />
           </div>
         );
       default:
-        return <Monitor className="w-5 h-5 text-slate-600 dark:text-slate-400" />;
+        return <Monitor className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -234,16 +435,24 @@ export default function ThemeToggle() {
       onTouchStart={(e) => {
         // iOS-specific: Handle touch start for better responsiveness
         if (isIOS()) {
-          e.currentTarget.style.transform = 'scale(0.95)';
+          try {
+            e.currentTarget.style.transform = 'scale(0.95)';
+          } catch (error) {
+            console.warn('[ThemeToggle] Touch start error:', error);
+          }
         }
       }}
       onTouchEnd={(e) => {
         // iOS-specific: Reset transform and trigger toggle
         if (isIOS()) {
-          e.currentTarget.style.transform = 'scale(1)';
-          // Prevent double-triggering on iOS
-          e.preventDefault();
-          toggleTheme(e);
+          try {
+            e.currentTarget.style.transform = 'scale(1)';
+            // Prevent double-triggering on iOS
+            e.preventDefault();
+            toggleTheme(e);
+          } catch (error) {
+            console.warn('[ThemeToggle] Touch end error:', error);
+          }
         }
       }}
       className="relative p-2 rounded-lg hover:bg-accent/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 touch-manipulation"

@@ -197,10 +197,10 @@ export default function ProjectPage() {
   };
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 1 && priority <= 3) return 'text-red-500 bg-red-50';
-    if (priority >= 4 && priority <= 6) return 'text-yellow-500 bg-yellow-50';
-    if (priority >= 7 && priority <= 10) return 'text-green-500 bg-green-50';
-    return 'text-gray-500 bg-gray-50';
+    if (priority >= 1 && priority <= 3) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+    if (priority >= 4 && priority <= 6) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20';
+    if (priority >= 7 && priority <= 10) return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+    return 'text-muted-foreground bg-muted';
   };
 
   const getPriorityLabel = (priority: number) => {

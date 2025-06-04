@@ -54,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favico-ME-icon-black.svg" type="image/svg+xml" />
         <link rel="shortcut icon" href="/favico-ME-icon-black.svg" />
@@ -68,8 +68,6 @@ export default function RootLayout({
         {/* iOS-specific optimizations for theme switching */}
         <meta name="supported-color-schemes" content="light dark" />
         <meta name="color-scheme" content="light dark" />
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         
         {/* Prevent iOS zoom on input focus */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -92,6 +90,7 @@ export default function RootLayout({
                   
                   var theme = getStoredTheme() || 'system';
                   var root = document.documentElement;
+                  var body = document.body;
                   var resolvedTheme;
                   
                   if (theme === 'system') {
@@ -100,59 +99,208 @@ export default function RootLayout({
                     resolvedTheme = theme;
                   }
                   
-                  // Function to apply theme
+                  // Check if iOS
+                  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                  
+                  // Enhanced iOS theme application with error handling
                   var applyTheme = function() {
-                    // iOS-specific: Remove classes first, then force reflow
-                    root.classList.remove('light', 'dark');
-                    root.offsetHeight; // Force reflow for iOS
-                    
-                    // Apply new theme
-                    root.classList.add(resolvedTheme);
-                    root.style.colorScheme = resolvedTheme;
-                    
-                    // iOS-specific: Force additional reflow with RAF
-                    if (typeof requestAnimationFrame !== 'undefined') {
-                      requestAnimationFrame(function() {
-                        root.style.setProperty('color-scheme', resolvedTheme);
-                        // Toggle a dummy class to ensure iOS recognizes the change
-                        root.classList.add('theme-init');
+                    try {
+                      // Phase 1: Remove existing classes and force reflow
+                      root.classList.remove('light', 'dark', 'theme-transition');
+                      
+                      // iOS-specific: Force multiple reflows with error handling
+                      if (isIOS) {
+                        try {
+                          if (root && root.offsetHeight !== undefined) root.offsetHeight;
+                          if (root) root.scrollTop = root.scrollTop; // Force style recalculation
+                          if (body && body.offsetHeight !== undefined) body.offsetHeight;
+                        } catch (reflowError) {
+                          console.warn('iOS reflow error:', reflowError);
+                        }
+                      }
+                      
+                      // Phase 2: Apply new theme class
+                      root.classList.add(resolvedTheme);
+                      
+                      // Phase 3: Force CSS custom properties update for iOS
+                      root.style.colorScheme = resolvedTheme;
+                      root.setAttribute('data-theme', resolvedTheme);
+                      
+                      // iOS-specific: Force CSS custom properties update
+                      if (isIOS) {
+                        try {
+                          root.style.setProperty('--ios-theme-force', resolvedTheme);
+                          root.style.removeProperty('--ios-theme-force');
+                        } catch (cssError) {
+                          console.warn('iOS CSS property error:', cssError);
+                        }
+                      }
+                      
+                      // Phase 4: Enhanced iOS reflow using multiple RAF
+                      if (typeof requestAnimationFrame !== 'undefined') {
                         requestAnimationFrame(function() {
-                          root.classList.remove('theme-init');
+                          try {
+                            root.style.setProperty('color-scheme', resolvedTheme);
+                            if (body) body.style.colorScheme = resolvedTheme;
+                            
+                            // iOS-specific: Force hardware acceleration
+                            if (isIOS) {
+                              try {
+                                root.style.transform = 'translateZ(0)';
+                                root.style.willChange = 'transform';
+                                
+                                requestAnimationFrame(function() {
+                                  try {
+                                    root.style.transform = '';
+                                    root.style.willChange = 'auto';
+                                    
+                                    // Final iOS force reflow
+                                    requestAnimationFrame(function() {
+                                      try {
+                                        // Force all elements to recalculate styles
+                                        var allElements = document.querySelectorAll('*');
+                                        for (var i = 0; i < Math.min(allElements.length, 50); i++) {
+                                          try {
+                                            var el = allElements[i];
+                                            if (el && el.offsetHeight !== undefined) {
+                                              el.offsetHeight; // Force style recalculation
+                                            }
+                                          } catch (elementError) {
+                                            // Ignore individual element errors
+                                          }
+                                        }
+                                      } catch (finalReflowError) {
+                                        console.warn('Final reflow error:', finalReflowError);
+                                      }
+                                    });
+                                  } catch (cleanupError) {
+                                    console.warn('iOS cleanup error:', cleanupError);
+                                  }
+                                });
+                              } catch (accelerationError) {
+                                console.warn('iOS hardware acceleration error:', accelerationError);
+                              }
+                            }
+                          } catch (rafError) {
+                            console.warn('RAF error:', rafError);
+                          }
                         });
-                      });
-                    }
-                    
-                    // iOS Safari specific: Set meta theme-color dynamically
-                    var metaThemeColor = document.querySelector('meta[name="theme-color"]');
-                    if (metaThemeColor) {
-                      metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                      }
+                      
+                      // Phase 5: Update meta theme-color properly - avoid the warning
+                      try {
+                        // Look for the main theme-color meta tag (without media query)
+                        var metaThemeColor = document.querySelector('meta[name="theme-color"]:not([media])');
+                        if (metaThemeColor) {
+                          metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                        } else {
+                          // Create theme-color meta tag if it doesn't exist
+                          var newMetaThemeColor = document.createElement('meta');
+                          newMetaThemeColor.setAttribute('name', 'theme-color');
+                          newMetaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                          document.head.appendChild(newMetaThemeColor);
+                        }
+                      } catch (metaError) {
+                        console.warn('Meta theme-color update error:', metaError);
+                      }
+                      
+                      // iOS-specific: Force viewport update with error handling
+                      if (isIOS) {
+                        try {
+                          var viewport = document.querySelector('meta[name="viewport"]');
+                          if (viewport) {
+                            var content = viewport.getAttribute('content');
+                            if (content) {
+                              var tempContent = content + ', theme-color=' + (resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                              viewport.setAttribute('content', tempContent);
+                              setTimeout(function() {
+                                viewport.setAttribute('content', content);
+                              }, 100);
+                            }
+                          }
+                        } catch (viewportError) {
+                          console.warn('iOS viewport update error:', viewportError);
+                        }
+                      }
+                    } catch (applyError) {
+                      console.warn('Theme application error:', applyError);
                     }
                   };
                   
-                  // Apply theme with proper timing for iOS
-                  if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', applyTheme);
-                  } else {
-                    // Check if iOS
-                    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                  // Enhanced iOS-specific theme application with retries
+                  var applyThemeWithRetry = function() {
+                    applyTheme();
                     
+                    // iOS-specific: Verify theme was applied and retry if needed
                     if (isIOS) {
-                      // iOS needs a small delay
-                      setTimeout(applyTheme, 10);
-                    } else {
-                      applyTheme();
+                      setTimeout(function() {
+                        try {
+                          if (!root.classList.contains(resolvedTheme)) {
+                            console.warn('[iOS] Theme application failed, retrying...');
+                            applyTheme();
+                            
+                            // Second retry after longer delay
+                            setTimeout(function() {
+                              try {
+                                if (!root.classList.contains(resolvedTheme)) {
+                                  console.warn('[iOS] Second theme application attempt...');
+                                  root.classList.add(resolvedTheme);
+                                  root.style.colorScheme = resolvedTheme;
+                                }
+                              } catch (retryError) {
+                                console.warn('[iOS] Retry error:', retryError);
+                              }
+                            }, 200);
+                          }
+                        } catch (verifyError) {
+                          console.warn('[iOS] Theme verification error:', verifyError);
+                        }
+                      }, 50);
                     }
+                  };
+                  
+                  // Apply theme with proper timing
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', applyThemeWithRetry);
+                  } else {
+                    if (isIOS) {
+                      // iOS needs multiple attempts with different timings
+                      setTimeout(applyThemeWithRetry, 0);
+                      setTimeout(applyTheme, 10);
+                      setTimeout(applyTheme, 50);
+                    } else {
+                      applyThemeWithRetry();
+                    }
+                  }
+                  
+                  // iOS-specific: Listen for orientation changes and reapply theme
+                  if (isIOS && typeof window !== 'undefined') {
+                    window.addEventListener('orientationchange', function() {
+                      setTimeout(applyTheme, 100);
+                    });
+                    
+                    // Listen for visibility changes (iOS Safari tab switching)
+                    document.addEventListener('visibilitychange', function() {
+                      if (!document.hidden && isIOS) {
+                        setTimeout(applyTheme, 50);
+                      }
+                    });
                   }
                   
                 } catch (e) {
                   console.warn('Theme initialization error:', e);
-                  // Fallback to system theme if any error
-                  var systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var fallbackTheme = systemIsDark ? 'dark' : 'light';
-                  document.documentElement.classList.add(fallbackTheme);
-                  document.documentElement.style.colorScheme = fallbackTheme;
-                  document.documentElement.style.setProperty('color-scheme', fallbackTheme);
+                  // Enhanced fallback for iOS
+                  try {
+                    var systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    var fallbackTheme = systemIsDark ? 'dark' : 'light';
+                    document.documentElement.classList.add(fallbackTheme);
+                    document.documentElement.style.colorScheme = fallbackTheme;
+                    document.documentElement.style.setProperty('color-scheme', fallbackTheme);
+                    document.documentElement.setAttribute('data-theme', fallbackTheme);
+                  } catch (fallbackError) {
+                    console.warn('Fallback theme error:', fallbackError);
+                  }
                 }
               })();
             `,
