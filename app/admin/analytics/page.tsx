@@ -24,8 +24,11 @@ import {
   Search,
   ChevronRight
 } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
+
+// Temporary inline hooks to bypass import issue
+const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
+const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
+const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
 
 interface AnalyticsData {
   // Overview Stats

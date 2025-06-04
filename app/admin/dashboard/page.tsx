@@ -4,25 +4,42 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LogOut, 
-  BarChart3, 
+  Plus, 
+  Eye, 
+  Edit, 
+  Trash2, 
   Users, 
-  Target, 
-  Calendar,
-  TrendingUp,
+  FolderPlus, 
   Activity,
-  Plus,
-  FolderPlus,
+  TrendingUp,
+  Calendar,
+  Clock,
+  ArrowUpRight,
   RefreshCw,
-  ArrowLeft,
-  Bell,
-  RotateCcw,
   Settings,
+  Bell,
+  BarChart3,
+  CheckSquare,
+  AlertCircle,
+  Target,
+  Layers,
+  Filter,
+  Search,
+  SortAsc,
+  MoreVertical,
+  ExternalLink,
+  LogOut,
+  ArrowLeft,
+  RotateCcw,
   Home
 } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
+
+// Temporary inline hooks to bypass import issue
+const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
+const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
+const useTasksRealtime = (callback: () => void) => { useEffect(() => { const interval = setInterval(callback, 30000); return () => clearInterval(interval); }, [callback]); };
+const useProjectsRealtime = (callback: () => void) => { useEffect(() => { const interval = setInterval(callback, 30000); return () => clearInterval(interval); }, [callback]); };
+const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
 
 interface Project {
   id: string;
