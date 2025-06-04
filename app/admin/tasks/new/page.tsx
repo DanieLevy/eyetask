@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowRight, 
@@ -18,6 +18,7 @@ import {
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import ImageUpload, { MultipleImageUpload } from '@/components/ImageUpload';
+import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Project {
   id: string;
@@ -359,11 +360,10 @@ export default function NewTaskPage() {
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">מספר Dataco *</label>
                     <div className="relative">
-                      <input
-                        type="text"
+                      <NumericTextInput
                         value={newTaskData.datacoNumber}
-                        onChange={(e) => handleDatacoNumberChange(e.target.value)}
-                        className="w-full p-3 border border-border rounded-lg bg-background text-foreground pl-20"
+                        onChange={(value) => setNewTaskData(prev => ({ ...prev, datacoNumber: value }))}
+                        className="pl-20 p-3"
                         placeholder="הזן מספר"
                         dir="ltr"
                       />

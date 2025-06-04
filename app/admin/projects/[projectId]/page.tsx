@@ -16,6 +16,7 @@ import {
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
+import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Task {
   id: string;
@@ -573,14 +574,13 @@ export default function ProjectManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                  <input
-                    type="text"
+                  <NumericTextInput
                     value={newTaskData.datacoNumber}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
-                      placeholder="הזן מספר"
-                      dir="ltr"
-                    />
+                    onChange={(value) => setNewTaskData(prev => ({ ...prev, datacoNumber: value }))}
+                    className="pl-20"
+                    placeholder="הזן מספר"
+                    dir="ltr"
+                  />
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
                       DATACO-
                     </div>
@@ -596,14 +596,13 @@ export default function ProjectManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
+                  <NumberInput
                     value={newTaskData.priority}
-                    onChange={(e) => setNewTaskData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    onChange={(value) => setNewTaskData(prev => ({ ...prev, priority: value }))}
                     placeholder="1 = גבוהה ביותר, 0 = ללא עדיפות"
+                    min={0}
+                    max={10}
+                    className="p-2"
                   />
                 </div>
               </div>

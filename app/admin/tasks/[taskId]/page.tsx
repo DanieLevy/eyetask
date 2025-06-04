@@ -28,6 +28,7 @@ import { RealtimeNotification, useRealtimeNotification } from '@/components/Real
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import ImageUpload, { ImageDisplay, MultipleImageUpload, ImageGallery } from '@/components/ImageUpload';
+import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Task {
   id: string;
@@ -1064,11 +1065,10 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <NumericTextInput
                       value={newSubtaskData.datacoNumber}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      onChange={(value) => setNewSubtaskData(prev => ({ ...prev, datacoNumber: value }))}
+                      className="pl-20 p-2"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
@@ -1276,11 +1276,10 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <NumericTextInput
                       value={editingSubtask.datacoNumber}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value, true)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      onChange={(value) => handleDatacoNumberChange(value, true)}
+                      className="pl-20 p-2"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
@@ -1484,11 +1483,10 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <input
-                      type="text"
+                    <NumericTextInput
                       value={editTaskData.datacoNumber || ''}
-                      onChange={(e) => handleTaskDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      onChange={(value) => handleTaskDatacoNumberChange(value)}
+                      className="pl-20 p-2"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
