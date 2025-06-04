@@ -2,8 +2,6 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  // Keep API routes working - no output setting needed for Netlify
-  
   // Webpack optimization for serverless
   webpack: (config, { isServer }) => {
     if (isServer) {

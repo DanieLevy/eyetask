@@ -6,8 +6,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:fresh": "node scripts/clean-build.js",
-    "build:fresh-bash": "bash scripts/clean-build.sh",
     "build:clean": "rimraf .next node_modules .vercel .netlify && npm ci && npm run build",
     "start": "next start",
     "lint": "next lint",

@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AdminClientLayout from "@/components/AdminClientLayout";
 import { RefreshProvider } from "@/hooks/usePageRefresh";
 import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
+import CSSFailsafe from "@/components/CSSFailsafe";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,12 +26,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "EyeTask",
-    startupImage: [
-      {
-        url: "/icons/icon-512x512.png",
-        media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)",
-      },
-    ],
   },
 };
 
@@ -62,6 +57,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <CSSFailsafe />
         <AdminClientLayout>
           <RefreshProvider>
             <GlobalPullToRefresh>

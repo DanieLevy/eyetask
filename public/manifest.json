@@ -5,7 +5,7 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#6366f1",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "he",
@@ -61,20 +61,6 @@
       "purpose": "maskable any"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "375x812",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "shortcuts": [
     {
       "name": "דף הבית",
@@ -88,14 +74,5 @@
     }
   ],
   "related_applications": [],
-  "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 320
-  },
-  "protocol_handlers": [
-    {
-      "protocol": "web+eyetask",
-      "url": "/task/%s"
-    }
-  ]
+  "prefer_related_applications": false
 } 
