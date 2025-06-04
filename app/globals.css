@@ -89,6 +89,30 @@
   --ring: 212.7 26.8% 83.9%;
 }
 
+/* iOS-specific theme transition helper class */
+.theme-transition {
+  /* Force a style recalculation on iOS */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* iOS theme initialization helper */
+.theme-init {
+  /* Trigger hardware acceleration for iOS theme changes */
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+/* Enhanced iOS touch support for theme toggle */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
 /* Tailwind CSS v4 theme configuration */
 @theme {
   --font-intel: Intel Display, Segoe UI, Tahoma, Geneva, Verdana, sans-serif;

@@ -37,7 +37,7 @@ interface EditTaskData {
   subtitle?: string;
   images?: string[];
   datacoNumber: string;
-  description: string;
+  description: { main: string; howToExecute: string };
   type: string[];
   locations: string[];
   targetCar: string[];
@@ -60,7 +60,7 @@ export default function EditTaskPage() {
     subtitle: '',
     images: [],
     datacoNumber: '',
-    description: '',
+    description: { main: '', howToExecute: '' },
     type: ['events'],
     locations: ['Urban'],
     targetCar: ['EQ'],
@@ -93,7 +93,9 @@ export default function EditTaskPage() {
             subtitle: taskData.subtitle || '',
             images: taskData.images || [],
             datacoNumber: taskData.datacoNumber,
-            description: taskData.description,
+            description: typeof taskData.description === 'string' 
+              ? { main: taskData.description, howToExecute: '' } 
+              : (taskData.description || { main: '', howToExecute: '' }),
             type: taskData.type,
             locations: taskData.locations,
             targetCar: taskData.targetCar,
@@ -287,10 +289,20 @@ export default function EditTaskPage() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">תיאור המשימה *</label>
                 <textarea
-                  value={editTaskData.description}
-                  onChange={(e) => setEditTaskData(prev => ({ ...prev, description: e.target.value }))}
+                  value={editTaskData.description.main}
+                  onChange={(e) => setEditTaskData(prev => ({ ...prev, description: { ...prev.description, main: e.target.value } }))}
                   className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
                   placeholder="תאר את המשימה בפירוט"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">אופן ביצוע</label>
+                <textarea
+                  value={editTaskData.description.howToExecute}
+                  onChange={(e) => setEditTaskData(prev => ({ ...prev, description: { ...prev.description, howToExecute: e.target.value } }))}
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
+                  placeholder="כיצד לבצע את המשימה (אופציונלי)"
                 />
               </div>
 
@@ -431,7 +443,7 @@ export default function EditTaskPage() {
               <div className="flex gap-3 pt-4 border-t border-border">
                 <button
                   type="submit"
-                  disabled={submitting || !editTaskData.title || !editTaskData.datacoNumber || !editTaskData.description || editTaskData.type.length === 0 || editTaskData.locations.length === 0 || editTaskData.targetCar.length === 0 || editTaskData.dayTime.length === 0}
+                  disabled={submitting || !editTaskData.title || !editTaskData.datacoNumber || !editTaskData.description.main || editTaskData.type.length === 0 || editTaskData.locations.length === 0 || editTaskData.targetCar.length === 0 || editTaskData.dayTime.length === 0}
                   className="flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Save className="h-4 w-4" />

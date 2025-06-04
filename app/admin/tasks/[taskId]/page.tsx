@@ -754,6 +754,13 @@ export default function TaskManagement() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/tasks/${taskId}/subtasks/${subtask.id}/edit`}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="ערוך תת-משימה"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
                         <button
                           onClick={() => setDeleteConfirm(subtask.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"

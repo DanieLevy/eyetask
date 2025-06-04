@@ -65,13 +65,32 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="format-detection" content="telephone=no" />
         
+        {/* iOS-specific optimizations for theme switching */}
+        <meta name="supported-color-schemes" content="light dark" />
+        <meta name="color-scheme" content="light dark" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+        
+        {/* Prevent iOS zoom on input focus */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        
         {/* Theme initialization script to prevent FOUC */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('theme') || 'system';
+                  // iOS-safe localStorage helpers
+                  var getStoredTheme = function() {
+                    try {
+                      return localStorage.getItem('theme');
+                    } catch (error) {
+                      console.warn('localStorage not available:', error);
+                      return null;
+                    }
+                  };
+                  
+                  var theme = getStoredTheme() || 'system';
                   var root = document.documentElement;
                   var resolvedTheme;
                   
@@ -81,15 +100,59 @@ export default function RootLayout({
                     resolvedTheme = theme;
                   }
                   
-                  root.classList.remove('light', 'dark');
-                  root.classList.add(resolvedTheme);
-                  root.style.colorScheme = resolvedTheme;
+                  // Function to apply theme
+                  var applyTheme = function() {
+                    // iOS-specific: Remove classes first, then force reflow
+                    root.classList.remove('light', 'dark');
+                    root.offsetHeight; // Force reflow for iOS
+                    
+                    // Apply new theme
+                    root.classList.add(resolvedTheme);
+                    root.style.colorScheme = resolvedTheme;
+                    
+                    // iOS-specific: Force additional reflow with RAF
+                    if (typeof requestAnimationFrame !== 'undefined') {
+                      requestAnimationFrame(function() {
+                        root.style.setProperty('color-scheme', resolvedTheme);
+                        // Toggle a dummy class to ensure iOS recognizes the change
+                        root.classList.add('theme-init');
+                        requestAnimationFrame(function() {
+                          root.classList.remove('theme-init');
+                        });
+                      });
+                    }
+                    
+                    // iOS Safari specific: Set meta theme-color dynamically
+                    var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+                    if (metaThemeColor) {
+                      metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
+                    }
+                  };
+                  
+                  // Apply theme with proper timing for iOS
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', applyTheme);
+                  } else {
+                    // Check if iOS
+                    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                    
+                    if (isIOS) {
+                      // iOS needs a small delay
+                      setTimeout(applyTheme, 10);
+                    } else {
+                      applyTheme();
+                    }
+                  }
+                  
                 } catch (e) {
+                  console.warn('Theme initialization error:', e);
                   // Fallback to system theme if any error
                   var systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                   var fallbackTheme = systemIsDark ? 'dark' : 'light';
                   document.documentElement.classList.add(fallbackTheme);
                   document.documentElement.style.colorScheme = fallbackTheme;
+                  document.documentElement.style.setProperty('color-scheme', fallbackTheme);
                 }
               })();
             `,
