@@ -75,19 +75,6 @@ interface Project {
   description?: string;
 }
 
-interface NewSubtaskData {
-  title: string;
-  subtitle?: string;
-  images?: string[];
-  datacoNumber: string;
-  type: 'events' | 'hours';
-  amountNeeded: number;
-  labels: string[];
-  targetCar: string[];
-  weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
-  scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
-}
-
 export default function TaskManagement() {
   const params = useParams();
   const router = useRouter();
@@ -101,19 +88,6 @@ export default function TaskManagement() {
   const [error, setError] = useState<string | null>(null);
   
   // Form states
-  const [showNewSubtaskForm, setShowNewSubtaskForm] = useState(false);
-  const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
-    title: '',
-    subtitle: '',
-    images: [],
-    datacoNumber: '',
-    type: 'events',
-    amountNeeded: 1,
-    labels: [],
-    targetCar: ['EQ'],
-    weather: 'Clear',
-    scene: 'Urban'
-  });
   const [operationLoading, setOperationLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
@@ -126,13 +100,12 @@ export default function TaskManagement() {
 
   // Helper function to check if any forms or operations are active
   const isUserInteracting = useCallback(() => {
-    return showNewSubtaskForm || 
+    return operationLoading || 
+           deleteConfirm !== null || 
            editingSubtask !== null || 
            editingTask || 
-           operationLoading || 
-           deleteConfirm !== null || 
            deleteTaskConfirm;
-  }, [showNewSubtaskForm, editingSubtask, editingTask, operationLoading, deleteConfirm, deleteTaskConfirm]);
+  }, [operationLoading, deleteConfirm, editingSubtask, editingTask, deleteTaskConfirm]);
 
   // Realtime handlers
   const handleTaskChange = useCallback((payload: any) => {
@@ -330,58 +303,6 @@ export default function TaskManagement() {
     }
   }, [taskId, router]);
 
-  const handleCreateSubtask = async () => {
-    if (!task) return;
-    
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const subtaskPayload = {
-        ...newSubtaskData,
-        taskId: task.id,
-        targetCar: task.targetCar
-      };
-
-      const response = await fetch(`/api/subtasks?_t=${Date.now()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        body: JSON.stringify(subtaskPayload)
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setNewSubtaskData({
-          title: '',
-          subtitle: '',
-          images: [],
-          datacoNumber: '',
-          type: 'events',
-          amountNeeded: 1,
-          labels: [],
-          targetCar: ['EQ'],
-          weather: 'Clear',
-          scene: 'Urban'
-        });
-        setShowNewSubtaskForm(false);
-        
-        // Refresh the data after successful creation
-        await forceRefresh();
-      } else {
-        alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error creating subtask:', error);
-      alert('Error creating subtask');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-
   const handleUpdateSubtask = async () => {
     if (!editingSubtask) return;
     
@@ -538,14 +459,12 @@ export default function TaskManagement() {
   };
 
   // Handle DATACO number input - only allow numbers
-  const handleDatacoNumberChange = (value: string, isEdit = false) => {
+  const handleDatacoNumberChange = (value: string) => {
     // Remove any non-numeric characters
     const numericValue = value.replace(/[^0-9]/g, '');
     
-    if (isEdit && editingSubtask) {
+    if (editingSubtask) {
       setEditingSubtask(prev => prev ? ({ ...prev, datacoNumber: numericValue }) : null);
-    } else {
-      setNewSubtaskData(prev => ({ ...prev, datacoNumber: numericValue }));
     }
   };
 
@@ -808,13 +727,13 @@ export default function TaskManagement() {
         <div className="bg-card rounded-lg border border-border p-6 mb-8">
           <h3 className="text-lg font-semibold text-foreground mb-4">פעולות מהירות</h3>
           <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => setShowNewSubtaskForm(true)}
+            <Link
+              href={`/admin/tasks/${taskId}/subtasks/new`}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" />
               הוסף תת-משימה חדשה
-            </button>
+            </Link>
             <button
               onClick={() => {
                 setEditTaskData(task);
@@ -848,13 +767,13 @@ export default function TaskManagement() {
                 <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h4 className="text-lg font-semibold text-foreground mb-2">אין תת-משימות</h4>
                 <p className="text-muted-foreground mb-4">הוסף תת-משימה ראשונה כדי להתחיל</p>
-                <button
-                  onClick={() => setShowNewSubtaskForm(true)}
+                <Link
+                  href={`/admin/tasks/${taskId}/subtasks/new`}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   <Plus className="h-4 w-4" />
                   הוסף תת-משימה ראשונה
-                </button>
+                </Link>
               </div>
             ) : (
               <div className="space-y-4">
@@ -948,229 +867,6 @@ export default function TaskManagement() {
         </div>
       </main>
 
-      {/* New Subtask Modal */}
-      {showNewSubtaskForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-foreground">הוסף תת-משימה חדשה</h3>
-                <button
-                  onClick={() => forceRefresh()}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
-                  title="רענן נתונים"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  רענן
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground">צור תת-משימה חדשה עבור המשימה "{task?.title}"</p>
-              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-600 dark:text-blue-400">
-                <Clock className="h-3 w-3" />
-                רענון אוטומטי מושבת בזמן עריכה
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת *</label>
-                  <input
-                    type="text"
-                    value={newSubtaskData.title}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="כותרת התת-משימה"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת משנה</label>
-                  <input
-                    type="text"
-                    value={newSubtaskData.subtitle}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, subtitle: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="כותרת משנה (אופציונלי)"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={newSubtaskData.datacoNumber}
-                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
-                      placeholder="הזן מספר"
-                      dir="ltr"
-                    />
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
-                      DATACO-
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
-                  </p>
-                  {newSubtaskData.datacoNumber && (
-                    <p className="text-xs text-primary mt-1">
-                      תוצג כ: {formatDatacoDisplay(newSubtaskData.datacoNumber)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    כמות נדרשת *
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={newSubtaskData.amountNeeded}
-                    onChange={(e) => {
-                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                      setNewSubtaskData(prev => ({ ...prev, amountNeeded: Math.max(value, 0) }))
-                    }}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="הכנס כמות"
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">סוג תת-משימה *</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="subtaskType"
-                      value="events"
-                      checked={newSubtaskData.type === 'events'}
-                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
-                      className="mr-2"
-                    />
-                    Events (אירועים)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="subtaskType"
-                      value="hours"
-                      checked={newSubtaskData.type === 'hours'}
-                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
-                      className="mr-2"
-                    />
-                    Hours (שעות)
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
-                <input
-                  type="text"
-                  value={newSubtaskData.labels.join(' ')}
-                  onChange={(e) => {
-                    const labelsText = e.target.value;
-                    // Allow spaces while typing - only split when there are actual complete words
-                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
-                      // Split only when user completes a word with space
-                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                    } else {
-                      // Keep the raw text until user adds separating spaces
-                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
-                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Process the final input when user leaves the field
-                    const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                    setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                  }}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
-                <MultipleImageUpload
-                  onImagesChange={(images) => setNewSubtaskData(prev => ({ ...prev, images }))}
-                  currentImages={newSubtaskData.images}
-                  disabled={operationLoading}
-                  maxImages={5}
-                />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
-                  <select
-                    value={newSubtaskData.weather}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, weather: e.target.value as any }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  >
-                    <option value="Clear">בהיר (Clear)</option>
-                    <option value="Fog">ערפל (Fog)</option>
-                    <option value="Overcast">מעונן (Overcast)</option>
-                    <option value="Rain">גשם (Rain)</option>
-                    <option value="Snow">שלג (Snow)</option>
-                    <option value="Mixed">מעורב (Mixed)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
-                  <select
-                    value={newSubtaskData.scene}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, scene: e.target.value as any }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  >
-                    <option value="Highway">כביש מהיר (Highway)</option>
-                    <option value="Urban">עירוני (Urban)</option>
-                    <option value="Rural">כפרי (Rural)</option>
-                    <option value="Sub-Urban">פרברי (Sub-Urban)</option>
-                    <option value="Test Track">מסלול בדיקות (Test Track)</option>
-                    <option value="Mixed">מעורב (Mixed)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד (ירושה מהמשימה)</label>
-                <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {capitalizeEnglishArray(task?.targetCar || []).join(', ') || 'לא נבחרו רכבים'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleCreateSubtask}
-                disabled={operationLoading || !newSubtaskData.title || !newSubtaskData.datacoNumber}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {operationLoading ? 'יוצר...' : 'צור תת-משימה'}
-              </button>
-              <button
-                onClick={() => setShowNewSubtaskForm(false)}
-                disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Subtask Modal */}
       {editingSubtask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1224,7 +920,7 @@ export default function TaskManagement() {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       value={editingSubtask.datacoNumber}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value, true)}
+                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
                       className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
                       placeholder="הזן מספר"
                       dir="ltr"

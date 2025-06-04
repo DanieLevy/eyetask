@@ -56,8 +56,6 @@ export default function ProjectsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
-  const [newProjectData, setNewProjectData] = useState({ name: '', description: '' });
   const [operationLoading, setOperationLoading] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -131,42 +129,6 @@ export default function ProjectsManagementPage() {
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  const handleCreateProject = async () => {
-    if (!newProjectData.name.trim()) {
-      showNotification('שם הפרויקט נדרש', 'error');
-      return;
-    }
-    
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newProjectData),
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        setShowNewProjectForm(false);
-        setNewProjectData({ name: '', description: '' });
-        showNotification('הפרויקט נוצר בהצלחה', 'success');
-        await fetchData();
-      } else {
-        showNotification(result.error || 'שגיאה ביצירת הפרויקט', 'error');
-      }
-    } catch (error) {
-      console.error('Error creating project:', error);
-      showNotification('שגיאה ביצירת הפרויקט', 'error');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
 
   const handleUpdateProject = async () => {
     if (!editingProject) return;
@@ -305,14 +267,13 @@ export default function ProjectsManagementPage() {
                 <Home className="h-4 w-4" />
                 עמוד הבית
               </Link>
-              <button
-                onClick={() => setShowNewProjectForm(true)}
-                disabled={operationLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+              <Link
+                href="/admin/projects/new"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 <Plus className="h-4 w-4" />
                 פרויקט חדש
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -352,12 +313,12 @@ export default function ProjectsManagementPage() {
               {searchTerm ? 'נסה לחפש במילות מפתח אחרות' : 'צור את הפרויקט הראשון שלך כדי להתחיל'}
             </p>
             {!searchTerm && (
-              <button 
-                onClick={() => setShowNewProjectForm(true)}
-                className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
+              <Link
+                href="/admin/projects/new"
+                className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors inline-block"
               >
                 צור פרויקט חדש
-              </button>
+              </Link>
             )}
           </div>
         ) : (
@@ -506,70 +467,6 @@ export default function ProjectsManagementPage() {
           </div>
         )}
       </main>
-
-      {/* New Project Modal */}
-      {showNewProjectForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-md">
-            <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">צור פרויקט חדש</h3>
-              <p className="text-sm text-muted-foreground mt-1">הוסף פרויקט חדש למערכת לניהול משימות</p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">שם הפרויקט *</label>
-                <input
-                  type="text"
-                  value={newProjectData.name}
-                  onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="הזן שם לפרויקט החדש"
-                  disabled={operationLoading}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תיאור (אופציונלי)</label>
-                <textarea
-                  value={newProjectData.description}
-                  onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent h-20 resize-none"
-                  placeholder="הוסף תיאור לפרויקט"
-                  disabled={operationLoading}
-                />
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleCreateProject}
-                disabled={operationLoading || !newProjectData.name.trim()}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {operationLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    יוצר...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    צור פרויקט
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  setShowNewProjectForm(false);
-                  setNewProjectData({ name: '', description: '' });
-                }}
-                disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

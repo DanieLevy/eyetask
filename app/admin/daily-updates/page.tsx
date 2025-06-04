@@ -26,6 +26,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import ModernCheckbox from '@/components/ModernCheckbox';
 
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
@@ -559,12 +560,10 @@ export default function DailyUpdatesAdmin() {
 
                 {/* Pin checkbox */}
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="pinned"
+                  <ModernCheckbox
                     checked={form.isPinned}
-                    onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
-                    className="w-4 h-4"
+                    onChange={(checked) => setForm({ ...form, isPinned: checked })}
+                    id="pinned"
                   />
                   <label htmlFor="pinned" className={`text-sm ${mixedBody.fontClass}`}>
                     הצמד למעלה

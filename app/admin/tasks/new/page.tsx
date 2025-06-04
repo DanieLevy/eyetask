@@ -18,6 +18,7 @@ import {
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import ImageUpload, { MultipleImageUpload } from '@/components/ImageUpload';
+import ModernCheckbox from '@/components/ModernCheckbox';
 
 interface Project {
   id: string;
@@ -368,16 +369,11 @@ export default function NewTaskPage() {
                     <p className="text-xs text-muted-foreground mt-1">1 = גבוהה ביותר, 10 = נמוכה</p>
                   </div>
                   <div className="flex items-center pt-6">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="lidar"
-                        checked={newTaskData.lidar}
-                        onChange={(e) => setNewTaskData(prev => ({ ...prev, lidar: e.target.checked }))}
-                        className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                      />
-                      <span className="text-sm font-medium text-foreground">נדרש LiDAR</span>
-                    </label>
+                    <ModernCheckbox
+                      checked={newTaskData.lidar}
+                      onChange={(checked) => setNewTaskData(prev => ({ ...prev, lidar: checked }))}
+                      label="נדרש LiDAR"
+                    />
                   </div>
                 </div>
 
@@ -385,36 +381,28 @@ export default function NewTaskPage() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">סוג משימה * (ניתן לבחור מספר)</label>
                   <div className="flex gap-4">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={newTaskData.type.includes('events')}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'events'), 'events'] }));
-                          } else {
-                            setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'events') }));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      Events (אירועים)
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={newTaskData.type.includes('hours')}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'hours'), 'hours'] }));
-                          } else {
-                            setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'hours') }));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      Hours (שעות)
-                    </label>
+                    <ModernCheckbox
+                      checked={newTaskData.type.includes('events')}
+                      onChange={(checked) => {
+                        if (checked) {
+                          setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'events'), 'events'] }));
+                        } else {
+                          setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'events') }));
+                        }
+                      }}
+                      label="Events (אירועים)"
+                    />
+                    <ModernCheckbox
+                      checked={newTaskData.type.includes('hours')}
+                      onChange={(checked) => {
+                        if (checked) {
+                          setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'hours'), 'hours'] }));
+                        } else {
+                          setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'hours') }));
+                        }
+                      }}
+                      label="Hours (שעות)"
+                    />
                   </div>
                 </div>
 
@@ -423,24 +411,23 @@ export default function NewTaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-2">מיקומים * (ניתן לבחור מספר)</label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {['Urban', 'Highway', 'Rural', 'Sub-Urban', 'Mixed'].map(location => (
-                      <label key={location} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newTaskData.locations.includes(location)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewTaskData(prev => ({ ...prev, locations: [...prev.locations, location] }));
-                            } else {
-                              setNewTaskData(prev => ({ ...prev, locations: prev.locations.filter(l => l !== location) }));
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        {location === 'Urban' ? 'עירוני' : 
-                         location === 'Highway' ? 'כביש מהיר' :
-                         location === 'Rural' ? 'כפרי' :
-                         location === 'Sub-Urban' ? 'פרברי' : 'מעורב'}
-                      </label>
+                      <ModernCheckbox
+                        key={location}
+                        checked={newTaskData.locations.includes(location)}
+                        onChange={(checked) => {
+                          if (checked) {
+                            setNewTaskData(prev => ({ ...prev, locations: [...prev.locations, location] }));
+                          } else {
+                            setNewTaskData(prev => ({ ...prev, locations: prev.locations.filter(l => l !== location) }));
+                          }
+                        }}
+                        label={
+                          location === 'Urban' ? 'עירוני' : 
+                          location === 'Highway' ? 'כביש מהיר' :
+                          location === 'Rural' ? 'כפרי' :
+                          location === 'Sub-Urban' ? 'פרברי' : 'מעורב'
+                        }
+                      />
                     ))}
                   </div>
                 </div>
@@ -493,23 +480,22 @@ export default function NewTaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-2">זמני יום * (ניתן לבחור מספר)</label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {['day', 'night', 'dusk', 'dawn'].map(time => (
-                      <label key={time} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={newTaskData.dayTime.includes(time)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setNewTaskData(prev => ({ ...prev, dayTime: [...prev.dayTime, time] }));
-                            } else {
-                              setNewTaskData(prev => ({ ...prev, dayTime: prev.dayTime.filter(t => t !== time) }));
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        {time === 'day' ? 'יום' : 
-                         time === 'night' ? 'לילה' :
-                         time === 'dusk' ? 'דמדומים' : 'שחר'}
-                      </label>
+                      <ModernCheckbox
+                        key={time}
+                        checked={newTaskData.dayTime.includes(time)}
+                        onChange={(checked) => {
+                          if (checked) {
+                            setNewTaskData(prev => ({ ...prev, dayTime: [...prev.dayTime, time] }));
+                          } else {
+                            setNewTaskData(prev => ({ ...prev, dayTime: prev.dayTime.filter(t => t !== time) }));
+                          }
+                        }}
+                        label={
+                          time === 'day' ? 'יום' : 
+                          time === 'night' ? 'לילה' :
+                          time === 'dusk' ? 'דמדומים' : 'שחר'
+                        }
+                      />
                     ))}
                   </div>
                 </div>
@@ -518,15 +504,11 @@ export default function NewTaskPage() {
               <div className="p-6 border-t border-border">
                 {/* Create Another Task Option */}
                 <div className="mb-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={createAnother}
-                      onChange={(e) => setCreateAnother(e.target.checked)}
-                      className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                    />
-                    <span className="text-sm font-medium text-foreground">צור משימה נוספת לאחר השמירה</span>
-                  </label>
+                  <ModernCheckbox
+                    checked={createAnother}
+                    onChange={(checked) => setCreateAnother(checked)}
+                    label="צור משימה נוספת לאחר השמירה"
+                  />
                   <p className="text-xs text-muted-foreground mt-1">אם מסומן, הטופס יישאר פתוח לאחר יצירת המשימה</p>
                 </div>
                 
