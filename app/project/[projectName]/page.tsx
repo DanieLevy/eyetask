@@ -20,13 +20,13 @@ import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import { ImageDisplay } from '@/components/ImageUpload';
+import { ImageDisplay, ImageGallery } from '@/components/ImageUpload';
 
 interface Task {
   id: string;
   title: string;
   subtitle?: string;
-  image?: string | null;
+  images?: string[];
   datacoNumber: string;
   description: {
     main: string;
@@ -50,7 +50,7 @@ interface Subtask {
   taskId: string;
   title: string;
   subtitle?: string;
-  image?: string | null;
+  images?: string[];
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded: number;
@@ -357,14 +357,14 @@ export default function ProjectPage() {
                           </div>
 
                           {/* Task Image Display */}
-                          {task.image && (
+                          {task.images && task.images.length > 0 && (
                             <div>
-                              <h4 className="font-semibold text-foreground mb-2">תמונת המשימה</h4>
-                              <ImageDisplay 
-                                imageUrl={task.image} 
-                                alt={`תמונה עבור ${task.title}`}
-                                className="w-48"
-                                size="md"
+                              <h4 className="font-semibold text-foreground mb-2">תמונות המשימה</h4>
+                              <ImageGallery 
+                                images={task.images} 
+                                className="w-full"
+                                showExpand={true}
+                                maxDisplay={4}
                               />
                             </div>
                           )}
@@ -481,14 +481,14 @@ export default function ProjectPage() {
                                             )}
 
                                             {/* Image Section */}
-                                            {subtask.image && (
+                                            {subtask.images && subtask.images.length > 0 && (
                                               <div>
-                                                <h6 className="font-medium text-foreground mb-2">תמונה</h6>
-                                                <ImageDisplay 
-                                                  imageUrl={subtask.image} 
-                                                  alt={`תמונה עבור ${subtask.title}`}
-                                                  className="w-40"
-                                                  size="sm"
+                                                <h6 className="font-medium text-foreground mb-2">תמונות</h6>
+                                                <ImageGallery 
+                                                  images={subtask.images} 
+                                                  className="w-full"
+                                                  showExpand={true}
+                                                  maxDisplay={3}
                                                 />
                                               </div>
                                             )}

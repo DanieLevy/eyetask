@@ -27,13 +27,13 @@ import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import ImageUpload, { ImageDisplay } from '@/components/ImageUpload';
+import ImageUpload, { ImageDisplay, MultipleImageUpload, ImageGallery } from '@/components/ImageUpload';
 
 interface Task {
   id: string;
   title: string;
   subtitle?: string;
-  image?: string | null;
+  images?: string[];
   datacoNumber: string;
   description: {
     main: string;
@@ -57,7 +57,7 @@ interface Subtask {
   taskId: string;
   title: string;
   subtitle?: string;
-  image?: string | null;
+  images?: string[];
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded: number;
@@ -78,7 +78,7 @@ interface Project {
 interface NewSubtaskData {
   title: string;
   subtitle?: string;
-  image?: string | null;
+  images?: string[];
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded: number;
@@ -105,7 +105,7 @@ export default function TaskManagement() {
   const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
     title: '',
     subtitle: '',
-    image: null,
+    images: [],
     datacoNumber: '',
     type: 'events',
     amountNeeded: 1,
@@ -358,7 +358,7 @@ export default function TaskManagement() {
         setNewSubtaskData({
           title: '',
           subtitle: '',
-          image: null,
+          images: [],
           datacoNumber: '',
           type: 'events',
           amountNeeded: 1,
@@ -666,17 +666,16 @@ export default function TaskManagement() {
                 </div>
                 
                 {/* Task Image Display */}
-                {task.image && (
+                {task.images && task.images.length > 0 && (
                   <div>
                     <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                       <ImageIcon className="h-4 w-4" />
-                      תמונת המשימה
+                      תמונות המשימה ({task.images.length})
                     </h4>
-                    <ImageDisplay 
-                      imageUrl={task.image} 
-                      alt={`תמונה עבור ${task.title}`}
-                      className="w-40"
-                      size="md"
+                    <ImageGallery 
+                      images={task.images} 
+                      className="w-full"
+                      maxDisplay={4}
                     />
                   </div>
                 )}
@@ -878,14 +877,16 @@ export default function TaskManagement() {
                           </div>
                         )}
 
-                        {/* Image Display */}
-                        {subtask.image && (
+                        {/* Images Display */}
+                        {subtask.images && subtask.images.length > 0 && (
                           <div className="mt-3">
-                            <ImageDisplay 
-                              imageUrl={subtask.image} 
-                              alt={`תמונה עבור ${subtask.title}`}
-                              className="w-32"
-                              size="sm"
+                            <h6 className="text-xs font-medium text-muted-foreground mb-2">
+                              תמונות ({subtask.images.length})
+                            </h6>
+                            <ImageGallery 
+                              images={subtask.images} 
+                              className="w-full"
+                              maxDisplay={3}
                             />
                           </div>
                         )}
@@ -1057,13 +1058,14 @@ export default function TaskManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונה (אופציונלי)</label>
-                <ImageUpload
-                  onImageSelect={(imageUrl) => setNewSubtaskData(prev => ({ ...prev, image: imageUrl }))}
-                  currentImage={newSubtaskData.image}
+                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
+                <MultipleImageUpload
+                  onImagesChange={(images) => setNewSubtaskData(prev => ({ ...prev, images }))}
+                  currentImages={newSubtaskData.images}
                   disabled={operationLoading}
+                  maxImages={5}
                 />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה</p>
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1247,16 +1249,6 @@ export default function TaskManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונה (אופציונלי)</label>
-                <ImageUpload
-                  onImageSelect={(imageUrl) => setEditingSubtask(prev => prev ? ({ ...prev, image: imageUrl }) : null)}
-                  currentImage={editingSubtask.image}
-                  disabled={operationLoading}
-                />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה</p>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
                 <select
                   value={editingSubtask.weather}
@@ -1294,6 +1286,17 @@ export default function TaskManagement() {
                   {capitalizeEnglishArray(editingSubtask.targetCar).join(', ')}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
+                <MultipleImageUpload
+                  onImagesChange={(images) => setEditingSubtask(prev => prev ? ({ ...prev, images }) : null)}
+                  currentImages={editingSubtask.images}
+                  disabled={operationLoading}
+                  maxImages={5}
+                />
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
               </div>
             </div>
             <div className="p-6 border-t border-border flex gap-3">
@@ -1431,15 +1434,16 @@ export default function TaskManagement() {
                 />
               </div>
 
-              {/* Task Image Upload */}
+              {/* Task Images Upload */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונת המשימה (אופציונלי)</label>
-                <ImageUpload
-                  onImageSelect={(imageUrl) => setEditTaskData(prev => ({ ...prev, image: imageUrl }))}
-                  currentImage={editTaskData.image}
+                <label className="block text-sm font-medium text-foreground mb-1">תמונות המשימה (אופציונלי)</label>
+                <MultipleImageUpload
+                  onImagesChange={(images) => setEditTaskData(prev => ({ ...prev, images }))}
+                  currentImages={editTaskData.images}
                   disabled={operationLoading}
+                  maxImages={5}
                 />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית למשימה</p>
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
               </div>
 
               {/* Type Selection (Multi-select) */}

@@ -58,7 +58,7 @@ async function setupCollections() {
       validator: {
         $jsonSchema: {
           bsonType: "object",
-          required: ["title", "datacoNumber", "projectId"],
+          required: ["title", "datacoNumber", "projectId", "type", "locations", "targetCar", "dayTime", "priority"],
           properties: {
             _id: { bsonType: "objectId" },
             title: { 
@@ -69,6 +69,11 @@ async function setupCollections() {
               bsonType: "string",
               description: "Task subtitle"
             },
+            images: { 
+              bsonType: "array",
+              items: { bsonType: "string" },
+              description: "Array of image URLs or paths"
+            },
             datacoNumber: { 
               bsonType: "string",
               description: "Unique dataco number"
@@ -78,8 +83,7 @@ async function setupCollections() {
               properties: {
                 main: { bsonType: "string" },
                 howToExecute: { bsonType: "string" }
-              },
-              additionalProperties: false
+              }
             },
             projectId: { 
               bsonType: "objectId",
@@ -87,7 +91,10 @@ async function setupCollections() {
             },
             type: { 
               bsonType: "array",
-              items: { bsonType: "string" },
+              items: { 
+                bsonType: "string",
+                enum: ["events", "hours"]
+              },
               description: "Task types"
             },
             locations: { 
@@ -107,22 +114,25 @@ async function setupCollections() {
             },
             lidar: { 
               bsonType: "bool",
-              description: "Whether LIDAR is required"
+              description: "LiDAR requirement"
             },
             dayTime: { 
               bsonType: "array",
-              items: { bsonType: "string" },
+              items: { 
+                bsonType: "string",
+                enum: ["day", "night", "dusk", "dawn"]
+              },
               description: "Day time requirements"
             },
             priority: { 
-              bsonType: "int",
-              minimum: 0,
+              bsonType: "number",
+              minimum: 1,
               maximum: 10,
-              description: "Task priority (0-10)"
+              description: "Task priority (1-10)"
             },
             isVisible: { 
               bsonType: "bool",
-              description: "Whether task is visible"
+              description: "Task visibility"
             },
             createdAt: { bsonType: "date" },
             updatedAt: { bsonType: "date" }
@@ -161,9 +171,10 @@ async function setupCollections() {
               bsonType: "string",
               description: "Subtask subtitle"
             },
-            image: { 
-              bsonType: "string",
-              description: "Image URL or path"
+            images: { 
+              bsonType: "array",
+              items: { bsonType: "string" },
+              description: "Array of image URLs or paths"
             },
             datacoNumber: { 
               bsonType: "string",

@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         id: task._id?.toString(),
         title: task.title,
         subtitle: task.subtitle,
+        images: task.images || [],
         datacoNumber: task.datacoNumber,
         description: task.description,
         projectId: task.projectId.toString(),
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
     const taskData = {
       title: body.title,
       subtitle: body.subtitle,
+      images: body.images || [],
       datacoNumber: body.datacoNumber,
       description: body.description,
       projectId: body.projectId,
@@ -128,6 +130,7 @@ export async function POST(request: NextRequest) {
         id: newTask?._id?.toString(),
         title: newTask?.title,
         subtitle: newTask?.subtitle,
+        images: newTask?.images || [],
         datacoNumber: newTask?.datacoNumber,
         description: newTask?.description,
         projectId: newTask?.projectId.toString(),

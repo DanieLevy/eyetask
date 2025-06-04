@@ -46,7 +46,7 @@ db.createCollection("tasks", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
-      required: ["title", "datacoNumber", "projectId"],
+      required: ["title", "datacoNumber", "projectId", "type", "locations", "targetCar", "dayTime", "priority"],
       properties: {
         _id: { bsonType: "objectId" },
         title: { 
@@ -57,6 +57,11 @@ db.createCollection("tasks", {
           bsonType: "string",
           description: "Task subtitle"
         },
+        images: { 
+          bsonType: "array",
+          items: { bsonType: "string" },
+          description: "Array of image URLs or paths"
+        },
         datacoNumber: { 
           bsonType: "string",
           description: "Unique dataco number"
@@ -66,8 +71,7 @@ db.createCollection("tasks", {
           properties: {
             main: { bsonType: "string" },
             howToExecute: { bsonType: "string" }
-          },
-          additionalProperties: false
+          }
         },
         projectId: { 
           bsonType: "objectId",
@@ -75,7 +79,10 @@ db.createCollection("tasks", {
         },
         type: { 
           bsonType: "array",
-          items: { bsonType: "string" },
+          items: { 
+            bsonType: "string",
+            enum: ["events", "hours"]
+          },
           description: "Task types"
         },
         locations: { 
@@ -95,22 +102,25 @@ db.createCollection("tasks", {
         },
         lidar: { 
           bsonType: "bool",
-          description: "Whether LIDAR is required"
+          description: "LiDAR requirement"
         },
         dayTime: { 
           bsonType: "array",
-          items: { bsonType: "string" },
+          items: { 
+            bsonType: "string",
+            enum: ["day", "night", "dusk", "dawn"]
+          },
           description: "Day time requirements"
         },
         priority: { 
-          bsonType: "int",
-          minimum: 0,
+          bsonType: "number",
+          minimum: 1,
           maximum: 10,
-          description: "Task priority (0-10)"
+          description: "Task priority (1-10)"
         },
         isVisible: { 
           bsonType: "bool",
-          description: "Whether task is visible"
+          description: "Task visibility"
         },
         createdAt: { bsonType: "date" },
         updatedAt: { bsonType: "date" }
@@ -148,9 +158,10 @@ db.createCollection("subtasks", {
           bsonType: "string",
           description: "Subtask subtitle"
         },
-        image: { 
-          bsonType: "string",
-          description: "Image URL or path"
+        images: { 
+          bsonType: "array",
+          items: { bsonType: "string" },
+          description: "Array of image URLs or paths"
         },
         datacoNumber: { 
           bsonType: "string",
@@ -407,6 +418,7 @@ print("Sample project inserted with ID: " + sampleProject.insertedId);
 const sampleTask = db.tasks.insertOne({
   title: "Highway Driving Data Collection",
   subtitle: "Collect highway driving scenarios",
+  images: ["image1.jpg", "image2.jpg"],
   datacoNumber: "DC001",
   description: {
     main: "Collect various highway driving scenarios for ML training",
@@ -432,6 +444,7 @@ db.subtasks.insertOne({
   taskId: sampleTask.insertedId,
   title: "Clear Weather Highway Driving",
   subtitle: "Highway data in clear weather conditions",
+  images: ["clear_weather_image1.jpg", "clear_weather_image2.jpg"],
   datacoNumber: "DC001-01",
   type: "hours",
   amountNeeded: 25,

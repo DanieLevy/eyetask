@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
         taskId: fromObjectId(subtask.taskId),
         title: subtask.title,
         subtitle: subtask.subtitle,
-        image: subtask.image,
+        images: subtask.images || [],
         datacoNumber: subtask.datacoNumber,
         type: subtask.type,
         amountNeeded: subtask.amountNeeded,
@@ -120,16 +120,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (body.image && typeof body.image !== 'string') {
+    if (body.images && !Array.isArray(body.images)) {
       return NextResponse.json(
-        { error: 'Image must be a string URL', success: false },
-        { status: 400 }
-      );
-    }
-    
-    if (!Array.isArray(body.labels)) {
-      return NextResponse.json(
-        { error: 'Labels must be an array', success: false },
+        { error: 'Images must be an array', success: false },
         { status: 400 }
       );
     }
@@ -168,7 +161,7 @@ export async function POST(request: NextRequest) {
       taskId: fromObjectId(subtaskResult.taskId),
       title: subtaskResult.title,
       subtitle: subtaskResult.subtitle,
-      image: subtaskResult.image,
+      images: subtaskResult.images || [],
       datacoNumber: subtaskResult.datacoNumber,
       type: subtaskResult.type,
       amountNeeded: subtaskResult.amountNeeded,

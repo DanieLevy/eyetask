@@ -15,6 +15,7 @@ export interface Task {
   _id?: ObjectId;
   title: string;
   subtitle?: string;
+  images?: string[];
   datacoNumber: string;
   description?: {
     main?: string;
@@ -38,7 +39,7 @@ export interface Subtask {
   taskId: ObjectId;
   title: string;
   subtitle?: string;
-  image?: string;
+  images?: string[];
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded?: number;

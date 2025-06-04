@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Eye, ImageIcon } from 'lucide-react';
+import { Upload, X, Eye, ImageIcon, ChevronRight } from 'lucide-react';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string | null) => void;
@@ -335,59 +335,406 @@ export function ImageDisplay({
 
   // Size configurations
   const sizeClasses = {
-    sm: 'w-20 h-16',
-    md: 'w-32 h-24', 
-    lg: 'w-48 h-32'
+    sm: 'h-20 w-20',
+    md: 'h-32 w-32',
+    lg: 'h-48 w-48'
   };
 
   return (
     <>
-      <div className={`relative group ${className}`}>
-        <div className={`${sizeClasses[size]} bg-muted rounded-lg overflow-hidden shadow-sm border border-border/50`}>
-          <img
-            src={imageUrl}
-            alt={alt}
-            className="w-full h-full object-cover cursor-pointer transition-transform hover:scale-105"
-            onClick={showExpand ? () => setShowFullImage(true) : undefined}
-            loading="lazy"
-          />
-          
-          {showExpand && (
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowFullImage(true);
-                }}
-                className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                title="הצג תמונה מלאה"
-              >
-                <Eye className="h-4 w-4 text-white" />
-              </button>
-            </div>
-          )}
-        </div>
+      <div className={`
+        relative group cursor-pointer bg-muted rounded-lg overflow-hidden
+        ${sizeClasses[size]}
+        ${className}
+      `}>
+        <img
+          src={imageUrl}
+          alt={alt}
+          className="w-full h-full object-cover"
+          onClick={() => showExpand && setShowFullImage(true)}
+        />
+        
+        {showExpand && (
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+            <button
+              onClick={() => setShowFullImage(true)}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="הצג תמונה"
+            >
+              <Eye className="h-4 w-4 text-white" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Full Image Modal */}
       {showFullImage && (
-        <div 
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowFullImage(false)}
-        >
-          <div className="relative max-w-4xl max-h-full">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4">
+          <div className="relative max-w-4xl max-h-full bg-white rounded-lg overflow-hidden">
             <button
               onClick={() => setShowFullImage(false)}
-              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
+              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10 transition-colors"
             >
-              <X className="h-6 w-6" />
+              <X className="h-4 w-4" />
             </button>
             <img
               src={imageUrl}
               alt={alt}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
+              className="w-full h-full object-contain"
             />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// Multiple Image Upload Component
+interface MultipleImageUploadProps {
+  onImagesChange: (images: string[]) => void;
+  currentImages?: string[];
+  disabled?: boolean;
+  className?: string;
+  maxImages?: number;
+}
+
+export function MultipleImageUpload({ 
+  onImagesChange, 
+  currentImages = [], 
+  disabled = false,
+  className = '',
+  maxImages = 5
+}: MultipleImageUploadProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: boolean}>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
+    if (disabled || isUploading) return;
+
+    const fileArray = Array.from(files);
+    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
+    
+    // Check if adding these images would exceed the limit
+    if (currentImages.length + imageFiles.length > maxImages) {
+      alert(`ניתן להעלות עד ${maxImages} תמונות. כרגע יש ${currentImages.length} תמונות.`);
+      return;
+    }
+
+    if (imageFiles.length === 0) {
+      alert('אנא בחר קבצי תמונה בלבד');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      const newImages: string[] = [];
+      
+      // Upload files one by one
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const fileKey = `${file.name}-${file.size}`;
+        
+        try {
+          setUploadProgress(prev => ({ ...prev, [fileKey]: true }));
+
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            newImages.push(result.data.publicUrl);
+          } else {
+            throw new Error(result.error || `Failed to upload ${file.name}`);
+          }
+        } catch (error) {
+          console.error(`Failed to upload ${file.name}:`, error);
+          alert(`שגיאה בהעלאת ${file.name}: ${error instanceof Error ? error.message : 'שגיאה לא צפויה'}`);
+        } finally {
+          setUploadProgress(prev => {
+            const updated = { ...prev };
+            delete updated[fileKey];
+            return updated;
+          });
+        }
+      }
+
+      // Update the images array
+      if (newImages.length > 0) {
+        const updatedImages = [...currentImages, ...newImages];
+        onImagesChange(updatedImages);
+      }
+
+    } catch (error) {
+      console.error('Multiple image upload error:', error);
+      alert('שגיאה בהעלאת התמונות');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({});
+    }
+  }, [disabled, isUploading, onImagesChange, currentImages, maxImages]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!disabled) {
+      setIsDragging(true);
+    }
+  }, [disabled]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (disabled) return;
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files);
+    }
+  }, [disabled, handleFileSelect]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files);
+    }
+    // Reset input value to allow selecting the same files again
+    e.target.value = '';
+  }, [handleFileSelect]);
+
+  const handleRemoveImage = useCallback((index: number) => {
+    if (disabled) return;
+    
+    const updatedImages = currentImages.filter((_, i) => i !== index);
+    onImagesChange(updatedImages);
+  }, [disabled, currentImages, onImagesChange]);
+
+  const handleClick = useCallback(() => {
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, [disabled]);
+
+  const canAddMore = currentImages.length < maxImages;
+
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {/* Current Images Gallery */}
+      {currentImages.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {currentImages.map((imageUrl, index) => (
+            <div key={`image-${index}`} className="relative group">
+              <ImageDisplay 
+                imageUrl={imageUrl}
+                alt={`תמונה ${index + 1}`}
+                className="w-full h-24"
+                size="md"
+              />
+              
+              {!disabled && (
+                <button
+                  onClick={() => handleRemoveImage(index)}
+                  className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  title="הסר תמונה"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload Area */}
+      {canAddMore && (
+        <div
+          className={`
+            relative border-2 border-dashed rounded-lg transition-all duration-200 p-6
+            ${isDragging 
+              ? 'border-primary bg-primary/5' 
+              : 'border-border hover:border-primary/50'
+            }
+            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          `}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={handleClick}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleInputChange}
+            className="hidden"
+            disabled={disabled}
+          />
+
+          {isUploading ? (
+            <div className="flex flex-col items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+              <p className="text-sm text-muted-foreground text-center">מעלה תמונות...</p>
+              {Object.keys(uploadProgress).length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  מעלה {Object.keys(uploadProgress).length} תמונות
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center">
+              <Upload className="h-8 w-8 text-muted-foreground mb-3" />
+              <p className="text-sm font-medium text-foreground mb-1">
+                גרור תמונות לכאן או לחץ לבחירה
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ניתן להעלות עד {maxImages - currentImages.length} תמונות נוספות
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                תמונות יכולות להיות: JPEG, PNG, WebP, GIF
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Upload Limit Info */}
+      <div className="text-xs text-muted-foreground text-center">
+        {currentImages.length} מתוך {maxImages} תמונות
+      </div>
+    </div>
+  );
+}
+
+// Image Gallery Component for displaying multiple images
+interface ImageGalleryProps {
+  images: string[];
+  className?: string;
+  showExpand?: boolean;
+  maxDisplay?: number;
+}
+
+export function ImageGallery({ 
+  images, 
+  className = '',
+  showExpand = true,
+  maxDisplay = 4
+}: ImageGalleryProps) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (!images || images.length === 0) return null;
+
+  const displayImages = images.slice(0, maxDisplay);
+  const remainingCount = images.length - maxDisplay;
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length);
+    setSelectedImage(images[(currentIndex + 1) % images.length]);
+  };
+
+  const prevImage = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    setSelectedImage(images[(currentIndex - 1 + images.length) % images.length]);
+  };
+
+  const openGallery = (imageUrl: string, index: number) => {
+    setSelectedImage(imageUrl);
+    setCurrentIndex(index);
+  };
+
+  return (
+    <>
+      <div className={`space-y-2 ${className}`}>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          {displayImages.map((imageUrl, index) => (
+            <div 
+              key={`gallery-image-${index}`} 
+              className="relative group cursor-pointer"
+              onClick={() => showExpand && openGallery(imageUrl, index)}
+            >
+              <ImageDisplay 
+                imageUrl={imageUrl}
+                alt={`תמונה ${index + 1}`}
+                className="w-full h-20"
+                size="sm"
+                showExpand={false}
+              />
+              
+              {index === maxDisplay - 1 && remainingCount > 0 && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-medium">
+                  +{remainingCount}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Gallery Modal */}
+      {selectedImage && showExpand && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[9999] p-4">
+          <div className="relative max-w-4xl max-h-full bg-white rounded-lg overflow-hidden">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            
+            {/* Navigation Buttons */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10 transition-colors"
+                >
+                  <ChevronRight className="h-6 w-6 rotate-180" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white z-10 transition-colors"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              </>
+            )}
+            
+            {/* Image */}
+            <img
+              src={selectedImage}
+              alt={`תמונה ${currentIndex + 1}`}
+              className="w-full h-full object-contain"
+            />
+            
+            {/* Image Counter */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-black/50 text-white text-sm rounded-full">
+                {currentIndex + 1} מתוך {images.length}
+              </div>
+            )}
           </div>
         </div>
       )}

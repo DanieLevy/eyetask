@@ -197,7 +197,7 @@ export async function POST(
     const subtaskData = {
       title: requestBody.title,
       subtitle: requestBody.subtitle || '',
-      image: requestBody.image || '',
+      images: requestBody.images || [],
       datacoNumber: requestBody.datacoNumber,
       type: requestBody.type || 'events',
       amountNeeded: requestBody.amountNeeded || 1,

@@ -60,6 +60,7 @@ async function handleVisibilityToggle(
       id: fromObjectId(updatedTask._id!),
       title: updatedTask.title,
       subtitle: updatedTask.subtitle,
+      images: updatedTask.images || [],
       datacoNumber: updatedTask.datacoNumber,
       description: updatedTask.description,
       projectId: fromObjectId(updatedTask.projectId),
