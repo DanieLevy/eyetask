@@ -1,451 +1,270 @@
 import bcrypt from 'bcryptjs';
-import jwt, { SignOptions } from 'jsonwebtoken';
-import { getUserByUsername, User } from './data';
-import { logger, AppError, validateRequired } from './logger';
-import { verifyToken as verifySupabaseToken, AuthUser } from './supabase-auth';
+import jwt from 'jsonwebtoken';
+import { db } from './database';
+import { logger } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || '941efef2eb57df7ebdcaae4b62481d14cd53d97e6fc99641e4a3335668732766';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'your-secret-key-here';
+const COOKIE_NAME = 'auth-token';
 
 export interface LoginCredentials {
   username: string;
   password: string;
 }
 
-export interface AuthToken {
-  token: string;
-  user: Omit<User, 'passwordHash'>;
-}
-
-export interface JWTPayload {
-  userId: string;
+export interface AuthUser {
+  id: string;
   username: string;
-  role: string;
-  iat: number;
-  exp: number;
+  email: string;
+  role: 'admin';
 }
 
-// Hash password with enhanced error handling
-export async function hashPassword(password: string): Promise<string> {
-  try {
-    validateRequired({ password }, ['password'], 'HASH_PASSWORD');
-    
-    if (password.length < 6) {
-      throw new AppError('Password must be at least 6 characters long', 400, 'HASH_PASSWORD');
-    }
-    
-    const saltRounds = 10;
-    const hash = await bcrypt.hash(password, saltRounds);
-    
-    logger.debug('Password hashed successfully', 'AUTH');
-    return hash;
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    
-    logger.error('Failed to hash password', 'AUTH', undefined, error as Error);
-    throw new AppError('Password hashing failed', 500, 'HASH_PASSWORD');
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export class AuthService {
+  // Hash password
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = 12;
+    return bcrypt.hash(password, saltRounds);
   }
-}
 
-// Verify password with enhanced error handling
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  try {
-    validateRequired({ password, hash }, ['password', 'hash'], 'VERIFY_PASSWORD');
-    
-    const isValid = await bcrypt.compare(password, hash);
-    
-    logger.debug(`Password verification: ${isValid ? 'SUCCESS' : 'FAILED'}`, 'AUTH');
-    return isValid;
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    
-    logger.error('Password verification failed', 'AUTH', undefined, error as Error);
-    return false;
+  // Verify password
+  private async verifyPassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
   }
-}
 
-// Generate JWT token with enhanced error handling
-export function generateToken(user: User): string {
-  try {
-    validateRequired({ user }, ['user'], 'GENERATE_TOKEN');
-    validateRequired(user, ['id', 'username', 'role'], 'GENERATE_TOKEN');
-    
-    if (!JWT_SECRET || JWT_SECRET.length < 32) {
-      logger.error('JWT_SECRET is not set or too short', 'AUTH');
-      throw new AppError('JWT configuration error', 500, 'GENERATE_TOKEN');
-    }
-    
-    const payload = {
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-    };
-    
-    // Use a simpler approach for JWT signing
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-    
-    logger.authLog('token_generated', user.username, true);
-    return token;
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    
-    logger.error('Token generation failed', 'AUTH', { userId: user?.id }, error as Error);
-    throw new AppError('Token generation failed', 500, 'GENERATE_TOKEN');
+  // Generate JWT token
+  private generateToken(user: AuthUser): string {
+    return jwt.sign(
+      { 
+        id: user.id, 
+        username: user.username, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
   }
-}
 
-// Verify JWT token with enhanced error handling
-export function verifyToken(token: string): JWTPayload | null {
-  try {
-    validateRequired({ token }, ['token'], 'VERIFY_TOKEN');
-    
-    if (!JWT_SECRET) {
-      logger.error('JWT_SECRET is not set', 'AUTH');
-      return null;
-    }
-    
-    // Use a simpler approach for JWT verification
-    const payload = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    
-    // Additional validation
-    if (!payload.userId || !payload.username || !payload.role) {
-      logger.warn('Invalid token payload structure', 'AUTH', { payload });
-      return null;
-    }
-    
-    logger.debug('Token verified successfully', 'AUTH', { username: payload.username });
-    return payload;
-  } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      logger.warn('Token expired', 'AUTH', { error: error.message });
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      logger.warn('Invalid token', 'AUTH', { error: error.message });
-    } else if (error instanceof AppError) {
-      throw error;
-    } else {
-      logger.error('Token verification failed', 'AUTH', undefined, error as Error);
-    }
-    
-    return null;
-  }
-}
-
-// Login function with enhanced error handling
-export async function loginUser(credentials: LoginCredentials): Promise<AuthToken | null> {
-  try {
-    validateRequired(credentials, ['username', 'password'], 'LOGIN_USER');
-    
-    // Sanitize username
-    const username = credentials.username.trim().toLowerCase();
-    
-    if (username.length === 0) {
-      throw new AppError('Username cannot be empty', 400, 'LOGIN_USER');
-    }
-    
-    if (credentials.password.length === 0) {
-      throw new AppError('Password cannot be empty', 400, 'LOGIN_USER');
-    }
-    
-    logger.authLog('login_attempt', username);
-    
-    const user = await getUserByUsername(username);
-    
-    if (!user) {
-      logger.authLog('login_failed', username, false, new Error('User not found'));
-      // Don't reveal whether user exists or not
-      return null;
-    }
-    
-    const isPasswordValid = await verifyPassword(credentials.password, user.passwordHash);
-    
-    if (!isPasswordValid) {
-      logger.authLog('login_failed', username, false, new Error('Invalid password'));
-      return null;
-    }
-    
-    const token = generateToken(user);
-    
-    // Remove password hash from returned user data
-    const { passwordHash, ...userWithoutPassword } = user;
-    
-    logger.authLog('login_success', username, true);
-    
-    return {
-      token,
-      user: userWithoutPassword,
-    };
-  } catch (error) {
-    if (error instanceof AppError) {
-      logger.authLog('login_error', credentials?.username, false, error);
-      throw error;
-    }
-    
-    logger.error('Login error', 'AUTH', { username: credentials?.username }, error as Error);
-    return null;
-  }
-}
-
-// Middleware helper for protected routes with enhanced error handling
-export function requireAuth(token?: string): { authorized: boolean; user?: Omit<User, 'passwordHash'>; error?: string } {
-  try {
-    if (!token) {
-      logger.debug('No token provided', 'AUTH');
-      return { authorized: false, error: 'No token provided' };
-    }
-    
-    const payload = verifyToken(token);
-    
-    if (!payload) {
-      logger.debug('Invalid token', 'AUTH');
-      return { authorized: false, error: 'Invalid token' };
-    }
-    
-    // Check token expiration
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-      logger.debug('Token expired', 'AUTH', { username: payload.username });
-      return { authorized: false, error: 'Token expired' };
-    }
-    
-    const user = {
-      id: payload.userId,
-      username: payload.username,
-      email: '', // Would need to fetch from database if needed
-      role: payload.role as 'admin',
-      createdAt: '',
-      lastLogin: null,
-    };
-    
-    logger.debug('Auth successful', 'AUTH', { username: payload.username });
-    
-    return {
-      authorized: true,
-      user,
-    };
-  } catch (error) {
-    logger.error('Auth middleware error', 'AUTH', undefined, error as Error);
-    return { authorized: false, error: 'Authentication error' };
-  }
-}
-
-// Extract token from Authorization header with validation
-export function extractTokenFromHeader(authHeader?: string | null): string | undefined {
-  try {
-    if (!authHeader) {
-      logger.debug('No authorization header', 'AUTH');
-      return undefined;
-    }
-    
-    if (!authHeader.startsWith('Bearer ')) {
-      logger.debug('Invalid authorization header format', 'AUTH', { header: authHeader.substring(0, 20) });
-      return undefined;
-    }
-    
-    const token = authHeader.substring(7);
-    
-    if (!token || token.length === 0) {
-      logger.debug('Empty token in authorization header', 'AUTH');
-      return undefined;
-    }
-    
-    return token;
-  } catch (error) {
-    logger.error('Error extracting token from header', 'AUTH', { header: authHeader?.substring(0, 20) }, error as Error);
-    return undefined;
-  }
-}
-
-// Check if user is admin with enhanced validation
-export function isAdmin(user?: Omit<User, 'passwordHash'>): boolean {
-  try {
-    if (!user) {
-      logger.debug('No user provided for admin check', 'AUTH');
-      return false;
-    }
-    
-    if (!user.role) {
-      logger.debug('No role defined for user', 'AUTH', { username: user.username });
-      return false;
-    }
-    
-    const isAdminUser = user.role === 'admin';
-    
-    logger.debug(`Admin check: ${isAdminUser}`, 'AUTH', { username: user.username, role: user.role });
-    
-    return isAdminUser;
-  } catch (error) {
-    logger.error('Error checking admin status', 'AUTH', { username: user?.username }, error as Error);
-    return false;
-  }
-}
-
-// Logout function (for token invalidation tracking)
-export function logoutUser(username?: string): void {
-  try {
-    logger.authLog('logout', username, true);
-  } catch (error) {
-    logger.error('Error logging logout', 'AUTH', { username }, error as Error);
-  }
-}
-
-// Validate password strength
-export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
-  try {
-    if (!password) {
-      errors.push('Password is required');
-      return { valid: false, errors };
-    }
-    
-    if (password.length < 6) {
-      errors.push('Password must be at least 6 characters long');
-    }
-    
-    if (password.length > 128) {
-      errors.push('Password must be less than 128 characters');
-    }
-    
-    if (!/[a-zA-Z]/.test(password)) {
-      errors.push('Password must contain at least one letter');
-    }
-    
-    if (!/[0-9]/.test(password)) {
-      errors.push('Password must contain at least one number');
-    }
-    
-    // Common weak passwords
-    const weakPasswords = ['password', '123456', 'admin', 'admin123', 'password123'];
-    if (weakPasswords.includes(password.toLowerCase())) {
-      errors.push('Password is too common');
-    }
-    
-    const isValid = errors.length === 0;
-    
-    logger.debug(`Password validation: ${isValid}`, 'AUTH', { errorCount: errors.length });
-    
-    return { valid: isValid, errors };
-  } catch (error) {
-    logger.error('Error validating password strength', 'AUTH', undefined, error as Error);
-    return { valid: false, errors: ['Password validation error'] };
-  }
-}
-
-// Rate limiting helper (basic implementation)
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-
-export function checkRateLimit(username: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean {
-  try {
-    const now = Date.now();
-    const key = username.toLowerCase();
-    const attempts = loginAttempts.get(key);
-    
-    if (!attempts || (now - attempts.lastAttempt) > windowMs) {
-      // Reset or create new entry
-      loginAttempts.set(key, { count: 1, lastAttempt: now });
-      return true;
-    }
-    
-    if (attempts.count >= maxAttempts) {
-      logger.warn(`Rate limit exceeded for user: ${username}`, 'AUTH', { 
-        attempts: attempts.count, 
-        lastAttempt: new Date(attempts.lastAttempt).toISOString() 
-      });
-      return false;
-    }
-    
-    // Increment attempt count
-    attempts.count++;
-    attempts.lastAttempt = now;
-    loginAttempts.set(key, attempts);
-    
-    return true;
-  } catch (error) {
-    logger.error('Error checking rate limit', 'AUTH', { username }, error as Error);
-    return true; // Allow on error to avoid blocking legitimate users
-  }
-}
-
-// Clear rate limit for user (on successful login)
-export function clearRateLimit(username: string): void {
-  try {
-    const key = username.toLowerCase();
-    loginAttempts.delete(key);
-    logger.debug(`Rate limit cleared for user: ${username}`, 'AUTH');
-  } catch (error) {
-    logger.error('Error clearing rate limit', 'AUTH', { username }, error as Error);
-  }
-}
-
-// NEW: Supabase Auth verification function
-export async function requireSupabaseAuth(token?: string): Promise<{ authorized: boolean; user?: AuthUser; error?: string }> {
-  try {
-    if (!token) {
-      logger.debug('No token provided', 'SUPABASE_AUTH');
-      return { authorized: false, error: 'No token provided' };
-    }
-    
-    const user = await verifySupabaseToken(token);
-    
-    if (!user) {
-      logger.warn('Invalid token', 'SUPABASE_AUTH', { error: 'invalid signature' });
-      return { authorized: false, error: 'Invalid or expired token' };
-    }
-    
-    logger.debug('Token verified successfully via Supabase', 'SUPABASE_AUTH', { username: user.username });
-    return { authorized: true, user };
-  } catch (error) {
-    logger.error('Supabase token verification failed', 'SUPABASE_AUTH', undefined, error as Error);
-    return { authorized: false, error: 'Token verification failed' };
-  }
-}
-
-// NEW: Check if Supabase user is admin
-export function isSupabaseAdmin(user?: AuthUser): boolean {
-  return user?.role === 'admin';
-}
-
-// Enhanced version that tries both Supabase and custom JWT
-export async function requireAuthEnhanced(token?: string): Promise<{ authorized: boolean; user?: any; error?: string }> {
-  try {
-    // First try Supabase Auth
-    const supabaseAuth = await requireSupabaseAuth(token);
-    if (supabaseAuth.authorized && supabaseAuth.user) {
-      return { 
-        authorized: true, 
-        user: {
-          id: supabaseAuth.user.id,
-          username: supabaseAuth.user.username,
-          email: supabaseAuth.user.email,
-          role: supabaseAuth.user.role
-        }
+  // Verify JWT token
+  verifyToken(token: string): AuthUser | null {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      return {
+        id: decoded.id,
+        username: decoded.username,
+        email: decoded.email,
+        role: decoded.role
       };
+    } catch (error) {
+      logger.error('Token verification failed', 'AUTH', undefined, error as Error);
+      return null;
     }
-    
-    // Fallback to custom JWT
-    logger.debug('Falling back to custom JWT verification', 'AUTH');
-    return requireAuth(token);
-  } catch (error) {
-    logger.error('Enhanced auth verification failed', 'AUTH', undefined, error as Error);
-    return { authorized: false, error: 'Authentication failed' };
+  }
+
+  // Login with credentials
+  async login(credentials: LoginCredentials): Promise<{ user: AuthUser; token: string } | null> {
+    try {
+      const user = await db.getUserByUsername(credentials.username);
+      
+      if (!user) {
+        logger.warn('Login attempt with unknown username', 'AUTH', { username: credentials.username });
+        return null;
+      }
+
+      const isValidPassword = await this.verifyPassword(credentials.password, user.passwordHash);
+      
+      if (!isValidPassword) {
+        logger.warn('Invalid password attempt', 'AUTH', { username: credentials.username });
+        return null;
+      }
+
+      const authUser: AuthUser = {
+        id: user._id!.toString(),
+        username: user.username,
+        email: user.email,
+        role: user.role
+      };
+
+      const token = this.generateToken(authUser);
+
+      logger.info('User logged in successfully', 'AUTH', { 
+        username: user.username,
+        email: user.email 
+      });
+
+      return { user: authUser, token };
+    } catch (error) {
+      logger.error('Login error', 'AUTH', undefined, error as Error);
+      return null;
+    }
+  }
+
+  // Register new user (admin only for now)
+  async register(data: RegisterData): Promise<{ user: AuthUser; token: string } | null> {
+    try {
+      // Check if user already exists
+      const existingUserByUsername = await db.getUserByUsername(data.username);
+      if (existingUserByUsername) {
+        logger.warn('Registration attempt with existing username', 'AUTH', { username: data.username });
+        throw new Error('Username already exists');
+      }
+
+      const existingUserByEmail = await db.getUserByEmail(data.email);
+      if (existingUserByEmail) {
+        logger.warn('Registration attempt with existing email', 'AUTH', { email: data.email });
+        throw new Error('Email already exists');
+      }
+
+      // Hash password
+      const passwordHash = await this.hashPassword(data.password);
+
+      // Create user
+      const userId = await db.createUser({
+        username: data.username,
+        email: data.email,
+        passwordHash,
+        role: 'admin' // For now, all users are admin
+      });
+
+      const authUser: AuthUser = {
+        id: userId,
+        username: data.username,
+        email: data.email,
+        role: 'admin'
+      };
+
+      const token = this.generateToken(authUser);
+
+      logger.info('User registered successfully', 'AUTH', { 
+        username: data.username,
+        email: data.email 
+      });
+
+      return { user: authUser, token };
+    } catch (error) {
+      logger.error('Registration error', 'AUTH', undefined, error as Error);
+      return null;
+    }
+  }
+
+  // Get user from token
+  async getUserFromToken(token: string): Promise<AuthUser | null> {
+    const user = this.verifyToken(token);
+    if (!user) {
+      return null;
+    }
+
+    // Verify user still exists in database
+    const dbUser = await db.getUserByUsername(user.username);
+    if (!dbUser) {
+      logger.warn('Token user no longer exists in database', 'AUTH', { username: user.username });
+      return null;
+    }
+
+    return user;
+  }
+
+  // Logout (client-side will remove token)
+  logout(): void {
+    logger.info('User logged out', 'AUTH');
+  }
+
+  // Middleware helper to extract user from request
+  extractUserFromRequest(req: Request): AuthUser | null {
+    try {
+      // Try to get token from Authorization header
+      const authHeader = req.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        return this.verifyToken(token);
+      }
+
+      // Try to get token from cookie
+      const cookieHeader = req.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {} as Record<string, string>);
+
+        const token = cookies[COOKIE_NAME];
+        if (token) {
+          return this.verifyToken(token);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Error extracting user from request', 'AUTH', undefined, error as Error);
+      return null;
+    }
+  }
+
+  // Check if user is admin
+  isAdmin(user: AuthUser | null): boolean {
+    return user?.role === 'admin';
+  }
+
+  // Generate cookie string for setting auth token
+  generateAuthCookie(token: string): string {
+    const maxAge = 24 * 60 * 60; // 24 hours
+    return `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}; Path=/`;
+  }
+
+  // Generate cookie string for clearing auth token
+  clearAuthCookie(): string {
+    return `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/`;
   }
 }
 
-// Enhanced admin check that works with both systems
-export function isAdminEnhanced(user?: any): boolean {
-  if (!user) return false;
-  
-  // Check if it's a Supabase user
-  if (user.email && user.username) {
-    return user.role === 'admin';
+// Export singleton instance
+export const auth = new AuthService();
+
+// Helper function for API routes to require authentication
+export function requireAuth(user: AuthUser | null): AuthUser {
+  if (!user) {
+    throw new Error('Authentication required');
+  }
+  return user;
+}
+
+// Helper function for API routes to require admin authentication
+export function requireAdmin(user: AuthUser | null): AuthUser {
+  if (!user) {
+    throw new Error('Authentication required');
+  }
+  if (!auth.isAdmin(user)) {
+    throw new Error('Admin access required');
+  }
+  return user;
+}
+
+// Helper functions for API routes
+export function extractTokenFromHeader(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7);
+}
+
+export async function requireAuthEnhanced(token: string | null): Promise<{ authorized: boolean; user: AuthUser | null }> {
+  if (!token) {
+    return { authorized: false, user: null };
   }
   
-  // Fallback to custom user check
-  return isAdmin(user);
+  const user = await auth.getUserFromToken(token);
+  return { 
+    authorized: user !== null, 
+    user 
+  };
+}
+
+export function isAdminEnhanced(user: AuthUser | null): boolean {
+  return auth.isAdmin(user);
 } 

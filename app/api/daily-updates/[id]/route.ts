@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
+import { fromObjectId } from '@/lib/mongodb';
 
 export async function GET(
   request: NextRequest,
@@ -8,16 +9,30 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const { data: update, error } = await supabase
-      .from('daily_updates')
-      .select('*')
-      .eq('id', id)
-      .single();
+    // Get daily update by ID (we need to implement this function)
+    const dailyUpdateResult = await db.getDailyUpdateById(id);
 
-    if (error) {
-      console.error('❌ Error fetching daily update:', error);
+    if (!dailyUpdateResult) {
       return NextResponse.json({ error: 'Daily update not found' }, { status: 404 });
     }
+
+    // Convert to API format
+    const update = {
+      id: fromObjectId(dailyUpdateResult._id!),
+      title: dailyUpdateResult.title,
+      content: dailyUpdateResult.content,
+      type: dailyUpdateResult.type,
+      priority: dailyUpdateResult.priority,
+      durationType: dailyUpdateResult.durationType,
+      durationValue: dailyUpdateResult.durationValue,
+      expiresAt: dailyUpdateResult.expiresAt?.toISOString(),
+      isActive: dailyUpdateResult.isActive,
+      isPinned: dailyUpdateResult.isPinned,
+      targetAudience: dailyUpdateResult.targetAudience,
+      createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
+      createdAt: dailyUpdateResult.createdAt.toISOString(),
+      updatedAt: dailyUpdateResult.updatedAt.toISOString()
+    };
 
     return NextResponse.json({ 
       success: true, 
@@ -42,11 +57,11 @@ export async function PUT(
       content, 
       type,
       priority,
-      duration_type,
-      duration_value,
-      is_pinned,
-      is_active,
-      target_audience
+      durationType,
+      durationValue,
+      isPinned,
+      isActive,
+      targetAudience
     } = body;
 
     // Build update object with only provided fields
@@ -71,39 +86,57 @@ export async function PUT(
       }
       updateData.priority = priority;
     }
-    if (duration_type !== undefined) {
+    if (durationType !== undefined) {
       const validDurationTypes = ['hours', 'days', 'permanent'];
-      if (!validDurationTypes.includes(duration_type)) {
+      if (!validDurationTypes.includes(durationType)) {
         return NextResponse.json({ 
-          error: 'Invalid duration_type. Must be one of: ' + validDurationTypes.join(', ') 
+          error: 'Invalid durationType. Must be one of: ' + validDurationTypes.join(', ') 
         }, { status: 400 });
       }
-      updateData.duration_type = duration_type;
+      updateData.durationType = durationType;
     }
-    if (duration_value !== undefined) {
-      updateData.duration_value = duration_type === 'permanent' ? null : duration_value;
+    if (durationValue !== undefined) {
+      updateData.durationValue = durationType === 'permanent' ? null : durationValue;
     }
-    if (is_pinned !== undefined) updateData.is_pinned = is_pinned;
-    if (is_active !== undefined) updateData.is_active = is_active;
-    if (target_audience !== undefined) updateData.target_audience = target_audience;
+    if (isPinned !== undefined) updateData.isPinned = isPinned;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (targetAudience !== undefined) updateData.targetAudience = targetAudience;
 
     // Update the daily update
-    const { data: updatedUpdate, error } = await supabase
-      .from('daily_updates')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const updated = await db.updateDailyUpdate(id, updateData);
 
-    if (error) {
-      console.error('❌ Error updating daily update:', error);
+    if (!updated) {
       return NextResponse.json({ error: 'Failed to update daily update' }, { status: 500 });
     }
+
+    // Get the updated daily update
+    const dailyUpdateResult = await db.getDailyUpdateById(id);
+    if (!dailyUpdateResult) {
+      return NextResponse.json({ error: 'Daily update not found after update' }, { status: 404 });
+    }
+
+    // Convert to API format
+    const update = {
+      id: fromObjectId(dailyUpdateResult._id!),
+      title: dailyUpdateResult.title,
+      content: dailyUpdateResult.content,
+      type: dailyUpdateResult.type,
+      priority: dailyUpdateResult.priority,
+      durationType: dailyUpdateResult.durationType,
+      durationValue: dailyUpdateResult.durationValue,
+      expiresAt: dailyUpdateResult.expiresAt?.toISOString(),
+      isActive: dailyUpdateResult.isActive,
+      isPinned: dailyUpdateResult.isPinned,
+      targetAudience: dailyUpdateResult.targetAudience,
+      createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
+      createdAt: dailyUpdateResult.createdAt.toISOString(),
+      updatedAt: dailyUpdateResult.updatedAt.toISOString()
+    };
 
     console.log('✅ Daily update updated:', id);
     return NextResponse.json({ 
       success: true, 
-      update: updatedUpdate 
+      update
     });
   } catch (error) {
     console.error('❌ Unexpected error in daily update PUT:', error);
@@ -118,13 +151,9 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const { error } = await supabase
-      .from('daily_updates')
-      .delete()
-      .eq('id', id);
+    const deleted = await db.deleteDailyUpdate(id);
 
-    if (error) {
-      console.error('❌ Error deleting daily update:', error);
+    if (!deleted) {
       return NextResponse.json({ error: 'Failed to delete daily update' }, { status: 500 });
     }
 

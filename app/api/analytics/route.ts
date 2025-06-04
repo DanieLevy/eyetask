@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAnalytics, updateAnalytics } from '@/lib/data';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { getAllTasks, getAllSubtasks, getAllProjects } from '@/lib/data';
+import { db, type Subtask } from '@/lib/database';
+import { auth, requireAdmin } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // GET /api/analytics - Advanced analytics data for admin
 export async function GET(request: NextRequest) {
   try {
     // Check authentication and admin status
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-    
-    if (!authorized || !user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized', 
-        success: false 
-      }, { status: 401 });
-    }
-
-    if (!isAdminEnhanced(user)) {
-      return NextResponse.json({ 
-        error: 'Admin access required', 
-        success: false 
-      }, { status: 403 });
-    }
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
 
     // Get time range from query params
     const { searchParams } = new URL(request.url);
@@ -34,18 +19,24 @@ export async function GET(request: NextRequest) {
     const daysBack = range === '7d' ? 7 : range === '30d' ? 30 : 90;
     const startDate = new Date(now.getTime() - (daysBack * 24 * 60 * 60 * 1000));
     
-    // Fetch all data
-    const [tasks, subtasks, projects] = await Promise.all([
-      getAllTasks(),
-      getAllSubtasks(),
-      getAllProjects()
+    // Fetch all data from MongoDB
+    const [tasks, projects] = await Promise.all([
+      db.getAllTasks(true), // Include hidden tasks for admin
+      db.getAllProjects()
     ]);
+
+    // Get all subtasks for all tasks
+    const allSubtasks: Subtask[] = [];
+    for (const task of tasks) {
+      const subtasks = await db.getSubtasksByTask(task._id!.toString());
+      allSubtasks.push(...subtasks);
+    }
 
     // Basic counts
     const totalTasks = tasks.length;
     const visibleTasks = tasks.filter(task => task.isVisible).length;
     const hiddenTasks = totalTasks - visibleTasks;
-    const totalSubtasks = subtasks.length;
+    const totalSubtasks = allSubtasks.length;
     const totalProjects = projects.length;
 
     // Task priority distribution
@@ -64,9 +55,9 @@ export async function GET(request: NextRequest) {
 
     // Project analytics
     const tasksByProject = projects.map(project => {
-      const projectTasks = tasks.filter(task => task.projectId === project.id);
-      const projectSubtasks = subtasks.filter(subtask => 
-        projectTasks.some(task => task.id === subtask.taskId)
+      const projectTasks = tasks.filter(task => task.projectId.toString() === project._id!.toString());
+      const projectSubtasks = allSubtasks.filter(subtask => 
+        projectTasks.some(task => task._id!.toString() === subtask.taskId.toString())
       );
       const highPriorityTasks = projectTasks.filter(task => 
         task.priority >= 1 && task.priority <= 3
@@ -107,9 +98,9 @@ export async function GET(request: NextRequest) {
       .filter(task => task.isVisible)
       .slice(0, 10)
       .map(task => {
-        const project = projects.find(p => p.id === task.projectId);
+        const project = projects.find(p => p._id!.toString() === task.projectId.toString());
         return {
-          taskId: task.id,
+          taskId: task._id!.toString(),
           taskTitle: task.title,
           projectName: project?.name || 'Unknown Project',
           views: Math.floor(Math.random() * 100) + 10
@@ -165,6 +156,13 @@ export async function GET(request: NextRequest) {
       systemHealth
     };
 
+    logger.info('Analytics data fetched successfully', 'ANALYTICS_API', { 
+      totalTasks, 
+      totalProjects, 
+      range,
+      userId: user?.id 
+    });
+
     return NextResponse.json({
       success: true,
       analytics: analyticsData,
@@ -173,7 +171,14 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Analytics API error:', error);
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+
+    logger.error('Analytics API error', 'ANALYTICS_API', undefined, error as Error);
     return NextResponse.json({
       error: 'Failed to fetch analytics data',
       success: false
@@ -187,20 +192,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { date, isUniqueVisitor } = body;
     
-    // Get current analytics
-    const current = await getAnalytics();
+    // Get current analytics from MongoDB
+    const current = await db.getAnalytics();
     
     // Calculate new values
-    const newTotalVisits = current.totalVisits + 1;
-    const newUniqueVisitors = isUniqueVisitor ? current.uniqueVisitors + 1 : current.uniqueVisitors;
+    const newTotalVisits = (current?.totalVisits || 0) + 1;
+    const newUniqueVisitors = isUniqueVisitor ? (current?.uniqueVisitors || 0) + 1 : (current?.uniqueVisitors || 0);
     
     // Update daily stats
     const today = date || new Date().toISOString().split('T')[0];
-    const dailyStats = current.dailyStats || {};
+    const dailyStats = current?.dailyStats || {};
     const newTodayStats = (dailyStats[today] || 0) + 1;
-    
-    // Update analytics
-    await updateAnalytics({
+
+    // Update analytics in MongoDB
+    await db.updateAnalytics({
       totalVisits: newTotalVisits,
       uniqueVisitors: newUniqueVisitors,
       dailyStats: {
@@ -208,16 +213,23 @@ export async function POST(request: NextRequest) {
         [today]: newTodayStats
       }
     });
-    
+
+    logger.info('Analytics visit logged', 'ANALYTICS_API', { 
+      date: today, 
+      isUniqueVisitor, 
+      totalVisits: newTotalVisits 
+    });
+
     return NextResponse.json({
       success: true,
-      data: { totalVisits: newTotalVisits, uniqueVisitors: newUniqueVisitors, todayStats: newTodayStats }
+      totalVisits: newTotalVisits,
+      uniqueVisitors: newUniqueVisitors
     });
-  } catch (error: any) {
-    console.error('❌ Analytics POST failed:', error.message);
-    return NextResponse.json(
-      { error: 'Failed to log visit', success: false },
-      { status: 500 }
-    );
+  } catch (error) {
+    logger.error('Analytics POST error', 'ANALYTICS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to log visit',
+      success: false
+    }, { status: 500 });
   }
 } 

@@ -16,7 +16,9 @@ import {
   RefreshCw,
   ArrowLeft,
   Bell,
-  RotateCcw
+  RotateCcw,
+  Settings,
+  Home
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
@@ -63,8 +65,23 @@ export default function AdminDashboard() {
     description: ''
   });
   const [operationLoading, setOperationLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   const router = useRouter();
+
+  // Load user data from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userData = localStorage.getItem('adminUser');
+      if (userData && userData !== 'undefined' && userData !== 'null') {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    }
+  }, []);
 
   // Realtime handlers
   const handleProjectChange = useCallback((payload: any) => {
@@ -141,6 +158,7 @@ export default function AdminDashboard() {
 
   const refreshData = useCallback(async () => {
     try {
+      setRefreshing(true);
       const token = localStorage.getItem('adminToken');
       const timestamp = Date.now();
       
@@ -166,8 +184,15 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching data:', error);
       setLoading(false);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
+
+  // Load initial data
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // Register this page's refresh function
   usePageRefresh(refreshData);
@@ -175,6 +200,7 @@ export default function AdminDashboard() {
   // Cache invalidation utility
   const clearCaches = async () => {
     try {
+      setRefreshing(true);
       const token = localStorage.getItem('adminToken');
       
       // Clear Next.js cache by fetching with cache-busting timestamp
@@ -200,81 +226,14 @@ export default function AdminDashboard() {
       .then(([projectsRes, tasksRes]) => {
         if (projectsRes.success) setProjects(projectsRes.projects);
         if (tasksRes.success) setTasks(tasksRes.tasks);
-        setLoading(false);
-      })
-      .catch(error => {
-        if (error.message?.includes('401') || error.message?.includes('403')) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/admin');
-        } else {
-          setLoading(false);
-        }
       });
+      
     } catch (error) {
-      console.error('Cache clear error:', error);
+      console.error('Error clearing caches:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
-
-  useEffect(() => {
-    clearCaches();
-    
-    // Check authentication
-    const token = localStorage.getItem('adminToken');
-    const userData = localStorage.getItem('adminUser');
-    
-    if (!token || !userData || userData === 'undefined' || userData === 'null') {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      router.push('/admin');
-      return;
-    }
-
-    try {
-      const parsedUser = JSON.parse(userData);
-      if (!parsedUser || !parsedUser.id || !parsedUser.username) {
-        throw new Error('Invalid user data structure');
-      }
-      setUser(parsedUser);
-    } catch (error) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      router.push('/admin');
-      return;
-    }
-
-    // Fetch data
-    Promise.all([
-      fetch(`/api/projects?_t=${Date.now()}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      }).then(res => res.json()),
-      fetch(`/api/tasks?_t=${Date.now()}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      }).then(res => res.json())
-    ])
-    .then(([projectsRes, tasksRes]) => {
-      if (projectsRes.success) setProjects(projectsRes.projects);
-      if (tasksRes.success) setTasks(tasksRes.tasks);
-      setLoading(false);
-    })
-    .catch(error => {
-      if (error.message?.includes('401') || error.message?.includes('403')) {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-        router.push('/admin');
-      } else {
-        setLoading(false);
-      }
-    });
-  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -283,30 +242,27 @@ export default function AdminDashboard() {
   };
 
   const handleCreateProject = async () => {
+    if (!newProjectData.name.trim()) return;
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/projects?_t=${Date.now()}`, {
+      const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify(newProjectData)
+        body: JSON.stringify(newProjectData),
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        setNewProjectData({ name: '', description: '' });
+      if (response.ok) {
         setShowNewProjectForm(false);
+        setNewProjectData({ name: '', description: '' });
         await refreshData();
-      } else {
-        alert('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      alert('Error creating project');
+      console.error('Error creating project:', error);
     } finally {
       setOperationLoading(false);
     }
@@ -337,73 +293,78 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Action Bar */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-3">
+      {/* Header */}
+      <header className="bg-card border-b border-border sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
-                לוח בקרה מנהל
-              </h2>
-              {user && (
-                <span className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                  | {user.username}
-                </span>
-              )}
+            {/* Left side - Title and user info */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <Target className="h-6 w-6 text-primary" />
+                <div>
+                  <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                    לוח בקרה מנהל
+                  </h1>
+                  {user && (
+                    <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
+                      {user.username} | Mobileye Admin System
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* Right side - Action buttons */}
             <div className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                title="דף הבית"
+              >
+                <Home className="h-4 w-4" />
+                דף הבית
+              </Link>
+              
               <button
-                onClick={async () => {
-                  setLoading(true);
-                  await clearCaches();
-                  window.location.reload();
-                }}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
+                onClick={refreshData}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors disabled:opacity-50"
                 title="רענן נתונים"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                 רענן
+              </button>
+              
+              <button
+                onClick={clearCaches}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                title="נקה Cache"
+              >
+                <RotateCcw className="h-4 w-4" />
+                נקה Cache
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+                title="התנתק"
+              >
+                <LogOut className="h-4 w-4" />
+                התנתק
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className={`text-3xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-            לוח בקרה מנהל
-          </h1>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={refreshData}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              רענן נתונים
-            </button>
-            <button
-              onClick={clearCaches}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              נקה Cache
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-            >
-              <LogOut className="h-5 w-5" />
-              התנתק
-            </button>
-          </div>
-        </div>
-
         {/* Quick Actions */}
-        <div className="bg-card rounded-lg border border-border p-6 mb-8">
-          <h2 className={`text-lg font-semibold text-foreground mb-4 ${hebrewHeading.fontClass}`}>פעולות מהירות</h2>
+        <section className="mb-8">
+          <h2 className={`text-lg font-semibold text-foreground mb-4 ${hebrewHeading.fontClass}`}>
+            פעולות מהירות
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
               href="/admin/tasks/new"
@@ -438,20 +399,27 @@ export default function AdminDashboard() {
               <p className="text-sm opacity-90">נתונים מפורטים ותובנות</p>
             </Link>
           </div>
-        </div>
+        </section>
 
         {/* Project Management Section */}
         <section>
-          <h2 className={`text-2xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>ניהול פרויקטים</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+              ניהול פרויקטים
+            </h2>
+            <div className="text-sm text-muted-foreground">
+              {projects.length} פרויקטים • {tasks.length} משימות
+            </div>
+          </div>
           
           {projects.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 bg-card rounded-lg border border-border">
               <FolderPlus className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-2">אין פרויקטים במערכת</h3>
-              <p className="text-muted-foreground">צור פרויקט ראשון כדי להתחיל לנהל משימות</p>
+              <p className="text-muted-foreground mb-4">צור פרויקט ראשון כדי להתחיל לנהל משימות</p>
               <button
                 onClick={() => setShowNewProjectForm(true)}
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 <FolderPlus className="h-4 w-4" />
                 צור פרויקט ראשון
@@ -522,7 +490,8 @@ export default function AdminDashboard() {
                   type="text"
                   value={newProjectData.name}
                   onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="הזן שם לפרויקט החדש"
                 />
               </div>
               <div>
@@ -530,22 +499,26 @@ export default function AdminDashboard() {
                 <textarea
                   value={newProjectData.description}
                   onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground h-20"
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent h-20 resize-none"
+                  placeholder="הוסף תיאור לפרויקט"
                 />
               </div>
             </div>
             <div className="p-6 border-t border-border flex gap-3">
               <button
                 onClick={handleCreateProject}
-                disabled={operationLoading || !newProjectData.name}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                disabled={operationLoading || !newProjectData.name.trim()}
+                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {operationLoading ? 'יוצר...' : 'צור פרויקט'}
               </button>
               <button
-                onClick={() => setShowNewProjectForm(false)}
+                onClick={() => {
+                  setShowNewProjectForm(false);
+                  setNewProjectData({ name: '', description: '' });
+                }}
                 disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
+                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
               >
                 ביטול
               </button>

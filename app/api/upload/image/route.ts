@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
 import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth';
-
-// Initialize Supabase client for storage operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,40 +47,31 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `subtasks/${fileName}`;
-
-    // Convert File to ArrayBuffer then to Uint8Array
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-
-    // Upload to Supabase storage
-    const { data, error } = await supabase.storage
-      .from('subtask-images')
-      .upload(filePath, uint8Array, {
-        contentType: file.type,
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (error) {
-      console.error('Supabase upload error:', error);
-      return NextResponse.json(
-        { error: 'Failed to upload image', success: false },
-        { status: 500 }
-      );
+    
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'subtasks');
+    try {
+      await mkdir(uploadsDir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('subtask-images')
-      .getPublicUrl(filePath);
+    // Save file to local storage
+    const filePath = join(uploadsDir, fileName);
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    
+    await writeFile(filePath, buffer);
+
+    // Generate public URL
+    const publicUrl = `/uploads/subtasks/${fileName}`;
 
     return NextResponse.json({
       success: true,
       data: {
         fileName: fileName,
-        filePath: filePath,
-        publicUrl: urlData.publicUrl,
+        filePath: `subtasks/${fileName}`,
+        publicUrl: publicUrl,
         fileSize: file.size,
         fileType: file.type
       },

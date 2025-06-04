@@ -10,6 +10,18 @@
           "--access-token",
           "sbp_34eed4b68881f5b87ed47a9e31a59e0221a94ece"
         ]
+      },
+      "MongoDB": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@mongodb-js/mongodb-mcp-server"
+        ],
+        "env": {
+          "MDB_MCP_API_CLIENT_ID": "ladjlycy",
+          "MDB_MCP_API_CLIENT_SECRET": "8a4d74d0-515f-47f5-ab8d-59907e97fd48",
+          "MDB_MCP_CONNECTION_STRING": "mongodb+srv://daniellevy:daniellevy@drivershubcluster.rxun1vo.mongodb.net/?retryWrites=true&w=majority&appName=drivershubcluster"
+        }
       }
     }
   }

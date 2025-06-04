@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
+import { auth, requireAdmin } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -8,16 +10,14 @@ export async function GET(
   try {
     const { key } = await params;
 
-    const { data: setting, error } = await supabase
-      .from('daily_updates_settings')
-      .select('value')
-      .eq('key', key)
-      .single();
+    const setting = await db.getDailyUpdateSetting(key);
 
-    if (error) {
-      console.error('❌ Error fetching setting:', error);
+    if (!setting) {
+      logger.warn('Daily update setting not found', 'DAILY_UPDATES_SETTINGS_API', { key });
       return NextResponse.json({ error: 'Setting not found' }, { status: 404 });
     }
+
+    logger.info('Daily update setting fetched successfully', 'DAILY_UPDATES_SETTINGS_API', { key });
 
     return NextResponse.json({ 
       success: true, 
@@ -25,7 +25,7 @@ export async function GET(
       value: setting.value 
     });
   } catch (error) {
-    console.error('❌ Unexpected error in settings GET:', error);
+    logger.error('Error fetching daily update setting', 'DAILY_UPDATES_SETTINGS_API', { key: (await params).key }, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -35,6 +35,10 @@ export async function PUT(
   { params }: { params: Promise<{ key: string }> }
 ) {
   try {
+    // Check authentication - admin required for updating settings
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
+
     const { key } = await params;
     const body = await request.json();
     const { value } = body;
@@ -45,29 +49,33 @@ export async function PUT(
       }, { status: 400 });
     }
 
-    // Upsert the setting
-    const { data: setting, error } = await supabase
-      .from('daily_updates_settings')
-      .upsert({ 
-        key, 
-        value: value.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    // Upsert the setting in MongoDB
+    const success = await db.upsertDailyUpdateSetting(key, value.trim());
 
-    if (error) {
-      console.error('❌ Error updating setting:', error);
+    if (!success) {
+      logger.error('Failed to update daily update setting', 'DAILY_UPDATES_SETTINGS_API', { key, userId: user?.id });
       return NextResponse.json({ error: 'Failed to update setting' }, { status: 500 });
     }
 
-    console.log('✅ Setting updated:', key);
+    logger.info('Daily update setting updated successfully', 'DAILY_UPDATES_SETTINGS_API', { 
+      key, 
+      userId: user?.id 
+    });
+
     return NextResponse.json({ 
       success: true, 
-      setting 
+      key,
+      value: value.trim()
     });
   } catch (error) {
-    console.error('❌ Unexpected error in settings PUT:', error);
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+
+    logger.error('Error updating daily update setting', 'DAILY_UPDATES_SETTINGS_API', { key: (await params).key }, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

@@ -1,44 +1,172 @@
-import { MongoClient, Db, Collection, Document } from 'mongodb';
+import { MongoClient, Db, Collection, ObjectId, Document } from 'mongodb';
+import { logger } from './logger';
 
-// MongoDB connection configuration
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MDB_MCP_CONNECTION_STRING;
-const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'eyetask';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI or MDB_MCP_CONNECTION_STRING environment variable');
+export interface DatabaseCollections {
+  projects: Collection;
+  tasks: Collection;
+  subtasks: Collection;
+  appUsers: Collection;
+  analytics: Collection;
+  dailyUpdates: Collection;
+  dailyUpdatesSettings: Collection;
 }
 
-// Global MongoDB connection (for serverless environments)
-declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
-}
+class MongoDBConnection {
+  private client: MongoClient | null = null;
+  private db: Db | null = null;
+  private connectionPromise: Promise<MongoClient> | null = null;
 
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable to preserve the client across module reloads
-  if (!global._mongoClientPromise) {
-    const client = new MongoClient(MONGODB_URI);
-    global._mongoClientPromise = client.connect();
+  constructor() {
+    this.validateEnvironment();
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  // In production mode, create a new client
-  const client = new MongoClient(MONGODB_URI);
-  clientPromise = client.connect();
+
+  private validateEnvironment() {
+    const uri = process.env.MONGODB_URI;
+    const dbName = process.env.MONGODB_DB_NAME;
+
+    if (!uri) {
+      throw new Error('MONGODB_URI environment variable is not set');
+    }
+    if (!dbName) {
+      throw new Error('MONGODB_DB_NAME environment variable is not set');
+    }
+  }
+
+  async connect(): Promise<MongoClient> {
+    if (this.client) {
+      try {
+        // Test if the connection is still alive
+        await this.client.db('admin').command({ ping: 1 });
+        return this.client;
+      } catch (error) {
+        // Connection is dead, reset and reconnect
+        this.client = null;
+        this.db = null;
+      }
+    }
+
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    this.connectionPromise = this.establishConnection();
+    return this.connectionPromise;
+  }
+
+  private async establishConnection(): Promise<MongoClient> {
+    try {
+      const uri = process.env.MONGODB_URI!;
+      const dbName = process.env.MONGODB_DB_NAME!;
+
+      this.client = new MongoClient(uri, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+
+      await this.client.connect();
+      this.db = this.client.db(dbName);
+
+      logger.info('MongoDB connected successfully', 'MONGODB_CONNECTION', {
+        database: dbName,
+        collections: await this.db.listCollections().toArray().then(cols => cols.length)
+      });
+
+      return this.client;
+    } catch (error) {
+      this.connectionPromise = null;
+      logger.error('Failed to connect to MongoDB', 'MONGODB_CONNECTION', undefined, error as Error);
+      throw error;
+    }
+  }
+
+  async getDatabase(): Promise<Db> {
+    if (!this.db) {
+      await this.connect();
+    }
+    return this.db!;
+  }
+
+  async getCollections(): Promise<DatabaseCollections> {
+    const db = await this.getDatabase();
+    
+    return {
+      projects: db.collection('projects'),
+      tasks: db.collection('tasks'),
+      subtasks: db.collection('subtasks'),
+      appUsers: db.collection('appUsers'),
+      analytics: db.collection('analytics'),
+      dailyUpdates: db.collection('dailyUpdates'),
+      dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
+    };
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.client) {
+      await this.client.close();
+      this.client = null;
+      this.db = null;
+      this.connectionPromise = null;
+      logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const db = await this.getDatabase();
+      await db.admin().ping();
+      logger.info('MongoDB connection test successful', 'MONGODB_TEST');
+      return true;
+    } catch (error) {
+      logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
+      return false;
+    }
+  }
 }
 
-export async function getMongoClient(): Promise<MongoClient> {
-  return clientPromise;
+// Create a singleton instance
+const mongodb = new MongoDBConnection();
+
+// Export the singleton and utilities
+export { mongodb };
+export { ObjectId };
+
+// Helper function to convert string ID to ObjectId
+export function toObjectId(id: string): ObjectId {
+  try {
+    return new ObjectId(id);
+  } catch (error) {
+    throw new Error(`Invalid ObjectId format: ${id}`);
+  }
 }
 
-export async function getMongoDb(): Promise<Db> {
-  const client = await getMongoClient();
-  return client.db(MONGODB_DB_NAME);
+// Helper function to safely convert ObjectId to string
+export function fromObjectId(id: ObjectId | string): string {
+  return typeof id === 'string' ? id : id.toString();
 }
 
-export async function getCollection<T extends Document = Document>(collectionName: string): Promise<Collection<T>> {
-  const db = await getMongoDb();
+// Error handling helper
+export function handleMongoError(error: any, operation: string) {
+  const errorMessage = error?.message || error?.toString() || 'Unknown error';
+  const errorCode = error?.code || 'UNKNOWN';
+  
+  logger.error(
+    `MongoDB ${operation} failed`,
+    'MONGODB_ERROR',
+    {
+      operation,
+      errorCode,
+      errorMessage
+    },
+    error
+  );
+  
+  throw error;
+}
+
+// Helper function to get a collection
+async function getCollection<T extends Document = Document>(collectionName: string) {
+  const db = await mongodb.getDatabase();
   return db.collection<T>(collectionName);
 }
 
@@ -184,4 +312,4 @@ export class MongoAnalytics {
   }
 }
 
-export default clientPromise; 
+export default mongodb.connect(); 

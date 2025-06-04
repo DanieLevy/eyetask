@@ -1,23 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSuccessResponse, withApiHandler } from '@/lib/middleware';
-import { healthCheck } from '@/lib/data';
-import { getDatabase } from '@/lib/database';
-import { logger, AppError } from '@/lib/logger';
+import { db } from '@/lib/database';
+import { mongodb } from '@/lib/mongodb';
+import { logger } from '@/lib/logger';
 
 // GET /api/health - Health check endpoint
-export const GET = withApiHandler(async (req: NextRequest) => {
+export async function GET(req: NextRequest) {
   try {
-    // Perform comprehensive health checks
-    const systemHealth = await healthCheck();
-    
-    // Test database connectivity
-    const db = getDatabase();
+    // Test MongoDB database connectivity
     let dbStatus = 'disconnected';
+    let dbDetails = {};
     try {
-      await db.getAllProjects();
-      dbStatus = 'connected';
+      const isConnected = await mongodb.testConnection();
+      if (isConnected) {
+        const projects = await db.getAllProjects();
+        dbStatus = 'connected';
+        dbDetails = {
+          projectCount: projects.length,
+          connectionType: 'MongoDB Atlas'
+        };
+      }
     } catch (error) {
       logger.warn('Database health check failed', 'HEALTH', { error: (error as Error).message });
+      dbDetails = {
+        error: (error as Error).message
+      };
     }
     
     // Check memory usage
@@ -28,7 +34,7 @@ export const GET = withApiHandler(async (req: NextRequest) => {
     const uptime = process.uptime();
     
     const healthData = {
-      status: systemHealth.status,
+      status: dbStatus === 'connected' && memoryUsagePercent < 90 ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
@@ -43,34 +49,50 @@ export const GET = withApiHandler(async (req: NextRequest) => {
         usage: Math.round(memoryUsagePercent),
         external: Math.round(memoryUsage.external / 1024 / 1024), // MB
       },
-      system: systemHealth.checks,
       database: {
         status: dbStatus,
-        type: 'in_memory'
+        type: 'MongoDB',
+        ...dbDetails
       },
       features: {
         auth: true,
         projects: true,
         tasks: true,
         subtasks: true,
-        analytics: true
+        analytics: true,
+        dailyUpdates: true
       }
     };
     
     // Determine overall status
-    const isHealthy = systemHealth.status === 'healthy' && memoryUsagePercent < 90 && dbStatus === 'connected';
+    const isHealthy = dbStatus === 'connected' && memoryUsagePercent < 90;
+    const statusCode = isHealthy ? 200 : 503;
+    const message = isHealthy ? 'Service is healthy' : 'Service degraded';
     
     if (!isHealthy) {
       logger.warn('Health check failed', 'HEALTH', healthData);
-      return createSuccessResponse(healthData, 'Service degraded', 503, (req as any).requestId);
+    } else {
+      logger.info('Health check passed', 'HEALTH', { 
+        status: healthData.status,
+        dbStatus,
+        memoryUsage: healthData.memory.usage 
+      });
     }
     
-    return createSuccessResponse(healthData, 'Service is healthy', 200, (req as any).requestId);
+    return NextResponse.json({
+      success: isHealthy,
+      message,
+      data: healthData
+    }, { status: statusCode });
   } catch (error) {
     logger.error('Health check error', 'HEALTH', undefined, error as Error);
-    throw new AppError('Health check failed', 500, 'HEALTH');
+    return NextResponse.json({
+      success: false,
+      message: 'Health check failed',
+      error: 'Internal server error'
+    }, { status: 500 });
   }
-});
+}
 
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);

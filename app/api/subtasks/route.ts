@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllSubtasks, createSubtask } from '@/lib/data';
+import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { fromObjectId } from '@/lib/mongodb';
 
 // GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
@@ -15,26 +16,50 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const taskIdFilter = searchParams.get('taskId');
     
-    const subtasks = await getAllSubtasks();
-    
-    // If not admin, filter to only show subtasks from visible tasks
-    let filteredSubtasks = subtasks;
-    if (!isAdmin) {
-      // Get all tasks and filter subtasks by visible tasks only
-      const { getAllTasks } = await import('@/lib/data');
-      const allTasks = await getAllTasks();
-      const visibleTaskIds = new Set(allTasks.filter(task => task.isVisible).map(task => task.id));
-      filteredSubtasks = subtasks.filter(subtask => visibleTaskIds.has(subtask.taskId));
+    let subtasks;
+    if (taskIdFilter) {
+      // Get subtasks for a specific task
+      const subtaskResults = await db.getSubtasksByTask(taskIdFilter);
+      subtasks = subtaskResults.map(subtask => ({
+        id: fromObjectId(subtask._id!),
+        taskId: fromObjectId(subtask.taskId),
+        title: subtask.title,
+        subtitle: subtask.subtitle,
+        image: subtask.image,
+        datacoNumber: subtask.datacoNumber,
+        type: subtask.type,
+        amountNeeded: subtask.amountNeeded,
+        labels: subtask.labels,
+        targetCar: subtask.targetCar,
+        weather: subtask.weather,
+        scene: subtask.scene,
+        createdAt: subtask.createdAt.toISOString(),
+        updatedAt: subtask.updatedAt.toISOString()
+      }));
+    } else {
+      // Get all subtasks (we need to implement this or return error)
+      return NextResponse.json(
+        { error: 'taskId parameter is required', success: false },
+        { status: 400 }
+      );
     }
     
-    // Apply taskId filter if provided
-    if (taskIdFilter) {
-      filteredSubtasks = filteredSubtasks.filter(subtask => subtask.taskId === taskIdFilter);
+    // If not admin, filter to only show subtasks from visible tasks
+    if (!isAdmin) {
+      // Get the task to check if it's visible
+      const task = await db.getTaskById(taskIdFilter!);
+      if (!task || !task.isVisible) {
+        return NextResponse.json({
+          subtasks: [],
+          total: 0,
+          success: true
+        });
+      }
     }
     
     return NextResponse.json({
-      subtasks: filteredSubtasks,
-      total: filteredSubtasks.length,
+      subtasks,
+      total: subtasks.length,
       success: true
     }, {
       headers: {
@@ -125,9 +150,37 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const newSubtask = await createSubtask(body);
+    // Create the subtask
+    const subtaskId = await db.createSubtask(body);
     
-    return NextResponse.json({ subtask: newSubtask, success: true }, { status: 201 });
+    // Get the created subtask to return
+    const subtaskResult = await db.getSubtaskById(subtaskId);
+    if (!subtaskResult) {
+      return NextResponse.json(
+        { error: 'Failed to retrieve created subtask', success: false },
+        { status: 500 }
+      );
+    }
+
+    // Convert to API format
+    const subtask = {
+      id: fromObjectId(subtaskResult._id!),
+      taskId: fromObjectId(subtaskResult.taskId),
+      title: subtaskResult.title,
+      subtitle: subtaskResult.subtitle,
+      image: subtaskResult.image,
+      datacoNumber: subtaskResult.datacoNumber,
+      type: subtaskResult.type,
+      amountNeeded: subtaskResult.amountNeeded,
+      labels: subtaskResult.labels,
+      targetCar: subtaskResult.targetCar,
+      weather: subtaskResult.weather,
+      scene: subtaskResult.scene,
+      createdAt: subtaskResult.createdAt.toISOString(),
+      updatedAt: subtaskResult.updatedAt.toISOString()
+    };
+    
+    return NextResponse.json({ subtask, success: true }, { status: 201 });
   } catch (error) {
     console.error('Error creating subtask:', error);
     

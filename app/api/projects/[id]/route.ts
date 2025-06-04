@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProjectById, updateProject, deleteProject } from '@/lib/data';
+import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 
 interface RouteParams {
@@ -22,7 +22,7 @@ export async function GET(
       );
     }
     
-    const project = await getProjectById(id);
+    const project = await db.getProjectById(id);
     
     if (!project) {
       return NextResponse.json(
@@ -73,17 +73,26 @@ export async function PUT(
       );
     }
     
-    const updatedProject = await updateProject(id, body);
+    const updated = await db.updateProject(id, body);
     
-    if (!updatedProject) {
+    if (!updated) {
       return NextResponse.json(
-        { error: 'Project not found', success: false },
+        { error: 'Project not found or not updated', success: false },
+        { status: 404 }
+      );
+    }
+    
+    // Get the updated project to return
+    const project = await db.getProjectById(id);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found after update', success: false },
         { status: 404 }
       );
     }
     
     return NextResponse.json({ 
-      project: updatedProject, 
+      project, 
       message: 'Project updated successfully',
       success: true 
     });
@@ -115,7 +124,7 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const deleted = await deleteProject(id);
+    const deleted = await db.deleteProject(id);
     
     if (!deleted) {
       return NextResponse.json(

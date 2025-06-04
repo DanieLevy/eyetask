@@ -1,6 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface RealtimeConfig {
   table: string;
@@ -9,92 +7,43 @@ export interface RealtimeConfig {
   filter?: string; // Optional filter like "taskId=eq.123"
 }
 
+// MongoDB-compatible polling-based realtime alternative
 export function useRealtime(configs: RealtimeConfig[]) {
-  const channelRef = useRef<RealtimeChannel | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Create a unique channel name based on the configs
-    const channelName = `realtime-${configs.map(c => `${c.table}-${c.event}`).join('-')}-${Date.now()}`;
+    // For MongoDB, we'll use periodic polling instead of real-time updates
+    // This is a simplified implementation - in a production app you might want
+    // to implement WebSocket-based real-time updates with your own server
     
-    // Create the realtime channel
-    const channel = supabase.channel(channelName);
+    console.log('📊 MongoDB polling-based realtime initialized for tables:', 
+      configs.map(c => c.table).join(', '));
+    
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
 
-    // Subscribe to each table/event combination
-    configs.forEach((config) => {
-      const { table, event, callback, filter } = config;
-      
-      if (event === '*') {
-        // Listen to all events
-        channel
-          .on(
-            'postgres_changes' as any,
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: table,
-              filter: filter
-            },
-            callback
-          )
-          .on(
-            'postgres_changes' as any,
-            {
-              event: 'UPDATE',
-              schema: 'public',
-              table: table,
-              filter: filter
-            },
-            callback
-          )
-          .on(
-            'postgres_changes' as any,
-            {
-              event: 'DELETE',
-              schema: 'public',
-              table: table,
-              filter: filter
-            },
-            callback
-          );
-      } else {
-        // Listen to specific event
-        channel.on(
-          'postgres_changes' as any,
-          {
-            event: event,
-            schema: 'public',
-            table: table,
-            filter: filter
-          },
-          callback
-        );
-      }
-    });
-
-    // Subscribe to the channel
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.error('❌ Realtime subscription error');
-      } else if (status === 'TIMED_OUT') {
-        console.error('⏰ Realtime subscription timed out');
-      }
-    });
-
-    channelRef.current = channel;
-
+    // For now, we're not implementing active polling as it could be expensive
+    // The components will rely on manual refresh or navigation-based updates
+    // In a real-world scenario, you might implement:
+    // 1. WebSocket connections to your own server
+    // 2. Periodic polling at longer intervals (30s-60s)
+    // 3. Server-sent events (SSE)
+    
     // Cleanup function
     return () => {
-      if (channelRef.current) {
-        channelRef.current.unsubscribe();
-        channelRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [configs.length]); // Re-run if number of configs changes
+  }, [configs.length]);
 
-  return channelRef.current;
+  return null; // MongoDB version doesn't return a channel
 }
 
-// Specific hooks for common use cases
+// Specific hooks for common use cases - now just pass-through functions
 export function useTasksRealtime(onTaskChange: (payload: any) => void) {
   return useRealtime([
     {

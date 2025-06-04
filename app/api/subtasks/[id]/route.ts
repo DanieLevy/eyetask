@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSubtaskById, updateSubtask, deleteSubtask } from '@/lib/data';
+import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { fromObjectId } from '@/lib/mongodb';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -14,14 +15,32 @@ export async function GET(
   try {
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const subtask = await getSubtaskById(id);
+    const subtaskResult = await db.getSubtaskById(id);
     
-    if (!subtask) {
+    if (!subtaskResult) {
       return NextResponse.json(
         { error: 'Subtask not found', success: false },
         { status: 404 }
       );
     }
+
+    // Convert MongoDB result to API format
+    const subtask = {
+      id: fromObjectId(subtaskResult._id!),
+      taskId: fromObjectId(subtaskResult.taskId),
+      title: subtaskResult.title,
+      subtitle: subtaskResult.subtitle,
+      image: subtaskResult.image,
+      datacoNumber: subtaskResult.datacoNumber,
+      type: subtaskResult.type,
+      amountNeeded: subtaskResult.amountNeeded,
+      labels: subtaskResult.labels,
+      targetCar: subtaskResult.targetCar,
+      weather: subtaskResult.weather,
+      scene: subtaskResult.scene,
+      createdAt: subtaskResult.createdAt.toISOString(),
+      updatedAt: subtaskResult.updatedAt.toISOString()
+    };
 
     return NextResponse.json({
       subtask,
@@ -56,17 +75,44 @@ export async function PUT(
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
     const body = await request.json();
-    const updatedSubtask = await updateSubtask(id, body);
+    const updated = await db.updateSubtask(id, body);
     
-    if (!updatedSubtask) {
+    if (!updated) {
       return NextResponse.json(
         { error: 'Failed to update subtask', success: false },
         { status: 500 }
       );
     }
 
+    // Get the updated subtask to return
+    const subtaskResult = await db.getSubtaskById(id);
+    if (!subtaskResult) {
+      return NextResponse.json(
+        { error: 'Subtask not found after update', success: false },
+        { status: 404 }
+      );
+    }
+
+    // Convert MongoDB result to API format
+    const subtask = {
+      id: fromObjectId(subtaskResult._id!),
+      taskId: fromObjectId(subtaskResult.taskId),
+      title: subtaskResult.title,
+      subtitle: subtaskResult.subtitle,
+      image: subtaskResult.image,
+      datacoNumber: subtaskResult.datacoNumber,
+      type: subtaskResult.type,
+      amountNeeded: subtaskResult.amountNeeded,
+      labels: subtaskResult.labels,
+      targetCar: subtaskResult.targetCar,
+      weather: subtaskResult.weather,
+      scene: subtaskResult.scene,
+      createdAt: subtaskResult.createdAt.toISOString(),
+      updatedAt: subtaskResult.updatedAt.toISOString()
+    };
+
     return NextResponse.json({
-      subtask: updatedSubtask,
+      subtask,
       message: 'Subtask updated successfully',
       success: true,
     });
@@ -98,7 +144,7 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const deleted = await deleteSubtask(id);
+    const deleted = await db.deleteSubtask(id);
     
     if (!deleted) {
       return NextResponse.json(

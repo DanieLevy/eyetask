@@ -10,7 +10,7 @@ interface DailyUpdate {
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
-  is_pinned: boolean;
+  isPinned: boolean;
 }
 
 interface DailyUpdatesCarouselProps {
@@ -30,7 +30,6 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
 
   const fetchData = async () => {
     try {
-      // Fetch both updates and fallback message
       const [updatesResponse, settingsResponse] = await Promise.all([
         fetch('/api/daily-updates', {
           headers: {
@@ -51,20 +50,26 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         if (updatesData.success && updatesData.updates) {
           // Filter and prioritize updates
           const activeUpdates = updatesData.updates
-            .filter((update: DailyUpdate) => update.is_pinned || update.priority <= 3)
+            .filter((update: DailyUpdate) => update.isPinned || update.priority <= 3)
             .slice(0, 5); // Show max 5 updates in carousel
           setUpdates(activeUpdates);
         }
       }
 
+      // Handle fallback message setting - provide default if it doesn't exist
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
         if (settingsData.success && settingsData.value) {
           setFallbackMessage(settingsData.value);
         }
+      } else {
+        // Set default fallback message if setting doesn't exist
+        setFallbackMessage('Welcome to EyeTask! Check back later for important updates and announcements.');
       }
     } catch (error) {
       console.error('❌ Error fetching carousel data:', error);
+      // Set default fallback message on error
+      setFallbackMessage('Welcome to EyeTask! Check back later for important updates and announcements.');
     } finally {
       setLoading(false);
     }
@@ -294,7 +299,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 </div>
 
                 {/* Priority Badge */}
-                {hasUpdates && currentUpdate!.is_pinned && (
+                {hasUpdates && currentUpdate!.isPinned && (
                   <div className="flex-shrink-0">
                     <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
                   </div>
@@ -332,7 +337,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                   `} />
                   
                   {/* Priority indicator */}
-                  {update.is_pinned && (
+                  {update.isPinned && (
                     <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-yellow-400 rounded-full animate-pulse"></div>
                   )}
                 </button>

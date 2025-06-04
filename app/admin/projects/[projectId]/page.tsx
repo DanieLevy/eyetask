@@ -488,27 +488,27 @@ export default function ProjectManagement() {
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="font-medium text-foreground truncate flex-1 min-w-0">{task.title}</h4>
                             <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded font-mono flex-shrink-0">
-                              {task.datacoNumber}
-                            </span>
-                            {task.priority > 0 && (
+                            {task.datacoNumber}
+                          </span>
+                          {task.priority > 0 && (
                               <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${getPriorityColor(task.priority)}`}>
-                                {getPriorityLabel(task.priority)}
-                              </span>
-                            )}
-                            {!task.isVisible && (
+                              {getPriorityLabel(task.priority)}
+                            </span>
+                          )}
+                          {!task.isVisible && (
                               <span className="text-xs text-red-500 px-2 py-1 bg-red-50 rounded flex items-center gap-1 flex-shrink-0">
-                                <EyeOff className="h-3 w-3" />
-                                מוסתר
-                              </span>
-                            )}
-                          </div>
+                              <EyeOff className="h-3 w-3" />
+                              מוסתר
+                            </span>
+                          )}
+                        </div>
                           
                           {/* Subtitle */}
-                          {task.subtitle && (
+                        {task.subtitle && (
                             <p className="text-sm text-muted-foreground line-clamp-1">{task.subtitle}</p>
                           )}
                         </div>
-                      </Link>
+                        </Link>
                       
                       {/* Action buttons - positioned on the right side */}
                       <div className="absolute top-2 right-2 flex items-center gap-1">
@@ -573,9 +573,9 @@ export default function ProjectManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      value={newTaskData.datacoNumber}
+                  <input
+                    type="text"
+                    value={newTaskData.datacoNumber}
                       onChange={(e) => handleDatacoNumberChange(e.target.value)}
                       className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
                       placeholder="הזן מספר"
@@ -685,10 +685,10 @@ export default function ProjectManagement() {
               {/* Target Cars (Editable input) */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
-                <input
+                      <input
                   type="text"
                   value={newTaskData.targetCar.join(' ')}
-                  onChange={(e) => {
+                        onChange={(e) => {
                     const carsText = e.target.value;
                     const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
                     setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
@@ -704,10 +704,10 @@ export default function ProjectManagement() {
                         key={index}
                         className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
                       >
-                        {car}
+                      {car}
                       </span>
-                    ))}
-                  </div>
+                  ))}
+                </div>
                 )}
               </div>
 

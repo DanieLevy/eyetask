@@ -1,36 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { db } from '@/lib/database';
+import { auth, requireAdmin } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { toObjectId } from '@/lib/mongodb';
 
 export async function GET() {
   try {
-    // Fetch active, non-expired daily updates
-    const { data: updates, error } = await supabase
-      .from('daily_updates')
-      .select('*')
-      .eq('is_active', true)
-      .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-      .order('is_pinned', { ascending: false })
-      .order('priority', { ascending: true })
-      .order('created_at', { ascending: false });
+    // Fetch active, non-expired daily updates from MongoDB
+    const updates = await db.getActiveDailyUpdates();
 
-    if (error) {
-      console.error('❌ Error fetching daily updates:', error);
-      return NextResponse.json({ error: 'Failed to fetch daily updates' }, { status: 500 });
-    }
+    logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { count: updates.length });
 
     return NextResponse.json({ 
       success: true, 
-      updates: updates || [],
-      count: updates?.length || 0
+      updates: updates.map(update => ({
+        id: update._id?.toString(),
+        title: update.title,
+        content: update.content,
+        type: update.type,
+        priority: update.priority,
+        durationType: update.durationType,
+        durationValue: update.durationValue,
+        expiresAt: update.expiresAt?.toISOString(),
+        isActive: update.isActive,
+        isPinned: update.isPinned,
+        targetAudience: update.targetAudience,
+        createdAt: update.createdAt.toISOString(),
+        updatedAt: update.updatedAt.toISOString()
+      })),
+      count: updates.length
     });
   } catch (error) {
-    console.error('❌ Unexpected error in daily updates GET:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    logger.error('Error fetching daily updates', 'DAILY_UPDATES_API', undefined, error as Error);
+    return NextResponse.json({ error: 'Failed to fetch daily updates' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication - admin required for creating updates
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
+
     const body = await request.json();
     
     const { 
@@ -38,10 +49,10 @@ export async function POST(request: NextRequest) {
       content, 
       type = 'info',
       priority = 5,
-      duration_type = 'hours',
-      duration_value = 24,
-      is_pinned = false,
-      target_audience = []
+      durationType = 'hours',
+      durationValue = 24,
+      isPinned = false,
+      targetAudience = []
     } = body;
 
     // Validate required fields
@@ -60,9 +71,9 @@ export async function POST(request: NextRequest) {
     }
 
     const validDurationTypes = ['hours', 'days', 'permanent'];
-    if (!validDurationTypes.includes(duration_type)) {
+    if (!validDurationTypes.includes(durationType)) {
       return NextResponse.json({ 
-        error: 'Invalid duration_type. Must be one of: ' + validDurationTypes.join(', ') 
+        error: 'Invalid durationType. Must be one of: ' + validDurationTypes.join(', ') 
       }, { status: 400 });
     }
 
@@ -72,34 +83,49 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Insert new daily update
-    const { data: newUpdate, error } = await supabase
-      .from('daily_updates')
-      .insert({
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        priority,
-        duration_type,
-        duration_value: duration_type === 'permanent' ? null : duration_value,
-        is_pinned,
-        target_audience
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error creating daily update:', error);
-      return NextResponse.json({ error: 'Failed to create daily update' }, { status: 500 });
+    // Calculate expiration date
+    let expiresAt: Date | undefined;
+    if (durationType !== 'permanent') {
+      const now = new Date();
+      const duration = durationType === 'hours' ? durationValue * 60 * 60 * 1000 : durationValue * 24 * 60 * 60 * 1000;
+      expiresAt = new Date(now.getTime() + duration);
     }
 
-    console.log('✅ Daily update created:', newUpdate.id);
+    // Create new daily update in MongoDB
+    const updateId = await db.createDailyUpdate({
+      title: title.trim(),
+      content: content.trim(),
+      type,
+      priority,
+      durationType,
+      durationValue: durationType === 'permanent' ? undefined : durationValue,
+      expiresAt,
+      isActive: true,
+      isPinned,
+      targetAudience,
+      createdBy: user ? toObjectId(user.id) : undefined
+    });
+
+    logger.info('Daily update created successfully', 'DAILY_UPDATES_API', { 
+      updateId, 
+      title: title.trim(),
+      type,
+      userId: user?.id 
+    });
+
     return NextResponse.json({ 
       success: true, 
-      update: newUpdate 
+      updateId
     }, { status: 201 });
   } catch (error) {
-    console.error('❌ Unexpected error in daily updates POST:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+
+    logger.error('Error creating daily update', 'DAILY_UPDATES_API', undefined, error as Error);
+    return NextResponse.json({ error: 'Failed to create daily update' }, { status: 500 });
   }
 } 

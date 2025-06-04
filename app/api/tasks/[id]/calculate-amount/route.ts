@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateTaskAmount } from '@/lib/data';
-import { extractTokenFromHeader, requireAuth, isAdmin } from '@/lib/auth';
+import { db } from '@/lib/database';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// Helper function to calculate and update task amount from subtasks
+async function updateTaskAmount(taskId: string): Promise<boolean> {
+  try {
+    // Get all subtasks for this task
+    const subtasks = await db.getSubtasksByTask(taskId);
+    
+    // Calculate total amount needed from subtasks
+    const totalAmount = subtasks.reduce((sum, subtask) => {
+      return sum + (subtask.amountNeeded || 0);
+    }, 0);
+    
+    // Update the task with the calculated amount
+    return await db.updateTask(taskId, { amountNeeded: totalAmount });
+  } catch (error) {
+    console.error('Error updating task amount:', error);
+    return false;
+  }
 }
 
 // POST /api/tasks/[id]/calculate-amount - Recalculate task amount from subtasks (admin only)
@@ -14,9 +33,9 @@ export async function POST(
   try {
     const authHeader = request.headers.get('Authorization');
     const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = requireAuth(token);
+    const { authorized, user } = await requireAuthEnhanced(token);
 
-    if (!authorized || !isAdmin(user)) {
+    if (!authorized || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
@@ -27,7 +46,14 @@ export async function POST(
     const { id } = await params;
     
     // Update task amount based on subtasks
-    await updateTaskAmount(id);
+    const updated = await updateTaskAmount(id);
+    
+    if (!updated) {
+      return NextResponse.json(
+        { error: 'Failed to recalculate task amount', success: false },
+        { status: 500 }
+      );
+    }
     
     return NextResponse.json({
       message: 'Task amount recalculated successfully',

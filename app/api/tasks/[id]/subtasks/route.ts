@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSubtasksByTaskId, createSubtask, getTaskById, incrementPageView } from '@/lib/data';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { createSuccessResponse } from '@/lib/middleware';
+import { db } from '@/lib/database';
+import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { toObjectId, fromObjectId } from '@/lib/mongodb';
 
 const subtaskSchema = {
   title: { required: true, type: 'string', minLength: 1, maxLength: 200 },
@@ -17,6 +17,17 @@ const subtaskSchema = {
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// Simple analytics tracking function
+async function trackPageView(page: string) {
+  try {
+    // Use the properly typed incrementPageView function
+    await db.incrementPageView(page);
+  } catch (error) {
+    // Non-critical error, just log it
+    logger.warn('Failed to track page view', 'ANALYTICS', { page, error: (error as Error).message });
+  }
 }
 
 // GET /api/tasks/[id]/subtasks - Get all subtasks for a task (PUBLIC ACCESS)
@@ -39,7 +50,7 @@ export async function GET(
     }
     
     // Check if task exists and is visible (no authentication required for public access)
-    const task = await getTaskById(taskId);
+    const task = await db.getTaskById(taskId);
     
     if (!task) {
       return NextResponse.json(
@@ -50,10 +61,8 @@ export async function GET(
     
     // For public access, only show subtasks if the parent task is visible
     // For admin access, show all subtasks regardless of visibility
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-    const isAdmin = authorized && isAdminEnhanced(user);
+    const user = auth.extractUserFromRequest(request);
+    const isAdmin = user && user.role === 'admin';
     
     if (!task.isVisible && !isAdmin) {
       return NextResponse.json(
@@ -63,9 +72,15 @@ export async function GET(
     }
     
     // Track page view
-    await incrementPageView(`task-${taskId}-subtasks`);
+    await trackPageView(`task-${taskId}-subtasks`);
     
-    const subtasks = await getSubtasksByTaskId(taskId);
+    const subtasks = await db.getSubtasksByTask(taskId);
+    
+    logger.info('Subtasks fetched successfully', 'SUBTASKS_API', { 
+      taskId, 
+      count: subtasks.length,
+      isAdmin 
+    });
     
     return NextResponse.json({
       success: true,
@@ -84,7 +99,7 @@ export async function GET(
     });
     
   } catch (error) {
-    logger.error('Error fetching subtasks', 'DATA', { taskId }, error as Error);
+    logger.error('Error fetching subtasks', 'SUBTASKS_API', { taskId }, error as Error);
     return NextResponse.json(
       { error: 'Failed to fetch subtasks', success: false },
       { status: 500 }
@@ -112,14 +127,11 @@ export async function POST(
       );
     }
     
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user: authUser } = await requireAuthEnhanced(token);
-    user = authUser;
-    
-    if (!authorized || !isAdminEnhanced(user)) {
+    // Check authentication and admin status
+    user = auth.extractUserFromRequest(request);
+    if (!user || user.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
+        { error: 'Unauthorized access - Admin required', success: false },
         { status: 401 }
       );
     }
@@ -127,14 +139,14 @@ export async function POST(
     const requestBody = await request.json();
     
     // Validate required fields
-    if (!requestBody.title || !requestBody.description) {
+    if (!requestBody.title || !requestBody.datacoNumber) {
       return NextResponse.json(
-        { error: 'Title and description are required', success: false },
+        { error: 'Title and dataco number are required', success: false },
         { status: 400 }
       );
     }
     
-    const task = await getTaskById(taskId);
+    const task = await db.getTaskById(taskId);
     
     if (!task) {
       return NextResponse.json(
@@ -181,20 +193,33 @@ export async function POST(
       );
     }
     
-    // Create subtask with taskId
+    // Create subtask with taskId - convert to ObjectId format for MongoDB
     const subtaskData = {
-      ...requestBody,
-      taskId: taskId,
+      title: requestBody.title,
+      subtitle: requestBody.subtitle || '',
+      image: requestBody.image || '',
+      datacoNumber: requestBody.datacoNumber,
+      type: requestBody.type || 'events',
+      amountNeeded: requestBody.amountNeeded || 1,
+      labels: Array.isArray(requestBody.labels) ? requestBody.labels : [],
+      targetCar: Array.isArray(requestBody.targetCar) ? requestBody.targetCar : [],
+      weather: requestBody.weather || 'Clear',
+      scene: requestBody.scene || 'Urban',
+      taskId: toObjectId(taskId)
     };
     
-    const newSubtask = await createSubtask(subtaskData);
+    const newSubtaskId = await db.createSubtask(subtaskData);
     
-    logger.info('Subtask created successfully', 'SUBTASKS', {
-      subtaskId: newSubtask.id,
+    // Fetch the created subtask to return it
+    const subtasks = await db.getSubtasksByTask(taskId);
+    const newSubtask = subtasks.find(s => fromObjectId(s._id!) === newSubtaskId);
+    
+    logger.info('Subtask created successfully', 'SUBTASKS_API', {
+      subtaskId: newSubtaskId,
       taskId: taskId,
-      title: newSubtask.title,
-      type: newSubtask.type || 'events',
-      amountNeeded: newSubtask.amountNeeded,
+      title: requestBody.title,
+      type: requestBody.type || 'events',
+      amountNeeded: requestBody.amountNeeded,
       userId: user?.id
     });
     
@@ -216,7 +241,7 @@ export async function POST(
     });
     
   } catch (error) {
-    logger.error('Error creating subtask', 'SUBTASKS', { 
+    logger.error('Error creating subtask', 'SUBTASKS_API', { 
       taskId,
       userId: user?.id 
     }, error as Error);

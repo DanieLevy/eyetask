@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTaskById, updateTask } from '@/lib/data';
+import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { fromObjectId } from '@/lib/mongodb';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,7 +25,7 @@ async function handleVisibilityToggle(
     
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const task = await getTaskById(id);
+    const task = await db.getTaskById(id);
     
     if (!task) {
       return NextResponse.json(
@@ -34,19 +35,48 @@ async function handleVisibilityToggle(
     }
     
     // Toggle visibility
-    const updatedTask = await updateTask(id, {
+    const updated = await db.updateTask(id, {
       isVisible: !task.isVisible,
     });
     
-    if (!updatedTask) {
+    if (!updated) {
       return NextResponse.json(
         { error: 'Failed to update task visibility', success: false },
         { status: 500 }
       );
     }
     
+    // Get the updated task to return
+    const updatedTask = await db.getTaskById(id);
+    if (!updatedTask) {
+      return NextResponse.json(
+        { error: 'Task not found after update', success: false },
+        { status: 404 }
+      );
+    }
+
+    // Convert MongoDB result to API format
+    const taskResponse = {
+      id: fromObjectId(updatedTask._id!),
+      title: updatedTask.title,
+      subtitle: updatedTask.subtitle,
+      datacoNumber: updatedTask.datacoNumber,
+      description: updatedTask.description,
+      projectId: fromObjectId(updatedTask.projectId),
+      type: updatedTask.type,
+      locations: updatedTask.locations,
+      amountNeeded: updatedTask.amountNeeded,
+      targetCar: updatedTask.targetCar,
+      lidar: updatedTask.lidar,
+      dayTime: updatedTask.dayTime,
+      priority: updatedTask.priority,
+      isVisible: updatedTask.isVisible,
+      createdAt: updatedTask.createdAt.toISOString(),
+      updatedAt: updatedTask.updatedAt.toISOString()
+    };
+    
     return NextResponse.json({
-      task: updatedTask,
+      task: taskResponse,
       message: `Task ${updatedTask.isVisible ? 'shown' : 'hidden'} successfully`,
       success: true,
     });

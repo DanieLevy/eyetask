@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginUser, initializeAdminUser } from '@/lib/supabase-auth';
+import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
 // POST /api/auth/login - User authentication
 export async function POST(request: NextRequest) {
   try {
-    // Initialize admin user if it doesn't exist (one-time setup)
-    await initializeAdminUser();
-
     const body = await request.json();
     
     // Validate request body
@@ -18,16 +15,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Attempt login with Supabase Auth
-    const result = await loginUser({
+    // Attempt login with MongoDB Auth
+    const result = await auth.login({
       username: body.username,
       password: body.password
     });
 
-    if (result.success && result.user && result.token) {
-      logger.authLog('login_success', result.user.username, true);
+    if (result) {
+      logger.info('User login successful', 'AUTH_API', { 
+        username: result.user.username,
+        email: result.user.email 
+      });
       
-      return NextResponse.json({
+      // Create response with auth cookie
+      const response = NextResponse.json({
         success: true,
         user: {
           id: result.user.id,
@@ -37,16 +38,21 @@ export async function POST(request: NextRequest) {
         },
         token: result.token
       });
+
+      // Set HTTP-only cookie for authentication
+      response.headers.set('Set-Cookie', auth.generateAuthCookie(result.token));
+      
+      return response;
     } else {
-      logger.authLog('login_failed', body.username, false, new Error(result.error || 'Invalid credentials'));
+      logger.warn('User login failed', 'AUTH_API', { username: body.username });
       
       return NextResponse.json(
-        { error: result.error || 'Invalid username or password', success: false },
+        { error: 'Invalid username or password', success: false },
         { status: 401 }
       );
     }
   } catch (error) {
-    logger.error('Login API error', 'API', undefined, error as Error);
+    logger.error('Login API error', 'AUTH_API', undefined, error as Error);
     
     return NextResponse.json(
       { error: 'Internal server error', success: false },

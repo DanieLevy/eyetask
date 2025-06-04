@@ -508,7 +508,7 @@ export default function ProjectPage() {
                                                 <div className="flex flex-wrap gap-2">
                                                   {subtask.labels.map((label, index) => (
                                                     <span 
-                                                      key={index}
+                                                      key={`${subtask.id}-label-${index}-${label}`}
                                                       className="px-3 py-1 bg-black text-white text-sm rounded-md font-medium"
                                                     >
                                                       {label}

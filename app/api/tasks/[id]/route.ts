@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTaskById, updateTask, deleteTask, incrementPageView } from '@/lib/data';
+import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { fromObjectId } from '@/lib/mongodb';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,9 +23,9 @@ export async function GET(
       );
     }
     
-    const task = await getTaskById(id);
+    const taskResult = await db.getTaskById(id);
     
-    if (!task) {
+    if (!taskResult) {
       return NextResponse.json(
         { error: 'Task not found', success: false },
         { status: 404 }
@@ -37,15 +38,35 @@ export async function GET(
     const { authorized, user } = await requireAuthEnhanced(token);
 
     // If task is hidden and user is not admin, return 404
-    if (!task.isVisible && (!authorized || !isAdminEnhanced(user))) {
+    if (!taskResult.isVisible && (!authorized || !isAdminEnhanced(user))) {
       return NextResponse.json(
         { error: 'Task not found', success: false },
         { status: 404 }
       );
     }
 
+    // Convert MongoDB result to API format
+    const task = {
+      id: fromObjectId(taskResult._id!),
+      title: taskResult.title,
+      subtitle: taskResult.subtitle,
+      datacoNumber: taskResult.datacoNumber,
+      description: taskResult.description,
+      projectId: fromObjectId(taskResult.projectId),
+      type: taskResult.type,
+      locations: taskResult.locations,
+      amountNeeded: taskResult.amountNeeded,
+      targetCar: taskResult.targetCar,
+      lidar: taskResult.lidar,
+      dayTime: taskResult.dayTime,
+      priority: taskResult.priority,
+      isVisible: taskResult.isVisible,
+      createdAt: taskResult.createdAt.toISOString(),
+      updatedAt: taskResult.updatedAt.toISOString()
+    };
+
     // Track page view
-    await incrementPageView(`task-${id}`);
+    await db.incrementPageView(`tasks.${id}`);
 
     return NextResponse.json({
       task,
@@ -80,16 +101,45 @@ export async function PUT(
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
     const body = await request.json();
-    const updatedTask = await updateTask(id, body);
+    const updated = await db.updateTask(id, body);
     
-    if (!updatedTask) {
+    if (!updated) {
       return NextResponse.json(
-        { error: 'Task not found', success: false },
+        { error: 'Task not found or not updated', success: false },
         { status: 404 }
       );
     }
     
-    return NextResponse.json({ task: updatedTask, success: true });
+    // Get the updated task to return
+    const taskResult = await db.getTaskById(id);
+    if (!taskResult) {
+      return NextResponse.json(
+        { error: 'Task not found after update', success: false },
+        { status: 404 }
+      );
+    }
+
+    // Convert MongoDB result to API format
+    const task = {
+      id: fromObjectId(taskResult._id!),
+      title: taskResult.title,
+      subtitle: taskResult.subtitle,
+      datacoNumber: taskResult.datacoNumber,
+      description: taskResult.description,
+      projectId: fromObjectId(taskResult.projectId),
+      type: taskResult.type,
+      locations: taskResult.locations,
+      amountNeeded: taskResult.amountNeeded,
+      targetCar: taskResult.targetCar,
+      lidar: taskResult.lidar,
+      dayTime: taskResult.dayTime,
+      priority: taskResult.priority,
+      isVisible: taskResult.isVisible,
+      createdAt: taskResult.createdAt.toISOString(),
+      updatedAt: taskResult.updatedAt.toISOString()
+    };
+    
+    return NextResponse.json({ task, success: true });
   } catch (error) {
     console.error('Error updating task:', error);
     return NextResponse.json(
@@ -118,7 +168,7 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const deleted = await deleteTask(id);
+    const deleted = await db.deleteTask(id);
     
     if (!deleted) {
       return NextResponse.json(

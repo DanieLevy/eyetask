@@ -1,33 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signUpAdmin } from '@/lib/supabase-auth';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 
 // POST /api/auth/setup - One-time admin user setup
 export async function POST(request: NextRequest) {
   try {
-    logger.info('Setting up admin user in Supabase Auth', 'SETUP');
+    const body = await request.json();
     
-    const result = await signUpAdmin();
-    
-    if (result.success) {
-      logger.info('Admin user setup completed', 'SETUP');
-      return NextResponse.json({
-        success: true,
-        message: 'Admin user created successfully',
-        user: result.user
-      });
-    } else {
-      logger.error('Admin user setup failed', 'SETUP', { error: result.error });
+    // Validate request body
+    if (!body.username || !body.email || !body.password) {
       return NextResponse.json({
         success: false,
-        error: result.error || 'Failed to create admin user'
+        error: 'Username, email, and password are required'
+      }, { status: 400 });
+    }
+
+    // Check if any users already exist
+    const existingUser = await db.getUserByUsername(body.username);
+    if (existingUser) {
+      return NextResponse.json({
+        success: false,
+        error: 'Admin user already exists'
+      }, { status: 400 });
+    }
+    
+    logger.info('Setting up admin user in MongoDB', 'SETUP');
+    
+    const result = await auth.register({
+      username: body.username,
+      email: body.email,
+      password: body.password
+    });
+    
+    if (result) {
+      logger.info('Admin user setup completed', 'SETUP', {
+        username: result.user.username,
+        email: result.user.email
+      });
+      
+      // Create response with auth cookie
+      const response = NextResponse.json({
+        success: true,
+        message: 'Admin user created successfully',
+        user: {
+          id: result.user.id,
+          username: result.user.username,
+          email: result.user.email,
+          role: result.user.role
+        },
+        token: result.token
+      });
+
+      // Set HTTP-only cookie for authentication
+      response.headers.set('Set-Cookie', auth.generateAuthCookie(result.token));
+      
+      return response;
+    } else {
+      logger.error('Admin user setup failed', 'SETUP');
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to create admin user'
       }, { status: 400 });
     }
   } catch (error) {
     logger.error('Setup API error', 'SETUP', undefined, error as Error);
     return NextResponse.json({
       success: false,
-      error: 'Internal server error'
+      error: error instanceof Error ? error.message : 'Internal server error'
     }, { status: 500 });
   }
 } 
