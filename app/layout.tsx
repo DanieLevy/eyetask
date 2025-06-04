@@ -7,6 +7,9 @@ import AdminClientLayout from "@/components/AdminClientLayout";
 import { RefreshProvider } from "@/hooks/usePageRefresh";
 import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
 import CSSFailsafe from "@/components/CSSFailsafe";
+import OfflineBanner from "@/components/OfflineBanner";
+import SmartAppBanner from "@/components/SmartAppBanner";
+import DeepLinkHandler from "@/components/DeepLinkHandler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,6 +25,11 @@ export const metadata: Metadata = {
   title: "EyeTask - מערכת ניהול משימות נהגים",
   description: "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favico-ME-icon-black.svg",
+    shortcut: "/favico-ME-icon-black.svg",
+    apple: "/icons/icon-192x192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -48,6 +56,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <head>
+        <link rel="icon" href="/favico-ME-icon-black.svg" type="image/svg+xml" />
+        <link rel="shortcut icon" href="/favico-ME-icon-black.svg" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-touch-fullscreen" content="yes" />
@@ -58,19 +69,23 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <CSSFailsafe />
-        <AdminClientLayout>
-          <RefreshProvider>
-            <GlobalPullToRefresh>
-              <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
-                <Header />
-                <main className="flex-1 overflow-auto bg-background">
-                  {children}
-                </main>
-                <Footer />
-              </div>
-            </GlobalPullToRefresh>
-          </RefreshProvider>
-        </AdminClientLayout>
+        <DeepLinkHandler>
+          <SmartAppBanner />
+          <OfflineBanner />
+          <AdminClientLayout>
+            <RefreshProvider>
+              <GlobalPullToRefresh>
+                <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
+                  <Header />
+                  <main className="flex-1 overflow-auto bg-background">
+                    {children}
+                  </main>
+                  <Footer />
+                </div>
+              </GlobalPullToRefresh>
+            </RefreshProvider>
+          </AdminClientLayout>
+        </DeepLinkHandler>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
   "name": "EyeTask - מערכת ניהול משימות נהגים",
   "short_name": "EyeTask",
   "description": "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
-  "start_url": "/",
+  "start_url": "/?utm_source=pwa&utm_medium=homescreen",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#6366f1",
@@ -11,68 +11,142 @@
   "lang": "he",
   "dir": "rtl",
   "categories": ["productivity", "business", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png",
-      "purpose": "maskable any"
-    },
-    {
-      "src": "/icons/icon-96x96.png",
-      "sizes": "96x96",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "src": "/favico-ME-icon-black.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-128x128.png",
       "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-144x144.png",
       "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-152x152.png",
       "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-384x384.png",
       "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable any"
+      "type": "image/png"
     }
   ],
   "shortcuts": [
     {
-      "name": "דף הבית",
-      "url": "/",
-      "description": "דף הבית של EyeTask"
+      "name": "לוח בקרה",
+      "short_name": "דשבורד",
+      "description": "צפה בסטטיסטיקות ונתונים מהירים",
+      "url": "/admin/dashboard?utm_source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
-      "name": "ניהול מנהל",
-      "url": "/admin",
-      "description": "כניסה לפאנל ניהול"
+      "name": "משימות חדשות",
+      "short_name": "משימות",
+      "description": "צור משימה חדשה במהירות",
+      "url": "/admin/tasks/new?utm_source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "ניתוח נתונים",
+      "short_name": "ניתוחים",
+      "description": "צפה בניתוחים ודוחות",
+      "url": "/admin/analytics?utm_source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
-  "related_applications": [],
-  "prefer_related_applications": false
+  "protocol_handlers": [
+    {
+      "protocol": "web+eyetask",
+      "url": "/?protocol=%s"
+    }
+  ],
+  "url_handlers": [
+    {
+      "origin": "https://drivershub.netlify.app"
+    },
+    {
+      "origin": "https://www.drivershub.netlify.app"
+    }
+  ],
+  "share_target": {
+    "action": "/api/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["image/*", ".pdf", ".doc", ".docx"]
+        }
+      ]
+    }
+  },
+  "capture_links": "existing-client-navigate",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "related_applications": [
+    {
+      "platform": "web",
+      "url": "https://drivershub.netlify.app/manifest.json"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/import",
+      "accept": {
+        "text/csv": [".csv"],
+        "application/json": [".json"],
+        "text/plain": [".txt"]
+      }
+    }
+  ]
 } 
