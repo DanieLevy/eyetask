@@ -4,12 +4,19 @@ import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { toObjectId } from '@/lib/mongodb';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Fetch active, non-expired daily updates from MongoDB
-    const updates = await db.getActiveDailyUpdates();
+    // Check if this is for admin (include hidden) or homepage (exclude hidden)
+    const url = new URL(request.url);
+    const includeHidden = url.searchParams.get('includeHidden') === 'true';
+    
+    // Fetch active daily updates from MongoDB
+    const updates = await db.getActiveDailyUpdates(includeHidden);
 
-    logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { count: updates.length });
+    logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { 
+      count: updates.length, 
+      includeHidden 
+    });
 
     return NextResponse.json({ 
       success: true, 
@@ -19,11 +26,22 @@ export async function GET() {
         content: update.content,
         type: update.type,
         priority: update.priority,
+        duration_type: update.durationType,
+        duration_value: update.durationValue,
+        expires_at: update.expiresAt?.toISOString(),
+        is_active: update.isActive,
+        is_pinned: update.isPinned,
+        is_hidden: update.isHidden || false,
+        target_audience: update.targetAudience,
+        created_at: update.createdAt.toISOString(),
+        updated_at: update.updatedAt.toISOString(),
+        // Also include camelCase versions for compatibility
         durationType: update.durationType,
         durationValue: update.durationValue,
         expiresAt: update.expiresAt?.toISOString(),
         isActive: update.isActive,
         isPinned: update.isPinned,
+        isHidden: update.isHidden || false,
         targetAudience: update.targetAudience,
         createdAt: update.createdAt.toISOString(),
         updatedAt: update.updatedAt.toISOString()
@@ -52,7 +70,8 @@ export async function POST(request: NextRequest) {
       durationType = 'hours',
       durationValue = 24,
       isPinned = false,
-      targetAudience = []
+      targetAudience = [],
+      isHidden = false
     } = body;
 
     // Validate required fields
@@ -103,6 +122,7 @@ export async function POST(request: NextRequest) {
       isActive: true,
       isPinned,
       targetAudience,
+      isHidden,
       createdBy: user ? toObjectId(user.id) : undefined
     });
 

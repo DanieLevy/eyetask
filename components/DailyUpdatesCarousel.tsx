@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
-import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info } from 'lucide-react';
+import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
 
 interface DailyUpdate {
   id: string;
@@ -11,6 +11,9 @@ interface DailyUpdate {
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
   isPinned: boolean;
+  isActive: boolean;
+  isHidden: boolean;
+  expiresAt: string | null;
 }
 
 interface DailyUpdatesCarouselProps {
@@ -19,17 +22,17 @@ interface DailyUpdatesCarouselProps {
 
 export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCarouselProps) {
   const [updates, setUpdates] = useState<DailyUpdate[]>([]);
-  const [fallbackMessage, setFallbackMessage] = useState<string>('המשך יום טוב');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [fallbackMessage, setFallbackMessage] = useState('');
+  const intervalRef = useRef<NodeJS.Timeout>();
   const hebrewFont = useHebrewFont('body');
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [updatesResponse, settingsResponse] = await Promise.all([
         fetch('/api/daily-updates', {
           headers: {
@@ -48,28 +51,39 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       if (updatesResponse.ok) {
         const updatesData = await updatesResponse.json();
         if (updatesData.success && updatesData.updates) {
-          // Filter and prioritize updates
-          const activeUpdates = updatesData.updates
-            .filter((update: DailyUpdate) => update.isPinned || update.priority <= 3)
-            .slice(0, 5); // Show max 5 updates in carousel
+          // Map to our interface format
+          const activeUpdates = updatesData.updates.map((update: any) => ({
+            id: update.id,
+            title: update.title,
+            content: update.content,
+            type: update.type,
+            priority: update.priority,
+            isPinned: update.isPinned || update.is_pinned,
+            isActive: update.isActive || update.is_active,
+            isHidden: update.isHidden || update.is_hidden || false,
+            expiresAt: update.expiresAt || update.expires_at
+          }));
+          
           setUpdates(activeUpdates);
+          // Reset index if current index is out of bounds
+          if (currentIndex >= activeUpdates.length) {
+            setCurrentIndex(0);
+          }
         }
       }
 
-      // Handle fallback message setting - provide default if it doesn't exist
+      // Handle fallback message setting
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
         if (settingsData.success && settingsData.value) {
           setFallbackMessage(settingsData.value);
         }
       } else {
-        // Set default fallback message if setting doesn't exist
-        setFallbackMessage('Welcome to EyeTask! Check back later for important updates and announcements.');
+        setFallbackMessage('ברוכים הבאים ל-EyeTask! בדקו כאן עדכונים חשובים והודעות.');
       }
     } catch (error) {
       console.error('❌ Error fetching carousel data:', error);
-      // Set default fallback message on error
-      setFallbackMessage('Welcome to EyeTask! Check back later for important updates and announcements.');
+      setFallbackMessage('ברוכים הבאים ל-EyeTask! בדקו כאן עדכונים חשובים והודעות.');
     } finally {
       setLoading(false);
     }
@@ -78,11 +92,11 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   useEffect(() => {
     fetchData();
     
-    // Refresh data every 10 minutes
-    const refreshInterval = setInterval(fetchData, 10 * 60 * 1000);
+    // Refresh data every 5 minutes
+    const refreshInterval = setInterval(fetchData, 5 * 60 * 1000);
     
     return () => clearInterval(refreshInterval);
-  }, []);
+  }, []); // Remove hiddenUpdates dependency
 
   useEffect(() => {
     if (updates.length <= 1 || isPaused) return;
@@ -92,15 +106,15 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       clearInterval(intervalRef.current);
     }
 
-    // Start carousel rotation
+    // Start carousel rotation - faster cycling for multiple updates
     intervalRef.current = setInterval(() => {
       setIsVisible(false);
       
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % updates.length);
         setIsVisible(true);
-      }, 300); // Faster transition
-    }, 5000); // Change every 5 seconds
+      }, 250); // Smooth transition
+    }, 4000); // Switch every 4 seconds
 
     return () => {
       if (intervalRef.current) {
@@ -108,6 +122,31 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       }
     };
   }, [updates.length, isPaused]);
+
+  const hideUpdate = async (updateId: string) => {
+    try {
+      const response = await fetch(`/api/daily-updates/${updateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHidden: true })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to hide update');
+      }
+      
+      // Remove from current updates and adjust index
+      const newUpdates = updates.filter(update => update.id !== updateId);
+      setUpdates(newUpdates);
+      
+      // Adjust current index if needed
+      if (currentIndex >= newUpdates.length && newUpdates.length > 0) {
+        setCurrentIndex(0);
+      }
+    } catch (error) {
+      console.error('❌ Error hiding update:', error);
+    }
+  };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -204,11 +243,12 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     }
   };
 
-  const handleCardClick = (index: number) => {
+  const handleCardClick = () => {
     if (updates.length <= 1) return;
+    // Manual advance to next update
     setIsVisible(false);
     setTimeout(() => {
-      setCurrentIndex(index);
+      setCurrentIndex((prev) => (prev + 1) % updates.length);
       setIsVisible(true);
     }, 150);
   };
@@ -237,114 +277,109 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         <div 
           className={`
             relative max-w-4xl mx-auto
-            transition-all duration-300 ease-out transform
-            ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}
+            ${colors.bg} ${colors.border}
+            border rounded-lg px-4 py-3
+            shadow-lg ${colors.glow}
+            backdrop-blur-sm
+            transition-all duration-500 ease-out
+            ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
+            ${hasUpdates ? 'cursor-pointer hover:shadow-xl' : ''}
           `}
+          onClick={handleCardClick}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          <div className={`
-            ${colors.bg} ${colors.border} ${colors.glow}
-            border rounded-xl
-            shadow-lg shadow-black/5 dark:shadow-black/20
-            backdrop-blur-sm backdrop-saturate-150
-            p-4
-            relative overflow-hidden
-            hover:shadow-xl
-            transition-all duration-200 ease-out
-            cursor-pointer
-          `}>
-            {/* Content */}
-            <div className="relative z-10">
-              <div className="flex items-center gap-3">
-                {/* Icon */}
-                <div className={`
-                  ${colors.icon}
-                  p-2 rounded-lg
-                  bg-white/50 dark:bg-black/20
-                  shadow-sm backdrop-blur-sm
-                  flex-shrink-0
-                  transition-all duration-300 ease-out
-                  hover:scale-110 hover:rotate-12
-                `}>
-                  {hasUpdates ? getTypeIcon(currentUpdate!.type) : getBellIcon()}
-                </div>
+          {/* Progress indicator for multiple updates */}
+          {hasUpdates && updates.length > 1 && (
+            <div className="absolute top-0 left-0 right-0 h-1 bg-black/10 dark:bg-white/10 rounded-t-lg">
+              <div 
+                className="h-full bg-current rounded-t-lg transition-all duration-4000 ease-linear"
+                style={{ 
+                  width: `${((currentIndex + 1) / updates.length) * 100}%`,
+                  color: colors.icon.includes('text-') ? colors.icon.split('text-')[1] : 'currentColor'
+                }}
+              />
+            </div>
+          )}
 
-                {/* Text Content */}
-                <div className="flex-1 min-w-0">
-                  {hasUpdates ? (
-                    <div className="space-y-1">
+          {/* Hide button for current update */}
+          {hasUpdates && currentUpdate && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                hideUpdate(currentUpdate.id);
+              }}
+              className="absolute top-2 left-2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors z-10"
+              title="הסתר עדכון זה"
+            >
+              <X className="h-3 w-3 opacity-60 hover:opacity-100" />
+            </button>
+          )}
+
+          <div className="relative z-10">
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className={`
+                ${colors.icon}
+                p-2 rounded-lg
+                bg-white/50 dark:bg-black/20
+                shadow-sm backdrop-blur-sm
+                flex-shrink-0
+                transition-all duration-300 ease-out
+                hover:scale-110 hover:rotate-12
+              `}>
+                {hasUpdates ? getTypeIcon(currentUpdate!.type) : getBellIcon()}
+              </div>
+
+              {/* Text Content */}
+              <div className="flex-1 min-w-0">
+                {hasUpdates ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
                       <h3 className={`
                         text-sm font-semibold leading-tight
                         ${colors.text} ${hebrewFont.fontClass}
                       `}>
                         {currentUpdate!.title}
                       </h3>
-                      <p className={`
-                        text-xs leading-relaxed
-                        ${colors.text} ${hebrewFont.fontClass}
-                        opacity-90
-                      `}>
-                        {currentUpdate!.content}
-                      </p>
+                      {currentUpdate!.isPinned && (
+                        <Pin className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                      )}
                     </div>
-                  ) : (
                     <p className={`
-                      text-sm font-medium leading-relaxed
+                      text-xs leading-relaxed
                       ${colors.text} ${hebrewFont.fontClass}
+                      opacity-90
                     `}>
-                      {fallbackMessage}
+                      {currentUpdate!.content}
                     </p>
-                  )}
-                </div>
-
-                {/* Priority Badge */}
-                {hasUpdates && currentUpdate!.isPinned && (
-                  <div className="flex-shrink-0">
-                    <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
                   </div>
+                ) : (
+                  <p className={`
+                    text-sm font-medium leading-relaxed
+                    ${colors.text} ${hebrewFont.fontClass}
+                  `}>
+                    {fallbackMessage}
+                  </p>
                 )}
               </div>
+
+              {/* Update counter */}
+              {hasUpdates && updates.length > 1 && (
+                <div className="flex-shrink-0">
+                  <div className={`
+                    text-xs px-2 py-1 rounded-full
+                    bg-white/30 dark:bg-black/20
+                    ${colors.text}
+                    font-medium
+                  `}>
+                    {currentIndex + 1}/{updates.length}
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {/* Subtle glow effect */}
-            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-white/10 to-transparent rounded-full -translate-y-8 translate-x-8"></div>
           </div>
         </div>
-        
-        {/* Progress Indicators */}
-        {updates.length > 1 && (
-          <div className="flex items-center justify-center space-x-2 mt-3">
-            {updates.map((update, index) => {
-              const isActive = index === currentIndex;
-              const dotColors = getTypeColors(update.type);
-              
-              return (
-                <button
-                  key={update.id}
-                  onClick={() => handleCardClick(index)}
-                  className={`
-                    relative transition-all duration-300 ease-out
-                    ${isActive ? 'scale-110' : 'scale-100 hover:scale-105'}
-                  `}
-                >
-                  <div className={`
-                    w-2 h-2 rounded-full transition-all duration-300
-                    ${isActive 
-                      ? `${dotColors.bg} ${dotColors.border} border shadow-sm ${dotColors.glow}` 
-                      : 'bg-white/40 dark:bg-slate-600/40 border border-white/60 dark:border-slate-500/60 hover:bg-white/60 dark:hover:bg-slate-500/60'
-                    }
-                  `} />
-                  
-                  {/* Priority indicator */}
-                  {update.isPinned && (
-                    <div className="absolute -top-0.5 -right-0.5 w-1 h-1 bg-yellow-400 rounded-full animate-pulse"></div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

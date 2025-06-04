@@ -20,7 +20,8 @@ import {
   EyeOff,
   RefreshCw,
   ArrowLeft,
-  Settings
+  Settings,
+  Megaphone
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -39,6 +40,7 @@ interface DailyUpdate {
   expires_at: string | null;
   is_active: boolean;
   is_pinned: boolean;
+  is_hidden: boolean;
   target_audience: any[];
   created_at: string;
   updated_at: string;
@@ -49,9 +51,9 @@ interface UpdateForm {
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
-  duration_type: 'hours' | 'days' | 'permanent';
-  duration_value: number;
-  is_pinned: boolean;
+  durationType: 'hours' | 'days' | 'permanent';
+  durationValue: number;
+  isPinned: boolean;
 }
 
 const initialForm: UpdateForm = {
@@ -59,9 +61,9 @@ const initialForm: UpdateForm = {
   content: '',
   type: 'info',
   priority: 5,
-  duration_type: 'hours',
-  duration_value: 24,
-  is_pinned: false
+  durationType: 'hours',
+  durationValue: 24,
+  isPinned: false
 };
 
 export default function DailyUpdatesAdmin() {
@@ -83,7 +85,7 @@ export default function DailyUpdatesAdmin() {
   const fetchUpdates = useCallback(async () => {
     try {
       const [updatesResponse, settingsResponse] = await Promise.all([
-        fetch('/api/daily-updates', {
+        fetch('/api/daily-updates?includeHidden=true', {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache'
@@ -134,9 +136,9 @@ export default function DailyUpdatesAdmin() {
       content: update.content,
       type: update.type,
       priority: update.priority,
-      duration_type: update.duration_type,
-      duration_value: update.duration_value || 24,
-      is_pinned: update.is_pinned
+      durationType: update.duration_type,
+      durationValue: update.duration_value || 24,
+      isPinned: update.is_pinned
     });
     setEditingId(update.id);
     setFormVisible(true);
@@ -192,16 +194,17 @@ export default function DailyUpdatesAdmin() {
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_pinned: !currentPinned })
+        body: JSON.stringify({ isPinned: !currentPinned })
       });
       
       if (!response.ok) {
-        throw new Error('Failed to toggle pin');
+        throw new Error('Failed to toggle pin status');
       }
       
       fetchUpdates();
     } catch (error) {
-      console.error('❌ Error toggling pin:', error);
+      console.error('❌ Error toggling pin status:', error);
+      alert('שגיאה בעדכון סטטוס הצמדה');
     }
   };
 
@@ -210,31 +213,49 @@ export default function DailyUpdatesAdmin() {
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !currentActive })
+        body: JSON.stringify({ isActive: !currentActive })
       });
       
       if (!response.ok) {
-        throw new Error('Failed to toggle active');
+        throw new Error('Failed to toggle active status');
       }
       
       fetchUpdates();
     } catch (error) {
-      console.error('❌ Error toggling active:', error);
+      console.error('❌ Error toggling active status:', error);
+      alert('שגיאה בעדכון סטטוס פעילות');
+    }
+  };
+
+  const toggleHidden = async (id: string, currentHidden: boolean) => {
+    try {
+      const response = await fetch(`/api/daily-updates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHidden: !currentHidden })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to toggle hidden status');
+      }
+      
+      fetchUpdates();
+    } catch (error) {
+      console.error('❌ Error toggling hidden status:', error);
+      alert('שגיאה בעדכון סטטוס הסתרה');
     }
   };
 
   const deleteUpdate = async (id: string) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק עדכון זה?')) {
-      return;
-    }
-
+    if (!confirm('האם אתה בטוח שברצונך למחוק עדכון זה?')) return;
+    
     try {
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'DELETE'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete daily update');
+        throw new Error('Failed to delete update');
       }
       
       fetchUpdates();
@@ -253,7 +274,7 @@ export default function DailyUpdatesAdmin() {
       case 'error':
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'announcement':
-        return <Bell className="h-5 w-5 text-blue-500" />;
+        return <Megaphone className="h-5 w-5 text-blue-500" />;
       default:
         return <Info className="h-5 w-5 text-blue-500" />;
     }
@@ -495,8 +516,8 @@ export default function DailyUpdatesAdmin() {
                       סוג משך
                     </label>
                     <select
-                      value={form.duration_type}
-                      onChange={(e) => setForm({ ...form, duration_type: e.target.value as any })}
+                      value={form.durationType}
+                      onChange={(e) => setForm({ ...form, durationType: e.target.value as any })}
                       className="w-full border border-border rounded-lg px-3 py-2"
                     >
                       <option value="hours">שעות</option>
@@ -505,16 +526,16 @@ export default function DailyUpdatesAdmin() {
                     </select>
                   </div>
 
-                  {form.duration_type !== 'permanent' && (
+                  {form.durationType !== 'permanent' && (
                     <div>
                       <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                        {form.duration_type === 'hours' ? 'מספר שעות' : 'מספר ימים'}
+                        {form.durationType === 'hours' ? 'מספר שעות' : 'מספר ימים'}
                       </label>
                       <input
                         type="number"
                         min="1"
-                        value={form.duration_value}
-                        onChange={(e) => setForm({ ...form, duration_value: parseInt(e.target.value) })}
+                        value={form.durationValue}
+                        onChange={(e) => setForm({ ...form, durationValue: parseInt(e.target.value) })}
                         className="w-full border border-border rounded-lg px-3 py-2"
                       />
                     </div>
@@ -526,8 +547,8 @@ export default function DailyUpdatesAdmin() {
                   <input
                     type="checkbox"
                     id="pinned"
-                    checked={form.is_pinned}
-                    onChange={(e) => setForm({ ...form, is_pinned: e.target.checked })}
+                    checked={form.isPinned}
+                    onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
                     className="w-4 h-4"
                   />
                   <label htmlFor="pinned" className={`text-sm ${mixedBody.fontClass}`}>
@@ -592,6 +613,11 @@ export default function DailyUpdatesAdmin() {
                           לא פעיל
                         </span>
                       )}
+                      {update.is_hidden && (
+                        <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">
+                          מוסתר מהעמוד הראשי
+                        </span>
+                      )}
                     </div>
                     
                     <p className={`text-muted-foreground mb-3 ${mixedBody.fontClass}`}>
@@ -632,6 +658,18 @@ export default function DailyUpdatesAdmin() {
                         <Eye className="h-4 w-4" />
                       ) : (
                         <EyeOff className="h-4 w-4" />
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => toggleHidden(update.id, update.is_hidden)}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                      title={update.is_hidden ? 'הצג' : 'הסתר'}
+                    >
+                      {update.is_hidden ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
                       )}
                     </button>
                     

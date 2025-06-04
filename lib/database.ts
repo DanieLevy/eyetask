@@ -85,6 +85,7 @@ export interface DailyUpdate {
   expiresAt?: Date;
   isActive: boolean;
   isPinned: boolean;
+  isHidden: boolean;
   targetAudience: string[];
   createdBy?: ObjectId;
   createdAt: Date;
@@ -430,21 +431,53 @@ export class DatabaseService {
   }
 
   // Daily Updates operations
-  async getActiveDailyUpdates(): Promise<DailyUpdate[]> {
+  async getActiveDailyUpdates(includeHidden = false): Promise<DailyUpdate[]> {
     try {
       const { dailyUpdates } = await mongodb.getCollections();
       const now = new Date();
-      const result = await dailyUpdates.find({
+      
+      const baseFilter = {
         isActive: true,
         $or: [
           { expiresAt: { $exists: false } },
           { expiresAt: null },
           { expiresAt: { $gt: now } }
         ]
-      }).sort({ isPinned: -1, priority: -1, createdAt: -1 }).toArray();
+      };
+
+      // For homepage: exclude hidden updates
+      // For admin: include all updates regardless of hidden status
+      const filter = includeHidden ? baseFilter : {
+        ...baseFilter,
+        $and: [
+          baseFilter,
+          { $or: [{ isHidden: { $exists: false } }, { isHidden: false }] }
+        ]
+      };
+      
+      const result = await dailyUpdates.find(filter).sort({ 
+        isPinned: -1,    // Pinned first
+        priority: 1,     // Priority 1 first, 10 last (ascending)
+        createdAt: -1    // Newest first within same priority
+      }).toArray();
       return result as DailyUpdate[];
     } catch (error) {
       handleMongoError(error, 'getActiveDailyUpdates');
+      return [];
+    }
+  }
+
+  async getAllDailyUpdates(): Promise<DailyUpdate[]> {
+    try {
+      const { dailyUpdates } = await mongodb.getCollections();
+      const result = await dailyUpdates.find({}).sort({ 
+        isPinned: -1,    // Pinned first
+        priority: 1,     // Priority 1 first, 10 last (ascending)
+        createdAt: -1    // Newest first within same priority
+      }).toArray();
+      return result as DailyUpdate[];
+    } catch (error) {
+      handleMongoError(error, 'getAllDailyUpdates');
       return [];
     }
   }

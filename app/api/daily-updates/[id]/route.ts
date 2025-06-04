@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { fromObjectId } from '@/lib/mongodb';
+import { auth, requireAdmin } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -61,6 +62,7 @@ export async function PUT(
       durationValue,
       isPinned,
       isActive,
+      isHidden,
       targetAudience
     } = body;
 
@@ -100,6 +102,7 @@ export async function PUT(
     }
     if (isPinned !== undefined) updateData.isPinned = isPinned;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (isHidden !== undefined) updateData.isHidden = isHidden;
     if (targetAudience !== undefined) updateData.targetAudience = targetAudience;
 
     // Update the daily update
@@ -127,6 +130,7 @@ export async function PUT(
       expiresAt: dailyUpdateResult.expiresAt?.toISOString(),
       isActive: dailyUpdateResult.isActive,
       isPinned: dailyUpdateResult.isPinned,
+      isHidden: dailyUpdateResult.isHidden || false,
       targetAudience: dailyUpdateResult.targetAudience,
       createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
       createdAt: dailyUpdateResult.createdAt.toISOString(),
@@ -149,20 +153,32 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication - admin required for deleting updates
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
+
     const { id } = await params;
 
+    // Delete the daily update
     const deleted = await db.deleteDailyUpdate(id);
 
     if (!deleted) {
-      return NextResponse.json({ error: 'Failed to delete daily update' }, { status: 500 });
+      return NextResponse.json({ error: 'Daily update not found or failed to delete' }, { status: 404 });
     }
 
     console.log('✅ Daily update deleted:', id);
     return NextResponse.json({ 
-      success: true,
-      message: 'Daily update deleted successfully' 
+      success: true, 
+      message: 'Daily update deleted successfully'
     });
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+
     console.error('❌ Unexpected error in daily update DELETE:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
