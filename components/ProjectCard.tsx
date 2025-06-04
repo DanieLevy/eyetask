@@ -3,6 +3,7 @@
 import { Clock, AlertTriangle } from 'lucide-react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
+import { useEffect, useState } from 'react';
 
 interface Project {
   id: string;
@@ -19,11 +20,19 @@ interface ProjectCardProps {
 export default function ProjectCard({ project, taskCount, highPriorityCount }: ProjectCardProps) {
   const hebrewFont = useHebrewFont('body');
   const { status: offlineStatus } = useOfflineStatus();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only showing offline indicators after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleProjectClick = () => {
     // Simple navigation using URL params
     window.location.href = `/project/${encodeURIComponent(project.name)}`;
   };
+
+  const showOfflineIndicators = mounted && !offlineStatus.isOnline;
 
   return (
     <div className="group relative">
@@ -35,8 +44,8 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-primary/20 to-transparent" />
           
-          {/* Status Indicators - Only when offline */}
-          {!offlineStatus.isOnline && (
+          {/* Status Indicators - Only when offline and after mount */}
+          {showOfflineIndicators && (
             <div className="absolute top-3 left-3">
               <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="מצב אופליין" />
             </div>
@@ -68,8 +77,8 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
             </div>
           </div>
 
-          {/* Cache Info (when offline) */}
-          {!offlineStatus.isOnline && (
+          {/* Cache Info (when offline and after mount) */}
+          {showOfflineIndicators && (
             <div className="relative mt-3 pt-3 border-t border-border">
               <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
@@ -80,8 +89,8 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
         </div>
       </div>
 
-      {/* Loading State Overlay */}
-      {offlineStatus.isOnline === false && (
+      {/* Loading State Overlay - Only show after mount */}
+      {showOfflineIndicators && (
         <div className="absolute inset-0 bg-yellow-50/80 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <div className="text-right">
             <Clock className="h-6 w-6 text-yellow-600 mx-auto mb-2" />
