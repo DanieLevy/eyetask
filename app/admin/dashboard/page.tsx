@@ -15,40 +15,12 @@ import {
   FolderPlus,
   RefreshCw,
   ArrowLeft,
-  Bell
+  Bell,
+  RotateCcw
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-
-interface DashboardData {
-  totalTasks: number;
-  visibleTasks: number;
-  hiddenTasks: number;
-  totalSubtasks: number;
-  totalProjects: number;
-  totalVisits: number;
-  uniqueVisitors: number;
-  tasksByPriority: {
-    high: number;
-    medium: number;
-    low: number;
-    none: number;
-  };
-  tasksByProject: Array<{
-    projectName: string;
-    taskCount: number;
-  }>;
-  recentActivity: Array<{
-    date: string;
-    visits: number;
-  }>;
-  mostViewedTasks: Array<{
-    taskId: string;
-    taskTitle: string;
-    views: number;
-  }>;
-}
 
 interface Project {
   id: string;
@@ -73,7 +45,6 @@ interface NewProjectData {
 }
 
 export default function AdminDashboard() {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +58,6 @@ export default function AdminDashboard() {
   
   // Quick action states
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [newProjectData, setNewProjectData] = useState<NewProjectData>({
     name: '',
     description: ''
@@ -174,13 +144,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem('adminToken');
       const timestamp = Date.now();
       
-      const [dashboardRes, projectsRes, tasksRes] = await Promise.all([
-        fetch(`/api/admin/dashboard?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
+      const [projectsRes, tasksRes] = await Promise.all([
         fetch(`/api/projects?_t=${timestamp}`, {
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -195,11 +159,13 @@ export default function AdminDashboard() {
         }).then(res => res.json())
       ]);
 
-      if (dashboardRes.success) setDashboardData(dashboardRes.dashboard);
       if (projectsRes.success) setProjects(projectsRes.projects);
       if (tasksRes.success) setTasks(tasksRes.tasks);
+
+      setLoading(false);
     } catch (error) {
-      // Silent fail for refresh operations
+      console.error('Error fetching data:', error);
+      setLoading(false);
     }
   }, []);
 
@@ -209,24 +175,44 @@ export default function AdminDashboard() {
   // Cache invalidation utility
   const clearCaches = async () => {
     try {
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        for (const cacheName of cacheNames) {
-          if (cacheName.includes('eyetask')) {
-            await caches.delete(cacheName);
-          }
-        }
-      }
+      const token = localStorage.getItem('adminToken');
       
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        const messageChannel = new MessageChannel();
-        navigator.serviceWorker.controller.postMessage(
-          { type: 'CLEAR_API_CACHE' }, 
-          [messageChannel.port2]
-        );
-      }
+      // Clear Next.js cache by fetching with cache-busting timestamp
+      const timestamp = Date.now();
+      
+      await Promise.all([
+        fetch(`/api/projects?_t=${timestamp}`, {
+          method: 'GET',
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }).then(res => res.json()),
+        fetch(`/api/tasks?_t=${timestamp}`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }).then(res => res.json())
+      ])
+      .then(([projectsRes, tasksRes]) => {
+        if (projectsRes.success) setProjects(projectsRes.projects);
+        if (tasksRes.success) setTasks(tasksRes.tasks);
+        setLoading(false);
+      })
+      .catch(error => {
+        if (error.message?.includes('401') || error.message?.includes('403')) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/admin');
+        } else {
+          setLoading(false);
+        }
+      });
     } catch (error) {
-      // Silent fail for cache clearing
+      console.error('Cache clear error:', error);
     }
   };
 
@@ -257,15 +243,8 @@ export default function AdminDashboard() {
       return;
     }
 
-    // Fetch dashboard data
+    // Fetch data
     Promise.all([
-      fetch(`/api/admin/dashboard?_t=${Date.now()}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      }).then(res => res.json()),
       fetch(`/api/projects?_t=${Date.now()}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -281,8 +260,7 @@ export default function AdminDashboard() {
         }
       }).then(res => res.json())
     ])
-    .then(([dashboardRes, projectsRes, tasksRes]) => {
-      if (dashboardRes.success) setDashboardData(dashboardRes.dashboard);
+    .then(([projectsRes, tasksRes]) => {
       if (projectsRes.success) setProjects(projectsRes.projects);
       if (tasksRes.success) setTasks(tasksRes.tasks);
       setLoading(false);
@@ -393,66 +371,33 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Target className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">סה״כ משימות</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {dashboardData?.totalTasks || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {dashboardData?.visibleTasks || 0} גלויות • {dashboardData?.hiddenTasks || 0} מוסתרות
-            </div>
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Users className="h-8 w-8 text-secondary-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">פרויקטים</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {dashboardData?.totalProjects || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {dashboardData?.totalSubtasks || 0} תת-משימות
-            </div>
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Activity className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">ביקורים</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {dashboardData?.totalVisits || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {dashboardData?.uniqueVisitors || 0} משתמשים ייחודיים
-            </div>
-          </div>
-
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <TrendingUp className="h-8 w-8 text-orange-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">עדיפות גבוהה</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {dashboardData?.tasksByPriority?.high || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              דורש תשומת לב מיידית
-            </div>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className={`text-3xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+            לוח בקרה מנהל
+          </h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={refreshData}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              רענן נתונים
+            </button>
+            <button
+              onClick={clearCaches}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              נקה Cache
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+            >
+              <LogOut className="h-5 w-5" />
+              התנתק
+            </button>
           </div>
         </div>
 
@@ -484,14 +429,14 @@ export default function AdminDashboard() {
               <h3 className="font-semibold">עדכונים יומיים</h3>
               <p className="text-sm opacity-90">נהל הודעות ועדכונים</p>
             </Link>
-            <button 
-              onClick={() => setShowAnalytics(true)}
+            <Link
+              href="/admin/analytics"
               className="bg-accent text-accent-foreground p-4 rounded-lg hover:bg-accent/90 transition-colors text-right group"
             >
               <BarChart3 className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">צפה באנליטיקה</h3>
-              <p className="text-sm opacity-90">נתונים מפורטים על המערכת</p>
-            </button>
+              <h3 className="font-semibold">אנליטיקה מתקדמת</h3>
+              <p className="text-sm opacity-90">נתונים מפורטים ותובנות</p>
+            </Link>
           </div>
         </div>
 
@@ -604,45 +549,6 @@ export default function AdminDashboard() {
               >
                 ביטול
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Analytics Modal */}
-      {showAnalytics && dashboardData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground">אנליטיקה מפורטת</h3>
-                <button
-                  onClick={() => setShowAnalytics(false)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold text-foreground mb-2">סה״כ משימות</h4>
-                  <p className="text-2xl font-bold text-primary">{dashboardData.totalTasks}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold text-foreground mb-2">משימות גלויות</h4>
-                  <p className="text-2xl font-bold text-green-600">{dashboardData.visibleTasks}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold text-foreground mb-2">סה״כ פרויקטים</h4>
-                  <p className="text-2xl font-bold text-blue-600">{projects.length}</p>
-                </div>
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <h4 className="font-semibold text-foreground mb-2">צפיות בעמודים</h4>
-                  <p className="text-2xl font-bold text-purple-600">{dashboardData.totalVisits}</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>

@@ -237,13 +237,15 @@ interface ImageDisplayProps {
   alt?: string;
   className?: string;
   showExpand?: boolean;
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export function ImageDisplay({ 
   imageUrl, 
   alt = 'Image', 
   className = '',
-  showExpand = true 
+  showExpand = true,
+  size = 'md'
 }: ImageDisplayProps) {
   const [showFullImage, setShowFullImage] = useState(false);
 
@@ -251,23 +253,34 @@ export function ImageDisplay({
     return null;
   }
 
+  // Size configurations
+  const sizeClasses = {
+    sm: 'w-20 h-16',
+    md: 'w-32 h-24', 
+    lg: 'w-48 h-32'
+  };
+
   return (
     <>
       <div className={`relative group ${className}`}>
-        <div className="relative w-full h-24 bg-muted rounded-lg overflow-hidden">
+        <div className={`${sizeClasses[size]} bg-muted rounded-lg overflow-hidden shadow-sm border border-border/50`}>
           <img
             src={imageUrl}
             alt={alt}
-            className="w-full h-full object-cover cursor-pointer"
+            className="w-full h-full object-cover cursor-pointer transition-transform hover:scale-105"
             onClick={showExpand ? () => setShowFullImage(true) : undefined}
+            loading="lazy"
           />
           
           {showExpand && (
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
               <button
-                onClick={() => setShowFullImage(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullImage(true);
+                }}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                title="הצג תמונה"
+                title="הצג תמונה מלאה"
               >
                 <Eye className="h-4 w-4 text-white" />
               </button>
@@ -285,14 +298,14 @@ export function ImageDisplay({
           <div className="relative max-w-4xl max-h-full">
             <button
               onClick={() => setShowFullImage(false)}
-              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 transition-colors"
+              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300 transition-colors z-10"
             >
               <X className="h-6 w-6" />
             </button>
             <img
               src={imageUrl}
               alt={alt}
-              className="max-w-full max-h-full object-contain rounded-lg"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
           </div>

@@ -33,6 +33,7 @@ interface Task {
   id: string;
   title: string;
   subtitle?: string;
+  image?: string | null;
   datacoNumber: string;
   description: {
     main: string;
@@ -611,6 +612,22 @@ export default function TaskManagement() {
                   <h4 className="font-semibold text-foreground mb-2">אופן ביצוע</h4>
                   <p className="text-sm text-muted-foreground">{task.description.howToExecute}</p>
                 </div>
+                
+                {/* Task Image Display */}
+                {task.image && (
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" />
+                      תמונת המשימה
+                    </h4>
+                    <ImageDisplay 
+                      imageUrl={task.image} 
+                      alt={`תמונה עבור ${task.title}`}
+                      className="w-40"
+                      size="md"
+                    />
+                  </div>
+                )}
               </div>
             </div>
             
@@ -816,6 +833,7 @@ export default function TaskManagement() {
                               imageUrl={subtask.image} 
                               alt={`תמונה עבור ${subtask.title}`}
                               className="w-32"
+                              size="sm"
                             />
                           </div>
                         )}
@@ -1130,37 +1148,36 @@ export default function TaskManagement() {
                 <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית לתת-המשימה</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
-                  <select
-                    value={editingSubtask.weather}
-                    onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, weather: e.target.value as any }) : null)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  >
-                    <option value="Clear">בהיר (Clear)</option>
-                    <option value="Fog">ערפל (Fog)</option>
-                    <option value="Overcast">מעונן (Overcast)</option>
-                    <option value="Rain">גשם (Rain)</option>
-                    <option value="Snow">שלג (Snow)</option>
-                    <option value="Mixed">מעורב (Mixed)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
-                  <select
-                    value={editingSubtask.scene}
-                    onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, scene: e.target.value as any }) : null)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  >
-                    <option value="Highway">כביש מהיר (Highway)</option>
-                    <option value="Urban">עירוני (Urban)</option>
-                    <option value="Rural">כפרי (Rural)</option>
-                    <option value="Sub-Urban">פרברי (Sub-Urban)</option>
-                    <option value="Test Track">מסלול בדיקות (Test Track)</option>
-                    <option value="Mixed">מעורב (Mixed)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
+                <select
+                  value={editingSubtask.weather}
+                  onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, weather: e.target.value as any }) : null)}
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                >
+                  <option value="Clear">בהיר (Clear)</option>
+                  <option value="Fog">ערפל (Fog)</option>
+                  <option value="Overcast">מעונן (Overcast)</option>
+                  <option value="Rain">גשם (Rain)</option>
+                  <option value="Snow">שלג (Snow)</option>
+                  <option value="Mixed">מעורב (Mixed)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
+                <select
+                  value={editingSubtask.scene}
+                  onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, scene: e.target.value as any }) : null)}
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                >
+                  <option value="Highway">כביש מהיר (Highway)</option>
+                  <option value="Urban">עירוני (Urban)</option>
+                  <option value="Rural">כפרי (Rural)</option>
+                  <option value="Sub-Urban">פרברי (Sub-Urban)</option>
+                  <option value="Test Track">מסלול בדיקות (Test Track)</option>
+                  <option value="Mixed">מעורב (Mixed)</option>
+                </select>
               </div>
 
               <div>
@@ -1304,6 +1321,17 @@ export default function TaskManagement() {
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground h-20"
                   placeholder="תאר את המשימה בפירוט"
                 />
+              </div>
+
+              {/* Task Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">תמונת המשימה (אופציונלי)</label>
+                <ImageUpload
+                  onImageSelect={(imageUrl) => setEditTaskData(prev => ({ ...prev, image: imageUrl }))}
+                  currentImage={editTaskData.image}
+                  disabled={operationLoading}
+                />
+                <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית למשימה</p>
               </div>
 
               {/* Type Selection (Multi-select) */}

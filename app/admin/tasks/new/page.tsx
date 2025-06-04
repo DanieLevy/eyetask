@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
+import ImageUpload from '@/components/ImageUpload';
 
 interface Project {
   id: string;
@@ -29,6 +30,7 @@ interface Project {
 interface NewTaskData {
   title: string;
   subtitle?: string;
+  image?: string | null;
   datacoNumber: string;
   description: string;
   projectId: string;
@@ -52,6 +54,7 @@ export default function NewTaskPage() {
   const [newTaskData, setNewTaskData] = useState<NewTaskData>({
     title: '',
     subtitle: '',
+    image: undefined,
     datacoNumber: '',
     description: '',
     projectId: '',
@@ -119,6 +122,7 @@ export default function NewTaskPage() {
       const taskPayload = {
         title: newTaskData.title,
         subtitle: newTaskData.subtitle,
+        image: newTaskData.image,
         datacoNumber: newTaskData.datacoNumber,
         description: {
           main: newTaskData.description,
@@ -152,6 +156,7 @@ export default function NewTaskPage() {
           setNewTaskData(prev => ({
             title: '',
             subtitle: '',
+            image: undefined,
             datacoNumber: '',
             description: '',
             projectId: prev.projectId, // Keep selected project
@@ -327,6 +332,17 @@ export default function NewTaskPage() {
                     className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
                     placeholder="תאר את המשימה בפירות"
                   />
+                </div>
+
+                {/* Task Image Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">תמונת המשימה (אופציונלי)</label>
+                  <ImageUpload
+                    onImageSelect={(imageUrl) => setNewTaskData(prev => ({ ...prev, image: imageUrl }))}
+                    currentImage={newTaskData.image}
+                    disabled={operationLoading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">העלה תמונה רלוונטית למשימה</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

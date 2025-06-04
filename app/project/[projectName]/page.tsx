@@ -26,6 +26,7 @@ interface Task {
   id: string;
   title: string;
   subtitle?: string;
+  image?: string | null;
   datacoNumber: string;
   description: {
     main: string;
@@ -393,6 +394,19 @@ export default function ProjectPage() {
                             <p className="text-muted-foreground">{task.description.howToExecute}</p>
                           </div>
 
+                          {/* Task Image Display */}
+                          {task.image && (
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-2">תמונת המשימה</h4>
+                              <ImageDisplay 
+                                imageUrl={task.image} 
+                                alt={`תמונה עבור ${task.title}`}
+                                className="w-48"
+                                size="md"
+                              />
+                            </div>
+                          )}
+
                           {/* Technical Details */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -512,6 +526,7 @@ export default function ProjectPage() {
                                                   imageUrl={subtask.image} 
                                                   alt={`תמונה עבור ${subtask.title}`}
                                                   className="w-40"
+                                                  size="sm"
                                                 />
                                               </div>
                                             )}
