@@ -1,78 +1,85 @@
-import { useEffect, useRef } from 'react';
+'use client';
 
-export interface RealtimeConfig {
-  table: string;
-  event: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
-  callback: (payload: any) => void;
-  filter?: string; // Optional filter like "taskId=eq.123"
+import { useEffect, useRef, useCallback } from 'react';
+
+interface UseRealtimeOptions {
+  interval?: number;
+  enabled?: boolean;
+  immediate?: boolean;
 }
 
-// MongoDB-compatible polling-based realtime alternative
-export function useRealtime(configs: RealtimeConfig[]) {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+export function useRealtime(
+  callback: () => Promise<void> | void,
+  options: UseRealtimeOptions = {}
+) {
+  const {
+    interval = 30000, // 30 seconds default
+    enabled = true,
+    immediate = true
+  } = options;
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const callbackRef = useRef(callback);
+
+  // Update callback ref when callback changes
   useEffect(() => {
-    // For MongoDB, we'll use periodic polling instead of real-time updates
-    // This is a simplified implementation - in a production app you might want
-    // to implement WebSocket-based real-time updates with your own server
-    
-    console.log('📊 MongoDB polling-based realtime initialized for tables:', 
-      configs.map(c => c.table).join(', '));
-    
-    // Clear any existing interval
+    callbackRef.current = callback;
+  }, [callback]);
+
+  const startInterval = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
-    // For now, we're not implementing active polling as it could be expensive
-    // The components will rely on manual refresh or navigation-based updates
-    // In a real-world scenario, you might implement:
-    // 1. WebSocket connections to your own server
-    // 2. Periodic polling at longer intervals (30s-60s)
-    // 3. Server-sent events (SSE)
-    
-    // Cleanup function
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+    intervalRef.current = setInterval(async () => {
+      try {
+        await callbackRef.current();
+      } catch (error) {
+        console.error('Realtime update error:', error);
       }
+    }, interval);
+  }, [interval]);
+
+  const stopInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const triggerUpdate = useCallback(async () => {
+    try {
+      await callbackRef.current();
+    } catch (error) {
+      console.error('Manual update error:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (enabled) {
+      if (immediate) {
+        triggerUpdate();
+      }
+      startInterval();
+    } else {
+      stopInterval();
+    }
+
+    return () => {
+      stopInterval();
     };
-  }, [configs.length]);
+  }, [enabled, immediate, startInterval, stopInterval, triggerUpdate]);
 
-  return null; // MongoDB version doesn't return a channel
-}
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopInterval();
+    };
+  }, [stopInterval]);
 
-// Specific hooks for common use cases - now just pass-through functions
-export function useTasksRealtime(onTaskChange: (payload: any) => void) {
-  return useRealtime([
-    {
-      table: 'tasks',
-      event: '*',
-      callback: onTaskChange
-    }
-  ]);
-}
-
-export function useSubtasksRealtime(taskId: string | null, onSubtaskChange: (payload: any) => void) {
-  const configs = taskId ? [
-    {
-      table: 'subtasks',
-      event: '*' as const,
-      callback: onSubtaskChange,
-      filter: `task_id=eq.${taskId}`
-    }
-  ] : [];
-
-  return useRealtime(configs);
-}
-
-export function useProjectsRealtime(onProjectChange: (payload: any) => void) {
-  return useRealtime([
-    {
-      table: 'projects',
-      event: '*',
-      callback: onProjectChange
-    }
-  ]);
+  return {
+    triggerUpdate,
+    startInterval,
+    stopInterval
+  };
 } 
