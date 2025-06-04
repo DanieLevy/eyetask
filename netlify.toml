@@ -1,12 +1,29 @@
 [build]
-  command = "npm run build"
+  command = "npm run build:fresh-bash"
   publish = ".next"
+
+# Clear all caches for fresh deployment
+[build.processing]
+  skip_processing = false
+
+[build.environment]
+  NODE_VERSION = "18"
+  # Force fresh npm install and clear caches
+  NPM_CONFIG_CACHE = ""
+  NPM_CONFIG_PREFER_OFFLINE = "false"
+  # Clear Netlify-specific caches
+  NETLIFY_CACHE_NEXTJS = "false"
+  # Force fresh git checkout
+  NETLIFY_BUILD_COMMAND_FRESH = "true"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[build.environment]
-  NODE_VERSION = "18"
+# Clear build cache on every deploy
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Fresh-Deploy = "true"
 
 # Environment variables are set in Netlify dashboard
 # Go to Site settings → Environment variables to configure:
