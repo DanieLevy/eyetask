@@ -16,7 +16,6 @@ import {
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Task {
   id: string;
@@ -574,13 +573,16 @@ export default function ProjectManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                  <NumericTextInput
-                    value={newTaskData.datacoNumber}
-                    onChange={(value) => setNewTaskData(prev => ({ ...prev, datacoNumber: value }))}
-                    className="pl-20"
-                    placeholder="הזן מספר"
-                    dir="ltr"
-                  />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={newTaskData.datacoNumber}
+                      onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
+                      placeholder="הזן מספר"
+                      dir="ltr"
+                    />
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
                       DATACO-
                     </div>
@@ -596,13 +598,19 @@ export default function ProjectManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>
-                  <NumberInput
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={newTaskData.priority}
-                    onChange={(value) => setNewTaskData(prev => ({ ...prev, priority: value }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                      setNewTaskData(prev => ({ ...prev, priority: Math.min(Math.max(value, 0), 10) }))
+                    }}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                     placeholder="1 = גבוהה ביותר, 0 = ללא עדיפות"
-                    min={0}
-                    max={10}
-                    className="p-2"
+                    min="0"
+                    max="10"
                   />
                 </div>
               </div>
@@ -684,10 +692,10 @@ export default function ProjectManagement() {
               {/* Target Cars (Editable input) */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
-                      <input
+                <input
                   type="text"
                   value={newTaskData.targetCar.join(' ')}
-                        onChange={(e) => {
+                  onChange={(e) => {
                     const carsText = e.target.value;
                     // Allow spaces while typing - only split when there are actual complete words
                     if (carsText.endsWith(' ') && carsText.trim().includes(' ')) {

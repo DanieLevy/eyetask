@@ -26,7 +26,6 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import NumberInput from '@/components/NumberInput';
 
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
@@ -502,12 +501,19 @@ export default function DailyUpdatesAdmin() {
                     <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
                       עדיפות (1-10)
                     </label>
-                    <NumberInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={form.priority}
-                      onChange={(value) => setForm({ ...form, priority: value })}
-                      placeholder="עדיפות"
-                      min={1}
-                      max={10}
+                      onChange={(e) => {
+                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                        setForm({ ...form, priority: Math.min(Math.max(value, 1), 10) })
+                      }}
+                      className="w-full border border-border rounded-lg px-3 py-2"
+                      placeholder="1-10"
+                      min="1"
+                      max="10"
                     />
                   </div>
                 </div>
@@ -534,11 +540,18 @@ export default function DailyUpdatesAdmin() {
                       <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
                         {form.durationType === 'hours' ? 'מספר שעות' : 'מספר ימים'}
                       </label>
-                      <NumberInput
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={form.durationValue}
-                        onChange={(value) => setForm({ ...form, durationValue: value })}
+                        onChange={(e) => {
+                          const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                          setForm({ ...form, durationValue: Math.max(value, 1) })
+                        }}
+                        className="w-full border border-border rounded-lg px-3 py-2"
                         placeholder={form.durationType === 'hours' ? 'שעות' : 'ימים'}
-                        min={1}
+                        min="1"
                       />
                     </div>
                   )}

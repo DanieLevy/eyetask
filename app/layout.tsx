@@ -64,6 +64,35 @@ export default function RootLayout({
         <meta name="apple-touch-fullscreen" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="format-detection" content="telephone=no" />
+        
+        {/* Theme initialization script to prevent FOUC */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme') || 'system';
+                  var root = document.documentElement;
+                  var resolvedTheme;
+                  
+                  if (theme === 'system') {
+                    resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  } else {
+                    resolvedTheme = theme;
+                  }
+                  
+                  root.classList.remove('light', 'dark');
+                  root.classList.add(resolvedTheme);
+                  root.style.colorScheme = resolvedTheme;
+                } catch (e) {
+                  // Fallback to light theme if any error
+                  document.documentElement.classList.add('light');
+                  document.documentElement.style.colorScheme = 'light';
+                }
+              })();
+            `,
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

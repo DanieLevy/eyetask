@@ -18,7 +18,6 @@ import {
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import ImageUpload, { MultipleImageUpload } from '@/components/ImageUpload';
-import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Project {
   id: string;
@@ -41,77 +40,6 @@ interface NewTaskData {
   lidar: boolean;
   dayTime: string[];
   priority: number;
-}
-
-// Custom NumberInput component for better mobile support and clearing
-interface NumberInputProps {
-  value: number | string;
-  onChange: (value: number) => void;
-  placeholder?: string;
-  min?: number;
-  max?: number;
-  className?: string;
-  disabled?: boolean;
-}
-
-function NumberInput({ value, onChange, placeholder, min, max, className = '', disabled = false }: NumberInputProps) {
-  const [inputValue, setInputValue] = useState(value?.toString() || '');
-
-  useEffect(() => {
-    setInputValue(value?.toString() || '');
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    
-    // Allow empty string for clearing
-    if (newValue === '') {
-      onChange(min ?? 0);
-      return;
-    }
-    
-    // Parse and validate number
-    const numValue = parseFloat(newValue);
-    if (!isNaN(numValue)) {
-      // Apply min/max constraints
-      let finalValue = numValue;
-      if (min !== undefined && finalValue < min) finalValue = min;
-      if (max !== undefined && finalValue > max) finalValue = max;
-      onChange(finalValue);
-    }
-  };
-
-  const handleBlur = () => {
-    // If empty on blur, set to minimum or 0
-    if (inputValue === '' || isNaN(parseFloat(inputValue))) {
-      const defaultValue = min ?? 0;
-      setInputValue(defaultValue.toString());
-      onChange(defaultValue);
-    }
-  };
-
-  return (
-    <input
-      type="number"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      value={inputValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder={placeholder}
-      min={min}
-      max={max}
-      disabled={disabled}
-      className={`
-        w-full px-3 py-2 border border-border rounded-md 
-        focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-        disabled:bg-muted disabled:cursor-not-allowed
-        [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-        ${className}
-      `}
-    />
-  );
 }
 
 export default function NewTaskPage() {
@@ -360,10 +288,13 @@ export default function NewTaskPage() {
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">מספר Dataco *</label>
                     <div className="relative">
-                      <NumericTextInput
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         value={newTaskData.datacoNumber}
-                        onChange={(value) => setNewTaskData(prev => ({ ...prev, datacoNumber: value }))}
-                        className="pl-20 p-3"
+                        onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
+                        className="pl-20 p-3 w-full border border-border rounded-lg bg-background text-foreground"
                         placeholder="הזן מספר"
                         dir="ltr"
                       />
@@ -420,13 +351,19 @@ export default function NewTaskPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
-                    <NumberInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={newTaskData.priority}
-                      onChange={(value) => setNewTaskData(prev => ({ ...prev, priority: value }))}
-                      placeholder="עדיפות"
-                      min={1}
-                      max={10}
-                      className="p-3"
+                      onChange={(e) => {
+                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                        setNewTaskData(prev => ({ ...prev, priority: Math.min(Math.max(value, 1), 10) }))
+                      }}
+                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                      placeholder="1-10"
+                      min="1"
+                      max="10"
                     />
                     <p className="text-xs text-muted-foreground mt-1">1 = גבוהה ביותר, 10 = נמוכה</p>
                   </div>

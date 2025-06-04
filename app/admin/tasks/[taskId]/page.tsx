@@ -28,7 +28,6 @@ import { RealtimeNotification, useRealtimeNotification } from '@/components/Real
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import ImageUpload, { ImageDisplay, MultipleImageUpload, ImageGallery } from '@/components/ImageUpload';
-import NumberInput, { NumericTextInput } from '@/components/NumberInput';
 
 interface Task {
   id: string;
@@ -87,72 +86,6 @@ interface NewSubtaskData {
   targetCar: string[];
   weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
-}
-
-// Custom NumberInput component for better mobile support and clearing
-interface NumberInputProps {
-  value: number | string;
-  onChange: (value: number) => void;
-  placeholder?: string;
-  min?: number;
-  max?: number;
-  className?: string;
-  disabled?: boolean;
-}
-
-function NumberInput({ value, onChange, placeholder, min, max, className = '', disabled = false }: NumberInputProps) {
-  const [inputValue, setInputValue] = useState(value?.toString() || '');
-
-  useEffect(() => {
-    setInputValue(value?.toString() || '');
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    
-    // Allow empty string for clearing
-    if (newValue === '') {
-      onChange(0);
-      return;
-    }
-    
-    // Parse and validate number
-    const numValue = parseFloat(newValue);
-    if (!isNaN(numValue)) {
-      onChange(numValue);
-    }
-  };
-
-  const handleBlur = () => {
-    // If empty on blur, set to 0
-    if (inputValue === '' || isNaN(parseFloat(inputValue))) {
-      setInputValue('0');
-      onChange(0);
-    }
-  };
-
-  return (
-    <input
-      type="number"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      value={inputValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder={placeholder}
-      min={min}
-      max={max}
-      disabled={disabled}
-      className={`
-        w-full px-3 py-2 border border-border rounded-md 
-        focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-        disabled:bg-muted disabled:cursor-not-allowed
-        [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-        ${className}
-      `}
-    />
-  );
 }
 
 export default function TaskManagement() {
@@ -1065,10 +998,13 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <NumericTextInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={newSubtaskData.datacoNumber}
-                      onChange={(value) => setNewSubtaskData(prev => ({ ...prev, datacoNumber: value }))}
-                      className="pl-20 p-2"
+                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
@@ -1089,11 +1025,18 @@ export default function TaskManagement() {
                   <label className="block text-sm font-medium text-foreground mb-2">
                     כמות נדרשת *
                   </label>
-                  <NumberInput
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={newSubtaskData.amountNeeded}
-                    onChange={(value) => setNewSubtaskData(prev => ({ ...prev, amountNeeded: value }))}
+                    onChange={(e) => {
+                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                      setNewSubtaskData(prev => ({ ...prev, amountNeeded: Math.max(value, 0) }))
+                    }}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                     placeholder="הכנס כמות"
-                    min={0}
+                    min="0"
                   />
                 </div>
               </div>
@@ -1276,10 +1219,13 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <NumericTextInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={editingSubtask.datacoNumber}
-                      onChange={(value) => handleDatacoNumberChange(value, true)}
-                      className="pl-20 p-2"
+                      onChange={(e) => handleDatacoNumberChange(e.target.value, true)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
@@ -1300,11 +1246,18 @@ export default function TaskManagement() {
                   <label className="block text-sm font-medium text-foreground mb-2">
                     כמות נדרשת *
                   </label>
-                  <NumberInput
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={editingSubtask.amountNeeded}
-                    onChange={(value) => setEditingSubtask(prev => prev ? ({ ...prev, amountNeeded: value }) : null)}
+                    onChange={(e) => {
+                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                      setEditingSubtask(prev => prev ? ({ ...prev, amountNeeded: Math.max(value, 0) }) : null)
+                    }}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                     placeholder="הכנס כמות"
-                    min={0}
+                    min="0"
                   />
                 </div>
               </div>
@@ -1357,8 +1310,8 @@ export default function TaskManagement() {
                   <option value="Clear">בהיר (Clear)</option>
                   <option value="Fog">ערפל (Fog)</option>
                   <option value="Overcast">מעונן (Overcast)</option>
-                  <option value="Rain">גשם (Rain)</option>
-                  <option value="Snow">שלג (Snow)</option>
+                  <option value="Rain">גשום (Rain)</option>
+                  <option value="Snow">שלגי (Snow)</option>
                   <option value="Mixed">מעורב (Mixed)</option>
                 </select>
               </div>
@@ -1483,10 +1436,13 @@ export default function TaskManagement() {
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
                   <div className="relative">
-                    <NumericTextInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={editTaskData.datacoNumber || ''}
-                      onChange={(value) => handleTaskDatacoNumberChange(value)}
-                      className="pl-20 p-2"
+                      onChange={(e) => handleTaskDatacoNumberChange(e.target.value)}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
                       placeholder="הזן מספר"
                       dir="ltr"
                     />
@@ -1508,11 +1464,18 @@ export default function TaskManagement() {
                     כמות נדרשת
                   </label>
                   <div className="relative">
-                    <NumberInput
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={editTaskData.amountNeeded || 0}
-                      onChange={(value) => setEditTaskData(prev => ({ ...prev, amountNeeded: value }))}
+                      onChange={(e) => {
+                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                        setEditTaskData(prev => ({ ...prev, amountNeeded: Math.max(value, 0) }))
+                      }}
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                       placeholder="יחושב אוטומטית מתת-המשימות"
-                      min={0}
+                      min="0"
                       disabled={subtasks.length > 0}
                     />
                     {subtasks.length > 0 && (
@@ -1533,12 +1496,19 @@ export default function TaskManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
-                <NumberInput
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={editTaskData.priority || 5}
-                  onChange={(value) => setEditTaskData(prev => ({ ...prev, priority: Math.max(1, Math.min(10, value)) }))}
+                  onChange={(e) => {
+                    const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                    setEditTaskData(prev => ({ ...prev, priority: Math.max(1, Math.min(10, value)) }))
+                  }}
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   placeholder="עדיפות"
-                  min={1}
-                  max={10}
+                  min="1"
+                  max="10"
                 />
               </div>
 
@@ -1607,137 +1577,11 @@ export default function TaskManagement() {
                   </label>
                 </div>
               </div>
-
-              {/* Locations (Multi-select) */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">מיקומים * (ניתן לבחור מספר)</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {['Urban', 'Highway', 'Rural', 'Sub-Urban', 'Mixed'].map(location => (
-                    <label key={location} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editTaskData.locations?.includes(location) || false}
-                        onChange={(e) => {
-                          const currentLocations = editTaskData.locations || [];
-                          if (e.target.checked) {
-                            setEditTaskData(prev => ({ ...prev, locations: [...currentLocations, location] }));
-                          } else {
-                            setEditTaskData(prev => ({ ...prev, locations: currentLocations.filter(l => l !== location) }));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      {location === 'Urban' ? 'עירוני' : 
-                       location === 'Highway' ? 'כביש מהיר' :
-                       location === 'Rural' ? 'כפרי' :
-                       location === 'Sub-Urban' ? 'פרברי' : 'מעורב'}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Target Cars (Editable input) */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
-                <input
-                  type="text"
-                  value={(editTaskData.targetCar || []).join(' ')}
-                  onChange={(e) => {
-                    const carsText = e.target.value;
-                    // Allow spaces while typing - only split when there are actual complete words
-                    if (carsText.endsWith(' ') && carsText.trim().includes(' ')) {
-                      // Split only when user completes a word with space
-                      const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
-                      setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                    } else {
-                      // Keep the raw text until user adds separating spaces
-                      const carsArray = carsText.length === 0 ? [] : [carsText];
-                      setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Process the final input when user leaves the field
-                    const carsText = e.target.value;
-                    const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
-                    setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                  }}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
-                {(editTaskData.targetCar || []).length > 0 && editTaskData.targetCar?.[0] !== '' && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {editTaskData.targetCar?.map((car, index) => (
-                      <span 
-                        key={index}
-                        className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-                      >
-                        {car}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Day Time (Multi-select) */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">זמני יום * (ניתן לבחור מספר)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {['day', 'night', 'dusk', 'dawn'].map(time => (
-                    <label key={time} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editTaskData.dayTime?.includes(time as any) || false}
-                        onChange={(e) => {
-                          const currentTimes = editTaskData.dayTime || [];
-                          if (e.target.checked) {
-                            setEditTaskData(prev => ({ ...prev, dayTime: [...currentTimes, time] as any }));
-                          } else {
-                            setEditTaskData(prev => ({ ...prev, dayTime: currentTimes.filter(t => t !== time) }));
-                          }
-                        }}
-                        className="mr-2"
-                      />
-                      {time === 'day' ? 'יום' : 
-                       time === 'night' ? 'לילה' :
-                       time === 'dusk' ? 'דמדומים' : 'שחר'}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Amount and LiDAR */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="flex items-center gap-2 mt-7">
-                    <input
-                      type="checkbox"
-                      checked={editTaskData.lidar || false}
-                      onChange={(e) => setEditTaskData(prev => ({ ...prev, lidar: e.target.checked }))}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm font-medium text-foreground">נדרש LiDAR</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Visibility */}
-              <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editTaskData.isVisible !== false}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, isVisible: e.target.checked }))}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm font-medium text-foreground">המשימה גלויה למשתמשים</span>
-                </label>
-              </div>
             </div>
             <div className="p-6 border-t border-border flex gap-3">
               <button
                 onClick={handleUpdateTask}
-                disabled={operationLoading || !editTaskData.title || !editTaskData.datacoNumber}
+                disabled={operationLoading}
                 className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {operationLoading ? 'שומר...' : 'שמור שינויים'}
@@ -1763,10 +1607,8 @@ export default function TaskManagement() {
           <div className="bg-card rounded-lg border border-border w-full max-w-sm">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-2">אישור מחיקת משימה</h3>
-              <p className="text-muted-foreground mb-4">
-                האם אתה בטוח שברצונך למחוק את המשימה "{task?.title}"? 
-                פעולה זו תמחק גם את כל התת-משימות הקשורות ולא ניתנת לביטול.
-              </p>
+              <p className="text-muted-foreground mb-4">האם אתה בטוח שברצונך למחוק את המשימה "{task?.title}"? 
+                פעולה זו תמחק גם את כל התת-משימות הקשורות ולא ניתנת לביטול.</p>
               <div className="flex gap-3">
                 <button
                   onClick={handleDeleteTask}
