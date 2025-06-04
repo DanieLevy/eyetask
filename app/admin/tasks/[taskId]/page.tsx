@@ -189,8 +189,8 @@ export default function TaskManagement() {
   }, [taskId, showNotification]);
 
   // Set up realtime subscriptions
-  useTasksRealtime(handleTaskChange);
-  useSubtasksRealtime(taskId, handleSubtaskChange);
+  useTasksRealtime(fetchTaskData);
+  useSubtasksRealtime(taskId, fetchTaskData);
 
   const fetchTaskData = useCallback(async () => {
     try {

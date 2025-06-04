@@ -153,8 +153,8 @@ export default function AdminDashboard() {
   }, []);
 
   // Set up realtime subscriptions
-  useTasksRealtime(handleTaskChange);
-  useProjectsRealtime(handleProjectChange);
+  useTasksRealtime(refreshData);
+  useProjectsRealtime(refreshData);
 
   const refreshData = useCallback(async () => {
     try {

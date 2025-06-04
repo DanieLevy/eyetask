@@ -78,56 +78,6 @@ export default function ProjectPage() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
-  // Realtime handler for tasks
-  const handleTaskChange = useCallback((payload: any) => {
-    console.log('🔄 Public Task realtime update:', payload);
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    setTasks(current => {
-      switch (eventType) {
-        case 'INSERT':
-          if (newRecord && newRecord.project_id === projectId && newRecord.is_visible) {
-            // Add new visible task
-            const exists = current.find(t => t.id === newRecord.id);
-            return exists ? current : [...current, newRecord];
-          }
-          return current;
-          
-        case 'UPDATE':
-          if (newRecord && newRecord.project_id === projectId) {
-            if (newRecord.is_visible) {
-              // Update existing task or add if it became visible
-              const exists = current.find(t => t.id === newRecord.id);
-              return exists 
-                ? current.map(task => task.id === newRecord.id ? newRecord : task)
-                : [...current, newRecord];
-            } else {
-              // Remove task if it became hidden
-              return current.filter(task => task.id !== newRecord.id);
-            }
-          } else if (newRecord && newRecord.project_id !== projectId) {
-            // Task was moved to another project, remove it
-            return current.filter(task => task.id !== newRecord.id);
-          }
-          return current;
-          
-        case 'DELETE':
-          if (oldRecord) {
-            // Remove deleted task
-            return current.filter(task => task.id !== oldRecord.id);
-          }
-          return current;
-          
-        default:
-          return current;
-      }
-    });
-  }, [projectId]);
-
-  // Set up realtime subscription for tasks
-  useTasksRealtime(handleTaskChange);
-
   const fetchProjectData = useCallback(async () => {
     try {
       // Add cache busting timestamp
@@ -202,6 +152,9 @@ export default function ProjectPage() {
 
   // Register this page's refresh function
   usePageRefresh(fetchProjectData);
+
+  // Set up realtime subscription for tasks
+  useTasksRealtime(fetchProjectData);
 
   useEffect(() => {
     fetchProjectData();

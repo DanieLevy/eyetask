@@ -82,4 +82,17 @@ export function useRealtime(
     startInterval,
     stopInterval
   };
+}
+
+// Specific realtime hooks for different data types - these just do periodic refreshing
+export function useTasksRealtime(refreshCallback: () => Promise<void> | void, options?: UseRealtimeOptions) {
+  return useRealtime(refreshCallback, { interval: 15000, ...options });
+}
+
+export function useProjectsRealtime(refreshCallback: () => Promise<void> | void, options?: UseRealtimeOptions) {
+  return useRealtime(refreshCallback, { interval: 30000, ...options });
+}
+
+export function useSubtasksRealtime(taskId: string, refreshCallback: () => Promise<void> | void, options?: UseRealtimeOptions) {
+  return useRealtime(refreshCallback, { interval: 10000, ...options });
 } 

@@ -142,8 +142,8 @@ export default function ProjectManagement() {
   }, [projectId]);
 
   // Set up realtime subscriptions
-  useTasksRealtime(handleTaskChange);
-  useProjectsRealtime(handleProjectChange);
+  useTasksRealtime(fetchProjectData);
+  useProjectsRealtime(fetchProjectData);
 
   const fetchProjectData = useCallback(async () => {
     try {
