@@ -188,10 +188,6 @@ export default function TaskManagement() {
     });
   }, [taskId, showNotification]);
 
-  // Set up realtime subscriptions
-  useTasksRealtime(fetchTaskData);
-  useSubtasksRealtime(taskId, fetchTaskData);
-
   const fetchTaskData = useCallback(async () => {
     try {
       setLoading(true);
@@ -265,6 +261,10 @@ export default function TaskManagement() {
       setLoading(false);
     }
   }, [taskId]);
+
+  // Set up realtime subscriptions
+  useTasksRealtime(fetchTaskData);
+  useSubtasksRealtime(taskId, fetchTaskData);
 
   // Register this page's refresh function
   usePageRefresh(fetchTaskData);

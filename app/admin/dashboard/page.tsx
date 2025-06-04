@@ -152,10 +152,6 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  // Set up realtime subscriptions
-  useTasksRealtime(refreshData);
-  useProjectsRealtime(refreshData);
-
   const refreshData = useCallback(async () => {
     try {
       setRefreshing(true);
@@ -188,6 +184,10 @@ export default function AdminDashboard() {
       setRefreshing(false);
     }
   }, []);
+
+  // Set up realtime subscriptions
+  useTasksRealtime(refreshData);
+  useProjectsRealtime(refreshData);
 
   // Load initial data
   useEffect(() => {

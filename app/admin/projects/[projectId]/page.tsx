@@ -141,10 +141,6 @@ export default function ProjectManagement() {
     });
   }, [projectId]);
 
-  // Set up realtime subscriptions
-  useTasksRealtime(fetchProjectData);
-  useProjectsRealtime(fetchProjectData);
-
   const fetchProjectData = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -186,6 +182,10 @@ export default function ProjectManagement() {
       setLoading(false);
     }
   }, [projectId, router]);
+
+  // Set up realtime subscriptions
+  useTasksRealtime(fetchProjectData);
+  useProjectsRealtime(fetchProjectData);
 
   // Register this page's refresh function
   usePageRefresh(fetchProjectData);
