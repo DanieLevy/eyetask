@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import { db } from './database';
 import { logger } from './logger';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'your-secret-key-here';
+// Make sure we're using the correct environment variable for JWT
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
 const COOKIE_NAME = 'auth-token';
 
 export interface LoginCredentials {
