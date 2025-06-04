@@ -139,50 +139,16 @@ export default function HomePage() {
 
   return (
     <div className="bg-background">
-      {/* Daily Updates Carousel - Top positioned clean design */}
-      <section className="border-b border-border">
-        <DailyUpdatesCarousel className="container mx-auto px-4" />
+      {/* Daily Updates Carousel - Clean minimal design */}
+      <section className="relative">
+        {/* Content */}
+        <div className="relative z-10">
+          <DailyUpdatesCarousel className="container mx-auto px-4" />
+        </div>
       </section>
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        {/* Compact Stats */}
-        <section className="mb-8">
-          <div className="bg-card rounded-lg border border-border p-4">
-            <div className="flex flex-wrap items-center justify-center gap-6 text-center">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                <div>
-                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                    {projects.length}
-                  </span>
-                  <span className="text-sm text-muted-foreground mr-1">פרויקטים</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-green-500" />
-                <div>
-                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                    {tasks.filter(task => task.isVisible).length}
-                  </span>
-                  <span className="text-sm text-muted-foreground mr-1">משימות</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-5 w-5 bg-orange-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs text-white font-bold">!</span>
-                </div>
-                <div>
-                  <span className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                    {tasks.filter(task => task.priority >= 1 && task.priority <= 3 && task.isVisible).length}
-                  </span>
-                  <span className="text-sm text-muted-foreground mr-1">עדיפות גבוהה</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Projects Section */}
         <section>
           <div className="mb-6">

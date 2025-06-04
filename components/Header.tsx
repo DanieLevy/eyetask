@@ -72,6 +72,7 @@ export default function Header() {
   const isHomePage = pathname === '/';
   const showAdminActions = isAdminPage && user;
   const showLogout = user; // Show logout for any authenticated user
+  const showAdminDashboard = user && !isAdminLoginPage; // Show admin dashboard for any logged in user except on login page
   
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
@@ -205,7 +206,8 @@ export default function Header() {
                 </Link>
               )}
               
-              {showAdminActions && (
+              {/* Show admin dashboard for logged-in users */}
+              {showAdminDashboard && (
                 <Link 
                   href="/admin/dashboard" 
                   className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
@@ -216,6 +218,7 @@ export default function Header() {
                 </Link>
               )}
               
+              {/* Show logout for logged-in users or login for non-logged users */}
               {showLogout ? (
                 <button
                   onClick={handleLogout}
@@ -225,7 +228,7 @@ export default function Header() {
                   התנתק
                 </button>
               ) : (
-                !isAdminPage && !isAdminLoginPage && (
+                !isAdminLoginPage && (
                   <Link 
                     href="/admin" 
                     className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
