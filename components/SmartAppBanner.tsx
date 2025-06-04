@@ -66,7 +66,7 @@ export default function SmartAppBanner() {
             <div className="flex-shrink-0">
               <img 
                 src="/icons/icon-128x128.png" 
-                alt="EyeTask"
+                alt="DC Drivers"
                 className="w-8 h-8 rounded-lg shadow-sm"
               />
             </div>
@@ -74,7 +74,7 @@ export default function SmartAppBanner() {
             {/* Simple Content */}
             <div className="flex-1 min-w-0">
               <h3 className={`text-sm font-semibold text-black ${hebrewFont.fontClass}`}>
-                EyeTask
+                DC Drivers
               </h3>
               <p className={`text-xs text-black/70 ${hebrewFont.fontClass}`}>
                 התקן את האפליקציה למסך הבית
@@ -114,11 +114,11 @@ export default function SmartAppBanner() {
               <div className="flex items-center gap-2">
                 <img 
                   src="/icons/icon-128x128.png" 
-                  alt="EyeTask"
+                  alt="DC Drivers"
                   className="w-6 h-6 rounded-lg"
                 />
                 <h3 className={`text-sm font-semibold text-black ${hebrewFont.fontClass}`}>
-                  התקנת EyeTask
+                  התקנת DC Drivers
                 </h3>
               </div>
               <button
@@ -216,12 +216,12 @@ export function MiniAppBanner() {
       <div className="flex items-center gap-2">
         <img 
           src="/icons/icon-128x128.png" 
-          alt="EyeTask"
+          alt="DC Drivers"
           className="w-6 h-6 rounded-lg"
         />
         <div className="flex-1 min-w-0">
           <p className={`text-sm text-black ${hebrewFont.fontClass}`}>
-            התקן את EyeTask למסך הבית
+            התקן את DC Drivers למסך הבית
           </p>
         </div>
         <button

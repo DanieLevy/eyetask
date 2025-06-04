@@ -1,7 +1,7 @@
 {
-  "name": "EyeTask - מערכת ניהול משימות נהגים",
-  "short_name": "EyeTask",
-  "description": "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
+  "name": "DC Drivers - מערכת ניהול משימות נהגים",
+  "short_name": "DC Drivers",
+  "description": "אפליקציית ניהול משימות בזמן אמת עבור נהגי DC Drivers",
   "start_url": "/?utm_source=pwa&utm_medium=homescreen",
   "display": "standalone",
   "background_color": "#ffffff",
