@@ -73,19 +73,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (2MB limit for production compatibility)
-    const maxSize = process.env.NODE_ENV === 'production' ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      logger.warn('File too large upload attempt', 'UPLOAD_API', { 
-        fileSize: file.size,
-        fileName: file.name,
-        maxSize 
-      });
-      return NextResponse.json(
-        { error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`, success: false },
-        { status: 400 }
-      );
-    }
+    // Validate file size (removed limit for unlimited upload)
+    // Note: Consider server memory and storage capacity for very large files
+    // Size validation removed to allow unlimited uploads
+    
+    // Skip size validation for unlimited uploads
+    // if (file.size > maxSize) { ... } - removed
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer();

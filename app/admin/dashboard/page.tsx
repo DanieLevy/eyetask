@@ -39,7 +39,9 @@ import {
   Cpu,
   Shield,
   Server,
-  HardDrive
+  HardDrive,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -71,6 +73,69 @@ interface CacheStatus {
   lastInvalidation: string | null;
   forceUpdate: boolean;
   timestamp: string;
+}
+
+// Theme Toggle Component
+function ThemeToggle() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Check if user has a saved theme preference
+    const savedTheme = localStorage.getItem('theme');
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    const initialTheme = savedTheme ? savedTheme as 'light' | 'dark' : systemTheme;
+    setTheme(initialTheme);
+    
+    // Apply theme to document
+    if (initialTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="relative p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-300 overflow-hidden"
+      title={theme === 'light' ? 'עבור למצב כהה' : 'עבור למצב בהיר'}
+    >
+      <div className="relative w-5 h-5">
+        {/* Sun Icon */}
+        <Sun 
+          className={`absolute inset-0 w-5 h-5 text-yellow-500 transition-all duration-300 transform ${
+            theme === 'light' 
+              ? 'rotate-0 scale-100 opacity-100' 
+              : 'rotate-90 scale-0 opacity-0'
+          }`} 
+        />
+        {/* Moon Icon */}
+        <Moon 
+          className={`absolute inset-0 w-5 h-5 text-blue-400 transition-all duration-300 transform ${
+            theme === 'dark' 
+              ? 'rotate-0 scale-100 opacity-100' 
+              : '-rotate-90 scale-0 opacity-0'
+          }`} 
+        />
+      </div>
+    </button>
+  );
 }
 
 export default function AdminDashboard() {
@@ -204,7 +269,8 @@ export default function AdminDashboard() {
     completedTasks: tasks.filter(task => !task.isVisible).length,
     highPriorityTasks: tasks.filter(task => task.priority >= 1 && task.priority <= 3).length,
     mediumPriorityTasks: tasks.filter(task => task.priority >= 4 && task.priority <= 6).length,
-    lowPriorityTasks: tasks.filter(task => task.priority >= 7 && task.priority <= 10).length
+    lowPriorityTasks: tasks.filter(task => task.priority >= 7 && task.priority <= 10).length,
+    totalAmount: tasks.reduce((sum, task) => sum + (task.amountNeeded || 0), 0)
   };
 
   const getTaskCountForProject = (projectId: string) => {
@@ -259,6 +325,9 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               {/* Quick Refresh Button */}
               <button
                 onClick={refreshData}
@@ -369,7 +438,7 @@ export default function AdminDashboard() {
             פעולות מהירות
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Project Management */}
             <Link href="/admin/projects" 
               className="group p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-900/30 dark:hover:to-blue-800/30 transition-all border border-blue-200 dark:border-blue-700">
@@ -401,6 +470,24 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-xs text-green-700 dark:text-green-300">
                     הוסף משימה חדשה
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Daily Updates */}
+            <Link href="/admin/daily-updates" 
+              className="group p-4 rounded-lg bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-900/30 dark:hover:to-yellow-800/30 transition-all border border-yellow-200 dark:border-yellow-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-500 rounded-lg group-hover:scale-110 transition-transform">
+                  <Bell className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-yellow-900 dark:text-yellow-100 ${hebrewBody.fontClass}`}>
+                    עדכונים יומיים
+                  </h3>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                    ניהול הודעות יומיות
                   </p>
                 </div>
               </div>

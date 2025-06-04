@@ -2,7 +2,15 @@
 
 ## Overview
 
-This feature adds support for uploading and managing multiple images for both tasks and subtasks in the EyeTask application. Previously, each task/subtask could only have a single image. Now they can have up to 5 images each.
+EyeTask now supports **unlimited image uploads** for tasks and subtasks, with an enhanced image management system including galleries, lightbox view, and seamless mobile support.
+
+### Key Features
+- **Multiple Image Support**: Upload up to 5 images per task/subtask
+- **Unlimited File Size**: No size restrictions on uploaded images  
+- **Advanced UI Components**: Drag & drop upload, grid gallery, lightbox modal
+- **Dual Storage System**: File system (development) + Base64 (production)
+- **Mobile Responsive**: Touch-friendly controls and responsive design
+- **Accessibility**: Keyboard navigation and screen reader support
 
 ## Features
 
@@ -218,9 +226,8 @@ NETLIFY=true
 ## Performance Considerations
 
 ### Image Size Limits
-- **Development**: 5MB per image
-- **Production**: 2MB per image (base64 storage)
-- **Total**: Maximum 5 images per task/subtask
+- **Development**: Unlimited (file system storage)
+- **Production**: Unlimited (base64 storage) - *Note: Consider server memory for very large files*
 
 ### Storage Optimization
 - **Compression**: Automatic image compression
