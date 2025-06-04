@@ -21,14 +21,13 @@ import {
   Cloud,
   Building,
   FileText,
-  Image as ImageIcon,
-  EyeOff
+  Image as ImageIcon
 } from 'lucide-react';
 import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import ImageUpload, { ImageDisplay, MultipleImageUpload, ImageGallery } from '@/components/ImageUpload';
+import { ImageGallery } from '@/components/ImageUpload';
 
 interface Task {
   id: string;
@@ -85,8 +84,6 @@ export default function TaskManagement() {
   const [project, setProject] = useState<Project | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
   
   // Operation states
   const [operationLoading, setOperationLoading] = useState(false);
@@ -196,7 +193,6 @@ export default function TaskManagement() {
       if (!taskResponse.ok) {
         const errorData = await taskResponse.json();
         console.error('Failed to fetch task:', errorData);
-        setError(errorData.message || 'Failed to fetch task');
         setLoading(false);
         return;
       }
@@ -207,7 +203,6 @@ export default function TaskManagement() {
       const taskInfo = taskData.data?.task || taskData.task;
       
       if (!taskInfo) {
-        setError('Task not found');
         setLoading(false);
         return;
       }
@@ -247,7 +242,6 @@ export default function TaskManagement() {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching task data:', error);
-      setError('Failed to load task data');
       setLoading(false);
     }
   }, [taskId, isUserInteracting]);
@@ -274,28 +268,6 @@ export default function TaskManagement() {
     fetchTaskData(true);
   }, [taskId]);
 
-  useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('adminToken');
-    const userData = localStorage.getItem('adminUser');
-    
-    if (!token || !userData || userData === 'undefined' || userData === 'null') {
-      router.push('/admin');
-      return;
-    }
-
-    try {
-      const parsedUser = JSON.parse(userData);
-      if (!parsedUser || !parsedUser.id || !parsedUser.username) {
-        throw new Error('Invalid user data structure');
-      }
-      setUser(parsedUser);
-    } catch (error) {
-      router.push('/admin');
-      return;
-    }
-  }, [taskId, router]);
-
   const handleUpdateSubtask = async () => {
     if (!deleteConfirm) return;
     
@@ -320,38 +292,6 @@ export default function TaskManagement() {
     } catch (error) {
       console.error('Error deleting subtask:', error);
       alert('Error deleting subtask');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-
-  const handleUpdateTask = async () => {
-    if (!task) return;
-    
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${task.id}?_t=${Date.now()}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        body: JSON.stringify(task),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Refresh data after successful update
-        await forceRefresh();
-      } else {
-        alert('Failed to update task: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error updating task:', error);
-      alert('Error updating task');
     } finally {
       setOperationLoading(false);
     }
@@ -423,16 +363,6 @@ export default function TaskManagement() {
     return `DATACO-${datacoNumber}`;
   };
 
-  // Handle DATACO number input - only allow numbers
-  const handleDatacoNumberChange = (value: string) => {
-    // Remove any non-numeric characters
-    const numericValue = value.replace(/[^0-9]/g, '');
-    
-    if (task) {
-      setTask(prev => prev ? ({ ...prev, datacoNumber: numericValue }) : null);
-    }
-  };
-
   // Auto-calculate task amount when subtasks change
   const calculateTaskAmount = useCallback(async () => {
     if (!task || subtasks.length === 0) return;
@@ -491,36 +421,6 @@ export default function TaskManagement() {
     } catch (error) {
       console.error('Error deleting subtask:', error);
       alert('Error deleting subtask');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-
-  const handleToggleVisibility = async (taskId: string, currentVisibility: boolean) => {
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${taskId}/visibility`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        body: JSON.stringify({ isVisible: !currentVisibility })
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Refresh data after successful update
-        await forceRefresh();
-      } else {
-        alert('Failed to toggle visibility: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error toggling visibility:', error);
-      alert('Error toggling visibility');
     } finally {
       setOperationLoading(false);
     }

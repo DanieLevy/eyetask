@@ -643,133 +643,31 @@ export function ImageGallery({
 }: ImageGalleryProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [lastTouchDistance, setLastTouchDistance] = useState<number | null>(null);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   if (!images || images.length === 0) return null;
 
   const displayImages = images.slice(0, maxDisplay);
   const remainingCount = images.length - maxDisplay;
 
-  const resetImageTransform = () => {
-    setScale(1);
-    setPosition({ x: 0, y: 0 });
-  };
-
   const nextImage = () => {
     const newIndex = (currentIndex + 1) % images.length;
     setCurrentIndex(newIndex);
     setSelectedImage(images[newIndex]);
-    resetImageTransform();
   };
 
   const prevImage = () => {
     const newIndex = (currentIndex - 1 + images.length) % images.length;
     setCurrentIndex(newIndex);
     setSelectedImage(images[newIndex]);
-    resetImageTransform();
   };
 
   const openGallery = (imageUrl: string, index: number) => {
     setSelectedImage(imageUrl);
     setCurrentIndex(index);
-    resetImageTransform();
   };
 
   const closeGallery = () => {
     setSelectedImage(null);
-    resetImageTransform();
-  };
-
-  // Touch/mouse event handlers for zoom and pan
-  const getTouchDistance = (touches: React.TouchList): number => {
-    const touch1 = touches[0];
-    const touch2 = touches[1];
-    return Math.sqrt(
-      Math.pow(touch2.clientX - touch1.clientX, 2) +
-      Math.pow(touch2.clientY - touch1.clientY, 2)
-    );
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2) {
-      // Pinch start
-      setLastTouchDistance(getTouchDistance(e.touches));
-    } else if (e.touches.length === 1 && scale > 1) {
-      // Pan start
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - position.x,
-        y: e.touches[0].clientY - position.y
-      });
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (e.touches.length === 2 && lastTouchDistance !== null) {
-      // Pinch move
-      const newTouchDistance = getTouchDistance(e.touches);
-      const newScale = scale * (newTouchDistance / lastTouchDistance);
-      setScale(Math.min(Math.max(newScale, 0.5), 5)); // Min 0.5x, Max 5x
-      setLastTouchDistance(newTouchDistance);
-    } else if (e.touches.length === 1 && isDragging && scale > 1) {
-      // Pan move
-      setPosition({
-        x: e.touches[0].clientX - dragStart.x,
-        y: e.touches[0].clientY - dragStart.y
-      });
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    setLastTouchDistance(null);
-    
-    // Reset position if zoomed out too much
-    if (scale < 1) {
-      setScale(1);
-      setPosition({ x: 0, y: 0 });
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale > 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y
-      });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && scale > 1) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const scaleChange = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(Math.max(scale * scaleChange, 0.5), 4);
-    setScale(newScale);
-    
-    if (newScale <= 1) {
-      setPosition({ x: 0, y: 0 });
-    }
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -785,21 +683,6 @@ export function ImageGallery({
       case 'ArrowRight':
         if (images.length > 1) nextImage();
         break;
-      case '=':
-      case '+':
-        e.preventDefault();
-        setScale(Math.min(scale * 1.2, 4));
-        break;
-      case '-':
-        e.preventDefault();
-        const newScale = Math.max(scale * 0.8, 0.5);
-        setScale(newScale);
-        if (newScale <= 1) setPosition({ x: 0, y: 0 });
-        break;
-      case '0':
-        e.preventDefault();
-        resetImageTransform();
-        break;
     }
   };
 
@@ -809,7 +692,7 @@ export function ImageGallery({
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedImage, scale, images.length, currentIndex]);
+  }, [selectedImage, images.length, currentIndex]);
 
   // Prevent body scroll when modal is open
   React.useEffect(() => {
@@ -874,13 +757,6 @@ export function ImageGallery({
                 <div className="px-3 py-1 bg-black/50 text-white text-sm rounded-full backdrop-blur-sm">
                   {currentIndex + 1} מתוך {images.length}
                 </div>
-                
-                {/* Zoom Level */}
-                {scale !== 1 && (
-                  <div className="px-3 py-1 bg-black/50 text-white text-sm rounded-full backdrop-blur-sm">
-                    {Math.round(scale * 100)}%
-                  </div>
-                )}
               </div>
               
               {/* Close Button */}
@@ -915,77 +791,15 @@ export function ImageGallery({
 
             {/* Image Container */}
             <div 
-              className="relative max-w-full max-h-full overflow-hidden cursor-grab active:cursor-grabbing"
-              style={{
-                transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-                transformOrigin: 'center center',
-                transition: isDragging ? 'none' : 'transform 0.2s ease-out'
-              }}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onWheel={handleWheel}
+              className="relative max-w-full max-h-full flex items-center justify-center"
             >
               <img
                 src={selectedImage}
                 alt={`תמונה ${currentIndex + 1}`}
-                className="max-w-[90vw] max-h-[90vh] object-contain select-none"
+                className="max-w-[90vw] max-h-[90vh] object-contain select-none rounded-lg"
                 draggable={false}
               />
             </div>
-
-            {/* Bottom Controls */}
-            <div className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-center p-4 bg-gradient-to-t from-black/50 to-transparent">
-              <div className="flex items-center gap-2 bg-black/50 rounded-full px-4 py-2 backdrop-blur-sm">
-                {/* Zoom Out */}
-                <button
-                  onClick={() => {
-                    const newScale = Math.max(scale * 0.8, 0.5);
-                    setScale(newScale);
-                    if (newScale <= 1) setPosition({ x: 0, y: 0 });
-                  }}
-                  className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                  title="הקטן (-)"
-                  disabled={scale <= 0.5}
-                >
-                  <span className="text-lg font-bold">−</span>
-                </button>
-                
-                {/* Reset Zoom */}
-                <button
-                  onClick={resetImageTransform}
-                  className="px-3 py-1 text-white hover:bg-white/20 rounded transition-colors text-sm"
-                  title="איפוס (0)"
-                >
-                  {Math.round(scale * 100)}%
-                </button>
-                
-                {/* Zoom In */}
-                <button
-                  onClick={() => setScale(Math.min(scale * 1.2, 4))}
-                  className="p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-                  title="הגדל (+)"
-                  disabled={scale >= 4}
-                >
-                  <span className="text-lg font-bold">+</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Instructions overlay for first time users */}
-            {scale === 1 && (
-              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-white/70 text-sm text-center pointer-events-none">
-                <div className="bg-black/30 rounded-lg p-3 backdrop-blur-sm">
-                  <p>🔍 גלגל העכבר או פינץ' לזום</p>
-                  <p>🖱️ גרור כדי להזיז</p>
-                  <p>⌨️ ESC לסגירה, ← → לניווט</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
