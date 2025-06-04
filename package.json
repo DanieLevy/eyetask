@@ -45,7 +45,6 @@
     "eslint": "^8",
     "eslint-config-next": "15.1.2",
     "rimraf": "^6.0.1",
-    "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.3.3",
     "typescript": "^5"
   }
