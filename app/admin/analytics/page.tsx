@@ -210,7 +210,7 @@ export default function AnalyticsPage() {
                 <BarChart3 className="h-6 w-6 text-primary" />
                 <div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>לוח בקרה</span>
+                    <span>פאנל ניהול משימות</span>
                     <ChevronRight className="h-4 w-4" />
                     <span>אנליטיקה מתקדמת</span>
                   </div>

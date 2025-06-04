@@ -303,7 +303,7 @@ export default function ProjectsManagementPage() {
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
               >
                 <Home className="h-4 w-4" />
-                דף הבית
+                עמוד הבית
               </Link>
               <button
                 onClick={() => setShowNewProjectForm(true)}

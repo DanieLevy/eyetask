@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, LogOut, Home, Settings, BarChart3 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import Image from 'next/image';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -135,8 +136,11 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Actions - Only Mobile Menu Button */}
-          <div className="flex items-center">
+          {/* Actions - Theme Toggle and Mobile Menu Button */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle - Available for all users */}
+            <ThemeToggle />
+            
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -159,7 +163,7 @@ export default function Header() {
                   onClick={() => setMenuOpen(false)}
                 >
                   <Home className="h-4 w-4" />
-                  דף הבית
+                  עמוד הבית
                 </Link>
               )}
               
@@ -171,7 +175,7 @@ export default function Header() {
                   onClick={() => setMenuOpen(false)}
                 >
                   <BarChart3 className="h-4 w-4" />
-                  לוח בקרה
+                  פאנל ניהול משימות
                 </Link>
               )}
               
@@ -182,7 +186,7 @@ export default function Header() {
                   className="flex items-center gap-2 w-full p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
                 >
                   <LogOut className="h-4 w-4" />
-                  התנתק
+                  יציאה מהמערכת
                 </button>
               ) : (
                 !isAdminLoginPage && (
@@ -192,7 +196,7 @@ export default function Header() {
                     onClick={() => setMenuOpen(false)}
                   >
                     <Settings className="h-4 w-4" />
-                    ניהול מנהל
+                    פאנל ניהול משימות
                   </Link>
                 )
               )}

@@ -39,9 +39,7 @@ import {
   Cpu,
   Shield,
   Server,
-  HardDrive,
-  Sun,
-  Moon
+  HardDrive
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -73,69 +71,6 @@ interface CacheStatus {
   lastInvalidation: string | null;
   forceUpdate: boolean;
   timestamp: string;
-}
-
-// Theme Toggle Component
-function ThemeToggle() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    // Check if user has a saved theme preference
-    const savedTheme = localStorage.getItem('theme');
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    const initialTheme = savedTheme ? savedTheme as 'light' | 'dark' : systemTheme;
-    setTheme(initialTheme);
-    
-    // Apply theme to document
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
-  if (!mounted) return null;
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="relative p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-300 overflow-hidden"
-      title={theme === 'light' ? 'עבור למצב כהה' : 'עבור למצב בהיר'}
-    >
-      <div className="relative w-5 h-5">
-        {/* Sun Icon */}
-        <Sun 
-          className={`absolute inset-0 w-5 h-5 text-yellow-500 transition-all duration-300 transform ${
-            theme === 'light' 
-              ? 'rotate-0 scale-100 opacity-100' 
-              : 'rotate-90 scale-0 opacity-0'
-          }`} 
-        />
-        {/* Moon Icon */}
-        <Moon 
-          className={`absolute inset-0 w-5 h-5 text-blue-400 transition-all duration-300 transform ${
-            theme === 'dark' 
-              ? 'rotate-0 scale-100 opacity-100' 
-              : '-rotate-90 scale-0 opacity-0'
-          }`} 
-        />
-      </div>
-    </button>
-  );
 }
 
 export default function AdminDashboard() {
@@ -313,7 +248,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h1 className={`text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent ${hebrewHeading.fontClass}`}>
-                    לוח בקרה מנהל
+                    פאנל ניהול משימות
                   </h1>
                   {user && (
                     <p className={`text-sm text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
@@ -325,9 +260,6 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
-              <ThemeToggle />
-              
               {/* Quick Refresh Button */}
               <button
                 onClick={refreshData}

@@ -705,7 +705,7 @@ export default function TaskManagement() {
               <Eye className="h-6 w-6 text-primary" />
               <div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>לוח בקרה</span>
+                  <span>פאנל ניהול משימות</span>
                   <ChevronRight className="h-4 w-4" />
                   {project && (
                     <>
@@ -713,7 +713,7 @@ export default function TaskManagement() {
                       <ChevronRight className="h-4 w-4" />
                     </>
                   )}
-                  <span>ניהול משימה</span>
+                  <span>פאנל ניהול משימות</span>
                 </div>
                 <h1 className="text-lg font-bold text-foreground">{task.title}</h1>
               </div>

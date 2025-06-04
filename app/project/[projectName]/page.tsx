@@ -284,22 +284,25 @@ export default function ProjectPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
+                          {/* Top row: Title and Dataco number only */}
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
                             <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
                               {formatDatacoNumber(task.datacoNumber)}
                             </span>
-                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                              {getPriorityLabel(task.priority)}
-                            </div>
                           </div>
                           
-                          {/* Only show subtask count when collapsed */}
-                          {!isExpanded && taskSubtasks.length > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                              <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-                                {taskSubtasks.length} תת-משימות
-                              </span>
+                          {/* Bottom row: Priority and subtask count */}
+                          {!isExpanded && (
+                            <div className="flex items-center gap-3 text-sm">
+                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                                {getPriorityLabel(task.priority)}
+                              </div>
+                              {taskSubtasks.length > 0 && (
+                                <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
+                                  {taskSubtasks.length} תת-משימות
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
