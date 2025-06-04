@@ -12,12 +12,15 @@ export default function ThemeToggle() {
   // Initialize theme on mount
   useEffect(() => {
     setMounted(true);
+    console.log('[ThemeToggle] Component mounted.');
     
     // Get stored theme or default to system
     const storedTheme = (localStorage.getItem('theme') as Theme) || 'system';
+    console.log('[ThemeToggle] Stored theme from localStorage:', storedTheme);
     setTheme(storedTheme);
     
     // Apply theme immediately
+    console.log('[ThemeToggle] Applying initial theme:', storedTheme);
     applyTheme(storedTheme);
     
     // Listen for system theme changes
@@ -34,22 +37,28 @@ export default function ThemeToggle() {
 
   // Apply theme to document
   const applyTheme = (newTheme: Theme) => {
+    console.log('[ThemeToggle] applyTheme called with:', newTheme);
     const root = document.documentElement;
     
     // Remove existing theme classes
     root.classList.remove('light', 'dark');
+    console.log('[ThemeToggle] Removed light/dark classes from root:', root.className);
     
     // Determine the actual theme to apply
     let resolvedTheme: 'light' | 'dark';
     if (newTheme === 'system') {
       resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      console.log('[ThemeToggle] System theme detected as:', resolvedTheme);
     } else {
       resolvedTheme = newTheme;
+      console.log('[ThemeToggle] Resolved theme set to:', resolvedTheme);
     }
     
     // Apply theme class and color-scheme
     root.classList.add(resolvedTheme);
     root.style.colorScheme = resolvedTheme;
+    console.log('[ThemeToggle] Applied theme class:', resolvedTheme, 'New root classList:', root.classList.toString());
+    console.log('[ThemeToggle] Set colorScheme style to:', resolvedTheme);
     
     // Force a repaint to ensure changes take effect
     root.offsetHeight;
@@ -57,13 +66,16 @@ export default function ThemeToggle() {
 
   // Toggle through theme options: system → light → dark → system
   const toggleTheme = () => {
+    console.log('[ThemeToggle] toggleTheme called. Current theme:', theme);
     const themeOrder: Theme[] = ['system', 'light', 'dark'];
     const currentIndex = themeOrder.indexOf(theme);
     const nextIndex = (currentIndex + 1) % themeOrder.length;
     const newTheme = themeOrder[nextIndex];
+    console.log('[ThemeToggle] New theme will be:', newTheme);
     
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
+    console.log('[ThemeToggle] Stored new theme in localStorage:', newTheme);
     applyTheme(newTheme);
   };
 
