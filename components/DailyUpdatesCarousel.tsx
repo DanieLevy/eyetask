@@ -120,7 +120,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       case 'announcement':
         return <Megaphone className="h-4 w-4 animate-pulse" style={{ animationDuration: '1.2s' }} />;
       default:
-        return <Info className="h-4 w-4 animate-pulse" style={{ animationDuration: '2s' }} />;
+        return getBellIcon();
     }
   };
 

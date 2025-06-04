@@ -51,7 +51,7 @@ async function safeCacheUrls(cache, urls, label = '') {
   return results;
 }
 
-// Install event - cache static resources and offline page
+// Install event - cache static resources
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...');
   
@@ -68,6 +68,7 @@ self.addEventListener('install', (event) => {
         
         return true;
       }),
+      
       // Cache offline page
       caches.open(OFFLINE_CACHE).then(async (cache) => {
         console.log('Service Worker: Caching offline page');
@@ -109,6 +110,7 @@ self.addEventListener('install', (event) => {
         }
         return true;
       }),
+      
       // Skip waiting to activate immediately
       self.skipWaiting()
     ]).catch(error => {

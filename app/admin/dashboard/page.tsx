@@ -416,6 +416,18 @@ export default function AdminDashboard() {
               <p className="text-sm opacity-90">נתונים מפורטים ותובנות</p>
             </Link>
           </div>
+          
+          {/* Second row for additional actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            <Link
+              href="/admin/cache"
+              className="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 transition-colors text-right group"
+            >
+              <RotateCcw className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold">ניהול מטמון</h3>
+              <p className="text-sm opacity-90">נקה מטמון לכל המשתמשים</p>
+            </Link>
+          </div>
         </section>
 
         {/* Project Management Section */}

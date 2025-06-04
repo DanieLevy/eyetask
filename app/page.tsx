@@ -31,7 +31,7 @@ function HomePageCore() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [dataFetched, setDataFetched] = useState(false);
   
   const { status: offlineStatus } = useOfflineStatus();
   const { status: pwaStatus } = usePWADetection();
@@ -47,6 +47,11 @@ function HomePageCore() {
 
   const fetchData = useCallback(async () => {
     try {
+      // Only show loading on initial fetch if no data has been fetched yet
+      if (!dataFetched) {
+        setLoading(true);
+      }
+      
       // Check if we're in offline mode and should show cached data
       const urlParams = new URLSearchParams(window.location.search);
       const isOfflineMode = urlParams.get('offline') === 'true' || !offlineStatus.isOnline;
@@ -65,6 +70,7 @@ function HomePageCore() {
           setTasks(visibleTasks);
         }
         
+        setDataFetched(true);
         setLoading(false);
         
         // If we have cached data, don't try network calls
@@ -135,6 +141,8 @@ function HomePageCore() {
         const visibleTasks = tasksData.tasks.filter((t: Task) => t.isVisible);
         setTasks(visibleTasks);
       }
+      
+      setDataFetched(true);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -158,9 +166,10 @@ function HomePageCore() {
         }
       }
       
+      setDataFetched(true);
       setLoading(false);
     }
-  }, [offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.displayMode, pwaStatus.isStandalone]);
+  }, [offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.displayMode, pwaStatus.isStandalone, dataFetched]);
 
   // Helper function to get cached data
   const getCachedData = async (url: string) => {
@@ -185,7 +194,6 @@ function HomePageCore() {
 
   useEffect(() => {
     fetchData();
-    setIsFirstLoad(false);
 
     // Register service worker for offline functionality
     if ('serviceWorker' in navigator) {
@@ -232,7 +240,8 @@ function HomePageCore() {
     return 'ברוכים הבאים ל-EyeTask';
   };
 
-  if (loading && isFirstLoad) {
+  // Show loading state if we haven't fetched data yet
+  if (loading && !dataFetched) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -247,25 +256,6 @@ function HomePageCore() {
 
   return (
     <div className="container mx-auto p-6 space-y-8">
-      {/* PWA Launch Notification */}
-      {isPWALaunch && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4 text-indigo-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-              {launchSource === 'homescreen' ? <Smartphone className="h-5 w-5 text-indigo-600" /> : <Star className="h-5 w-5 text-indigo-600" />}
-            </div>
-            <div>
-              <p className={`font-medium ${hebrewHeading.fontClass}`}>
-                {getWelcomeMessage()}
-              </p>
-              <p className={`text-sm text-indigo-600 ${mixedBody.fontClass}`}>
-                אתה משתמש כעת באפליקציה המותקנת
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Offline indicator */}
       {!offlineStatus.isOnline && (projects.length > 0 || tasks.length > 0) && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
@@ -275,43 +265,11 @@ function HomePageCore() {
         </div>
       )}
 
-      {/* App Status Bar (for PWA) */}
-      {pwaStatus.isStandalone && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-800">
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className={`font-medium ${hebrewHeading.fontClass}`}>
-              אפליקציה מותקנת • מצב עצמאי
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Daily Updates Section */}
       <DailyUpdatesCarousel className="mb-8" />
 
       {/* Main Content */}
       <div className="space-y-8">
-        {/* Page Title */}
-        <div className="text-center space-y-3">
-          <h1 className={`text-3xl font-bold ${hebrewHeading.fontClass}`}>
-            {getWelcomeMessage()}
-          </h1>
-          <p className={`text-lg text-muted-foreground ${mixedBody.fontClass}`}>
-            מערכת ניהול משימות נהגים - Mobileye
-          </p>
-          
-          {/* App Enhancement Notice */}
-          {!pwaStatus.isStandalone && !pwaStatus.shouldShowInstallPrompt && (
-            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-accent px-3 py-2 rounded-full">
-              <Smartphone className="h-4 w-4" />
-              <span className={mixedBody.fontClass}>
-                גרסת דפדפן • התקן את האפליקציה לחוויה משופרת
-              </span>
-            </div>
-          )}
-        </div>
-
         {/* Projects Grid */}
         {projects.length === 0 ? (
           <div className="text-center py-12">

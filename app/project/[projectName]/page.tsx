@@ -72,6 +72,7 @@ export default function ProjectPage() {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [dataFetched, setDataFetched] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
 
   // Font configurations
@@ -80,6 +81,11 @@ export default function ProjectPage() {
 
   const fetchProjectData = useCallback(async () => {
     try {
+      // Only show loading on initial fetch if no data has been fetched yet
+      if (!dataFetched) {
+        setLoading(true);
+      }
+      
       // Add cache busting timestamp
       const timestamp = Date.now();
       
@@ -96,6 +102,7 @@ export default function ProjectPage() {
       
       if (!project) {
         console.error('Project not found:', projectName);
+        setDataFetched(true);
         setLoading(false);
         return;
       }
@@ -142,13 +149,15 @@ export default function ProjectPage() {
       });
       
       setSubtasks(subtaskMap);
+      setDataFetched(true);
       setLoading(false);
       setProjectId(project.id);
     } catch (error) {
       console.error('Error fetching project data:', error);
+      setDataFetched(true);
       setLoading(false);
     }
-  }, [projectName]);
+  }, [projectName, dataFetched]);
 
   // Register this page's refresh function
   usePageRefresh(fetchProjectData);
@@ -211,7 +220,7 @@ export default function ProjectPage() {
     return labels[dayTime] || dayTime;
   };
 
-  if (loading) {
+  if (loading && !dataFetched) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

@@ -78,7 +78,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
-          {/* Logo and Title */}
+          {/* Logo Only */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-6 w-auto">
               <svg
@@ -123,67 +123,14 @@ export default function Header() {
                 </g>
               </svg>
             </div>
-            <div className="flex flex-col justify-center">
-              <h1 className={`text-lg font-bold text-foreground leading-tight ${hebrewHeading.fontClass}`}>
-                {isAdminPage ? 'EyeTask - לוח בקרה' : 'EyeTask'}
-              </h1>
-              <p className={`text-xs text-muted-foreground leading-tight ${mixedBody.fontClass}`}>
-                {user ? `שלום ${user.username} | Mobileye${isAdminPage ? ' Admin' : ''}` : 'Mobileye'}
-              </p>
-            </div>
           </Link>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-2">
-              {!isHomePage && (
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
-                >
-                  <Home className="h-4 w-4" />
-                  דף הבית
-                </Link>
-              )}
-              
-              {showAdminActions && (
-                <>
-                  <Link
-                    href="/admin/dashboard"
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    לוח בקרה
-                  </Link>
-                </>
-              )}
-              
-              {showLogout && (
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  התנתק
-                </button>
-              )}
-              
-              {!showLogout && !isAdminPage && !isAdminLoginPage && (
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <Settings className="h-4 w-4" />
-                  ניהול מנהל
-                </Link>
-              )}
-            </div>
-
+          {/* Actions - Only Mobile Menu Button */}
+          <div className="flex items-center">
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+              className="p-2 rounded-lg hover:bg-accent transition-colors"
               aria-label="תפריט"
             >
               <Menu className="h-5 w-5" />
