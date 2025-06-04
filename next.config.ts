@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   // Keep API routes working - no output setting needed for Netlify
@@ -9,6 +10,10 @@ const nextConfig: NextConfig = {
       // Optimize bundle for serverless functions
       config.optimization.minimize = false;
     }
+    
+    // Configure path aliases for @ imports
+    config.resolve.alias['@'] = path.resolve(__dirname);
+    
     return config;
   },
   
