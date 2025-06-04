@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 import { fromObjectId } from '@/lib/mongodb';
+import { updateTaskAmount } from '@/lib/taskUtils';
 
 // GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
@@ -145,6 +146,9 @@ export async function POST(request: NextRequest) {
     
     // Create the subtask
     const subtaskId = await db.createSubtask(body);
+    
+    // Automatically recalculate task amount after creating subtask
+    await updateTaskAmount(fromObjectId(body.taskId));
     
     // Get the created subtask to return
     const subtaskResult = await db.getSubtaskById(subtaskId);

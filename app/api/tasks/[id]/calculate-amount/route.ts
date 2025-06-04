@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { updateTaskAmount } from '@/lib/taskUtils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-// Helper function to calculate and update task amount from subtasks
-async function updateTaskAmount(taskId: string): Promise<boolean> {
-  try {
-    // Get all subtasks for this task
-    const subtasks = await db.getSubtasksByTask(taskId);
-    
-    // Calculate total amount needed from subtasks
-    const totalAmount = subtasks.reduce((sum, subtask) => {
-      return sum + (subtask.amountNeeded || 0);
-    }, 0);
-    
-    // Update the task with the calculated amount
-    return await db.updateTask(taskId, { amountNeeded: totalAmount });
-  } catch (error) {
-    console.error('Error updating task amount:', error);
-    return false;
-  }
 }
 
 // POST /api/tasks/[id]/calculate-amount - Recalculate task amount from subtasks (admin only)

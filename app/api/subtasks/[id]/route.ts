@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 import { fromObjectId } from '@/lib/mongodb';
+import { updateTaskAmount } from '@/lib/taskUtils';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -93,6 +94,9 @@ export async function PUT(
       );
     }
 
+    // Automatically recalculate task amount after updating subtask
+    await updateTaskAmount(fromObjectId(subtaskResult.taskId));
+
     // Convert MongoDB result to API format
     const subtask = {
       id: fromObjectId(subtaskResult._id!),
@@ -144,6 +148,15 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
+    // Get the subtask first to know which task to update
+    const subtaskToDelete = await db.getSubtaskById(id);
+    if (!subtaskToDelete) {
+      return NextResponse.json(
+        { error: 'Subtask not found', success: false },
+        { status: 404 }
+      );
+    }
+
     const deleted = await db.deleteSubtask(id);
     
     if (!deleted) {
@@ -152,6 +165,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // Automatically recalculate task amount after deleting subtask
+    await updateTaskAmount(fromObjectId(subtaskToDelete.taskId));
     
     return NextResponse.json({ 
       message: 'Subtask deleted successfully', 

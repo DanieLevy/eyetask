@@ -3,6 +3,7 @@ import { db } from '@/lib/database';
 import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { toObjectId, fromObjectId } from '@/lib/mongodb';
+import { updateTaskAmount } from '@/lib/taskUtils';
 
 const subtaskSchema = {
   title: { required: true, type: 'string', minLength: 1, maxLength: 200 },
@@ -209,6 +210,9 @@ export async function POST(
     };
     
     const newSubtaskId = await db.createSubtask(subtaskData);
+    
+    // Automatically recalculate task amount after creating subtask
+    await updateTaskAmount(taskId);
     
     // Fetch the created subtask to return it
     const subtasks = await db.getSubtasksByTask(taskId);

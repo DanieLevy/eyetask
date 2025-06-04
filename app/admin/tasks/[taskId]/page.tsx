@@ -88,6 +88,72 @@ interface NewSubtaskData {
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
 }
 
+// Custom NumberInput component for better mobile support and clearing
+interface NumberInputProps {
+  value: number | string;
+  onChange: (value: number) => void;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  className?: string;
+  disabled?: boolean;
+}
+
+function NumberInput({ value, onChange, placeholder, min, max, className = '', disabled = false }: NumberInputProps) {
+  const [inputValue, setInputValue] = useState(value?.toString() || '');
+
+  useEffect(() => {
+    setInputValue(value?.toString() || '');
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    // Allow empty string for clearing
+    if (newValue === '') {
+      onChange(0);
+      return;
+    }
+    
+    // Parse and validate number
+    const numValue = parseFloat(newValue);
+    if (!isNaN(numValue)) {
+      onChange(numValue);
+    }
+  };
+
+  const handleBlur = () => {
+    // If empty on blur, set to 0
+    if (inputValue === '' || isNaN(parseFloat(inputValue))) {
+      setInputValue('0');
+      onChange(0);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={inputValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      min={min}
+      max={max}
+      disabled={disabled}
+      className={`
+        w-full px-3 py-2 border border-border rounded-md 
+        focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+        disabled:bg-muted disabled:cursor-not-allowed
+        [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+        ${className}
+      `}
+    />
+  );
+}
+
 export default function TaskManagement() {
   const params = useParams();
   const router = useRouter();
@@ -561,6 +627,38 @@ export default function TaskManagement() {
     return `DATACO-${datacoNumber}`;
   };
 
+  // Auto-calculate task amount when subtasks change
+  const calculateTaskAmount = useCallback(async () => {
+    if (!task || subtasks.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
+      const response = await fetch(`/api/tasks/${taskId}/calculate-amount`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Refresh task data to get updated amount
+        await fetchTaskData();
+      }
+    } catch (error) {
+      console.error('Error calculating task amount:', error);
+    }
+  }, [task, subtasks, taskId, fetchTaskData]);
+
+  // Call calculate amount when subtasks change
+  useEffect(() => {
+    if (subtasks.length > 0) {
+      calculateTaskAmount();
+    }
+  }, [subtasks.length]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -988,13 +1086,14 @@ export default function TaskManagement() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת *</label>
-                  <input
-                    type="number"
-                    min="1"
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    כמות נדרשת *
+                  </label>
+                  <NumberInput
                     value={newSubtaskData.amountNeeded}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, amountNeeded: parseInt(e.target.value) || 1 }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    onChange={(value) => setNewSubtaskData(prev => ({ ...prev, amountNeeded: value }))}
+                    placeholder="הכנס כמות"
+                    min={0}
                   />
                 </div>
               </div>
@@ -1199,13 +1298,14 @@ export default function TaskManagement() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת *</label>
-                  <input
-                    type="number"
-                    min="1"
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    כמות נדרשת *
+                  </label>
+                  <NumberInput
                     value={editingSubtask.amountNeeded}
-                    onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, amountNeeded: parseInt(e.target.value) || 1 }) : null)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    onChange={(value) => setEditingSubtask(prev => prev ? ({ ...prev, amountNeeded: value }) : null)}
+                    placeholder="הכנס כמות"
+                    min={0}
                   />
                 </div>
               </div>
@@ -1406,17 +1506,42 @@ export default function TaskManagement() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={editTaskData.priority || 5}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="1 = גבוהה ביותר, 0 = ללא עדיפות"
-                  />
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    כמות נדרשת
+                  </label>
+                  <div className="relative">
+                    <NumberInput
+                      value={editTaskData.amountNeeded || 0}
+                      onChange={(value) => setEditTaskData(prev => ({ ...prev, amountNeeded: value }))}
+                      placeholder="יחושב אוטומטית מתת-המשימות"
+                      min={0}
+                      disabled={subtasks.length > 0}
+                    />
+                    {subtasks.length > 0 && (
+                      <div className="absolute inset-y-0 left-3 flex items-center">
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                          מחושב אוטומטית
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {subtasks.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      הכמות מחושבת אוטומטית מסכום תת-המשימות
+                    </p>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
+                <NumberInput
+                  value={editTaskData.priority || 5}
+                  onChange={(value) => setEditTaskData(prev => ({ ...prev, priority: Math.max(1, Math.min(10, value)) }))}
+                  placeholder="עדיפות"
+                  min={1}
+                  max={10}
+                />
               </div>
 
               <div>
@@ -1585,16 +1710,6 @@ export default function TaskManagement() {
 
               {/* Amount and LiDAR */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editTaskData.amountNeeded || 0}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, amountNeeded: parseInt(e.target.value) || 0 }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  />
-                </div>
                 <div>
                   <label className="flex items-center gap-2 mt-7">
                     <input

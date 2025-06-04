@@ -42,6 +42,77 @@ interface NewTaskData {
   priority: number;
 }
 
+// Custom NumberInput component for better mobile support and clearing
+interface NumberInputProps {
+  value: number | string;
+  onChange: (value: number) => void;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  className?: string;
+  disabled?: boolean;
+}
+
+function NumberInput({ value, onChange, placeholder, min, max, className = '', disabled = false }: NumberInputProps) {
+  const [inputValue, setInputValue] = useState(value?.toString() || '');
+
+  useEffect(() => {
+    setInputValue(value?.toString() || '');
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    
+    // Allow empty string for clearing
+    if (newValue === '') {
+      onChange(min ?? 0);
+      return;
+    }
+    
+    // Parse and validate number
+    const numValue = parseFloat(newValue);
+    if (!isNaN(numValue)) {
+      // Apply min/max constraints
+      let finalValue = numValue;
+      if (min !== undefined && finalValue < min) finalValue = min;
+      if (max !== undefined && finalValue > max) finalValue = max;
+      onChange(finalValue);
+    }
+  };
+
+  const handleBlur = () => {
+    // If empty on blur, set to minimum or 0
+    if (inputValue === '' || isNaN(parseFloat(inputValue))) {
+      const defaultValue = min ?? 0;
+      setInputValue(defaultValue.toString());
+      onChange(defaultValue);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={inputValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      min={min}
+      max={max}
+      disabled={disabled}
+      className={`
+        w-full px-3 py-2 border border-border rounded-md 
+        focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+        disabled:bg-muted disabled:cursor-not-allowed
+        [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+        ${className}
+      `}
+    />
+  );
+}
+
 export default function NewTaskPage() {
   const router = useRouter();
   
@@ -347,16 +418,16 @@ export default function NewTaskPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">עדיפות (0-10)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
+                    <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
+                    <NumberInput
                       value={newTaskData.priority}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, priority: parseInt(e.target.value) || 5 }))}
-                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
-                      placeholder="1 = גבוהה ביותר, 0 = ללא עדיפות"
+                      onChange={(value) => setNewTaskData(prev => ({ ...prev, priority: value }))}
+                      placeholder="עדיפות"
+                      min={1}
+                      max={10}
+                      className="p-3"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">1 = גבוהה ביותר, 10 = נמוכה</p>
                   </div>
                   <div className="flex items-center pt-6">
                     <label className="flex items-center gap-2">
