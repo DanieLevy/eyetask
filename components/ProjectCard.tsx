@@ -31,7 +31,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
         onClick={handleProjectClick}
         className="block cursor-pointer"
       >
-        <div className="bg-card rounded-lg border border-border p-4 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50 relative overflow-hidden">
+        <div className="bg-card rounded-lg border border-border p-4 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50 relative overflow-hidden min-h-[120px] flex flex-col justify-center">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-primary/20 to-transparent" />
           
@@ -42,19 +42,19 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
             </div>
           )}
           
-          {/* Project Info - Right aligned */}
-          <div className="relative text-right">
-            <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewFont.fontClass} mb-2`}>
+          {/* Project Info - Right aligned and vertically centered */}
+          <div className="relative text-right space-y-3">
+            <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewFont.fontClass} leading-tight`}>
               {project.name}
             </h3>
             {project.description && (
-              <p className={`text-sm text-muted-foreground mb-3 line-clamp-2 ${hebrewFont.fontClass}`}>
+              <p className={`text-sm text-muted-foreground line-clamp-2 ${hebrewFont.fontClass} leading-relaxed`}>
                 {project.description}
               </p>
             )}
             
             {/* Stats Row - Right aligned */}
-            <div className="flex items-center justify-end gap-4 text-sm">
+            <div className="flex items-center justify-end gap-4 text-sm pt-1">
               {highPriorityCount > 0 && (
                 <span className="bg-red-50 text-red-600 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 border border-red-100">
                   <AlertTriangle className="h-3 w-3" />
