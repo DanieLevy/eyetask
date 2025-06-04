@@ -21,7 +21,8 @@ import {
   Cloud,
   Building,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  EyeOff
 } from 'lucide-react';
 import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
@@ -87,25 +88,17 @@ export default function TaskManagement() {
   const [user, setUser] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Form states
+  // Operation states
   const [operationLoading, setOperationLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
-  const [editingTask, setEditingTask] = useState(false);
-  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState(false);
-  const [editTaskData, setEditTaskData] = useState<Partial<Task>>({});
 
   // Realtime notifications
   const { notification, showNotification } = useRealtimeNotification();
 
-  // Helper function to check if any forms or operations are active
+  // Helper function to check if any operations are active
   const isUserInteracting = useCallback(() => {
-    return operationLoading || 
-           deleteConfirm !== null || 
-           editingSubtask !== null || 
-           editingTask || 
-           deleteTaskConfirm;
-  }, [operationLoading, deleteConfirm, editingSubtask, editingTask, deleteTaskConfirm]);
+    return operationLoading || deleteConfirm !== null;
+  }, [operationLoading, deleteConfirm]);
 
   // Realtime handlers
   const handleTaskChange = useCallback((payload: any) => {
@@ -304,50 +297,15 @@ export default function TaskManagement() {
   }, [taskId, router]);
 
   const handleUpdateSubtask = async () => {
-    if (!editingSubtask) return;
+    if (!deleteConfirm) return;
     
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/subtasks/${editingSubtask.id}?_t=${Date.now()}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        body: JSON.stringify(editingSubtask),
-      });
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setEditingSubtask(null);
-        // Refresh data after successful update
-        await forceRefresh();
-      } else {
-        alert('Failed to update subtask: ' + (result.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error updating subtask:', error);
-      alert('Error updating subtask');
-    } finally {
-      setOperationLoading(false);
-    }
-  };
-
-  const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק תת-משימה זו?')) {
-      return;
-    }
-    
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/subtasks/${subtaskId}?_t=${Date.now()}`, {
+      const response = await fetch(`/api/subtasks/${deleteConfirm}?_t=${Date.now()}`, {
         method: 'DELETE',
-        headers: { 
-          Authorization: `Bearer ${token}`,
+        headers: {
+          'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
       });
@@ -368,7 +326,7 @@ export default function TaskManagement() {
   };
 
   const handleUpdateTask = async () => {
-    if (!task || !editTaskData) return;
+    if (!task) return;
     
     setOperationLoading(true);
     try {
@@ -380,14 +338,12 @@ export default function TaskManagement() {
           Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify(editTaskData),
+        body: JSON.stringify(task),
       });
 
       const result = await response.json();
       
       if (result.success) {
-        setEditingTask(false);
-        setEditTaskData({});
         // Refresh data after successful update
         await forceRefresh();
       } else {
@@ -402,35 +358,38 @@ export default function TaskManagement() {
   };
 
   const handleDeleteTask = async () => {
-    if (!task) return;
+    if (!confirm('האם אתה בטוח שברצונך למחוק את המשימה? פעולה זו תמחק גם את כל התת-משימות ולא ניתנת לביטול.')) {
+      return;
+    }
     
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${task.id}?_t=${Date.now()}`, {
+      const response = await fetch(`/api/tasks/${taskId}?_t=${Date.now()}`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
       });
 
-      if (response.ok) {
-        // Redirect to project page after deletion
+      const result = await response.json();
+      
+      if (result.success) {
+        // Navigate back to project or dashboard
         if (project) {
           router.push(`/admin/projects/${project.id}`);
         } else {
           router.push('/admin/dashboard');
         }
       } else {
-        alert('Failed to delete task');
+        alert('Failed to delete task: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Error deleting task');
     } finally {
       setOperationLoading(false);
-      setDeleteTaskConfirm(false);
     }
   };
 
@@ -458,26 +417,20 @@ export default function TaskManagement() {
     return labels[dayTime] || dayTime;
   };
 
+  // Format DATACO number for display
+  const formatDatacoDisplay = (datacoNumber: string) => {
+    if (!datacoNumber) return '';
+    return `DATACO-${datacoNumber}`;
+  };
+
   // Handle DATACO number input - only allow numbers
   const handleDatacoNumberChange = (value: string) => {
     // Remove any non-numeric characters
     const numericValue = value.replace(/[^0-9]/g, '');
     
-    if (editingSubtask) {
-      setEditingSubtask(prev => prev ? ({ ...prev, datacoNumber: numericValue }) : null);
+    if (task) {
+      setTask(prev => prev ? ({ ...prev, datacoNumber: numericValue }) : null);
     }
-  };
-
-  // Handle DATACO number input for task editing
-  const handleTaskDatacoNumberChange = (value: string) => {
-    const numericValue = value.replace(/[^0-9]/g, '');
-    setEditTaskData(prev => ({ ...prev, datacoNumber: numericValue }));
-  };
-
-  // Format DATACO number for display
-  const formatDatacoDisplay = (datacoNumber: string) => {
-    if (!datacoNumber) return '';
-    return `DATACO-${datacoNumber}`;
   };
 
   // Auto-calculate task amount when subtasks change
@@ -511,6 +464,67 @@ export default function TaskManagement() {
       calculateTaskAmount();
     }
   }, [subtasks.length]);
+
+  const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!subtaskId) return;
+    
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/subtasks/${subtaskId}?_t=${Date.now()}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setDeleteConfirm(null);
+        // Refresh data after successful deletion
+        await forceRefresh();
+      } else {
+        alert('Failed to delete subtask: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting subtask:', error);
+      alert('Error deleting subtask');
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const handleToggleVisibility = async (taskId: string, currentVisibility: boolean) => {
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/tasks/${taskId}/visibility`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ isVisible: !currentVisibility })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh data after successful update
+        await forceRefresh();
+      } else {
+        alert('Failed to toggle visibility: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+      alert('Error toggling visibility');
+    } finally {
+      setOperationLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -728,25 +742,22 @@ export default function TaskManagement() {
           <h3 className="text-lg font-semibold text-foreground mb-4">פעולות מהירות</h3>
           <div className="flex flex-wrap gap-4">
             <Link
-              href={`/admin/tasks/${taskId}/subtasks/new`}
+              href={`/admin/tasks/${task.id}/edit`}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              הוסף תת-משימה חדשה
-            </Link>
-            <button
-              onClick={() => {
-                setEditTaskData(task);
-                setEditingTask(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Edit className="h-4 w-4" />
               ערוך משימה
-            </button>
+            </Link>
+            <Link
+              href={`/admin/tasks/${task.id}/subtasks/new`}
+              className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              תת-משימה חדשה
+            </Link>
             <button
-              onClick={() => setDeleteTaskConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              onClick={() => handleDeleteTask()}
+              className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
               מחק משימה
@@ -844,13 +855,6 @@ export default function TaskManagement() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setEditingSubtask(subtask)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="ערוך תת-משימה"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
                           onClick={() => setDeleteConfirm(subtask.id)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="מחק תת-משימה"
@@ -866,206 +870,9 @@ export default function TaskManagement() {
           </div>
         </div>
       </main>
-
-      {/* Edit Subtask Modal */}
-      {editingSubtask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-foreground">ערוך תת-משימה</h3>
-                <button
-                  onClick={() => forceRefresh()}
-                  className="flex items-center gap-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
-                  title="רענן נתונים"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  רענן
-                </button>
-              </div>
-              <p className="text-sm text-muted-foreground">ערוך את תת-המשימה "{editingSubtask.title}"</p>
-              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-600 dark:text-blue-400">
-                <Clock className="h-3 w-3" />
-                רענון אוטומטי מושבת בזמן עריכה
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת *</label>
-                  <input
-                    type="text"
-                    value={editingSubtask.title}
-                    onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, title: e.target.value }) : null)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת משנה</label>
-                  <input
-                    type="text"
-                    value={editingSubtask.subtitle || ''}
-                    onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, subtitle: e.target.value }) : null)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={editingSubtask.datacoNumber}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
-                      placeholder="הזן מספר"
-                      dir="ltr"
-                    />
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
-                      DATACO-
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
-                  </p>
-                  {editingSubtask.datacoNumber && (
-                    <p className="text-xs text-primary mt-1">
-                      תוצג כ: {formatDatacoDisplay(editingSubtask.datacoNumber)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    כמות נדרשת *
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={editingSubtask.amountNeeded}
-                    onChange={(e) => {
-                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                      setEditingSubtask(prev => prev ? ({ ...prev, amountNeeded: Math.max(value, 0) }) : null)
-                    }}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="הכנס כמות"
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
-                <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {editingSubtask.type === 'events' ? 'Events (אירועים)' : 'Hours (שעות)'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">לא ניתן לשנות את סוג התת-משימה</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
-                <input
-                  type="text"
-                  value={editingSubtask.labels.join(' ')}
-                  onChange={(e) => {
-                    const labelsText = e.target.value;
-                    // Allow spaces while typing - only split when there are actual complete words
-                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
-                      // Split only when user completes a word with space
-                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                      setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
-                    } else {
-                      // Keep the raw text until user adds separating spaces
-                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
-                      setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Process the final input when user leaves the field
-                    const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                    setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
-                  }}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
-                <select
-                  value={editingSubtask.weather}
-                  onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, weather: e.target.value as any }) : null)}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                >
-                  <option value="Clear">בהיר (Clear)</option>
-                  <option value="Fog">ערפל (Fog)</option>
-                  <option value="Overcast">מעונן (Overcast)</option>
-                  <option value="Rain">גשום (Rain)</option>
-                  <option value="Snow">שלגי (Snow)</option>
-                  <option value="Mixed">מעורב (Mixed)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
-                <select
-                  value={editingSubtask.scene}
-                  onChange={(e) => setEditingSubtask(prev => prev ? ({ ...prev, scene: e.target.value as any }) : null)}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                >
-                  <option value="Highway">כביש מהיר (Highway)</option>
-                  <option value="Urban">עירוני (Urban)</option>
-                  <option value="Rural">כפרי (Rural)</option>
-                  <option value="Sub-Urban">פרברי (Sub-Urban)</option>
-                  <option value="Test Track">מסלול בדיקות (Test Track)</option>
-                  <option value="Mixed">מעורב (Mixed)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד (ירושה מהמשימה)</label>
-                <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {capitalizeEnglishArray(editingSubtask.targetCar).join(', ')}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
-                <MultipleImageUpload
-                  onImagesChange={(images) => setEditingSubtask(prev => prev ? ({ ...prev, images }) : null)}
-                  currentImages={editingSubtask.images}
-                  disabled={operationLoading}
-                  maxImages={5}
-                />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleUpdateSubtask}
-                disabled={operationLoading}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {operationLoading ? 'שומר...' : 'שמור שינויים'}
-              </button>
-              <button
-                onClick={() => setEditingSubtask(null)}
-                disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
+      {/* Realtime Notifications */}
+      <RealtimeNotification {...notification} />
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
@@ -1094,244 +901,6 @@ export default function TaskManagement() {
           </div>
         </div>
       )}
-
-      {/* Edit Task Modal */}
-      {editingTask && editTaskData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">ערוך משימה</h3>
-              <p className="text-sm text-muted-foreground mt-1">ערוך את המשימה "{task?.title}"</p>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת *</label>
-                  <input
-                    type="text"
-                    value={editTaskData.title || ''}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="הזן כותרת למשימה"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">כותרת משנה</label>
-                  <input
-                    type="text"
-                    value={editTaskData.subtitle || ''}
-                    onChange={(e) => setEditTaskData(prev => ({ ...prev, subtitle: e.target.value }))}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="כותרת משנה (אופציונלי)"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={editTaskData.datacoNumber || ''}
-                      onChange={(e) => handleTaskDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground pl-20"
-                      placeholder="הזן מספר"
-                      dir="ltr"
-                    />
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
-                      DATACO-
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
-                  </p>
-                  {editTaskData.datacoNumber && (
-                    <p className="text-xs text-primary mt-1">
-                      תוצג כ: {formatDatacoDisplay(editTaskData.datacoNumber)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    כמות נדרשת
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={editTaskData.amountNeeded || 0}
-                      onChange={(e) => {
-                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                        setEditTaskData(prev => ({ ...prev, amountNeeded: Math.max(value, 0) }))
-                      }}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                      placeholder="יחושב אוטומטית מתת-המשימות"
-                      min="0"
-                      disabled={subtasks.length > 0}
-                    />
-                    {subtasks.length > 0 && (
-                      <div className="absolute inset-y-0 left-3 flex items-center">
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                          מחושב אוטומטית
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {subtasks.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      הכמות מחושבת אוטומטית מסכום תת-המשימות
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={editTaskData.priority || 5}
-                  onChange={(e) => {
-                    const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                    setEditTaskData(prev => ({ ...prev, priority: Math.max(1, Math.min(10, value)) }))
-                  }}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="עדיפות"
-                  min="1"
-                  max="10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תיאור המשימה *</label>
-                <textarea
-                  value={typeof editTaskData.description === 'object' ? editTaskData.description?.main || '' : editTaskData.description || ''}
-                  onChange={(e) => setEditTaskData(prev => ({ 
-                    ...prev, 
-                    description: typeof prev.description === 'object' 
-                      ? { ...prev.description, main: e.target.value }
-                      : { main: e.target.value, howToExecute: "יש לעקוב אחר הוראות המשימה" }
-                  }))}
-                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground h-20"
-                  placeholder="תאר את המשימה בפירוט"
-                />
-              </div>
-
-              {/* Task Images Upload */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות המשימה (אופציונלי)</label>
-                <MultipleImageUpload
-                  onImagesChange={(images) => setEditTaskData(prev => ({ ...prev, images }))}
-                  currentImages={editTaskData.images}
-                  disabled={operationLoading}
-                  maxImages={5}
-                />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
-              </div>
-
-              {/* Type Selection (Multi-select) */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">סוג משימה * (ניתן לבחור מספר)</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editTaskData.type?.includes('events') || false}
-                      onChange={(e) => {
-                        const currentTypes = editTaskData.type || [];
-                        if (e.target.checked) {
-                          setEditTaskData(prev => ({ ...prev, type: [...currentTypes.filter(t => t !== 'events'), 'events'] }));
-                        } else {
-                          setEditTaskData(prev => ({ ...prev, type: currentTypes.filter(t => t !== 'events') }));
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    Events (אירועים)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editTaskData.type?.includes('hours') || false}
-                      onChange={(e) => {
-                        const currentTypes = editTaskData.type || [];
-                        if (e.target.checked) {
-                          setEditTaskData(prev => ({ ...prev, type: [...currentTypes.filter(t => t !== 'hours'), 'hours'] }));
-                        } else {
-                          setEditTaskData(prev => ({ ...prev, type: currentTypes.filter(t => t !== 'hours') }));
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    Hours (שעות)
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleUpdateTask}
-                disabled={operationLoading}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {operationLoading ? 'שומר...' : 'שמור שינויים'}
-              </button>
-              <button
-                onClick={() => {
-                  setEditingTask(false);
-                  setEditTaskData({});
-                }}
-                disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Task Confirmation Dialog */}
-      {deleteTaskConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-sm">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">אישור מחיקת משימה</h3>
-              <p className="text-muted-foreground mb-4">האם אתה בטוח שברצונך למחוק את המשימה "{task?.title}"? 
-                פעולה זו תמחק גם את כל התת-משימות הקשורות ולא ניתנת לביטול.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleDeleteTask}
-                  disabled={operationLoading}
-                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {operationLoading ? 'מוחק...' : 'מחק משימה'}
-                </button>
-                <button
-                  onClick={() => setDeleteTaskConfirm(false)}
-                  disabled={operationLoading}
-                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Realtime Notifications */}
-      <RealtimeNotification 
-        message={notification.message}
-        type={notification.type}
-        show={notification.show}
-      />
     </div>
   );
 } 

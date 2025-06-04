@@ -64,7 +64,7 @@ export default function ThemeToggle() {
     root.offsetHeight;
   };
 
-  // Toggle through theme options: system → light → dark → system
+  // Toggle through theme options: system → light → dark → system (system as default)
   const toggleTheme = () => {
     console.log('[ThemeToggle] toggleTheme called. Current theme:', theme);
     const themeOrder: Theme[] = ['system', 'light', 'dark'];
@@ -125,12 +125,12 @@ export default function ThemeToggle() {
   // Get tooltip text
   const getTooltip = () => {
     switch (theme) {
+      case 'system':
+        return `מעבר למצב בהיר (כרגע: ${resolvedTheme === 'dark' ? 'כהה' : 'בהיר'})`;
       case 'light':
         return 'מעבר למצב כהה';
       case 'dark':
         return 'מעבר למצב אוטומטי';
-      case 'system':
-        return `מעבר למצב בהיר (כרגע: ${resolvedTheme === 'dark' ? 'כהה' : 'בהיר'})`;
       default:
         return 'החלף ערכת נושא';
     }

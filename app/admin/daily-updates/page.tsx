@@ -1,37 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
+  Megaphone, 
   Plus, 
-  Edit3, 
+  Edit, 
   Trash2, 
-  Save, 
-  X, 
-  Bell,
-  Pin,
+  Pin, 
   PinOff,
-  Clock,
-  Calendar,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Info,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  ArrowLeft,
-  Settings,
-  Megaphone,
-  ChevronRight,
-  MessageSquare
+  ArrowRight
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import ModernCheckbox from '@/components/ModernCheckbox';
-
-// Temporary inline hooks to bypass import issue
-const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
-const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
-const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 interface DailyUpdate {
   id: string;
@@ -40,303 +20,130 @@ interface DailyUpdate {
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
   duration_type: 'hours' | 'days' | 'permanent';
-  duration_value: number | null;
-  expires_at: string | null;
-  is_active: boolean;
+  duration_value?: number;
   is_pinned: boolean;
-  is_hidden: boolean;
-  target_audience: any[];
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-interface UpdateForm {
-  title: string;
-  content: string;
-  type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
-  priority: number;
-  durationType: 'hours' | 'days' | 'permanent';
-  durationValue: number;
-  isPinned: boolean;
-}
-
-const initialForm: UpdateForm = {
-  title: '',
-  content: '',
-  type: 'info',
-  priority: 5,
-  durationType: 'hours',
-  durationValue: 24,
-  isPinned: false
-};
-
-export default function DailyUpdatesAdmin() {
-  const [updates, setUpdates] = useState<DailyUpdate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [formVisible, setFormVisible] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<UpdateForm>(initialForm);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Settings state
-  const [fallbackMessage, setFallbackMessage] = useState<string>('');
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [settingsSubmitting, setSettingsSubmitting] = useState(false);
-
+export default function DailyUpdatesPage() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
-
-  const fetchUpdates = useCallback(async () => {
-    try {
-      const [updatesResponse, settingsResponse] = await Promise.all([
-        fetch('/api/daily-updates?includeHidden=true', {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }),
-        fetch('/api/daily-updates/settings/fallback_message', {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
-      ]);
-      
-      if (updatesResponse.ok) {
-        const data = await updatesResponse.json();
-        setUpdates(data.updates || []);
-      }
-
-      if (settingsResponse.ok) {
-        const settingsData = await settingsResponse.json();
-        if (settingsData.success && settingsData.value) {
-          setFallbackMessage(settingsData.value);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error fetching daily updates:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Register refresh function for pull-to-refresh
-  usePageRefresh(fetchUpdates);
+  
+  const [updates, setUpdates] = useState<DailyUpdate[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchUpdates();
-  }, [fetchUpdates]);
+  }, []);
 
-  const openCreateForm = () => {
-    setForm(initialForm);
-    setEditingId(null);
-    setFormVisible(true);
-  };
-
-  const openEditForm = (update: DailyUpdate) => {
-    setForm({
-      title: update.title,
-      content: update.content,
-      type: update.type,
-      priority: update.priority,
-      durationType: update.duration_type,
-      durationValue: update.duration_value || 24,
-      isPinned: update.is_pinned
-    });
-    setEditingId(update.id);
-    setFormVisible(true);
-  };
-
-  const closeForm = () => {
-    setFormVisible(false);
-    setEditingId(null);
-    setForm(initialForm);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-
+  const fetchUpdates = async () => {
     try {
-      if (editingId) {
-        // Update existing
-        const response = await fetch(`/api/daily-updates/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to update daily update');
-        }
-      } else {
-        // Create new
-        const response = await fetch('/api/daily-updates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form)
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to create daily update');
-        }
-      }
+      const response = await fetch('/api/daily-updates');
+      const result = await response.json();
       
-      closeForm();
-      fetchUpdates();
+      if (result.success) {
+        setUpdates(result.updates);
+      }
     } catch (error) {
-      console.error('❌ Error submitting form:', error);
-      alert('שגיאה בשמירת העדכון');
+      console.error('Error fetching updates:', error);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const togglePin = async (id: string, currentPinned: boolean) => {
-    try {
-      const response = await fetch(`/api/daily-updates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPinned: !currentPinned })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to toggle pin status');
-      }
-      
-      fetchUpdates();
-    } catch (error) {
-      console.error('❌ Error toggling pin status:', error);
-      alert('שגיאה בעדכון סטטוס הצמדה');
-    }
-  };
-
-  const toggleActive = async (id: string, currentActive: boolean) => {
-    try {
-      const response = await fetch(`/api/daily-updates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !currentActive })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to toggle active status');
-      }
-      
-      fetchUpdates();
-    } catch (error) {
-      console.error('❌ Error toggling active status:', error);
-      alert('שגיאה בעדכון סטטוס פעילות');
-    }
-  };
-
-  const toggleHidden = async (id: string, currentHidden: boolean) => {
-    try {
-      const response = await fetch(`/api/daily-updates/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isHidden: !currentHidden })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to toggle hidden status');
-      }
-      
-      fetchUpdates();
-    } catch (error) {
-      console.error('❌ Error toggling hidden status:', error);
-      alert('שגיאה בעדכון סטטוס הסתרה');
-    }
-  };
-
-  const deleteUpdate = async (id: string) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק עדכון זה?')) return;
+  const handleDelete = async (id: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את העדכון?')) return;
     
     try {
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'DELETE'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to delete update');
+      if (response.ok) {
+        setUpdates(prev => prev.filter(update => update.id !== id));
+      } else {
+        alert('שגיאה במחיקת העדכון');
       }
-      
-      fetchUpdates();
     } catch (error) {
-      console.error('❌ Error deleting update:', error);
+      console.error('Error deleting update:', error);
       alert('שגיאה במחיקת העדכון');
     }
   };
 
-  const getUpdateIcon = (type: string) => {
-    switch (type) {
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case 'announcement':
-        return <Megaphone className="h-5 w-5 text-blue-500" />;
-      default:
-        return <Info className="h-5 w-5 text-blue-500" />;
-    }
-  };
-
-  const formatTimeRemaining = (expiresAt: string | null) => {
-    if (!expiresAt) return 'קבוע';
-    
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diff = expiry.getTime() - now.getTime();
-    
-    if (diff <= 0) return 'פג תוקף';
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) {
-      return `${days} ימים`;
-    } else if (hours > 0) {
-      return `${hours} שעות`;
-    } else {
-      const minutes = Math.floor(diff / (1000 * 60));
-      return `${minutes} דקות`;
-    }
-  };
-
-  const handleSubmitSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSettingsSubmitting(true);
-
+  const handleTogglePin = async (id: string, currentPinned: boolean) => {
     try {
-      const response = await fetch('/api/daily-updates/settings/fallback_message', {
+      const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: fallbackMessage })
+        body: JSON.stringify({ is_pinned: !currentPinned })
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to update fallback message');
+      if (response.ok) {
+        setUpdates(prev => prev.map(update => 
+          update.id === id 
+            ? { ...update, is_pinned: !currentPinned }
+            : update
+        ));
+      } else {
+        alert('שגיאה בעדכון הצמדה');
       }
-      
-      setSettingsVisible(false);
-      alert('הודעת ברירת המחדל עודכנה בהצלחה');
     } catch (error) {
-      console.error('❌ Error updating settings:', error);
-      alert('שגיאה בעדכון הודעת ברירת המחדל');
-    } finally {
-      setSettingsSubmitting(false);
+      console.error('Error toggling pin:', error);
+      alert('שגיאה בעדכון הצמדה');
     }
   };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'info': return 'bg-blue-500';
+      case 'warning': return 'bg-yellow-500';
+      case 'success': return 'bg-green-500';
+      case 'error': return 'bg-red-500';
+      case 'announcement': return 'bg-purple-500';
+      default: return 'bg-blue-500';
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'info': return 'מידע';
+      case 'warning': return 'אזהרה';
+      case 'success': return 'הצלחה';
+      case 'error': return 'שגיאה';
+      case 'announcement': return 'הודעה';
+      default: return 'מידע';
+    }
+  };
+
+  const formatDuration = (durationType: string, durationValue?: number) => {
+    if (durationType === 'permanent') return 'קבוע';
+    if (!durationValue) return 'לא מוגדר';
+    const unit = durationType === 'hours' ? 'שעות' : 'ימים';
+    return `${durationValue} ${unit}`;
+  };
+
+  // Sort updates: pinned first, then by priority, then by creation date
+  const sortedUpdates = [...updates].sort((a, b) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען עדכונים...</p>
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded mb-4"></div>
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-24 bg-muted rounded"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -345,367 +152,123 @@ export default function DailyUpdatesAdmin() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-6">
+      <header className="sticky top-0 z-50 bg-background border-b border-border">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Bell className="h-6 w-6 text-primary" />
-              <h1 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                ניהול עדכונים יומיים
-              </h1>
+              <Megaphone className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                  עדכונים יומיים
+                </h1>
+                <p className="text-sm text-muted-foreground">ניהול עדכונים יומיים למשתמשים</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSettingsVisible(true)}
-                className="bg-secondary text-secondary-foreground px-4 py-2 rounded-lg hover:bg-secondary/90 transition-colors flex items-center gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                <span className={mixedBody.fontClass}>הגדרות</span>
-              </button>
-              <button
-                onClick={openCreateForm}
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span className={mixedBody.fontClass}>עדכון חדש</span>
-              </button>
-            </div>
+            <Link
+              href="/admin/daily-updates/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span className={mixedBody.fontClass}>עדכון חדש</span>
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Settings Modal */}
-        {settingsVisible && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card rounded-lg p-6 w-full max-w-md mx-4">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className={`text-xl font-semibold ${hebrewHeading.fontClass}`}>
-                  הגדרות עדכונים יומיים
-                </h2>
-                <button
-                  onClick={() => setSettingsVisible(false)}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmitSettings} className="space-y-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                    הודעת ברירת מחדל
-                  </label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    הודעה זו תוצג כאשר אין עדכונים יומיים פעילים
-                  </p>
-                  <input
-                    type="text"
-                    value={fallbackMessage}
-                    onChange={(e) => setFallbackMessage(e.target.value)}
-                    className="w-full border border-border rounded-lg px-3 py-2 text-right"
-                    required
-                    dir="rtl"
-                    placeholder="המשך יום טוב"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={settingsSubmitting}
-                    className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {settingsSubmitting ? 'שומר...' : 'שמור הגדרות'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSettingsVisible(false)}
-                    disabled={settingsSubmitting}
-                    className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-                  >
-                    ביטול
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Form Modal */}
-        {formVisible && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className={`text-xl font-semibold ${hebrewHeading.fontClass}`}>
-                  {editingId ? 'עריכת עדכון' : 'עדכון חדש'}
-                </h2>
-                <button
-                  onClick={closeForm}
-                  className="p-2 hover:bg-muted rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                    כותרת *
-                  </label>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    className="w-full border border-border rounded-lg px-3 py-2 text-right"
-                    required
-                    dir="rtl"
-                  />
-                </div>
-
-                {/* Content */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                    תוכן *
-                  </label>
-                  <textarea
-                    value={form.content}
-                    onChange={(e) => setForm({ ...form, content: e.target.value })}
-                    className="w-full border border-border rounded-lg px-3 py-2 text-right h-24"
-                    required
-                    dir="rtl"
-                  />
-                </div>
-
-                {/* Type and Priority */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                      סוג
-                    </label>
-                    <select
-                      value={form.type}
-                      onChange={(e) => setForm({ ...form, type: e.target.value as any })}
-                      className="w-full border border-border rounded-lg px-3 py-2"
-                    >
-                      <option value="info">מידע</option>
-                      <option value="announcement">הודעה</option>
-                      <option value="warning">אזהרה</option>
-                      <option value="success">הצלחה</option>
-                      <option value="error">שגיאה</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                      עדיפות (1-10)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={form.priority}
-                      onChange={(e) => {
-                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                        setForm({ ...form, priority: Math.min(Math.max(value, 1), 10) })
-                      }}
-                      className="w-full border border-border rounded-lg px-3 py-2"
-                      placeholder="1-10"
-                      min="1"
-                      max="10"
-                    />
-                  </div>
-                </div>
-
-                {/* Duration */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                      סוג משך
-                    </label>
-                    <select
-                      value={form.durationType}
-                      onChange={(e) => setForm({ ...form, durationType: e.target.value as any })}
-                      className="w-full border border-border rounded-lg px-3 py-2"
-                    >
-                      <option value="hours">שעות</option>
-                      <option value="days">ימים</option>
-                      <option value="permanent">קבוע</option>
-                    </select>
-                  </div>
-
-                  {form.durationType !== 'permanent' && (
-                    <div>
-                      <label className={`block text-sm font-medium mb-1 ${mixedBody.fontClass}`}>
-                        {form.durationType === 'hours' ? 'מספר שעות' : 'מספר ימים'}
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={form.durationValue}
-                        onChange={(e) => {
-                          const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                          setForm({ ...form, durationValue: Math.max(value, 1) })
-                        }}
-                        className="w-full border border-border rounded-lg px-3 py-2"
-                        placeholder={form.durationType === 'hours' ? 'שעות' : 'ימים'}
-                        min="1"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Pin checkbox */}
-                <div className="flex items-center gap-2">
-                  <ModernCheckbox
-                    checked={form.isPinned}
-                    onChange={(checked) => setForm({ ...form, isPinned: checked })}
-                    id="pinned"
-                  />
-                  <label htmlFor="pinned" className={`text-sm ${mixedBody.fontClass}`}>
-                    הצמד למעלה
-                  </label>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <Save className="h-4 w-4" />
-                    <span className={mixedBody.fontClass}>
-                      {submitting ? 'שומר...' : 'שמור'}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeForm}
-                    className="bg-muted text-muted-foreground px-4 py-2 rounded-lg hover:bg-muted/80 transition-colors"
-                  >
-                    <span className={mixedBody.fontClass}>ביטול</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Updates List */}
-        <div className="space-y-4">
+        <div className="max-w-4xl mx-auto">
           {updates.length === 0 ? (
             <div className="text-center py-12">
-              <Bell className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">אין עדכונים יומיים</h3>
-              <p className="text-muted-foreground mb-4">צור את העדכון היומי הראשון</p>
-              <button
-                onClick={openCreateForm}
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+              <Megaphone className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className={`text-lg font-semibold text-foreground mb-2 ${hebrewHeading.fontClass}`}>
+                אין עדכונים יומיים
+              </h3>
+              <p className="text-muted-foreground mb-6">צור עדכון יומי ראשון כדי להתחיל</p>
+              <Link
+                href="/admin/daily-updates/new"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
-                צור עדכון חדש
-              </button>
+                <Plus className="h-4 w-4" />
+                <span className={mixedBody.fontClass}>צור עדכון ראשון</span>
+              </Link>
             </div>
           ) : (
-            updates.map((update) => (
-              <div key={update.id} className="bg-card border border-border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      {getUpdateIcon(update.type)}
-                      <h3 className={`text-lg font-semibold ${hebrewHeading.fontClass}`}>
-                        {update.title}
-                      </h3>
-                      {update.is_pinned && (
-                        <Pin className="h-4 w-4 text-orange-500" />
-                      )}
-                      {!update.is_active && (
-                        <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
-                          לא פעיל
-                        </span>
-                      )}
-                      {update.is_hidden && (
-                        <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs">
-                          מוסתר מהעמוד הראשי
-                        </span>
-                      )}
+            <div className="space-y-4">
+              {sortedUpdates.map((update) => (
+                <div
+                  key={update.id}
+                  className={`
+                    bg-card rounded-lg border-2 transition-all hover:shadow-md
+                    ${update.is_pinned 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border'
+                    }
+                  `}
+                >
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+                            {update.title}
+                          </h3>
+                          <div className={`w-3 h-3 rounded-full ${getTypeColor(update.type)}`}></div>
+                          <span className={`text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground ${mixedBody.fontClass}`}>
+                            {getTypeLabel(update.type)}
+                          </span>
+                          {update.is_pinned && (
+                            <Pin className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                          <span>עדיפות: {update.priority}</span>
+                          <span>משך: {formatDuration(update.duration_type, update.duration_value)}</span>
+                          <span>{new Date(update.created_at).toLocaleDateString('he-IL')}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTogglePin(update.id, update.is_pinned)}
+                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                          title={update.is_pinned ? 'בטל הצמדה' : 'הצמד'}
+                        >
+                          {update.is_pinned ? (
+                            <PinOff className="h-4 w-4" />
+                          ) : (
+                            <Pin className="h-4 w-4" />
+                          )}
+                        </button>
+                        <Link
+                          href={`/admin/daily-updates/${update.id}/edit`}
+                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                          title="ערוך"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(update.id)}
+                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+                          title="מחק"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    
-                    <p className={`text-muted-foreground mb-3 ${mixedBody.fontClass}`}>
-                      {update.content}
-                    </p>
 
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        נותר: {formatTimeRemaining(update.expires_at)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        עדיפות: {update.priority}
-                      </span>
+                    {/* Content */}
+                    <div className="text-foreground">
+                      <p className={`leading-relaxed ${mixedBody.fontClass}`}>
+                        {update.content}
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => togglePin(update.id, update.is_pinned)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      title={update.is_pinned ? 'בטל הצמדה' : 'הצמד'}
-                    >
-                      {update.is_pinned ? (
-                        <PinOff className="h-4 w-4" />
-                      ) : (
-                        <Pin className="h-4 w-4" />
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={() => toggleActive(update.id, update.is_active)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      title={update.is_active ? 'הסתר' : 'הצג'}
-                    >
-                      {update.is_active ? (
-                        <Eye className="h-4 w-4" />
-                      ) : (
-                        <EyeOff className="h-4 w-4" />
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={() => toggleHidden(update.id, update.is_hidden)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      title={update.is_hidden ? 'הצג' : 'הסתר'}
-                    >
-                      {update.is_hidden ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={() => openEditForm(update)}
-                      className="p-2 hover:bg-muted rounded-lg transition-colors"
-                      title="ערוך"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => deleteUpdate(update.id)}
-                      className="p-2 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                      title="מחק"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </main>

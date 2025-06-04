@@ -286,15 +286,15 @@ export default function ProjectPage() {
                         <div className="flex-1">
                           {/* Top row: Title and Dataco number only */}
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
-                            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
+                            <h3 className="text-base font-semibold text-foreground">{task.title}</h3>
+                            <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
                               {formatDatacoNumber(task.datacoNumber)}
                             </span>
                           </div>
                           
                           {/* Bottom row: Priority and subtask count */}
                           {!isExpanded && (
-                            <div className="flex items-center gap-3 text-sm">
+                            <div className="flex items-center gap-3 text-xs">
                               <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
                                 {getPriorityLabel(task.priority)}
                               </div>
@@ -328,41 +328,41 @@ export default function ProjectPage() {
                           )}
 
                           {/* Task type and basic info when expanded */}
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
+                              <Clock className="h-3 w-3" />
                               <strong>סוג:</strong> {capitalizeEnglishArray(task.type).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
+                              <MapPin className="h-3 w-3" />
                               <strong>מיקומים:</strong> {capitalizeEnglishArray(task.locations).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Car className="h-4 w-4" />
+                              <Car className="h-3 w-3" />
                               <strong>רכבי יעד:</strong> {capitalizeEnglishArray(task.targetCar).join(', ')}
                             </span>
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
+                              <Calendar className="h-3 w-3" />
                               <strong>זמני יום:</strong> {task.dayTime.map(getDayTimeLabel).join(', ')}
                             </span>
                           </div>
 
                           {/* Description */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-2">תיאור המשימה</h4>
-                            <p className="text-muted-foreground">{task.description.main}</p>
+                            <h4 className="font-semibold text-foreground mb-2 text-sm">תיאור המשימה</h4>
+                            <p className="text-muted-foreground text-sm">{task.description.main}</p>
                           </div>
 
                           {/* Execution Instructions */}
                           <div>
-                            <h4 className="font-semibold text-foreground mb-2">הוראות ביצוע</h4>
-                            <p className="text-muted-foreground">{task.description.howToExecute}</p>
+                            <h4 className="font-semibold text-foreground mb-2 text-sm">הוראות ביצוע</h4>
+                            <p className="text-muted-foreground text-sm">{task.description.howToExecute}</p>
                           </div>
 
                           {/* Task Image Display */}
                           {task.images && task.images.length > 0 && (
                             <div>
-                              <h4 className="font-semibold text-foreground mb-2">תמונות המשימה</h4>
+                              <h4 className="font-semibold text-foreground mb-2 text-sm">תמונות המשימה</h4>
                               <ImageGallery 
                                 images={task.images} 
                                 className="w-full"
@@ -375,17 +375,17 @@ export default function ProjectPage() {
                           {/* Technical Details */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                              <h4 className="font-semibold text-foreground mb-2">פרטים טכניים</h4>
-                              <div className="space-y-2 text-sm">
+                              <h4 className="font-semibold text-foreground mb-2 text-sm">פרטים טכניים</h4>
+                              <div className="space-y-2 text-xs">
                                 <div className="flex items-center gap-2">
-                                  <Zap className="h-4 w-4 text-muted-foreground" />
+                                  <Zap className="h-3 w-3 text-muted-foreground" />
                                   <span><strong>LiDAR:</strong> {task.lidar ? 'כן' : 'לא'}</span>
                                 </div>
                               </div>
                             </div>
                             <div>
-                              <h4 className="font-semibold text-foreground mb-2">כמות נדרשת</h4>
-                              <div className="text-2xl font-bold text-primary">
+                              <h4 className="font-semibold text-foreground mb-2 text-sm">כמות נדרשת</h4>
+                              <div className="text-xl font-bold text-primary">
                                 {task.amountNeeded}
                               </div>
                             </div>
@@ -394,7 +394,7 @@ export default function ProjectPage() {
                           {/* Subtasks */}
                           {taskSubtasks.length > 0 && (
                             <div>
-                              <h4 className="font-semibold text-foreground mb-3">תת-משימות</h4>
+                              <h4 className="font-semibold text-foreground mb-3 text-sm">תת-משימות</h4>
                               <div className="space-y-2">
                                 {taskSubtasks.map((subtask) => {
                                   const isSubtaskExpanded = expandedSubtasks.has(subtask.id);
@@ -408,8 +408,8 @@ export default function ProjectPage() {
                                       >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-3">
-                                            <h5 className="font-medium text-foreground">{subtask.title}</h5>
-                                            <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-background rounded">
+                                            <h5 className="font-medium text-foreground text-sm">{subtask.title}</h5>
+                                            <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-background rounded">
                                               {formatDatacoNumber(subtask.datacoNumber)}
                                             </span>
                                           </div>
@@ -430,12 +430,12 @@ export default function ProjectPage() {
                                             {/* Subtitle */}
                                             {subtask.subtitle && (
                                               <div>
-                                                <p className="text-sm text-muted-foreground">{subtask.subtitle}</p>
+                                                <p className="text-xs text-muted-foreground">{subtask.subtitle}</p>
                                               </div>
                                             )}
                                             
                                             {/* Basic Info with Clear Labels */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                               <div className="space-y-2">
                                                 <div>
                                                   <span className="font-medium text-foreground">סוג: </span>
@@ -462,19 +462,19 @@ export default function ProjectPage() {
 
                                             {/* Target Cars */}
                                             <div>
-                                              <span className="font-medium text-foreground">רכבי יעד: </span>
-                                              <span className="text-muted-foreground">{capitalizeEnglishArray(subtask.targetCar).join(', ')}</span>
+                                              <span className="font-medium text-foreground text-xs">רכבי יעד: </span>
+                                              <span className="text-muted-foreground text-xs">{capitalizeEnglishArray(subtask.targetCar).join(', ')}</span>
                                             </div>
 
                                             {/* Labels Section */}
                                             {subtask.labels.length > 0 && (
                                               <div>
-                                                <h6 className="font-medium text-foreground mb-2">לייבלים</h6>
+                                                <h6 className="font-medium text-foreground mb-2 text-xs">לייבלים</h6>
                                                 <div className="flex flex-wrap gap-2">
                                                   {subtask.labels.map((label, index) => (
                                                     <span 
                                                       key={`${subtask.id}-label-${index}-${label}`}
-                                                      className="px-3 py-1 bg-black text-white text-sm rounded-md font-medium"
+                                                      className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
                                                     >
                                                       {label}
                                                     </span>
@@ -486,7 +486,7 @@ export default function ProjectPage() {
                                             {/* Image Section */}
                                             {subtask.images && subtask.images.length > 0 && (
                                               <div>
-                                                <h6 className="font-medium text-foreground mb-2">תמונות</h6>
+                                                <h6 className="font-medium text-foreground mb-2 text-xs">תמונות</h6>
                                                 <ImageGallery 
                                                   images={subtask.images} 
                                                   className="w-full"

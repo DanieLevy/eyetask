@@ -45,6 +45,7 @@ interface NewTaskData {
 
 export default function NewTaskPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +90,13 @@ export default function NewTaskPage() {
     }
 
     fetchProjects();
-  }, [router]);
+
+    // Set projectId from query params
+    const queryProjectId = searchParams.get('projectId');
+    if (queryProjectId) {
+      setNewTaskData(prev => ({ ...prev, projectId: queryProjectId }));
+    }
+  }, [router, searchParams]);
 
   const fetchProjects = async () => {
     try {

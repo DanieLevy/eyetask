@@ -85,9 +85,11 @@ export default function RootLayout({
                   root.classList.add(resolvedTheme);
                   root.style.colorScheme = resolvedTheme;
                 } catch (e) {
-                  // Fallback to light theme if any error
-                  document.documentElement.classList.add('light');
-                  document.documentElement.style.colorScheme = 'light';
+                  // Fallback to system theme if any error
+                  var systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var fallbackTheme = systemIsDark ? 'dark' : 'light';
+                  document.documentElement.classList.add(fallbackTheme);
+                  document.documentElement.style.colorScheme = fallbackTheme;
                 }
               })();
             `,
