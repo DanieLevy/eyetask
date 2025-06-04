@@ -1,42 +1,28 @@
 [build]
-  command = "npm run build:fresh-bash"
+  command = "npm ci && npm run build"
   publish = ".next"
 
-# Clear all caches for fresh deployment
-[build.processing]
-  skip_processing = false
-
 [build.environment]
-  NODE_VERSION = "18"
-  # Force fresh npm install and clear caches
-  NPM_CONFIG_CACHE = ""
-  NPM_CONFIG_PREFER_OFFLINE = "false"
-  # Clear Netlify-specific caches
-  NETLIFY_CACHE_NEXTJS = "false"
-  # Force fresh git checkout
-  NETLIFY_BUILD_COMMAND_FRESH = "true"
+  NODE_VERSION = "20"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Clear build cache on every deploy
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Fresh-Deploy = "true"
 
 # Environment variables are set in Netlify dashboard
 # Go to Site settings → Environment variables to configure:
 # 
 # Required variables:
-# Key: NEXT_PUBLIC_SUPABASE_URL
-# Value: [Your Supabase project URL]
-# 
-# Key: NEXT_PUBLIC_SUPABASE_ANON_KEY 
-# Value: [Your Supabase anonymous key]
-# 
-# Key: SUPABASE_SERVICE_KEY
-# Value: [Your Supabase service role key]
+# MONGODB_URI
+# MONGODB_DB_NAME  
+# JWT_SECRET
+# NEXTAUTH_SECRET
+# NEXTAUTH_URL
+# NEXT_PUBLIC_APP_NAME
+# NEXT_PUBLIC_APP_URL
+# MDB_MCP_API_CLIENT_ID
+# MDB_MCP_API_CLIENT_SECRET
+# LOG_LEVEL
+# NODE_ENV
 
 # The @netlify/plugin-nextjs plugin automatically handles:
 # - API routes (/api/*)

@@ -21,16 +21,23 @@ function removeDirectory(dirPath) {
   }
 }
 
-// Directories to clean
+// Directories to clean (conditional .netlify removal)
 const dirsToClean = [
   '.next',
   'node_modules',
   '.vercel',
-  '.netlify',
   'dist',
   'build',
   '.turbo'
 ];
+
+// Don't remove .netlify on Netlify builds to avoid breaking plugins
+if (!process.env.NETLIFY) {
+  dirsToClean.push('.netlify');
+  console.log('🏠 Local build - will clean .netlify directory');
+} else {
+  console.log('☁️  Netlify build - preserving .netlify directory');
+}
 
 console.log('🗑️  Cleaning build artifacts and caches...');
 
@@ -60,6 +67,21 @@ try {
     console.error('❌ Failed to install dependencies:', installError.message);
     process.exit(1);
   }
+}
+
+// Verify hooks directory exists
+console.log('🔍 Verifying hooks directory...');
+if (fs.existsSync('hooks')) {
+  console.log('✅ hooks directory exists');
+  try {
+    const hookFiles = fs.readdirSync('hooks');
+    console.log('📁 Hook files found:', hookFiles.join(', '));
+  } catch (error) {
+    console.log('⚠️  Could not list hook files:', error.message);
+  }
+} else {
+  console.error('❌ hooks directory missing!');
+  process.exit(1);
 }
 
 // Build the application
