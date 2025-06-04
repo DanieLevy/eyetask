@@ -3,8 +3,17 @@ import jwt from 'jsonwebtoken';
 import { db } from './database';
 import { logger } from './logger';
 
-// Make sure we're using the correct environment variable for JWT
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'fallback-secret-key';
+// Enhanced JWT secret configuration for production
+const JWT_SECRET = process.env.JWT_SECRET || 
+                   process.env.NEXTAUTH_SECRET || 
+                   process.env.SECRET_KEY ||
+                   'fallback-secret-key-for-development-only';
+
+// Ensure we have a proper secret in production
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'fallback-secret-key-for-development-only') {
+  logger.error('JWT_SECRET not properly configured for production', 'AUTH');
+}
+
 const COOKIE_NAME = 'auth-token';
 
 export interface LoginCredentials {
@@ -16,7 +25,7 @@ export interface AuthUser {
   id: string;
   username: string;
   email: string;
-  role: 'admin';
+  role: string;
 }
 
 export interface RegisterData {
@@ -27,34 +36,51 @@ export interface RegisterData {
 
 export class AuthService {
   // Hash password
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 12;
-    return bcrypt.hash(password, saltRounds);
+  async hashPassword(password: string): Promise<string> {
+    return await bcrypt.hash(password, 12);
   }
 
   // Verify password
-  private async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
+  async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+    return await bcrypt.compare(password, hashedPassword);
   }
 
-  // Generate JWT token
+  // Generate JWT token with enhanced payload
   private generateToken(user: AuthUser): string {
-    return jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username, 
-        email: user.email, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    try {
+      return jwt.sign(
+        { 
+          id: user.id, 
+          username: user.username, 
+          email: user.email, 
+          role: user.role,
+          iat: Math.floor(Date.now() / 1000),
+          iss: 'eyetask-app'
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+    } catch (error) {
+      logger.error('Error generating JWT token', 'AUTH', undefined, error as Error);
+      throw new Error('Failed to generate authentication token');
+    }
   }
 
-  // Verify JWT token
+  // Enhanced token verification with better error handling
   verifyToken(token: string): AuthUser | null {
     try {
+      if (!token || token.trim() === '') {
+        return null;
+      }
+
       const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      // Validate required fields
+      if (!decoded.id || !decoded.username || !decoded.role) {
+        logger.warn('Invalid token payload - missing required fields', 'AUTH');
+        return null;
+      }
+
       return {
         id: decoded.id,
         username: decoded.username,
@@ -62,7 +88,13 @@ export class AuthService {
         role: decoded.role
       };
     } catch (error) {
-      logger.error('Token verification failed', 'AUTH', undefined, error as Error);
+      if (error instanceof jwt.TokenExpiredError) {
+        logger.warn('Token expired', 'AUTH');
+      } else if (error instanceof jwt.JsonWebTokenError) {
+        logger.warn('Invalid token format', 'AUTH');
+      } else {
+        logger.error('Token verification failed', 'AUTH', undefined, error as Error);
+      }
       return null;
     }
   }
@@ -153,21 +185,26 @@ export class AuthService {
     }
   }
 
-  // Get user from token
+  // Get user from token with database validation
   async getUserFromToken(token: string): Promise<AuthUser | null> {
-    const user = this.verifyToken(token);
-    if (!user) {
+    try {
+      const user = this.verifyToken(token);
+      if (!user) {
+        return null;
+      }
+
+      // Verify user still exists in database
+      const dbUser = await db.getUserByUsername(user.username);
+      if (!dbUser) {
+        logger.warn('Token user no longer exists in database', 'AUTH', { username: user.username });
+        return null;
+      }
+
+      return user;
+    } catch (error) {
+      logger.error('Error getting user from token', 'AUTH', undefined, error as Error);
       return null;
     }
-
-    // Verify user still exists in database
-    const dbUser = await db.getUserByUsername(user.username);
-    if (!dbUser) {
-      logger.warn('Token user no longer exists in database', 'AUTH', { username: user.username });
-      return null;
-    }
-
-    return user;
   }
 
   // Logout (client-side will remove token)
@@ -175,28 +212,38 @@ export class AuthService {
     logger.info('User logged out', 'AUTH');
   }
 
-  // Middleware helper to extract user from request
+  // Enhanced middleware helper to extract user from request
   extractUserFromRequest(req: Request): AuthUser | null {
     try {
-      // Try to get token from Authorization header
+      // Try to get token from Authorization header first (preferred for API calls)
       const authHeader = req.headers.get('authorization');
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        return this.verifyToken(token);
+        if (token && token.trim() !== '') {
+          const user = this.verifyToken(token);
+          if (user) {
+            return user;
+          }
+        }
       }
 
-      // Try to get token from cookie
+      // Try to get token from cookie as fallback
       const cookieHeader = req.headers.get('cookie');
       if (cookieHeader) {
         const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
           const [key, value] = cookie.trim().split('=');
-          acc[key] = value;
+          if (key && value) {
+            acc[key] = value;
+          }
           return acc;
         }, {} as Record<string, string>);
 
         const token = cookies[COOKIE_NAME];
-        if (token) {
-          return this.verifyToken(token);
+        if (token && token.trim() !== '') {
+          const user = this.verifyToken(token);
+          if (user) {
+            return user;
+          }
         }
       }
 
@@ -215,7 +262,8 @@ export class AuthService {
   // Generate cookie string for setting auth token
   generateAuthCookie(token: string): string {
     const maxAge = 24 * 60 * 60; // 24 hours
-    return `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}; Path=/`;
+    const isProduction = process.env.NODE_ENV === 'production';
+    return `${COOKIE_NAME}=${token}; HttpOnly; ${isProduction ? 'Secure;' : ''} SameSite=Strict; Max-Age=${maxAge}; Path=/`;
   }
 
   // Generate cookie string for clearing auth token
@@ -246,24 +294,34 @@ export function requireAdmin(user: AuthUser | null): AuthUser {
   return user;
 }
 
-// Helper functions for API routes
+// Enhanced helper functions for API routes
 export function extractTokenFromHeader(authHeader: string | null): string | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
-  return authHeader.substring(7);
+  const token = authHeader.substring(7);
+  return token && token.trim() !== '' ? token : null;
 }
 
-export async function requireAuthEnhanced(token: string | null): Promise<{ authorized: boolean; user: AuthUser | null }> {
-  if (!token) {
-    return { authorized: false, user: null };
+export async function requireAuthEnhanced(token: string | null): Promise<{ authorized: boolean; user: AuthUser | null; error?: string }> {
+  try {
+    if (!token || token.trim() === '') {
+      return { authorized: false, user: null, error: 'No token provided' };
+    }
+    
+    const user = await auth.getUserFromToken(token);
+    if (!user) {
+      return { authorized: false, user: null, error: 'Invalid or expired token' };
+    }
+    
+    return { 
+      authorized: true, 
+      user 
+    };
+  } catch (error) {
+    logger.error('Error in requireAuthEnhanced', 'AUTH', undefined, error as Error);
+    return { authorized: false, user: null, error: 'Authentication error' };
   }
-  
-  const user = await auth.getUserFromToken(token);
-  return { 
-    authorized: user !== null, 
-    user 
-  };
 }
 
 export function isAdminEnhanced(user: AuthUser | null): boolean {

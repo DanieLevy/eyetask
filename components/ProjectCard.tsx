@@ -22,7 +22,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
   const { status: offlineStatus } = useOfflineStatus();
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch by only showing offline indicators after mount
+  // Prevent hydration mismatch by only showing dynamic content after mount
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -32,6 +32,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
     window.location.href = `/project/${encodeURIComponent(project.name)}`;
   };
 
+  // Only show offline-specific features after component is mounted
   const showOfflineIndicators = mounted && !offlineStatus.isOnline;
 
   return (
@@ -40,7 +41,8 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
         onClick={handleProjectClick}
         className="block cursor-pointer"
       >
-        <div className="bg-card rounded-lg border border-border p-4 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50 relative overflow-hidden min-h-[120px] flex flex-col justify-center">
+        {/* Use consistent classes that don't change between server/client */}
+        <div className="bg-card rounded-lg border border-border p-4 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50 relative overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-primary/20 to-transparent" />
           
@@ -51,16 +53,18 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
             </div>
           )}
           
-          {/* Project Info - Right aligned and vertically centered */}
-          <div className="relative text-right space-y-3">
-            <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewFont.fontClass} leading-tight`}>
-              {project.name}
-            </h3>
-            {project.description && (
-              <p className={`text-sm text-muted-foreground line-clamp-2 ${hebrewFont.fontClass} leading-relaxed`}>
-                {project.description}
-              </p>
-            )}
+          {/* Project Info - Static layout that doesn't change */}
+          <div className="relative text-right space-y-3 min-h-[120px] flex flex-col justify-center">
+            <div>
+              <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewFont.fontClass} leading-tight`}>
+                {project.name}
+              </h3>
+              {project.description && (
+                <p className={`text-sm text-muted-foreground line-clamp-2 ${hebrewFont.fontClass} leading-relaxed mt-2`}>
+                  {project.description}
+                </p>
+              )}
+            </div>
             
             {/* Stats Row - Right aligned */}
             <div className="flex items-center justify-end gap-4 text-sm pt-1">

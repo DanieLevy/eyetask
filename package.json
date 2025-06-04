@@ -11,7 +11,8 @@
     "lint": "next lint",
     "clear": "powershell \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2; if(Test-Path .next){Remove-Item .next -Recurse -Force}; npm cache clean --force; echo 'Project cleared! Run npm run dev to start fresh.'\"",
     "setup-mongodb": "node setup-mongodb-collections.js",
-    "migrate-from-supabase": "node supabase-to-mongodb-migration.js"
+    "migrate-from-supabase": "node supabase-to-mongodb-migration.js",
+    "generate-jwt-secret": "node scripts/generate-jwt-secret.js"
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",

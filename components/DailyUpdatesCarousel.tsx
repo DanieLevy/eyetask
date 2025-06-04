@@ -27,7 +27,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const [isVisible, setIsVisible] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [fallbackMessage, setFallbackMessage] = useState('');
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
 
   const fetchData = async () => {

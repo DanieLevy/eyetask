@@ -124,6 +124,16 @@ export default function TaskManagement() {
   // Realtime notifications
   const { notification, showNotification } = useRealtimeNotification();
 
+  // Helper function to check if any forms or operations are active
+  const isUserInteracting = useCallback(() => {
+    return showNewSubtaskForm || 
+           editingSubtask !== null || 
+           editingTask || 
+           operationLoading || 
+           deleteConfirm !== null || 
+           deleteTaskConfirm;
+  }, [showNewSubtaskForm, editingSubtask, editingTask, operationLoading, deleteConfirm, deleteTaskConfirm]);
+
   // Realtime handlers
   const handleTaskChange = useCallback((payload: any) => {
     console.log('🔄 Task realtime update:', payload);
@@ -131,9 +141,11 @@ export default function TaskManagement() {
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
     if (eventType === 'UPDATE' && newRecord && newRecord.id === taskId) {
-      // Update the current task
-      setTask(newRecord);
-      showNotification('המשימה עודכנה', 'update');
+      // Only update if user is not interacting with forms
+      if (!isUserInteracting()) {
+        setTask(newRecord);
+        showNotification('המשימה עודכנה', 'update');
+      }
     } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === taskId) {
       // Task was deleted, redirect back
       showNotification('המשימה נמחקה', 'error');
@@ -143,10 +155,16 @@ export default function TaskManagement() {
         router.push('/admin/dashboard');
       }
     }
-  }, [taskId, project, router, showNotification]);
+  }, [taskId, project, router, showNotification, isUserInteracting]);
 
   const handleSubtaskChange = useCallback((payload: any) => {
     console.log('🔄 Subtask realtime update:', payload);
+    
+    // Don't update subtasks if user is actively working with forms
+    if (isUserInteracting()) {
+      console.log('⏸️ Skipping subtask update - user is interacting');
+      return;
+    }
     
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
@@ -186,9 +204,15 @@ export default function TaskManagement() {
           return current;
       }
     });
-  }, [taskId, showNotification]);
+  }, [taskId, showNotification, isUserInteracting]);
 
-  const fetchTaskData = useCallback(async () => {
+  const fetchTaskData = useCallback(async (forceRefresh = false) => {
+    // Prevent automatic refreshes when user is interacting unless forced
+    if (!forceRefresh && isUserInteracting()) {
+      console.log('⏸️ Skipping automatic refresh - user is interacting');
+      return;
+    }
+    
     try {
       setLoading(true);
       
@@ -260,18 +284,29 @@ export default function TaskManagement() {
       setError('Failed to load task data');
       setLoading(false);
     }
-  }, [taskId]);
+  }, [taskId, isUserInteracting]);
 
-  // Set up realtime subscriptions
-  useTasksRealtime(fetchTaskData);
-  useSubtasksRealtime(taskId, fetchTaskData);
+  // Smart refresh function that only refreshes when safe
+  const safeRefresh = useCallback(() => {
+    fetchTaskData(false); // Non-forced refresh
+  }, [fetchTaskData]);
+
+  // Force refresh function for when we need to update regardless
+  const forceRefresh = useCallback(() => {
+    fetchTaskData(true); // Forced refresh
+  }, [fetchTaskData]);
+
+  // Set up realtime subscriptions with safe refresh
+  useTasksRealtime(safeRefresh);
+  useSubtasksRealtime(taskId, safeRefresh);
 
   // Register this page's refresh function
-  usePageRefresh(fetchTaskData);
+  usePageRefresh(forceRefresh);
 
   useEffect(() => {
-    fetchTaskData();
-  }, [fetchTaskData]);
+    // Initial load should always work
+    fetchTaskData(true);
+  }, [taskId]);
 
   useEffect(() => {
     // Check authentication
@@ -334,8 +369,8 @@ export default function TaskManagement() {
         });
         setShowNewSubtaskForm(false);
         
-        // Refresh the data without calling calculate-amount
-        await fetchTaskData();
+        // Refresh the data after successful creation
+        await forceRefresh();
       } else {
         alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
       }
@@ -360,23 +395,15 @@ export default function TaskManagement() {
           Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify({
-          title: editingSubtask.title,
-          subtitle: editingSubtask.subtitle,
-          amountNeeded: editingSubtask.amountNeeded,
-          labels: editingSubtask.labels,
-          weather: editingSubtask.weather,
-          scene: editingSubtask.scene
-        })
+        body: JSON.stringify(editingSubtask),
       });
 
       const result = await response.json();
       
       if (result.success) {
         setEditingSubtask(null);
-        
-        // Refresh the data without calling calculate-amount
-        await fetchTaskData();
+        // Refresh data after successful update
+        await forceRefresh();
       } else {
         alert('Failed to update subtask: ' + (result.error || 'Unknown error'));
       }
@@ -389,75 +416,100 @@ export default function TaskManagement() {
   };
 
   const handleDeleteSubtask = async (subtaskId: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק תת-משימה זו?')) {
+      return;
+    }
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/subtasks/${subtaskId}`, {
+      const response = await fetch(`/api/subtasks/${subtaskId}?_t=${Date.now()}`, {
         method: 'DELETE',
-        headers: {
+        headers: { 
           Authorization: `Bearer ${token}`,
-        }
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
       });
 
       if (response.ok) {
-        await fetchTaskData();
         setDeleteConfirm(null);
+        // Refresh data after successful deletion
+        await forceRefresh();
+      } else {
+        alert('Failed to delete subtask');
       }
     } catch (error) {
       console.error('Error deleting subtask:', error);
+      alert('Error deleting subtask');
     } finally {
       setOperationLoading(false);
     }
   };
 
   const handleUpdateTask = async () => {
+    if (!task || !editTaskData) return;
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${task.id}?_t=${Date.now()}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify(editTaskData)
+        body: JSON.stringify(editTaskData),
       });
 
-      if (response.ok) {
-        await fetchTaskData();
+      const result = await response.json();
+      
+      if (result.success) {
         setEditingTask(false);
         setEditTaskData({});
+        // Refresh data after successful update
+        await forceRefresh();
+      } else {
+        alert('Failed to update task: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error updating task:', error);
+      alert('Error updating task');
     } finally {
       setOperationLoading(false);
     }
   };
 
   const handleDeleteTask = async () => {
+    if (!task) return;
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${task.id}?_t=${Date.now()}`, {
         method: 'DELETE',
-        headers: {
+        headers: { 
           Authorization: `Bearer ${token}`,
-        }
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
       });
 
       if (response.ok) {
-        // Navigate back to project page or dashboard
+        // Redirect to project page after deletion
         if (project) {
           router.push(`/admin/projects/${project.id}`);
         } else {
           router.push('/admin/dashboard');
         }
+      } else {
+        alert('Failed to delete task');
       }
     } catch (error) {
       console.error('Error deleting task:', error);
+      alert('Error deleting task');
     } finally {
       setOperationLoading(false);
+      setDeleteTaskConfirm(false);
     }
   };
 
@@ -570,7 +622,7 @@ export default function TaskManagement() {
             </div>
             <div className="mr-auto">
               <button
-                onClick={fetchTaskData}
+                onClick={() => fetchTaskData(true)}
                 className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
                 title="רענן נתונים"
               >
@@ -868,8 +920,22 @@ export default function TaskManagement() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">הוסף תת-משימה חדשה</h3>
-              <p className="text-sm text-muted-foreground mt-1">צור תת-משימה חדשה עבור המשימה "{task?.title}"</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-foreground">הוסף תת-משימה חדשה</h3>
+                <button
+                  onClick={() => forceRefresh()}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
+                  title="רענן נתונים"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  רענן
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground">צור תת-משימה חדשה עבור המשימה "{task?.title}"</p>
+              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-600 dark:text-blue-400">
+                <Clock className="h-3 w-3" />
+                רענון אוטומטי מושבת בזמן עריכה
+              </div>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1066,8 +1132,22 @@ export default function TaskManagement() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-lg border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">ערוך תת-משימה</h3>
-              <p className="text-sm text-muted-foreground mt-1">ערוך את תת-המשימה "{editingSubtask.title}"</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-foreground">ערוך תת-משימה</h3>
+                <button
+                  onClick={() => forceRefresh()}
+                  className="flex items-center gap-1 px-2 py-1 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 transition-colors"
+                  title="רענן נתונים"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  רענן
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground">ערוך את תת-המשימה "{editingSubtask.title}"</p>
+              <div className="flex items-center gap-2 mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs text-blue-600 dark:text-blue-400">
+                <Clock className="h-3 w-3" />
+                רענון אוטומטי מושבת בזמן עריכה
+              </div>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

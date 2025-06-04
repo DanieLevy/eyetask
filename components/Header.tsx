@@ -10,6 +10,7 @@ import Image from 'next/image';
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{username: string; id: string} | null>(null);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   
@@ -17,8 +18,15 @@ export default function Header() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
-  // Auto-detect admin status and load user context
+  // Prevent hydration mismatch by only showing dynamic content after mount
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Auto-detect admin status and load user context - only after mount
+  useEffect(() => {
+    if (!mounted) return;
+
     const updateUserContext = () => {
       if (typeof window !== 'undefined') {
         const globalUser = (window as any).__eyetask_user;
@@ -52,7 +60,7 @@ export default function Header() {
     return () => {
       window.removeEventListener('userContextChanged', updateUserContext);
     };
-  }, [pathname]);
+  }, [pathname, mounted]);
 
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
@@ -66,13 +74,15 @@ export default function Header() {
     setMenuOpen(false);
   };
 
-  // Determine current page context
+  // Determine current page context - use consistent logic
   const isAdminPage = pathname.startsWith('/admin') && pathname !== '/admin';
   const isAdminLoginPage = pathname === '/admin';
   const isHomePage = pathname === '/';
-  const showAdminActions = isAdminPage && user;
-  const showLogout = user; // Show logout for any authenticated user
-  const showAdminDashboard = user && !isAdminLoginPage; // Show admin dashboard for any logged in user except on login page
+  
+  // Only show dynamic content after mount to prevent hydration mismatch
+  const showAdminActions = mounted && isAdminPage && user;
+  const showLogout = mounted && user;
+  const showAdminDashboard = mounted && user && !isAdminLoginPage;
   
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
@@ -138,8 +148,8 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {menuOpen && (
+        {/* Mobile Menu - Only show after mount to prevent hydration mismatch */}
+        {mounted && menuOpen && (
           <div className="md:hidden mt-3 p-3 bg-card rounded-lg border border-border">
             <nav className="space-y-2">
               {!isHomePage && (

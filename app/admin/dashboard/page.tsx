@@ -31,7 +31,10 @@ import {
   LogOut,
   ArrowLeft,
   RotateCcw,
-  Home
+  Home,
+  Zap,
+  BookOpen,
+  PieChart
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -68,23 +71,15 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const router = useRouter();
   
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
   const hebrewBody = useHebrewFont('body');
   const mixedHeading = useMixedFont('heading');
   const mixedBody = useMixedFont('body');
-  
-  // Quick action states
-  const [showNewProjectForm, setShowNewProjectForm] = useState(false);
-  const [newProjectData, setNewProjectData] = useState<NewProjectData>({
-    name: '',
-    description: ''
-  });
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  
-  const router = useRouter();
 
   // Load user data from localStorage
   useEffect(() => {
@@ -98,75 +93,6 @@ export default function AdminDashboard() {
         }
       }
     }
-  }, []);
-
-  // Realtime handlers
-  const handleProjectChange = useCallback((payload: any) => {
-    console.log('🔄 Project realtime update:', payload);
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    setProjects(current => {
-      switch (eventType) {
-        case 'INSERT':
-          if (newRecord) {
-            const exists = current.find(p => p.id === newRecord.id);
-            return exists ? current : [...current, newRecord];
-          }
-          return current;
-          
-        case 'UPDATE':
-          if (newRecord) {
-            return current.map(project => 
-              project.id === newRecord.id ? newRecord : project
-            );
-          }
-          return current;
-          
-        case 'DELETE':
-          if (oldRecord) {
-            return current.filter(project => project.id !== oldRecord.id);
-          }
-          return current;
-          
-        default:
-          return current;
-      }
-    });
-  }, []);
-
-  const handleTaskChange = useCallback((payload: any) => {
-    console.log('🔄 Task realtime update:', payload);
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    setTasks(current => {
-      switch (eventType) {
-        case 'INSERT':
-          if (newRecord) {
-            const exists = current.find(t => t.id === newRecord.id);
-            return exists ? current : [...current, newRecord];
-          }
-          return current;
-          
-        case 'UPDATE':
-          if (newRecord) {
-            return current.map(task => 
-              task.id === newRecord.id ? newRecord : task
-            );
-          }
-          return current;
-          
-        case 'DELETE':
-          if (oldRecord) {
-            return current.filter(task => task.id !== oldRecord.id);
-          }
-          return current;
-          
-        default:
-          return current;
-      }
-    });
   }, []);
 
   const refreshData = useCallback(async () => {
@@ -214,79 +140,29 @@ export default function AdminDashboard() {
   // Register this page's refresh function
   usePageRefresh(refreshData);
 
-  // Cache invalidation utility
-  const clearCaches = async () => {
-    try {
-      setRefreshing(true);
-      const token = localStorage.getItem('adminToken');
-      
-      // Clear Next.js cache by fetching with cache-busting timestamp
-      const timestamp = Date.now();
-      
-      await Promise.all([
-        fetch(`/api/projects?_t=${timestamp}`, {
-          method: 'GET',
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/tasks?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }).then(res => res.json())
-      ])
-      .then(([projectsRes, tasksRes]) => {
-        if (projectsRes.success) setProjects(projectsRes.projects);
-        if (tasksRes.success) setTasks(tasksRes.tasks);
-      });
-      
-    } catch (error) {
-      console.error('Error clearing caches:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
     router.push('/admin');
   };
 
-  const handleCreateProject = async () => {
-    if (!newProjectData.name.trim()) return;
-    
-    setOperationLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newProjectData),
-      });
-
-      if (response.ok) {
-        setShowNewProjectForm(false);
-        setNewProjectData({ name: '', description: '' });
-        await refreshData();
-      }
-    } catch (error) {
-      console.error('Error creating project:', error);
-    } finally {
-      setOperationLoading(false);
-    }
+  // Calculate comprehensive statistics
+  const stats = {
+    totalProjects: projects.length,
+    totalTasks: tasks.length,
+    activeTasks: tasks.filter(task => task.isVisible).length,
+    completedTasks: tasks.filter(task => !task.isVisible).length,
+    highPriorityTasks: tasks.filter(task => task.priority >= 1 && task.priority <= 3).length,
+    mediumPriorityTasks: tasks.filter(task => task.priority >= 4 && task.priority <= 6).length,
+    lowPriorityTasks: tasks.filter(task => task.priority >= 7 && task.priority <= 10).length
   };
 
   const getTaskCountForProject = (projectId: string) => {
     return tasks.filter(task => task.projectId === projectId).length;
+  };
+
+  const getActiveTasksForProject = (projectId: string) => {
+    return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
   };
 
   const getHighPriorityTasksForProject = (projectId: string) => {
@@ -310,11 +186,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Simplified Header */}
       <header className="bg-card border-b border-border sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            {/* Left side - Title and user info */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <Target className="h-6 w-6 text-primary" />
@@ -324,44 +199,40 @@ export default function AdminDashboard() {
                   </h1>
                   {user && (
                     <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                      {user.username} | Mobileye Admin System
+                      {user.username} | EyeTask Management
                     </p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Right side - Action buttons */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* Homepage - Hide text on mobile, show only icon */}
+            <div className="flex items-center gap-2">
               <Link
                 href="/"
-                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md sm:rounded-lg hover:bg-secondary/80 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                 title="דף הבית"
               >
-                <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Home className="h-4 w-4" />
                 <span className="hidden sm:inline">דף הבית</span>
               </Link>
               
-              {/* Clear Cache - Admin specific, keep but make smaller */}
               <button
-                onClick={clearCaches}
+                onClick={refreshData}
                 disabled={refreshing}
-                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-muted text-muted-foreground rounded-md sm:rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
-                title="נקה Cache"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                title="רענן נתונים"
               >
-                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Cache</span>
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">רענן</span>
               </button>
               
-              {/* Logout - Essential, keep but make smaller */}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-destructive text-destructive-foreground rounded-md sm:rounded-lg hover:bg-destructive/90 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
                 title="התנתק"
               >
-                <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">התנתק</span>
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">יציאה</span>
               </button>
             </div>
           </div>
@@ -370,184 +241,247 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Statistics Overview */}
+        <section className="mb-8">
+          <h2 className={`text-lg font-semibold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
+            סקירה כללית
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {/* Total Projects */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">פרויקטים</p>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.totalProjects}</p>
+                </div>
+                <FolderPlus className="h-8 w-8 text-blue-500" />
+              </div>
+            </div>
+
+            {/* Active Tasks */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/30 border border-green-200 dark:border-green-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-600 dark:text-green-400 text-sm font-medium">משימות פעילות</p>
+                  <p className="text-2xl font-bold text-green-900 dark:text-green-100">{stats.activeTasks}</p>
+                </div>
+                <CheckSquare className="h-8 w-8 text-green-500" />
+              </div>
+            </div>
+
+            {/* High Priority Tasks */}
+            <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/30 border border-red-200 dark:border-red-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-600 dark:text-red-400 text-sm font-medium">עדיפות גבוהה</p>
+                  <p className="text-2xl font-bold text-red-900 dark:text-red-100">{stats.highPriorityTasks}</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-red-500" />
+              </div>
+            </div>
+
+            {/* Completed Tasks */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/30 border border-purple-200 dark:border-purple-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">הושלמו</p>
+                  <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{stats.completedTasks}</p>
+                </div>
+                <CheckSquare className="h-8 w-8 text-purple-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Priority Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-sm font-medium">עדיפות גבוהה</span>
+              </div>
+              <p className="text-2xl font-bold text-red-600">{stats.highPriorityTasks}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <span className="text-sm font-medium">עדיפות בינונית</span>
+              </div>
+              <p className="text-2xl font-bold text-yellow-600">{stats.mediumPriorityTasks}</p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-medium">עדיפות נמוכה</span>
+              </div>
+              <p className="text-2xl font-bold text-green-600">{stats.lowPriorityTasks}</p>
+            </div>
+          </div>
+        </section>
+
         {/* Quick Actions */}
         <section className="mb-8">
           <h2 className={`text-lg font-semibold text-foreground mb-4 ${hebrewHeading.fontClass}`}>
             פעולות מהירות
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link
+              href="/admin/projects"
+              className="bg-primary text-primary-foreground p-4 rounded-lg hover:bg-primary/90 transition-colors text-center group"
+            >
+              <FolderPlus className="h-8 w-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-sm">ניהול פרויקטים</h3>
+              <p className="text-xs opacity-90 mt-1">צור, ערוך ומחק פרויקטים</p>
+            </Link>
+            
             <Link
               href="/admin/tasks/new"
-              className="bg-primary text-primary-foreground p-4 rounded-lg hover:bg-primary/90 transition-colors text-right group"
+              className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 transition-colors text-center group"
             >
-              <Plus className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">הוסף משימה חדשה</h3>
-              <p className="text-sm opacity-90">צור משימה חדשה במערכת</p>
+              <Plus className="h-8 w-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-sm">משימה חדשה</h3>
+              <p className="text-xs opacity-90 mt-1">הוסף משימה חדשה למערכת</p>
             </Link>
-            <button 
-              onClick={() => setShowNewProjectForm(true)}
-              className="bg-secondary text-secondary-foreground p-4 rounded-lg hover:bg-secondary/90 transition-colors text-right group"
-            >
-              <FolderPlus className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">צור פרויקט חדש</h3>
-              <p className="text-sm opacity-90">הוסף פרויקט חדש לניהול</p>
-            </button>
+            
             <Link
               href="/admin/daily-updates"
-              className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition-colors text-right group"
+              className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 transition-colors text-center group"
             >
-              <Bell className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">עדכונים יומיים</h3>
-              <p className="text-sm opacity-90">נהל הודעות ועדכונים</p>
+              <Bell className="h-8 w-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-sm">עדכונים יומיים</h3>
+              <p className="text-xs opacity-90 mt-1">נהל הודעות יומיות</p>
             </Link>
+            
             <Link
               href="/admin/analytics"
-              className="bg-accent text-accent-foreground p-4 rounded-lg hover:bg-accent/90 transition-colors text-right group"
+              className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 transition-colors text-center group"
             >
-              <BarChart3 className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">אנליטיקה מתקדמת</h3>
-              <p className="text-sm opacity-90">נתונים מפורטים ותובנות</p>
-            </Link>
-          </div>
-          
-          {/* Second row for additional actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-            <Link
-              href="/admin/cache"
-              className="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 transition-colors text-right group"
-            >
-              <RotateCcw className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="font-semibold">ניהול מטמון</h3>
-              <p className="text-sm opacity-90">נקה מטמון לכל המשתמשים</p>
+              <BarChart3 className="h-8 w-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+              <h3 className="font-semibold text-sm">דוחות ואנליטיקה</h3>
+              <p className="text-xs opacity-90 mt-1">צפה בסטטיסטיקות</p>
             </Link>
           </div>
         </section>
 
-        {/* Project Management Section */}
-        <section>
+        {/* Projects Overview */}
+        <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-              ניהול פרויקטים
+            <h2 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+              פרויקטים ({projects.length})
             </h2>
-            <div className="text-sm text-muted-foreground">
-              {projects.length} פרויקטים • {tasks.length} משימות
-            </div>
+            <Link
+              href="/admin/projects"
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm"
+            >
+              <Settings className="h-4 w-4" />
+              נהל כל הפרויקטים
+            </Link>
           </div>
-          
+
           {projects.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-lg border border-border">
-              <FolderPlus className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">אין פרויקטים במערכת</h3>
-              <p className="text-muted-foreground mb-4">צור פרויקט ראשון כדי להתחיל לנהל משימות</p>
-              <button
-                onClick={() => setShowNewProjectForm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            <div className="text-center py-12 bg-muted/30 rounded-lg border-2 border-dashed border-muted-foreground/25">
+              <FolderPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">אין פרויקטים עדיין</h3>
+              <p className="text-muted-foreground mb-4">צור את הפרויקט הראשון שלך כדי להתחיל</p>
+              <Link 
+                href="/admin/projects"
+                className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
               >
-                <FolderPlus className="h-4 w-4" />
-                צור פרויקט ראשון
-              </button>
+                <Plus className="h-4 w-4" />
+                צור פרויקט חדש
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => {
+              {projects.slice(0, 6).map((project) => {
                 const taskCount = getTaskCountForProject(project.id);
-                const highPriorityCount = getHighPriorityTasksForProject(project.id);
+                const activeTasks = getActiveTasksForProject(project.id);
+                const highPriorityTasks = getHighPriorityTasksForProject(project.id);
                 
                 return (
-                  <Link
-                    key={project.id}
-                    href={`/admin/projects/${project.id}`}
-                    className="group"
-                  >
-                    <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {project.name}
-                          </h3>
-                          {project.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {project.description}
-                            </p>
-                          )}
-                        </div>
-                        <BarChart3 className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <div key={project.id} className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-all group">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className={`text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors ${hebrewHeading.fontClass}`}>
+                          {project.name}
+                        </h3>
+                        {project.description && (
+                          <p className={`text-sm text-muted-foreground line-clamp-2 ${mixedBody.fontClass}`}>
+                            {project.description}
+                          </p>
+                        )}
                       </div>
                       
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-4">
-                          <span className="text-muted-foreground">
-                            {taskCount} משימות
-                          </span>
-                          {highPriorityCount > 0 && (
-                            <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-                              {highPriorityCount} עדיפות גבוהה
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-primary group-hover:translate-x-1 transition-transform">
-                          <ArrowLeft className="h-4 w-4" />
-                        </span>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link
+                          href={`/admin/projects/${project.id}`}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          title="נהל פרויקט"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Link>
+                        <Link
+                          href={`/project/${encodeURIComponent(project.name)}`}
+                          className="p-2 hover:bg-muted rounded-lg transition-colors"
+                          title="צפייה ציבורית"
+                          target="_blank"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Link>
                       </div>
                     </div>
-                  </Link>
+
+                    {/* Project Stats */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="text-center p-3 bg-primary/5 rounded-lg">
+                        <div className="text-lg font-bold text-primary">{taskCount}</div>
+                        <div className="text-xs text-muted-foreground">סה"כ משימות</div>
+                      </div>
+                      <div className="text-center p-3 bg-green-500/5 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{activeTasks}</div>
+                        <div className="text-xs text-muted-foreground">פעילות</div>
+                      </div>
+                      <div className="text-center p-3 bg-red-500/5 rounded-lg">
+                        <div className="text-lg font-bold text-red-600">{highPriorityTasks}</div>
+                        <div className="text-xs text-muted-foreground">דחוף</div>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href={`/admin/projects/${project.id}`}
+                        className="bg-primary text-primary-foreground px-3 py-2 rounded-lg hover:bg-primary/90 transition-colors text-center text-xs flex items-center justify-center gap-1"
+                      >
+                        <Target className="h-3 w-3" />
+                        נהל משימות
+                      </Link>
+                      <Link
+                        href={`/admin/tasks/new?projectId=${project.id}`}
+                        className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-center text-xs flex items-center justify-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        משימה חדשה
+                      </Link>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
+          
+          {projects.length > 6 && (
+            <div className="text-center mt-6">
+              <Link
+                href="/admin/projects"
+                className="text-primary hover:text-primary/80 font-medium flex items-center justify-center gap-2"
+              >
+                צפה בכל הפרויקטים ({projects.length})
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
         </section>
       </main>
-
-      {/* New Project Modal */}
-      {showNewProjectForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-md">
-            <div className="p-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">צור פרויקט חדש</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">שם הפרויקט</label>
-                <input
-                  type="text"
-                  value={newProjectData.name}
-                  onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="הזן שם לפרויקט החדש"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תיאור (אופציונלי)</label>
-                <textarea
-                  value={newProjectData.description}
-                  onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent h-20 resize-none"
-                  placeholder="הוסף תיאור לפרויקט"
-                />
-              </div>
-            </div>
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleCreateProject}
-                disabled={operationLoading || !newProjectData.name.trim()}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {operationLoading ? 'יוצר...' : 'צור פרויקט'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowNewProjectForm(false);
-                  setNewProjectData({ name: '', description: '' });
-                }}
-                disabled={operationLoading}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

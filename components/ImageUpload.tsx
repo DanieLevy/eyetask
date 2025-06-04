@@ -35,29 +35,109 @@ export default function ImageUpload({
       };
       reader.readAsDataURL(file);
 
-      // Upload to server
+      // Enhanced authentication check
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      // Log the upload attempt for debugging
+      console.log('🔄 Starting image upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        hasToken: !!token,
+        tokenLength: token.length,
+        environment: process.env.NODE_ENV || 'unknown'
+      });
+
+      // Upload to server with enhanced error handling
       const formData = new FormData();
       formData.append('file', file);
 
-      const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/upload/image', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          // Add cache-busting headers for production
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: formData,
       });
 
-      const result = await response.json();
+      console.log('📡 Upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('❌ Failed to parse response JSON:', parseError);
+        throw new Error(`Server responded with status ${response.status} but response is not valid JSON`);
+      }
+
+      console.log('📋 Upload result:', result);
 
       if (result.success) {
+        console.log('✅ Upload successful:', result.data.publicUrl);
         onImageSelect(result.data.publicUrl);
       } else {
-        throw new Error(result.error || 'Upload failed');
+        console.error('❌ Upload failed:', result);
+        
+        // Enhanced error handling with specific messages
+        if (response.status === 401) {
+          // Authentication failure - clear token and show helpful message
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          
+          let errorMessage = 'Authentication failed. Please log in again.';
+          if (result.debug) {
+            errorMessage += `\n\nDebug info:\n- Has auth header: ${result.debug.hasAuthHeader}\n- Has token: ${result.debug.hasToken}\n- Error: ${result.debug.authError || 'Unknown'}\n- Time: ${result.debug.timestamp}`;
+          }
+          
+          throw new Error(errorMessage);
+        } else if (response.status === 400) {
+          throw new Error(result.error || 'Invalid file upload request');
+        } else if (response.status === 500) {
+          let errorMessage = 'Server error occurred. Please try again.';
+          if (result.debug && process.env.NODE_ENV === 'development') {
+            errorMessage += `\n\nDebug: ${result.debug.errorMessage}`;
+          }
+          throw new Error(errorMessage);
+        } else {
+          throw new Error(result.error || `Upload failed with status ${response.status}`);
+        }
       }
     } catch (error) {
-      console.error('Image upload error:', error);
-      alert('Failed to upload image. Please try again.');
+      console.error('💥 Image upload error:', error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to upload image. ';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Authentication failed') || error.message.includes('log in again')) {
+          errorMessage = error.message;
+          // Redirect to login after showing error
+          setTimeout(() => {
+            window.location.href = '/admin';
+          }, 3000);
+        } else if (error.message.includes('Network')) {
+          errorMessage += 'Please check your internet connection and try again.';
+        } else if (error.message.includes('Server error')) {
+          errorMessage += 'Server is temporarily unavailable. Please try again in a moment.';
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += 'An unexpected error occurred. Please try again.';
+      }
+      
+      alert(errorMessage);
       setPreview(currentImage || null);
     } finally {
       setIsUploading(false);
