@@ -690,6 +690,20 @@ export default function ProjectManagement() {
                   value={newTaskData.targetCar.join(' ')}
                         onChange={(e) => {
                     const carsText = e.target.value;
+                    // Allow spaces while typing - only split when there are actual complete words
+                    if (carsText.endsWith(' ') && carsText.trim().includes(' ')) {
+                      // Split only when user completes a word with space
+                      const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
+                      setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                    } else {
+                      // Keep the raw text until user adds separating spaces
+                      const carsArray = carsText.length === 0 ? [] : [carsText];
+                      setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Process the final input when user leaves the field
+                    const carsText = e.target.value;
                     const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
                     setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
                   }}
@@ -697,7 +711,7 @@ export default function ProjectManagement() {
                   placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
                 />
                 <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
-                {newTaskData.targetCar.length > 0 && (
+                {newTaskData.targetCar.length > 0 && newTaskData.targetCar[0] !== '' && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {newTaskData.targetCar.map((car, index) => (
                       <span 

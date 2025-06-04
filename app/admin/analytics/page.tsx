@@ -221,25 +221,25 @@ export default function AnalyticsPage() {
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Time Range Selector */}
               <select
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value as any)}
-                className="px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
+                className="px-2 py-1.5 sm:px-3 sm:py-2 border border-border rounded-md sm:rounded-lg bg-background text-foreground text-xs sm:text-sm"
               >
-                <option value="7d">7 ימים אחרונים</option>
-                <option value="30d">30 ימים אחרונים</option>
-                <option value="90d">90 ימים אחרונים</option>
+                <option value="7d">7 ימים</option>
+                <option value="30d">30 ימים</option>
+                <option value="90d">90 ימים</option>
               </select>
               
               <button
                 onClick={fetchAnalyticsData}
                 disabled={refreshing}
-                className="p-2 rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+                className="p-1.5 sm:p-2 rounded-md sm:rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
                 title="רענן נתונים"
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>

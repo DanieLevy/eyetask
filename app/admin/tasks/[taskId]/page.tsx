@@ -967,6 +967,20 @@ export default function TaskManagement() {
                   value={newSubtaskData.labels.join(' ')}
                   onChange={(e) => {
                     const labelsText = e.target.value;
+                    // Allow spaces while typing - only split when there are actual complete words
+                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
+                      // Split only when user completes a word with space
+                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
+                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
+                    } else {
+                      // Keep the raw text until user adds separating spaces
+                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
+                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Process the final input when user leaves the field
+                    const labelsText = e.target.value;
                     const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
                     setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
                   }}
@@ -1128,6 +1142,20 @@ export default function TaskManagement() {
                   type="text"
                   value={editingSubtask.labels.join(' ')}
                   onChange={(e) => {
+                    const labelsText = e.target.value;
+                    // Allow spaces while typing - only split when there are actual complete words
+                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
+                      // Split only when user completes a word with space
+                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
+                      setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
+                    } else {
+                      // Keep the raw text until user adds separating spaces
+                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
+                      setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Process the final input when user leaves the field
                     const labelsText = e.target.value;
                     const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
                     setEditingSubtask(prev => prev ? ({ ...prev, labels: labelsArray }) : null);
@@ -1409,6 +1437,20 @@ export default function TaskManagement() {
                   value={(editTaskData.targetCar || []).join(' ')}
                   onChange={(e) => {
                     const carsText = e.target.value;
+                    // Allow spaces while typing - only split when there are actual complete words
+                    if (carsText.endsWith(' ') && carsText.trim().includes(' ')) {
+                      // Split only when user completes a word with space
+                      const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
+                      setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                    } else {
+                      // Keep the raw text until user adds separating spaces
+                      const carsArray = carsText.length === 0 ? [] : [carsText];
+                      setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Process the final input when user leaves the field
+                    const carsText = e.target.value;
                     const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
                     setEditTaskData(prev => ({ ...prev, targetCar: carsArray }));
                   }}
@@ -1416,7 +1458,7 @@ export default function TaskManagement() {
                   placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
                 />
                 <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
-                {(editTaskData.targetCar || []).length > 0 && (
+                {(editTaskData.targetCar || []).length > 0 && editTaskData.targetCar?.[0] !== '' && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {editTaskData.targetCar?.map((car, index) => (
                       <span 

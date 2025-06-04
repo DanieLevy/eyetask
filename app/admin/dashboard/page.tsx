@@ -332,43 +332,36 @@ export default function AdminDashboard() {
             </div>
 
             {/* Right side - Action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* Homepage - Hide text on mobile, show only icon */}
               <Link
                 href="/"
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-secondary text-secondary-foreground rounded-md sm:rounded-lg hover:bg-secondary/80 transition-colors"
                 title="דף הבית"
               >
-                <Home className="h-4 w-4" />
-                דף הבית
+                <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">דף הבית</span>
               </Link>
               
-              <button
-                onClick={refreshData}
-                disabled={refreshing}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors disabled:opacity-50"
-                title="רענן נתונים"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                רענן
-              </button>
-              
+              {/* Clear Cache - Admin specific, keep but make smaller */}
               <button
                 onClick={clearCaches}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-muted text-muted-foreground rounded-md sm:rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
                 title="נקה Cache"
               >
-                <RotateCcw className="h-4 w-4" />
-                נקה Cache
+                <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Cache</span>
               </button>
               
+              {/* Logout - Essential, keep but make smaller */}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+                className="flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-destructive text-destructive-foreground rounded-md sm:rounded-lg hover:bg-destructive/90 transition-colors"
                 title="התנתק"
               >
-                <LogOut className="h-4 w-4" />
-                התנתק
+                <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">התנתק</span>
               </button>
             </div>
           </div>

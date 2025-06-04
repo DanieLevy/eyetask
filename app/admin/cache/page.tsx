@@ -226,9 +226,9 @@ export default function CacheManagementPage() {
           <button
             onClick={fetchCacheStatus}
             disabled={loading}
-            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
+            className="mt-4 px-3 py-1.5 sm:px-4 sm:py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
             <span className={hebrewFont.fontClass}>רענן סטטוס</span>
           </button>
         </div>
