@@ -202,43 +202,43 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     switch (type) {
       case 'warning':
         return {
-          bg: 'bg-gradient-to-r from-amber-50 to-orange-50 dark:!bg-amber-700',
-          border: 'border-amber-200 dark:!border-amber-600',
-          icon: 'text-amber-600 dark:text-amber-400',
+          bg: 'bg-gradient-to-r from-amber-100/90 to-orange-100/90 dark:from-amber-900/90 dark:to-orange-900/90',
+          border: 'border-amber-300/60 dark:border-amber-600/60',
+          icon: 'text-amber-600 dark:text-amber-300',
           text: 'text-amber-900 dark:text-amber-100',
-          glow: 'shadow-amber-500/20'
+          glow: 'shadow-amber-500/20 dark:shadow-amber-400/30'
         };
       case 'error':
         return {
-          bg: 'bg-gradient-to-r from-red-50 to-rose-50 dark:!bg-red-700',
-          border: 'border-red-200 dark:!border-red-600',
-          icon: 'text-red-600 dark:text-red-400',
+          bg: 'bg-gradient-to-r from-red-100/90 to-rose-100/90 dark:from-red-900/90 dark:to-rose-900/90',
+          border: 'border-red-300/60 dark:border-red-600/60',
+          icon: 'text-red-600 dark:text-red-300',
           text: 'text-red-900 dark:text-red-100',
-          glow: 'shadow-red-500/20'
+          glow: 'shadow-red-500/20 dark:shadow-red-400/30'
         };
       case 'success':
         return {
-          bg: 'bg-gradient-to-r from-emerald-50 to-green-50 dark:!bg-emerald-700',
-          border: 'border-emerald-200 dark:!border-emerald-600',
-          icon: 'text-emerald-600 dark:text-emerald-400',
+          bg: 'bg-gradient-to-r from-emerald-100/90 to-green-100/90 dark:from-emerald-900/90 dark:to-green-900/90',
+          border: 'border-emerald-300/60 dark:border-emerald-600/60',
+          icon: 'text-emerald-600 dark:text-emerald-300',
           text: 'text-emerald-900 dark:text-emerald-100',
-          glow: 'shadow-emerald-500/20'
+          glow: 'shadow-emerald-500/20 dark:shadow-emerald-400/30'
         };
       case 'announcement':
         return {
-          bg: 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:!bg-blue-700',
-          border: 'border-blue-200 dark:!border-blue-600',
-          icon: 'text-blue-600 dark:text-blue-400',
+          bg: 'bg-gradient-to-r from-blue-100/90 to-indigo-100/90 dark:from-blue-900/90 dark:to-indigo-900/90',
+          border: 'border-blue-300/60 dark:border-blue-600/60',
+          icon: 'text-blue-600 dark:text-blue-300',
           text: 'text-blue-900 dark:text-blue-100',
-          glow: 'shadow-blue-500/20'
+          glow: 'shadow-blue-500/20 dark:shadow-blue-400/30'
         };
       default:
         return {
-          bg: 'bg-gradient-to-r from-slate-50 to-gray-50 dark:!bg-slate-700',
-          border: 'border-slate-200 dark:!border-slate-600',
-          icon: 'text-slate-600 dark:text-slate-400',
-          text: 'text-slate-800 dark:text-slate-200',
-          glow: 'shadow-slate-500/20'
+          bg: 'bg-gradient-to-r from-slate-100/90 to-gray-100/90 dark:from-slate-800/90 dark:to-gray-800/90',
+          border: 'border-slate-300/60 dark:border-slate-600/60',
+          icon: 'text-slate-600 dark:text-slate-300',
+          text: 'text-slate-800 dark:text-slate-100',
+          glow: 'shadow-slate-500/20 dark:shadow-slate-400/30'
         };
     }
   };
@@ -272,12 +272,12 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
 
   return (
     <div className={`${className}`}>
-      <div className="relative py-4 px-4">
+      <div className="relative py-4">
         {/* Main Content Card */}
         <div 
           className={`
-            relative max-w-4xl mx-auto
-            ${colors.bg} ${colors.border}
+            relative w-full
+            ${colors.border}
             border rounded-lg px-4 py-3
             shadow-lg ${colors.glow}
             backdrop-blur-sm
@@ -285,13 +285,42 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
             ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
             ${hasUpdates ? 'cursor-pointer hover:shadow-xl' : ''}
           `}
+          style={{
+            background: currentUpdate ? (() => {
+              const isDark = document.documentElement.classList.contains('dark');
+              switch (currentUpdate.type) {
+                case 'warning':
+                  return isDark 
+                    ? 'linear-gradient(to right, rgba(217, 119, 6, 0.2), rgba(194, 65, 12, 0.2))'
+                    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 252, 232, 0.8))';
+                case 'error':
+                  return isDark 
+                    ? 'linear-gradient(to right, rgba(185, 28, 28, 0.2), rgba(190, 18, 60, 0.2))'
+                    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 242, 242, 0.8))';
+                case 'success':
+                  return isDark 
+                    ? 'linear-gradient(to right, rgba(21, 128, 61, 0.2), rgba(22, 101, 52, 0.2))'
+                    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.8))';
+                case 'announcement':
+                  return isDark 
+                    ? 'linear-gradient(to right, rgba(30, 64, 175, 0.2), rgba(67, 56, 202, 0.2))'
+                    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.8))';
+                default:
+                  return isDark 
+                    ? 'linear-gradient(to right, rgba(30, 41, 59, 0.3), rgba(55, 65, 81, 0.3))'
+                    : 'linear-gradient(to right, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9))';
+              }
+            })() : document.documentElement.classList.contains('dark') 
+              ? 'linear-gradient(to right, rgba(30, 41, 59, 0.3), rgba(55, 65, 81, 0.3))'
+              : 'linear-gradient(to right, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9))'
+          }}
           onClick={handleCardClick}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
           {/* Progress indicator for multiple updates */}
           {hasUpdates && updates.length > 1 && (
-            <div className="absolute top-0 left-0 right-0 h-1 bg-muted/20 rounded-t-lg">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-slate-200/30 dark:bg-slate-700/50 rounded-t-lg">
               <div 
                 className="h-full bg-current rounded-t-lg transition-all duration-4000 ease-linear"
                 style={{ 
@@ -309,24 +338,25 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 e.stopPropagation();
                 hideUpdate(currentUpdate.id);
               }}
-              className="absolute top-2 left-2 p-1 hover:bg-muted/20 rounded-full transition-colors z-10"
+              className="absolute top-2 left-2 p-1 hover:bg-slate-700/50 dark:hover:bg-slate-600/50 rounded-full transition-colors z-10"
               title="הסתר עדכון זה"
             >
-              <X className="h-3 w-3 opacity-60 hover:opacity-100" />
+              <X className="h-3 w-3 opacity-60 hover:opacity-100 text-slate-600 dark:text-slate-300" />
             </button>
           )}
 
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              {/* Icon */}
+              {/* Icon - FIXED BACKGROUND */}
               <div className={`
                 ${colors.icon}
                 p-2 rounded-lg
-                bg-background/50 dark:bg-muted/20
+                bg-white/80 dark:bg-slate-800
                 shadow-sm backdrop-blur-sm
                 flex-shrink-0
                 transition-all duration-300 ease-out
                 hover:scale-110 hover:rotate-12
+                border border-slate-200/20 dark:border-slate-600
               `}>
                 {hasUpdates ? getTypeIcon(currentUpdate!.type) : getBellIcon()}
               </div>
@@ -364,14 +394,16 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 )}
               </div>
 
-              {/* Update counter */}
+              {/* Update counter - FIXED BACKGROUND */}
               {hasUpdates && updates.length > 1 && (
                 <div className="flex-shrink-0">
                   <div className={`
                     text-xs px-2 py-1 rounded-full
-                    bg-background/30 dark:bg-muted/20
+                    bg-white/80 dark:bg-slate-800
                     ${colors.text}
                     font-medium
+                    border border-slate-200/20 dark:border-slate-600
+                    backdrop-blur-sm
                   `}>
                     {currentIndex + 1}/{updates.length}
                   </div>

@@ -1,7 +1,374 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, X, Eye, ImageIcon, ChevronRight, ChevronLeft, Plus } from 'lucide-react';
+import { Upload, X, Eye, ImageIcon, ChevronRight, ChevronLeft, Plus, ZoomIn, ZoomOut, RotateCw, Download, Share2, Maximize2, Minimize2 } from 'lucide-react';
+
+// =============================================
+// ENHANCED IMAGE VIEWER MODAL
+// =============================================
+
+interface ImageViewerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  images: string[];
+  currentIndex: number;
+  onIndexChange: (index: number) => void;
+  title?: string;
+}
+
+function ImageViewerModal({ 
+  isOpen, 
+  onClose, 
+  images, 
+  currentIndex, 
+  onIndexChange,
+  title 
+}: ImageViewerModalProps) {
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Reset states when modal opens/closes or image changes
+  useEffect(() => {
+    if (isOpen) {
+      setIsZoomed(false);
+      setRotation(0);
+      setIsLoading(true);
+      setImageError(false);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, currentIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          onClose();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (images.length > 1) {
+            onIndexChange((currentIndex - 1 + images.length) % images.length);
+          }
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (images.length > 1) {
+            onIndexChange((currentIndex + 1) % images.length);
+          }
+          break;
+        case ' ':
+          e.preventDefault();
+          setIsZoomed(!isZoomed);
+          break;
+        case 'r':
+          e.preventDefault();
+          setRotation(prev => (prev + 90) % 360);
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentIndex, images.length, onIndexChange, onClose, isZoomed]);
+
+  // Fullscreen API
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      modalRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Handle fullscreen change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setIsLoading(false);
+    setImageError(true);
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = images[currentIndex];
+    link.download = `image-${currentIndex + 1}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: title || 'Image',
+          url: images[currentIndex]
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback - copy to clipboard
+      try {
+        await navigator.clipboard.writeText(images[currentIndex]);
+        alert('Image URL copied to clipboard!');
+      } catch (error) {
+        console.log('Error copying to clipboard:', error);
+      }
+    }
+  };
+
+  const nextImage = () => {
+    if (images.length > 1) {
+      onIndexChange((currentIndex + 1) % images.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (images.length > 1) {
+      onIndexChange((currentIndex - 1 + images.length) % images.length);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      ref={modalRef}
+      className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm transition-all duration-300 ease-out"
+      onClick={onClose}
+    >
+      {/* Header Bar */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {title && (
+              <h2 className="text-white text-lg font-medium">{title}</h2>
+            )}
+            {images.length > 1 && (
+              <div className="text-white/80 text-sm bg-black/30 px-3 py-1 rounded-full">
+                {currentIndex + 1} / {images.length}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Zoom Controls */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsZoomed(!isZoomed);
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title={isZoomed ? 'Zoom Out' : 'Zoom In'}
+            >
+              {isZoomed ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
+            </button>
+
+            {/* Rotate */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setRotation(prev => (prev + 90) % 360);
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title="Rotate"
+            >
+              <RotateCw className="h-5 w-5" />
+            </button>
+
+            {/* Download */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownload();
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title="Download"
+            >
+              <Download className="h-5 w-5" />
+            </button>
+
+            {/* Share */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShare();
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title="Share"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
+
+            {/* Fullscreen */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            </button>
+
+            {/* Close */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              title="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Arrows */}
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              prevImage();
+            }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all hover:scale-110"
+            title="Previous Image"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              nextImage();
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all hover:scale-110"
+            title="Next Image"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        </>
+      )}
+
+      {/* Image Container */}
+      <div 
+        className="flex items-center justify-center w-full h-full p-16"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative max-w-full max-h-full">
+          {/* Loading Spinner */}
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {imageError && (
+            <div className="flex flex-col items-center justify-center text-white p-8">
+              <ImageIcon className="h-16 w-16 mb-4 text-white/50" />
+              <p className="text-lg">Failed to load image</p>
+              <p className="text-sm text-white/70 mt-2">Please try again later</p>
+            </div>
+          )}
+
+          {/* Main Image */}
+          {!imageError && (
+            <img
+              src={images[currentIndex]}
+              alt={`Image ${currentIndex + 1}`}
+              className={`
+                max-w-full max-h-full object-contain transition-all duration-300 cursor-pointer
+                ${isZoomed ? 'scale-150' : 'scale-100'}
+                ${isLoading ? 'opacity-0' : 'opacity-100'}
+              `}
+              style={{ 
+                transform: `rotate(${rotation}deg) ${isZoomed ? 'scale(1.5)' : 'scale(1)'}`,
+                transformOrigin: 'center'
+              }}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              onClick={() => setIsZoomed(!isZoomed)}
+              draggable={false}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Thumbnail Strip (for multiple images) */}
+      {images.length > 1 && (
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/50 to-transparent p-4">
+          <div className="flex justify-center gap-2 overflow-x-auto max-w-full">
+            {images.map((image, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onIndexChange(index);
+                }}
+                className={`
+                  flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all
+                  ${index === currentIndex 
+                    ? 'border-white shadow-lg scale-110' 
+                    : 'border-white/30 hover:border-white/60'
+                  }
+                `}
+              >
+                <img
+                  src={image}
+                  alt={`Thumbnail ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help */}
+      <div className="absolute bottom-4 left-4 text-white/60 text-xs">
+        <div>ESC: Close • ←/→: Navigate • Space: Zoom • R: Rotate</div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================
+// SINGLE IMAGE UPLOAD COMPONENT
+// =============================================
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string | null) => void;
@@ -19,7 +386,7 @@ export default function ImageUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
-  const [showFullImage, setShowFullImage] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = useCallback(async (file: File) => {
@@ -35,109 +402,34 @@ export default function ImageUpload({
       };
       reader.readAsDataURL(file);
 
-      // Enhanced authentication check
       const token = localStorage.getItem('adminToken');
       if (!token) {
         throw new Error('No authentication token found. Please log in again.');
       }
 
-      // Enhanced upload logic with retry and better error handling
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        attempts++;
-        
-        try {
-          console.log(`🔄 Upload attempt ${attempts}/${maxAttempts}:`, {
-            fileName: file.name,
-            fileSize: file.size,
-            fileType: file.type,
-            hasToken: !!token,
-            tokenLength: token ? token.length : 0,
-            timestamp: new Date().toISOString(),
-            environment: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'development' : 'production'
-          });
+      const formData = new FormData();
+      formData.append('file', file);
 
-          const formData = new FormData();
-          formData.append('file', file);
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
 
-          const response = await fetch('/api/upload/image', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formData
-          });
+      const result = await response.json();
 
-          console.log('📡 Upload response:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-            headers: Object.fromEntries(response.headers.entries())
-          });
-
-          const result = await response.json();
-          console.log('📋 Upload result:', result);
-
-          if (response.ok && result.success) {
-            console.log('✅ Upload successful:', {
-              fileName: result.data.fileName,
-              fileSize: result.data.fileSize,
-              method: result.data.method,
-              publicUrl: result.data.publicUrl?.substring(0, 100) + (result.data.publicUrl?.length > 100 ? '...' : ''),
-              timestamp: new Date().toISOString()
-            });
-
-            // Handle both file system URLs and base64 data URLs
-            const imageUrl = result.data.publicUrl;
-            setPreview(imageUrl);
-            
-            onImageSelect(imageUrl);
-            
-            break; // Success - exit retry loop
-          } else {
-            throw new Error(result.error || `Server returned ${response.status}: ${response.statusText}`);
-          }
-        } catch (error) {
-          console.log(`❌ Upload attempt ${attempts} failed:`, error);
-          
-          if (attempts === maxAttempts) {
-            console.error('💥 All upload attempts failed:', error);
-            throw error;
-          } else {
-            // Wait before retry (exponential backoff)
-            const delay = Math.pow(2, attempts) * 1000; // 2s, 4s, 8s
-            console.log(`⏳ Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
+      if (response.ok && result.success) {
+        const imageUrl = result.data.publicUrl;
+        setPreview(imageUrl);
+        onImageSelect(imageUrl);
+      } else {
+        throw new Error(result.error || `Server returned ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('💥 Image upload error:', error);
-      
-      // Provide user-friendly error messages
-      let errorMessage = 'Failed to upload image. ';
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Authentication failed') || error.message.includes('log in again')) {
-          errorMessage = error.message;
-          // Redirect to login after showing error
-          setTimeout(() => {
-            window.location.href = '/admin';
-          }, 3000);
-        } else if (error.message.includes('Network')) {
-          errorMessage += 'Please check your internet connection and try again.';
-        } else if (error.message.includes('Server error')) {
-          errorMessage += 'Server is temporarily unavailable. Please try again in a moment.';
-        } else {
-          errorMessage += error.message;
-        }
-      } else {
-        errorMessage += 'An unexpected error occurred. Please try again.';
-      }
-      
-      alert(errorMessage);
+      console.error('Image upload error:', error);
+      alert('Failed to upload image. Please try again.');
       setPreview(currentImage || null);
     } finally {
       setIsUploading(false);
@@ -224,7 +516,7 @@ export default function ImageUpload({
         {isUploading ? (
           <div className="flex flex-col items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-            <p className="text-sm text-muted-foreground">מעלה תמונה...</p>
+            <p className="text-sm text-muted-foreground">Uploading image...</p>
           </div>
         ) : preview ? (
           <div className="relative group">
@@ -242,12 +534,12 @@ export default function ImageUpload({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowFullImage(true);
+                    setShowViewer(true);
                   }}
-                  className="p-2 bg-background/20 hover:bg-background/30 rounded-full transition-colors"
-                  title="הצג תמונה"
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                  title="View Image"
                 >
-                  <Eye className="h-4 w-4 text-foreground" />
+                  <Eye className="h-4 w-4 text-white" />
                 </button>
                 <button
                   type="button"
@@ -255,17 +547,17 @@ export default function ImageUpload({
                     e.stopPropagation();
                     handleRemoveImage();
                   }}
-                  className="p-2 bg-background/20 hover:bg-background/30 rounded-full transition-colors"
-                  title="הסר תמונה"
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                  title="Remove Image"
                   disabled={disabled}
                 >
-                  <X className="h-4 w-4 text-foreground" />
+                  <X className="h-4 w-4 text-white" />
                 </button>
               </div>
             </div>
             
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              לחץ להחלפה או גרור תמונה חדשה
+              Click to replace or drag new image
             </p>
           </div>
         ) : (
@@ -275,43 +567,34 @@ export default function ImageUpload({
             </div>
             <div className="text-center">
               <p className="text-sm font-medium text-foreground mb-1">
-                בחר תמונה או גרור לכאן
+                Select image or drag here
               </p>
               <p className="text-xs text-muted-foreground">
-                PNG, JPG, WebP עד 5MB
+                PNG, JPG, WebP up to 5MB
               </p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Full Image Modal */}
-      {showFullImage && preview && (
-        <div 
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowFullImage(false)}
-        >
-          <div className="relative max-w-4xl max-h-full">
-            <button
-              onClick={() => setShowFullImage(false)}
-              className="absolute -top-10 right-0 p-2 text-foreground hover:text-muted-foreground transition-colors"
-            >
-              <X className="h-6 w-6" />
-            </button>
-            <img
-              src={preview}
-              alt="Full size preview"
-              className="max-w-full max-h-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
+      {/* Image Viewer Modal */}
+      {showViewer && preview && (
+        <ImageViewerModal
+          isOpen={showViewer}
+          onClose={() => setShowViewer(false)}
+          images={[preview]}
+          currentIndex={0}
+          onIndexChange={() => {}}
+        />
       )}
     </div>
   );
 }
 
-// Utility component for displaying images with click-to-expand
+// =============================================
+// IMAGE DISPLAY COMPONENT
+// =============================================
+
 interface ImageDisplayProps {
   imageUrl: string | null;
   alt?: string;
@@ -327,21 +610,12 @@ export function ImageDisplay({
   showExpand = true,
   size = 'md'
 }: ImageDisplayProps) {
-  const [showFullImage, setShowFullImage] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
 
   if (!imageUrl) {
     return null;
   }
 
-  const handleCloseModal = () => {
-    setShowFullImage(false);
-  };
-
-  const handleModalContentClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  // Size configurations
   const sizeClasses = {
     sm: 'h-20 w-20',
     md: 'h-32 w-32',
@@ -356,15 +630,15 @@ export function ImageDisplay({
         ${className}
         bg-muted rounded-lg overflow-hidden
         flex items-center justify-center 
-        shadow-sm hover:shadow-md transition-shadow
+        shadow-sm hover:shadow-md transition-all duration-200
       `}
-      onClick={() => showExpand && setShowFullImage(true)}
+      onClick={() => showExpand && setShowViewer(true)}
       >
         <img 
-            src={imageUrl} 
-            alt={alt} 
-            className="max-w-full max-h-full object-contain" 
-            draggable="false" 
+          src={imageUrl} 
+          alt={alt} 
+          className="max-w-full max-h-full object-contain" 
+          draggable="false" 
         />
         {showExpand && (
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -373,40 +647,25 @@ export function ImageDisplay({
         )}
       </div>
 
-      {showFullImage && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 cursor-zoom-out"
-          onClick={handleCloseModal} // Click on backdrop closes modal
-        >
-          <div 
-            className="relative max-w-[90vw] max-h-[90vh] cursor-default"
-            onClick={handleModalContentClick} // Clicks on content area (image) don't close modal
-          >
-            <img 
-              src={imageUrl} 
-              alt={alt} 
-              className="block w-full h-full object-contain shadow-2xl rounded-lg" 
-              draggable="false"
-            />
-            <button 
-                onClick={(e) => {
-                    e.stopPropagation(); // Prevent modal close
-                    handleCloseModal(); // Explicitly close
-                }}
-                className="absolute -top-3 -right-3 sm:top-2 sm:right-2 z-10 p-2 bg-background/80 hover:bg-background/90 rounded-full text-foreground shadow-lg transition-colors"
-                title="Close image"
-                aria-label="Close image"
-            >
-                <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+      {/* Image Viewer Modal */}
+      {showViewer && (
+        <ImageViewerModal
+          isOpen={showViewer}
+          onClose={() => setShowViewer(false)}
+          images={[imageUrl]}
+          currentIndex={0}
+          onIndexChange={() => {}}
+          title={alt}
+        />
       )}
     </>
   );
 }
 
-// Multiple Image Upload Component
+// =============================================
+// MULTIPLE IMAGE UPLOAD COMPONENT
+// =============================================
+
 interface MultipleImageUploadProps {
   onImagesChange: (images: string[]) => void;
   currentImages?: string[];
@@ -433,14 +692,13 @@ export function MultipleImageUpload({
     const fileArray = Array.from(files);
     const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
     
-    // Check if adding these images would exceed the limit
     if (currentImages.length + imageFiles.length > maxImages) {
-      alert(`ניתן להעלות עד ${maxImages} תמונות. כרגע יש ${currentImages.length} תמונות.`);
+      alert(`You can upload up to ${maxImages} images. Currently have ${currentImages.length} images.`);
       return;
     }
 
     if (imageFiles.length === 0) {
-      alert('אנא בחר קבצי תמונה בלבד');
+      alert('Please select image files only');
       return;
     }
 
@@ -454,7 +712,6 @@ export function MultipleImageUpload({
 
       const newImages: string[] = [];
       
-      // Upload files one by one
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
         const fileKey = `${file.name}-${file.size}`;
@@ -482,7 +739,7 @@ export function MultipleImageUpload({
           }
         } catch (error) {
           console.error(`Failed to upload ${file.name}:`, error);
-          alert(`שגיאה בהעלאת ${file.name}: ${error instanceof Error ? error.message : 'שגיאה לא צפויה'}`);
+          alert(`Error uploading ${file.name}: ${error instanceof Error ? error.message : 'Unexpected error'}`);
         } finally {
           setUploadProgress(prev => {
             const updated = { ...prev };
@@ -492,7 +749,6 @@ export function MultipleImageUpload({
         }
       }
 
-      // Update the images array
       if (newImages.length > 0) {
         const updatedImages = [...currentImages, ...newImages];
         onImagesChange(updatedImages);
@@ -500,7 +756,7 @@ export function MultipleImageUpload({
 
     } catch (error) {
       console.error('Multiple image upload error:', error);
-      alert('שגיאה בהעלאת התמונות');
+      alert('Error uploading images');
     } finally {
       setIsUploading(false);
       setUploadProgress({});
@@ -536,7 +792,6 @@ export function MultipleImageUpload({
     if (files && files.length > 0) {
       handleFileSelect(files);
     }
-    // Reset input value to allow selecting the same files again
     e.target.value = '';
   }, [handleFileSelect]);
 
@@ -556,15 +811,15 @@ export function MultipleImageUpload({
   const canAddMore = currentImages.length < maxImages;
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {/* Current Images Gallery */}
+    <div className={`space-y-4 ${className}`}>
+      {/* Current Images Grid */}
       {currentImages.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {currentImages.map((imageUrl, index) => (
             <div key={`image-${index}`} className="relative group">
               <ImageDisplay 
                 imageUrl={imageUrl}
-                alt={`תמונה ${index + 1}`}
+                alt={`Image ${index + 1}`}
                 className="w-full h-24"
                 size="md"
               />
@@ -572,8 +827,8 @@ export function MultipleImageUpload({
               {!disabled && (
                 <button
                   onClick={() => handleRemoveImage(index)}
-                  className="absolute -top-2 -right-2 p-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  title="הסר תמונה"
+                  className="absolute -top-2 -right-2 p-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
+                  title="Remove image"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -612,10 +867,10 @@ export function MultipleImageUpload({
           {isUploading ? (
             <div className="flex flex-col items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-              <p className="text-sm text-muted-foreground text-center">מעלה תמונות...</p>
+              <p className="text-sm text-muted-foreground text-center">Uploading images...</p>
               {Object.keys(uploadProgress).length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  מעלה {Object.keys(uploadProgress).length} תמונות
+                  Uploading {Object.keys(uploadProgress).length} images
                 </p>
               )}
             </div>
@@ -623,102 +878,75 @@ export function MultipleImageUpload({
             <div className="flex flex-col items-center justify-center text-center">
               <Upload className="h-8 w-8 text-muted-foreground mb-3" />
               <p className="text-sm font-medium text-foreground mb-1">
-                גרור תמונות לכאן או לחץ לבחירה
+                Drag images here or click to select
               </p>
               <p className="text-xs text-muted-foreground">
-                ניתן להעלות עד {maxImages - currentImages.length} תמונות נוספות
+                You can upload {maxImages - currentImages.length} more images
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                תמונות יכולות להיות: JPEG, PNG, WebP, GIF
+                Supported: JPEG, PNG, WebP, GIF
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Upload Limit Info */}
+      {/* Upload Info */}
       <div className="text-xs text-muted-foreground text-center">
-        {currentImages.length} מתוך {maxImages} תמונות
+        {currentImages.length} of {maxImages} images
       </div>
     </div>
   );
 }
 
-// Image Gallery Component for displaying multiple images
+// =============================================
+// IMAGE GALLERY COMPONENT
+// =============================================
+
 interface ImageGalleryProps {
   images: string[];
   className?: string;
   showExpand?: boolean;
   maxDisplay?: number;
+  title?: string;
 }
 
 export function ImageGallery({ 
   images, 
   className = '',
   showExpand = true,
-  maxDisplay = 4
+  maxDisplay = 4,
+  title
 }: ImageGalleryProps) {
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showViewer, setShowViewer] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   if (!images || images.length === 0) {
     return null;
   }
 
-  const openGallery = (imageUrl: string, index: number) => {
+  const openGallery = (index: number) => {
     if (!showExpand) return;
-    setSelectedImageIndex(index);
-    setIsGalleryOpen(true);
+    setCurrentIndex(index);
+    setShowViewer(true);
   };
-
-  const closeGallery = () => {
-    setIsGalleryOpen(false);
-  };
-  
-  const handleModalContentClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  const nextImage = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setSelectedImageIndex((prevIndex) => (prevIndex + 1) % images.length);
-  };
-
-  const prevImage = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setSelectedImageIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
-  };
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isGalleryOpen) return;
-    if (e.key === 'Escape') closeGallery();
-    if (e.key === 'ArrowRight') nextImage();
-    if (e.key === 'ArrowLeft') prevImage();
-  }, [isGalleryOpen, images.length]); // Added images.length dependency
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
 
   const displayImages = images.slice(0, maxDisplay);
   const remainingImagesCount = images.length - maxDisplay;
 
   return (
-    <div className={` ${className}`}>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+    <div className={className}>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {displayImages.map((imageUrl, index) => (
           <div 
-            key={`gallery-thumb-${imageUrl}-${index}`} 
-            className="relative group aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-shadow"
-            onClick={() => openGallery(imageUrl, index)}
+            key={`gallery-${index}`} 
+            className="relative group aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-200"
+            onClick={() => openGallery(index)}
           >
             <img 
               src={imageUrl} 
               alt={`Gallery image ${index + 1}`} 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
               draggable="false"
             />
             {showExpand && (
@@ -735,63 +963,16 @@ export function ImageGallery({
         ))}
       </div>
 
-      {isGalleryOpen && images[selectedImageIndex] && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 cursor-default"
-          onClick={closeGallery} // Click on backdrop closes modal
-        >
-          <div 
-            className="relative w-full h-full flex items-center justify-center cursor-default"
-            onClick={handleModalContentClick} // Clicks on content area (image + controls) don't close modal
-          >
-            {/* Image container */}
-            <div className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center">
-              <img 
-                src={images[selectedImageIndex]} 
-                alt={`Enlarged gallery image ${selectedImageIndex + 1}`} 
-                className="block object-contain shadow-2xl rounded-lg max-w-full max-h-full" 
-                draggable="false"
-              />
-            </div>
-
-            {/* Close Button */}
-            <button 
-              onClick={(e) => { // Ensure stopPropagation for this button too
-                e.stopPropagation();
-                closeGallery();
-              }}
-              className="absolute top-4 right-4 z-[10001] p-2 bg-background/80 hover:bg-background/90 rounded-full text-foreground shadow-lg transition-colors"
-              title="Close gallery"
-              aria-label="Close gallery"
-            >
-              <X className="h-6 w-6" />
-            </button>
-
-            {/* Prev Button */}
-            {images.length > 1 && (
-              <button 
-                onClick={prevImage} // stopPropagation is handled inside prevImage
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-[10000] p-2 bg-background/50 hover:bg-background/70 rounded-full text-foreground shadow-lg transition-all hover:scale-110"
-                title="Previous image"
-                aria-label="Previous image"
-              >
-                <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
-              </button>
-            )}
-
-            {/* Next Button */}
-            {images.length > 1 && (
-              <button 
-                onClick={nextImage} // stopPropagation is handled inside nextImage
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-[10000] p-2 bg-background/50 hover:bg-background/70 rounded-full text-foreground shadow-lg transition-all hover:scale-110"
-                title="Next image"
-                aria-label="Next image"
-              >
-                <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
-              </button>
-            )}
-          </div>
-        </div>
+      {/* Image Viewer Modal */}
+      {showViewer && (
+        <ImageViewerModal
+          isOpen={showViewer}
+          onClose={() => setShowViewer(false)}
+          images={images}
+          currentIndex={currentIndex}
+          onIndexChange={setCurrentIndex}
+          title={title}
+        />
       )}
     </div>
   );

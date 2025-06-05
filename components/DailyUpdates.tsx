@@ -119,18 +119,46 @@ export default function DailyUpdates({
     }
   };
 
-  const getBackgroundColor = (type: string) => {
+  const getBorderAndTextClasses = (type: string) => {
     switch (type) {
       case 'warning':
-        return 'border-yellow-200 dark:!border-yellow-700 bg-yellow-50 dark:!bg-yellow-800/80 text-yellow-800 dark:text-yellow-100';
+        return 'border-yellow-300/60 dark:border-yellow-600/60 text-yellow-800 dark:text-yellow-50';
       case 'success':
-        return 'border-green-200 dark:!border-green-700 bg-green-50 dark:!bg-green-800/80 text-green-800 dark:text-green-100';
+        return 'border-green-300/60 dark:border-green-600/60 text-green-800 dark:text-green-50';
       case 'error':
-        return 'border-destructive/20 dark:!border-destructive-700 bg-destructive/10 dark:!bg-red-800/80 text-destructive dark:text-red-100';
+        return 'border-red-300/60 dark:border-red-600/60 text-red-800 dark:text-red-50';
       case 'notification':
-        return 'border-primary/20 dark:!border-primary-700 bg-primary/10 dark:!bg-blue-800/80 text-primary dark:text-blue-100';
+      case 'announcement':
+        return 'border-blue-300/60 dark:border-blue-600/60 text-blue-800 dark:text-blue-50';
       default:
-        return 'border-border bg-background dark:!bg-slate-700 text-foreground dark:text-slate-200';
+        return 'border-slate-300/60 dark:border-slate-600/60 text-slate-800 dark:text-slate-100';
+    }
+  };
+
+  const getBackgroundStyle = (type: string) => {
+    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    switch (type) {
+      case 'warning':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(217, 119, 6, 0.2), rgba(194, 65, 12, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 252, 232, 0.8))';
+      case 'success':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(21, 128, 61, 0.2), rgba(22, 101, 52, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.8))';
+      case 'error':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(185, 28, 28, 0.2), rgba(190, 18, 60, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 242, 242, 0.8))';
+      case 'notification':
+      case 'announcement':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(30, 64, 175, 0.2), rgba(67, 56, 202, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.8))';
+      default:
+        return isDark 
+          ? 'linear-gradient(to right, rgba(30, 41, 59, 0.3), rgba(55, 65, 81, 0.3))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9))';
     }
   };
 
@@ -193,8 +221,15 @@ export default function DailyUpdates({
             </h2>
           </div>
         )}
-        <div className="border border-destructive/20 bg-destructive/10 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-destructive">
+        <div 
+          className="border border-red-300/60 dark:border-red-600/60 rounded-lg p-4 text-red-800 dark:text-red-50"
+          style={{ 
+            background: typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+              ? 'linear-gradient(to right, rgba(185, 28, 28, 0.2), rgba(190, 18, 60, 0.2))'
+              : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 242, 242, 0.8))'
+          }}
+        >
+          <div className="flex items-center gap-2">
             <XCircle className="h-5 w-5" />
             <span className={hebrewBody.fontClass}>{error}</span>
           </div>
@@ -244,7 +279,8 @@ export default function DailyUpdates({
         {visibleUpdates.map((update) => (
           <div
             key={update.id}
-            className={`relative border rounded-lg p-4 ${getBackgroundColor(update.type)}`}
+            className={`relative border rounded-lg p-4 ${getBorderAndTextClasses(update.type)}`}
+            style={{ background: getBackgroundStyle(update.type) }}
           >
             {/* Dismiss button */}
             <button

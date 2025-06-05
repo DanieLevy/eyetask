@@ -14,7 +14,13 @@ import {
   Zap,
   Clock,
   Target,
-  AlertTriangle
+  AlertTriangle,
+  Filter,
+  X,
+  Sun,
+  Moon,
+  Sunset,
+  Sunrise
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
@@ -74,6 +80,13 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [dataFetched, setDataFetched] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Filtering states
+  const [activeFilters, setActiveFilters] = useState<{
+    dayTime: ('day' | 'night' | 'dusk' | 'dawn')[];
+  }>({
+    dayTime: []
+  });
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
@@ -189,6 +202,69 @@ export default function ProjectPage() {
     setExpandedSubtasks(newExpanded);
   };
 
+  // Filter helper functions
+  const getDayTimeLabel = (dayTime: string) => {
+    switch (dayTime) {
+      case 'day': return 'יום';
+      case 'night': return 'לילה';
+      case 'dusk': return 'דמדומים';
+      case 'dawn': return 'שחר';
+      default: return dayTime;
+    }
+  };
+
+  const getDayTimeIcon = (dayTime: string) => {
+    switch (dayTime) {
+      case 'day': return '☀️';
+      case 'night': return '🌙';
+      case 'dusk': return '🌆';
+      case 'dawn': return '🌅';
+      default: return '🕐';
+    }
+  };
+
+  // Filter tasks based on active filters
+  const filteredTasks = tasks.filter(task => {
+    // If no day time filters are active, show all tasks
+    if (activeFilters.dayTime.length === 0) {
+      return true;
+    }
+
+    // Check if task has any of the selected day times
+    return activeFilters.dayTime.some(selectedTime => 
+      task.dayTime.includes(selectedTime)
+    );
+  });
+
+  // Toggle day time filter
+  const toggleDayTimeFilter = (dayTime: 'day' | 'night' | 'dusk' | 'dawn') => {
+    setActiveFilters(prev => {
+      const newDayTime = prev.dayTime.includes(dayTime)
+        ? prev.dayTime.filter(t => t !== dayTime)
+        : [...prev.dayTime, dayTime];
+      
+      return {
+        ...prev,
+        dayTime: newDayTime
+      };
+    });
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setActiveFilters({
+      dayTime: []
+    });
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = activeFilters.dayTime.length > 0;
+
+  // Get unique day times from all tasks for filter options
+  const availableDayTimes = Array.from(
+    new Set(tasks.flatMap(task => task.dayTime))
+  ).sort();
+
   // Format DATACO number to always show with DATACO- prefix
   const formatDatacoNumber = (datacoNumber: string) => {
     if (!datacoNumber) return '';
@@ -210,15 +286,7 @@ export default function ProjectPage() {
     return 'ללא';
   };
 
-  const getDayTimeLabel = (dayTime: string) => {
-    const labels: Record<string, string> = {
-      day: 'יום',
-      night: 'לילה',
-      dusk: 'דמדומים',
-      dawn: 'שחר'
-    };
-    return labels[dayTime] || dayTime;
-  };
+
 
   if (loading && !dataFetched) {
     return (
@@ -244,20 +312,107 @@ export default function ProjectPage() {
             >
               <ArrowRight className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
               <Eye className="h-6 w-6 text-primary" />
               <div>
                 <h1 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
                   {projectName}
                 </h1>
                 <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                  {tasks.length} משימות זמינות
+                  {hasActiveFilters ? (
+                    <>
+                      {filteredTasks.length} מתוך {tasks.length} משימות
+                      {activeFilters.dayTime.length > 0 && (
+                        <span className="mr-2">
+                          • מסונן לפי: {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    `${tasks.length} משימות זמינות`
+                  )}
                 </p>
+              </div>
+            </div>
+            
+
+          </div>
+        </div>
+      </div>
+
+      {/* Minimal Filter Section */}
+      {tasks.length > 0 && (
+        <div className="bg-muted/20 border-b border-border">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              {/* Filter Controls */}
+              {availableDayTimes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  {availableDayTimes.map((dayTime) => {
+                    const isActive = activeFilters.dayTime.includes(dayTime);
+                    const taskCount = tasks.filter(task => task.dayTime.includes(dayTime)).length;
+                    
+                    return (
+                      <button
+                        key={dayTime}
+                        onClick={() => toggleDayTimeFilter(dayTime)}
+                        className={`
+                          flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
+                          ${isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'bg-background hover:bg-accent text-foreground border border-border hover:border-primary/50'
+                          }
+                        `}
+                        title={`${getDayTimeLabel(dayTime)} (${taskCount} משימות)`}
+                      >
+                        <span className="text-sm">
+                          {getDayTimeIcon(dayTime)}
+                        </span>
+                        <span className="hidden sm:inline">
+                          {getDayTimeLabel(dayTime)}
+                        </span>
+                        <span className={`
+                          px-1 rounded text-xs font-bold leading-none
+                          ${isActive 
+                            ? 'bg-primary-foreground/20 text-primary-foreground' 
+                            : 'bg-muted text-muted-foreground'
+                          }
+                        `}>
+                          {taskCount}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Clear Button & Stats */}
+              <div className="flex items-center gap-2 text-sm">
+                {hasActiveFilters ? (
+                  <>
+                    <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
+                      {filteredTasks.length}/{tasks.length}
+                    </span>
+                    <button
+                      onClick={clearAllFilters}
+                      className="flex items-center gap-1 px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
+                      title="נקה סינון"
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="hidden sm:inline text-xs">נקה</span>
+                    </button>
+                  </>
+                ) : (
+                  <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
+                    {tasks.length} משימות
+                  </span>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -267,9 +422,26 @@ export default function ProjectPage() {
             <h3 className="text-lg font-semibold text-foreground mb-2">אין משימות זמינות</h3>
             <p className="text-muted-foreground">משימות יופיעו כאן כאשר יתווספו על ידי המנהל</p>
           </div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="text-center py-12">
+            <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">אין משימות מתאימות לסינון</h3>
+            <p className="text-muted-foreground mb-4">
+              נסה לשנות את הסינון או לנקות את כל המסננים
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <X className="h-4 w-4" />
+                נקה סינון
+              </button>
+            )}
+          </div>
         ) : (
           <div className="space-y-4">
-            {tasks
+            {filteredTasks
               .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
               .map((task) => {
                 const isExpanded = expandedTasks.has(task.id);

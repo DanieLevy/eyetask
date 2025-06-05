@@ -39,20 +39,41 @@ export function RealtimeNotification({
     }
   };
 
-  const getBgColor = () => {
+  const getBorderAndTextClasses = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200';
+        return 'border-green-300/60 dark:border-green-600/60 text-green-800 dark:text-green-200';
       case 'error':
-        return 'bg-destructive/10 border-destructive/20 text-destructive';
+        return 'border-red-300/60 dark:border-red-600/60 text-red-800 dark:text-red-200';
       default:
-        return 'bg-primary/10 border-primary/20 text-primary';
+        return 'border-blue-300/60 dark:border-blue-600/60 text-blue-800 dark:text-blue-200';
+    }
+  };
+
+  const getBackgroundStyle = () => {
+    const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    switch (type) {
+      case 'success':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(21, 128, 61, 0.2), rgba(22, 101, 52, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(240, 253, 244, 0.8))';
+      case 'error':
+        return isDark 
+          ? 'linear-gradient(to right, rgba(185, 28, 28, 0.2), rgba(190, 18, 60, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(254, 242, 242, 0.8))';
+      default:
+        return isDark 
+          ? 'linear-gradient(to right, rgba(30, 64, 175, 0.2), rgba(67, 56, 202, 0.2))'
+          : 'linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.8))';
     }
   };
 
   return (
     <div className="fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] animate-in slide-in-from-top-2 duration-300 max-w-md mx-auto md:mx-0">
-      <div className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg ${getBgColor()}`}>
+      <div 
+        className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg ${getBorderAndTextClasses()}`}
+        style={{ background: getBackgroundStyle() }}
+      >
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
