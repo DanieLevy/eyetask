@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EyeTask - מערכת ניהול משימות נהגים",
+  title: "DC Drivers Hub - Mobileye",
   description: "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
   manifest: "/manifest.json",
   icons: {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "EyeTask",
+    title: "DC Drivers Hub - Mobileye",
   },
 };
 

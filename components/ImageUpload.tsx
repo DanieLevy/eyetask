@@ -1,434 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, X, Eye, ImageIcon, ChevronRight, ChevronLeft, Plus, ZoomIn, ZoomOut, RotateCw, Download, Share2, Maximize2, Minimize2 } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Upload, X, Eye } from 'lucide-react';
+import ImageViewer from 'react-simple-image-viewer';
 
 // =============================================
-// ENHANCED IMAGE VIEWER MODAL
-// =============================================
-
-interface ImageViewerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  images: string[];
-  currentIndex: number;
-  onIndexChange: (index: number) => void;
-  title?: string;
-}
-
-function ImageViewerModal({ 
-  isOpen, 
-  onClose, 
-  images, 
-  currentIndex, 
-  onIndexChange,
-  title 
-}: ImageViewerModalProps) {
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [imageError, setImageError] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  
-  // Touch handling for mobile swipe gestures
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
-
-  // Reset states when modal opens/closes or image changes
-  useEffect(() => {
-    if (isOpen) {
-      setIsZoomed(false);
-      setRotation(0);
-      setIsLoading(true);
-      setImageError(false);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, currentIndex]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (images.length > 1) {
-            onIndexChange((currentIndex - 1 + images.length) % images.length);
-          }
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (images.length > 1) {
-            onIndexChange((currentIndex + 1) % images.length);
-          }
-          break;
-        case ' ':
-          e.preventDefault();
-          setIsZoomed(!isZoomed);
-          break;
-        case 'r':
-          e.preventDefault();
-          setRotation(prev => (prev + 90) % 360);
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, images.length, onIndexChange, onClose, isZoomed]);
-
-  // Fullscreen API
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      modalRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  }, []);
-
-  // Handle fullscreen change
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const handleImageLoad = () => {
-    setIsLoading(false);
-    setImageError(false);
-  };
-
-  const handleImageError = () => {
-    setIsLoading(false);
-    setImageError(true);
-  };
-
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = images[currentIndex];
-    link.download = `image-${currentIndex + 1}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: title || 'Image',
-          url: images[currentIndex]
-        });
-      } catch (error) {
-        console.log('Error sharing:', error);
-      }
-    } else {
-      // Fallback - copy to clipboard
-      try {
-        await navigator.clipboard.writeText(images[currentIndex]);
-        alert('Image URL copied to clipboard!');
-      } catch (error) {
-        console.log('Error copying to clipboard:', error);
-      }
-    }
-  };
-
-  const nextImage = () => {
-    if (images.length > 1) {
-      onIndexChange((currentIndex + 1) % images.length);
-    }
-  };
-
-  const prevImage = () => {
-    if (images.length > 1) {
-      onIndexChange((currentIndex - 1 + images.length) % images.length);
-    }
-  };
-
-  // Touch handlers for mobile swipe navigation
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd({
-      x: e.targetTouches[0].clientX,
-      y: e.targetTouches[0].clientY
-    });
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distanceX = touchStart.x - touchEnd.x;
-    const distanceY = touchStart.y - touchEnd.y;
-    const isLeftSwipe = distanceX > 50;
-    const isRightSwipe = distanceX < -50;
-    const isUpSwipe = distanceY > 50;
-    const isDownSwipe = distanceY < -50;
-    
-    // Only handle horizontal swipes if they're more significant than vertical
-    if (Math.abs(distanceX) > Math.abs(distanceY)) {
-      if (isLeftSwipe && images.length > 1) {
-        nextImage();
-      }
-      if (isRightSwipe && images.length > 1) {
-        prevImage();
-      }
-    }
-    // Handle vertical swipe down to close (mobile-friendly)
-    else if (isDownSwipe && Math.abs(distanceY) > 100) {
-      onClose();
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div 
-      ref={modalRef}
-      className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-lg transition-all duration-300 ease-out"
-      onClick={onClose}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background/70 to-transparent backdrop-blur-md p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {title && (
-              <h2 className="text-foreground text-lg font-medium">{title}</h2>
-            )}
-            {images.length > 1 && (
-              <div className="text-muted-foreground text-sm bg-muted/70 px-3 py-1 rounded-full">
-                {currentIndex + 1} / {images.length}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Zoom Controls */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsZoomed(!isZoomed);
-              }}
-              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
-              title={isZoomed ? 'Zoom Out' : 'Zoom In'}
-            >
-              {isZoomed ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
-            </button>
-
-            {/* Rotate */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setRotation(prev => (prev + 90) % 360);
-              }}
-              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
-              title="Rotate"
-            >
-              <RotateCw className="h-5 w-5" />
-            </button>
-
-            {/* Download */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDownload();
-              }}
-              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
-              title="Download"
-            >
-              <Download className="h-5 w-5" />
-            </button>
-
-            {/* Share */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleShare();
-              }}
-              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
-              title="Share"
-            >
-              <Share2 className="h-5 w-5" />
-            </button>
-
-            {/* Fullscreen */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFullscreen();
-              }}
-              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
-              title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-            </button>
-
-            {/* Close Button - Made larger and more prominent for mobile */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-3 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-full transition-colors backdrop-blur-sm"
-              title="Close"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Arrows */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              prevImage();
-            }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-all hover:scale-110 backdrop-blur-sm"
-            title="Previous Image"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              nextImage();
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-all hover:scale-110 backdrop-blur-sm"
-            title="Next Image"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        </>
-      )}
-
-      {/* Image Container */}
-      <div 
-        className="flex items-center justify-center w-full h-full p-16"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="relative max-w-full max-h-full">
-          {/* Loading Spinner */}
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          )}
-
-          {/* Error State */}
-          {imageError && (
-            <div className="flex flex-col items-center justify-center text-foreground p-8">
-              <ImageIcon className="h-16 w-16 mb-4 text-muted-foreground" />
-              <p className="text-lg">Failed to load image</p>
-              <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
-            </div>
-          )}
-
-          {/* Main Image */}
-          {!imageError && (
-            <img
-              src={images[currentIndex]}
-              alt={`Image ${currentIndex + 1}`}
-              className={`
-                max-w-full max-h-full object-contain transition-all duration-300 cursor-pointer
-                ${isZoomed ? 'scale-150' : 'scale-100'}
-                ${isLoading ? 'opacity-0' : 'opacity-100'}
-              `}
-              style={{ 
-                transform: `rotate(${rotation}deg) ${isZoomed ? 'scale(1.5)' : 'scale(1)'}`,
-                transformOrigin: 'center'
-              }}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-              onClick={() => setIsZoomed(!isZoomed)}
-              draggable={false}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Thumbnail Strip (for multiple images) */}
-      {images.length > 1 && (
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background/70 to-transparent backdrop-blur-md p-4">
-          <div className="flex justify-center gap-2 overflow-x-auto max-w-full">
-            {images.map((image, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onIndexChange(index);
-                }}
-                className={`
-                  flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all
-                  ${index === currentIndex 
-                    ? 'border-primary shadow-lg scale-110' 
-                    : 'border-border hover:border-primary/60'
-                  }
-                `}
-              >
-                <img
-                  src={image}
-                  alt={`Thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
-                  draggable={false}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Mobile-friendly close overlay */}
-      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 md:hidden">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="px-6 py-3 bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded-full transition-colors backdrop-blur-sm font-medium shadow-lg"
-        >
-          סגור תצוגה
-        </button>
-      </div>
-
-      {/* Keyboard Shortcuts Help - Hidden on mobile */}
-      <div className="absolute bottom-4 left-4 text-muted-foreground text-xs hidden md:block">
-        <div>ESC: Close • ←/→: Navigate • Space: Zoom • R: Rotate • Click outside: Close</div>
-      </div>
-    </div>
-  );
-}
-
-// =============================================
-// SINGLE IMAGE UPLOAD COMPONENT
+// SIMPLE IMAGE UPLOAD COMPONENT
 // =============================================
 
 interface ImageUploadProps {
@@ -438,7 +15,7 @@ interface ImageUploadProps {
   className?: string;
 }
 
-export default function ImageUpload({ 
+export function ImageUpload({ 
   onImageSelect, 
   currentImage, 
   disabled = false,
@@ -447,7 +24,6 @@ export default function ImageUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
-  const [showViewer, setShowViewer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = useCallback(async (file: File) => {
@@ -459,35 +35,17 @@ export default function ImageUpload({
       // Create preview immediately
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreview(e.target?.result as string);
+        const result = e.target?.result as string;
+        setPreview(result);
       };
       reader.readAsDataURL(file);
 
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        throw new Error('No authentication token found. Please log in again.');
-      }
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        const imageUrl = result.data.publicUrl;
-        setPreview(imageUrl);
-        onImageSelect(imageUrl);
-      } else {
-        throw new Error(result.error || `Server returned ${response.status}: ${response.statusText}`);
-      }
+      // Simulate upload - replace with your actual upload logic
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const imageUrl = URL.createObjectURL(file);
+      setPreview(imageUrl);
+      onImageSelect(imageUrl);
     } catch (error) {
       console.error('Image upload error:', error);
       alert('Failed to upload image. Please try again.');
@@ -549,13 +107,12 @@ export default function ImageUpload({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {/* Upload Area */}
       <div
         className={`
           relative border-2 border-dashed rounded-lg transition-all duration-200
           ${isDragging 
-            ? 'border-primary bg-primary/5' 
-            : 'border-border hover:border-primary/50'
+            ? 'border-blue-500 bg-blue-50' 
+            : 'border-gray-300 hover:border-blue-400'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           ${preview ? 'p-2' : 'p-6'}
@@ -576,147 +133,97 @@ export default function ImageUpload({
 
         {isUploading ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-            <p className="text-sm text-muted-foreground">Uploading image...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+            <p className="text-sm text-gray-600">Uploading image...</p>
           </div>
         ) : preview ? (
-          <div className="relative group">
-            {/* Thumbnail */}
-            <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-full h-full object-cover"
-              />
-              
-              {/* Overlay with controls */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowViewer(true);
-                  }}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                  title="View Image"
-                >
-                  <Eye className="h-4 w-4 text-white" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveImage();
-                  }}
-                  className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                  title="Remove Image"
-                  disabled={disabled}
-                >
-                  <X className="h-4 w-4 text-white" />
-                </button>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Click to replace or drag new image
-            </p>
-          </div>
+          <ImagePreview 
+            imageUrl={preview} 
+            onRemove={handleRemoveImage}
+            disabled={disabled}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center">
-            <div className="mb-3 p-3 bg-muted rounded-full">
-              <Upload className="h-6 w-6 text-muted-foreground" />
+            <div className="mb-3 p-3 bg-gray-100 rounded-full">
+              <Upload className="h-6 w-6 text-gray-400" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-medium text-foreground mb-1">
+              <p className="text-sm font-medium text-gray-900 mb-1">
                 Select image or drag here
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-500">
                 PNG, JPG, WebP up to 5MB
               </p>
             </div>
           </div>
         )}
       </div>
-
-      {/* Image Viewer Modal */}
-      {showViewer && preview && (
-        <ImageViewerModal
-          isOpen={showViewer}
-          onClose={() => setShowViewer(false)}
-          images={[preview]}
-          currentIndex={0}
-          onIndexChange={() => {}}
-        />
-      )}
     </div>
   );
 }
 
 // =============================================
-// IMAGE DISPLAY COMPONENT
+// IMAGE PREVIEW COMPONENT
 // =============================================
 
-interface ImageDisplayProps {
-  imageUrl: string | null;
-  alt?: string;
-  className?: string;
-  showExpand?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+interface ImagePreviewProps {
+  imageUrl: string;
+  onRemove: () => void;
+  disabled?: boolean;
 }
 
-export function ImageDisplay({ 
-  imageUrl, 
-  alt = 'Image', 
-  className = '',
-  showExpand = true,
-  size = 'md'
-}: ImageDisplayProps) {
+function ImagePreview({ imageUrl, onRemove, disabled }: ImagePreviewProps) {
   const [showViewer, setShowViewer] = useState(false);
-
-  if (!imageUrl) {
-    return null;
-  }
-
-  const sizeClasses = {
-    sm: 'h-20 w-20',
-    md: 'h-32 w-32',
-    lg: 'h-48 w-48'
-  };
 
   return (
     <>
-      <div className={`
-        relative group cursor-pointer 
-        ${sizeClasses[size]}
-        ${className}
-        bg-muted rounded-lg overflow-hidden
-        flex items-center justify-center 
-        shadow-sm hover:shadow-md transition-all duration-200
-      `}
-      onClick={() => showExpand && setShowViewer(true)}
-      >
-        <img 
-          src={imageUrl} 
-          alt={alt} 
-          className="max-w-full max-h-full object-contain" 
-          draggable="false" 
-        />
-        {showExpand && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <Eye className="h-6 w-6 text-white" />
+      <div className="relative group">
+        <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="w-full h-full object-cover"
+          />
+          
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowViewer(true);
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="View Image"
+            >
+              <Eye className="h-4 w-4 text-white" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="Remove Image"
+              disabled={disabled}
+            >
+              <X className="h-4 w-4 text-white" />
+            </button>
           </div>
-        )}
+        </div>
+        
+        <p className="text-xs text-gray-500 mt-2 text-center">
+          Click to replace or drag new image
+        </p>
       </div>
 
-      {/* Image Viewer Modal */}
       {showViewer && (
-        <ImageViewerModal
-          isOpen={showViewer}
-          onClose={() => setShowViewer(false)}
-          images={[imageUrl]}
+        <ImageViewer
+          src={[imageUrl]}
           currentIndex={0}
-          onIndexChange={() => {}}
-          title={alt}
+          onClose={() => setShowViewer(false)}
+          disableScroll={false}
+          closeOnClickOutside={true}
         />
       )}
     </>
@@ -728,7 +235,8 @@ export function ImageDisplay({
 // =============================================
 
 interface MultipleImageUploadProps {
-  onImagesChange: (images: string[]) => void;
+  onImagesSelect?: (images: string[]) => void;
+  onImagesChange?: (images: string[]) => void; // Backward compatibility
   currentImages?: string[];
   disabled?: boolean;
   className?: string;
@@ -736,99 +244,59 @@ interface MultipleImageUploadProps {
 }
 
 export function MultipleImageUpload({ 
-  onImagesChange, 
+  onImagesSelect, 
+  onImagesChange,
   currentImages = [], 
   disabled = false,
   className = '',
-  maxImages = 5
+  maxImages = 10
 }: MultipleImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{[key: string]: boolean}>({});
+  const [previews, setPreviews] = useState<string[]>(currentImages);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback(async (files: FileList | File[]) => {
+  // Unified callback function for backward compatibility
+  const handleImagesUpdate = useCallback((images: string[]) => {
+    if (onImagesSelect) onImagesSelect(images);
+    if (onImagesChange) onImagesChange(images);
+  }, [onImagesSelect, onImagesChange]);
+
+  const handleFilesSelect = useCallback(async (files: File[]) => {
     if (disabled || isUploading) return;
 
-    const fileArray = Array.from(files);
-    const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
-    
-    if (currentImages.length + imageFiles.length > maxImages) {
-      alert(`You can upload up to ${maxImages} images. Currently have ${currentImages.length} images.`);
-      return;
-    }
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    const remainingSlots = maxImages - previews.length;
+    const filesToProcess = imageFiles.slice(0, remainingSlots);
 
-    if (imageFiles.length === 0) {
-      alert('Please select image files only');
-      return;
-    }
+    if (filesToProcess.length === 0) return;
 
     setIsUploading(true);
-
+    
     try {
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        throw new Error('No authentication token found. Please log in again.');
-      }
-
-      const newImages: string[] = [];
+      const newImageUrls: string[] = [];
       
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const fileKey = `${file.name}-${file.size}`;
-        
-        try {
-          setUploadProgress(prev => ({ ...prev, [fileKey]: true }));
-
-          const formData = new FormData();
-          formData.append('file', file);
-
-          const response = await fetch('/api/upload/image', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formData
-          });
-
-          const result = await response.json();
-
-          if (response.ok && result.success) {
-            newImages.push(result.data.publicUrl);
-          } else {
-            throw new Error(result.error || `Failed to upload ${file.name}`);
-          }
-        } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
-          alert(`Error uploading ${file.name}: ${error instanceof Error ? error.message : 'Unexpected error'}`);
-        } finally {
-          setUploadProgress(prev => {
-            const updated = { ...prev };
-            delete updated[fileKey];
-            return updated;
-          });
-        }
+      // Process each file
+      for (const file of filesToProcess) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const imageUrl = URL.createObjectURL(file);
+        newImageUrls.push(imageUrl);
       }
-
-      if (newImages.length > 0) {
-        const updatedImages = [...currentImages, ...newImages];
-        onImagesChange(updatedImages);
-      }
-
+      
+      const updatedImages = [...previews, ...newImageUrls];
+      setPreviews(updatedImages);
+      handleImagesUpdate(updatedImages);
     } catch (error) {
       console.error('Multiple image upload error:', error);
-      alert('Error uploading images');
+      alert('Failed to upload some images. Please try again.');
     } finally {
       setIsUploading(false);
-      setUploadProgress({});
     }
-  }, [disabled, isUploading, onImagesChange, currentImages, maxImages]);
+  }, [disabled, isUploading, previews, maxImages, handleImagesUpdate]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    if (!disabled) {
-      setIsDragging(true);
-    }
+    if (!disabled) setIsDragging(true);
   }, [disabled]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -839,202 +307,336 @@ export function MultipleImageUpload({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     if (disabled) return;
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files);
-    }
-  }, [disabled, handleFileSelect]);
+    const files = Array.from(e.dataTransfer.files);
+    handleFilesSelect(files);
+  }, [disabled, handleFilesSelect]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelect(files);
+    if (files) {
+      handleFilesSelect(Array.from(files));
     }
-    e.target.value = '';
-  }, [handleFileSelect]);
+  }, [handleFilesSelect]);
 
   const handleRemoveImage = useCallback((index: number) => {
     if (disabled) return;
-    
-    const updatedImages = currentImages.filter((_, i) => i !== index);
-    onImagesChange(updatedImages);
-  }, [disabled, currentImages, onImagesChange]);
+    const updatedImages = previews.filter((_, i) => i !== index);
+    setPreviews(updatedImages);
+    handleImagesUpdate(updatedImages);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [disabled, previews, handleImagesUpdate]);
 
   const handleClick = useCallback(() => {
-    if (!disabled && fileInputRef.current) {
+    if (!disabled && fileInputRef.current && previews.length < maxImages) {
       fileInputRef.current.click();
     }
-  }, [disabled]);
-
-  const canAddMore = currentImages.length < maxImages;
+  }, [disabled, previews.length, maxImages]);
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* Current Images Grid */}
-      {currentImages.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {currentImages.map((imageUrl, index) => (
-            <div key={`image-${index}`} className="relative group">
-              <ImageDisplay 
-                imageUrl={imageUrl}
-                alt={`Image ${index + 1}`}
-                className="w-full h-24"
-                size="md"
-              />
-              
-              {!disabled && (
-                <button
-                  onClick={() => handleRemoveImage(index)}
-                  className="absolute -top-2 -right-2 p-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
-                  title="Remove image"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+    <div className={`space-y-3 ${className}`}>
+      {/* Upload Area */}
+      <div
+        className={`
+          relative border-2 border-dashed rounded-lg transition-all duration-200
+          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          ${previews.length > 0 ? 'p-3' : 'p-6'}
+          ${previews.length >= maxImages ? 'opacity-50 cursor-not-allowed' : ''}
+        `}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={handleClick}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleInputChange}
+          className="hidden"
+          disabled={disabled || previews.length >= maxImages}
+        />
+
+        {isUploading ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+            <p className="text-sm text-gray-600">Uploading images...</p>
+          </div>
+        ) : previews.length >= maxImages ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-500">Maximum {maxImages} images reached</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center">
+            <div className="mb-3 p-3 bg-gray-100 rounded-full">
+              <Upload className="h-6 w-6 text-gray-400" />
             </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-900 mb-1">
+                {previews.length > 0 ? 'Add more images' : 'Select images or drag here'}
+              </p>
+              <p className="text-xs text-gray-500">
+                PNG, JPG, WebP up to 5MB ({previews.length}/{maxImages})
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Image Previews */}
+      {previews.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {previews.map((imageUrl, index) => (
+            <MultipleImagePreview
+              key={`preview-${index}`}
+              imageUrl={imageUrl}
+              onRemove={() => handleRemoveImage(index)}
+              disabled={disabled}
+              index={index}
+              allImages={previews}
+            />
           ))}
         </div>
       )}
-
-      {/* Upload Area */}
-      {canAddMore && (
-        <div
-          className={`
-            relative border-2 border-dashed rounded-lg transition-all duration-200 p-6
-            ${isDragging 
-              ? 'border-primary bg-primary/5' 
-              : 'border-border hover:border-primary/50'
-            }
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          `}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={handleClick}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleInputChange}
-            className="hidden"
-            disabled={disabled}
-          />
-
-          {isUploading ? (
-            <div className="flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-              <p className="text-sm text-muted-foreground text-center">Uploading images...</p>
-              {Object.keys(uploadProgress).length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Uploading {Object.keys(uploadProgress).length} images
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center">
-              <Upload className="h-8 w-8 text-muted-foreground mb-3" />
-              <p className="text-sm font-medium text-foreground mb-1">
-                Drag images here or click to select
-              </p>
-              <p className="text-xs text-muted-foreground">
-                You can upload {maxImages - currentImages.length} more images
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Supported: JPEG, PNG, WebP, GIF
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Upload Info */}
-      <div className="text-xs text-muted-foreground text-center">
-        {currentImages.length} of {maxImages} images
-      </div>
     </div>
   );
 }
 
 // =============================================
-// IMAGE GALLERY COMPONENT
+// MULTIPLE IMAGE PREVIEW COMPONENT
 // =============================================
 
-interface ImageGalleryProps {
-  images: string[];
-  className?: string;
-  showExpand?: boolean;
-  maxDisplay?: number;
-  title?: string;
+interface MultipleImagePreviewProps {
+  imageUrl: string;
+  onRemove: () => void;
+  disabled?: boolean;
+  index: number;
+  allImages: string[];
 }
 
-export function ImageGallery({ 
+function MultipleImagePreview({ imageUrl, onRemove, disabled, index, allImages }: MultipleImagePreviewProps) {
+  const [showViewer, setShowViewer] = useState(false);
+
+  return (
+    <>
+      <div className="relative group">
+        <div className="relative w-full h-24 bg-gray-100 rounded-lg overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={`Preview ${index + 1}`}
+            className="w-full h-full object-cover"
+          />
+          
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowViewer(true);
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="View Image"
+            >
+              <Eye className="h-3 w-3 text-white" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="Remove Image"
+              disabled={disabled}
+            >
+              <X className="h-3 w-3 text-white" />
+            </button>
+          </div>
+        </div>
+        
+        <p className="text-xs text-gray-500 mt-1 text-center">
+          Image {index + 1}
+        </p>
+      </div>
+
+      {showViewer && (
+        <ImageViewer
+          src={allImages}
+          currentIndex={index}
+          onClose={() => setShowViewer(false)}
+          disableScroll={false}
+          closeOnClickOutside={true}
+        />
+      )}
+    </>
+  );
+}
+
+// =============================================
+// IMAGE DISPLAY COMPONENT - For Task/Subtask Images
+// =============================================
+
+interface ImageDisplayProps {
+  images: string[];
+  title?: string;
+  maxDisplay?: number;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  onImageClick?: (images: string[], index: number, title?: string) => void;
+}
+
+export function ImageDisplay({ 
   images, 
+  title = '', 
+  maxDisplay = 8,
+  size = 'md',
   className = '',
-  showExpand = true,
-  maxDisplay = 4,
-  title
-}: ImageGalleryProps) {
+  onImageClick
+}: ImageDisplayProps) {
   const [showViewer, setShowViewer] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  if (!images || images.length === 0) {
-    return null;
-  }
-
-  const openGallery = (index: number) => {
-    if (!showExpand) return;
-    setCurrentIndex(index);
-    setShowViewer(true);
+  const sizeClasses = {
+    sm: 'w-10 h-10',
+    md: 'w-12 h-12',
+    lg: 'w-16 h-16'
   };
 
-  const displayImages = images.slice(0, maxDisplay);
-  const remainingImagesCount = images.length - maxDisplay;
+  const gridClasses = {
+    sm: 'grid-cols-6 md:grid-cols-8 lg:grid-cols-10',
+    md: 'grid-cols-4 md:grid-cols-6 lg:grid-cols-8',
+    lg: 'grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+  };
+
+  const handleImageClick = (index: number) => {
+    if (onImageClick) {
+      onImageClick(images, index, title);
+    } else {
+      setCurrentIndex(index);
+      setShowViewer(true);
+    }
+  };
+
+  if (!images || images.length === 0) return null;
 
   return (
-    <div className={className}>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {displayImages.map((imageUrl, index) => (
+    <>
+      <div className={`grid ${gridClasses[size]} gap-1.5 ${className}`}>
+        {images.slice(0, maxDisplay).map((imageUrl, index) => (
           <div 
-            key={`gallery-${index}`} 
-            className="relative group aspect-square bg-muted rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-200"
-            onClick={() => openGallery(index)}
+            key={`display-image-${index}`} 
+            className={`relative group aspect-square bg-muted rounded-sm overflow-hidden cursor-pointer shadow-xs hover:shadow-sm transition-all duration-200 ${sizeClasses[size]}`}
+            onClick={() => handleImageClick(index)}
           >
             <img 
               src={imageUrl} 
-              alt={`Gallery image ${index + 1}`} 
-              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              alt={`${title} image ${index + 1}`} 
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
               draggable="false"
             />
-            {showExpand && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <Eye className="h-6 w-6 text-white" />
-              </div>
-            )}
-            {index === maxDisplay - 1 && remainingImagesCount > 0 && (
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <Eye className="h-2.5 w-2.5 text-white" />
+            </div>
+            {index === maxDisplay - 1 && images.length > maxDisplay && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span className="text-white text-xl font-bold">+{remainingImagesCount}</span>
+                <span className="text-white text-[10px] font-bold">+{images.length - maxDisplay}</span>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* Image Viewer Modal */}
       {showViewer && (
-        <ImageViewerModal
-          isOpen={showViewer}
-          onClose={() => setShowViewer(false)}
-          images={images}
+        <ImageViewer
+          src={images}
           currentIndex={currentIndex}
-          onIndexChange={setCurrentIndex}
-          title={title}
+          onClose={() => setShowViewer(false)}
+          disableScroll={false}
+          closeOnClickOutside={true}
         />
       )}
-    </div>
+    </>
   );
-} 
+}
+
+// =============================================
+// IMAGE GALLERY COMPONENT - For Admin Views
+// =============================================
+
+interface ImageGalleryProps {
+  images: string[];
+  title?: string;
+  showExpand?: boolean;
+  maxDisplay?: number;
+  className?: string;
+  onImageClick?: (images: string[], index: number, title?: string) => void;
+}
+
+export function ImageGallery({ 
+  images, 
+  title = '', 
+  showExpand = true,
+  maxDisplay = 12,
+  className = '',
+  onImageClick
+}: ImageGalleryProps) {
+  const [showViewer, setShowViewer] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const handleImageClick = (index: number) => {
+    if (onImageClick) {
+      onImageClick(images, index, title);
+    } else {
+      setCurrentIndex(index);
+      setShowViewer(true);
+    }
+  };
+
+  if (!images || images.length === 0) return null;
+
+  return (
+    <>
+      <div className={`grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 ${className}`}>
+        {images.slice(0, maxDisplay).map((imageUrl, index) => (
+          <div 
+            key={`gallery-image-${index}`} 
+            className="relative group aspect-square bg-muted rounded-md overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-200"
+            onClick={() => handleImageClick(index)}
+          >
+            <img 
+              src={imageUrl} 
+              alt={`${title} image ${index + 1}`} 
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              draggable="false"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <Eye className="h-4 w-4 text-white" />
+            </div>
+            {index === maxDisplay - 1 && images.length > maxDisplay && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-white text-sm font-bold">+{images.length - maxDisplay}</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {showViewer && (
+        <ImageViewer
+          src={images}
+          currentIndex={currentIndex}
+          onClose={() => setShowViewer(false)}
+          disableScroll={false}
+          closeOnClickOutside={true}
+        />
+      )}
+    </>
+  );
+}
+
+// Make ImageUpload the default export for backward compatibility
+export { ImageUpload as default };

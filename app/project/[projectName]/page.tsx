@@ -86,6 +86,8 @@ export default function ProjectPage() {
   const [dataFetched, setDataFetched] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
 
+  // Image viewer is now handled directly by ImageDisplay components
+
   // Filtering states
   const [activeFilters, setActiveFilters] = useState<{
     dayTime: ('day' | 'night' | 'dusk' | 'dawn')[];
@@ -359,6 +361,8 @@ export default function ProjectPage() {
     if (priority >= 7 && priority <= 10) return 'נמוכה';
     return 'ללא';
   };
+
+  // Image viewer functions are now handled by the ImageDisplay components
 
 
 
@@ -742,33 +746,19 @@ export default function ProjectPage() {
                             <p className="text-muted-foreground text-sm">{task.description.howToExecute}</p>
                           </div>
 
-                          {/* Task Image Display */}
+                          {/* Task Image Display - Updated with new ImageDisplay component */}
                           {task.images && task.images.length > 0 && (
                             <div>
-                              <h4 className="font-semibold text-foreground mb-2 text-sm">תמונות המשימה</h4>
-                              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                                {task.images.slice(0, 6).map((imageUrl, index) => (
-                                  <div 
-                                    key={`task-image-${index}`} 
-                                    className="relative group aspect-square bg-muted rounded-md overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 w-16 h-16"
-                                  >
-                                    <img 
-                                      src={imageUrl} 
-                                      alt={`Task image ${index + 1}`} 
-                                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                      draggable="false"
-                                    />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                                      <Eye className="h-3 w-3 text-white" />
-                                    </div>
-                                    {index === 5 && task.images && task.images.length > 6 && (
-                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                        <span className="text-white text-xs font-bold">+{task.images.length - 6}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                              <h4 className="font-semibold text-foreground mb-2 text-sm flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3" />
+                                תמונות המשימה ({task.images.length})
+                              </h4>
+                              <ImageDisplay
+                                images={task.images}
+                                title={task.title}
+                                maxDisplay={6}
+                                size="lg"
+                              />
                             </div>
                           )}
 
@@ -813,7 +803,13 @@ export default function ProjectPage() {
                                           <div className="flex items-center gap-3">
                                             {/* Small preview image for collapsed state */}
                                             {!isSubtaskExpanded && subtask.images && subtask.images.length > 0 && (
-                                              <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                              <div 
+                                                className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  // Click handling is now done by the ImageDisplay component
+                                                }}
+                                              >
                                                 <img 
                                                   src={subtask.images[0]} 
                                                   alt="Preview" 
@@ -926,36 +922,19 @@ export default function ProjectPage() {
                                               </div>
                                             )}
 
-                                            {/* Image Section */}
+                                            {/* Image Section - Updated with new ImageDisplay component */}
                                             {subtask.images && subtask.images.length > 0 && (
                                               <div>
                                                 <h6 className="font-medium text-foreground mb-2 text-xs flex items-center gap-1">
                                                   <ImageIcon className="h-3 w-3" />
                                                   תמונות ({subtask.images.length})
                                                 </h6>
-                                                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
-                                                  {subtask.images.slice(0, 8).map((imageUrl, index) => (
-                                                    <div 
-                                                      key={`subtask-image-${index}`} 
-                                                      className="relative group aspect-square bg-muted rounded-sm overflow-hidden cursor-pointer shadow-xs hover:shadow-sm transition-all duration-200 w-12 h-12"
-                                                    >
-                                                      <img 
-                                                        src={imageUrl} 
-                                                        alt={`Subtask image ${index + 1}`} 
-                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
-                                                        draggable="false"
-                                                      />
-                                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                                                        <Eye className="h-2.5 w-2.5 text-white" />
-                                                      </div>
-                                                      {index === 7 && subtask.images && subtask.images.length > 8 && (
-                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                                          <span className="text-white text-[10px] font-bold">+{subtask.images.length - 8}</span>
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  ))}
-                                                </div>
+                                                <ImageDisplay
+                                                  images={subtask.images}
+                                                  title={`${task.title} - ${subtask.title}`}
+                                                  maxDisplay={8}
+                                                  size="md"
+                                                />
                                               </div>
                                             )}
                                           </div>
@@ -976,6 +955,8 @@ export default function ProjectPage() {
           </div>
         )}
       </main>
+
+      {/* Image viewer is now integrated into ImageDisplay components */}
     </div>
   );
 } 
