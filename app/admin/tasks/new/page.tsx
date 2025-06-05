@@ -34,6 +34,7 @@ interface NewTaskData {
   images?: string[];
   datacoNumber: string;
   description: string;
+  executionInstructions?: string;
   projectId: string;
   type: string[];
   locations: string[];
@@ -59,6 +60,7 @@ export default function NewTaskPage() {
     images: [],
     datacoNumber: '',
     description: '',
+    executionInstructions: '',
     projectId: '',
     type: ['events'],
     locations: ['Urban'],
@@ -134,7 +136,7 @@ export default function NewTaskPage() {
         datacoNumber: newTaskData.datacoNumber,
         description: {
           main: newTaskData.description,
-          howToExecute: "יש לעקוב אחר הוראות המשימה"
+          howToExecute: newTaskData.executionInstructions || "יש לעקוב אחר הוראות המשימה"
         },
         projectId: newTaskData.projectId,
         type: newTaskData.type,
@@ -167,6 +169,7 @@ export default function NewTaskPage() {
             images: [],
             datacoNumber: '',
             description: '',
+            executionInstructions: '',
             projectId: prev.projectId, // Keep selected project
             type: ['events'],
             locations: ['Urban'],
@@ -342,6 +345,17 @@ export default function NewTaskPage() {
                     className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
                     placeholder="תאר את המשימה בפירות"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">הוראות ביצוע (אופציונלי)</label>
+                  <textarea
+                    value={newTaskData.executionInstructions}
+                    onChange={(e) => setNewTaskData(prev => ({ ...prev, executionInstructions: e.target.value }))}
+                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-20"
+                    placeholder="הזן הוראות ספציפיות לביצוע המשימה (אם ריק, יוצג: 'יש לעקוב אחר הוראות המשימה')"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">הוראות ספציפיות כיצד לבצע את המשימה. אם לא תמלא, יוצג טקסט ברירת מחדל.</p>
                 </div>
 
                 {/* Task Images Upload */}

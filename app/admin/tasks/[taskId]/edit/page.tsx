@@ -297,13 +297,14 @@ export default function EditTaskPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">אופן ביצוע</label>
+                <label className="block text-sm font-medium text-foreground mb-1">הוראות ביצוע (אופציונלי)</label>
                 <textarea
                   value={editTaskData.description.howToExecute}
                   onChange={(e) => setEditTaskData(prev => ({ ...prev, description: { ...prev.description, howToExecute: e.target.value } }))}
-                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
-                  placeholder="כיצד לבצע את המשימה (אופציונלי)"
+                  className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-20"
+                  placeholder="הזן הוראות ספציפיות לביצוע המשימה (אם ריק, יוצג טקסט ברירת מחדל)"
                 />
+                <p className="text-xs text-muted-foreground mt-1">הוראות ספציפיות כיצד לבצע את המשימה. אם לא תמלא, יוצג טקסט ברירת מחדל.</p>
               </div>
 
               {/* Task Images Upload */}

@@ -89,8 +89,12 @@ export default function ProjectPage() {
     dayTime: []
   });
   
-  // Dropdown state
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'priority-asc' | 'priority-desc'>('priority-asc');
+  
+  // Dropdown states
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
@@ -186,23 +190,26 @@ export default function ProjectPage() {
     fetchProjectData();
   }, [fetchProjectData]);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest('[data-filter-dropdown]')) {
         setIsFilterDropdownOpen(false);
       }
+      if (!target.closest('[data-sort-dropdown]')) {
+        setIsSortDropdownOpen(false);
+      }
     };
 
-    if (isFilterDropdownOpen) {
+    if (isFilterDropdownOpen || isSortDropdownOpen) {
       document.addEventListener('click', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  }, [isFilterDropdownOpen]);
+  }, [isFilterDropdownOpen, isSortDropdownOpen]);
 
   const toggleTaskExpansion = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -256,6 +263,34 @@ export default function ProjectPage() {
     return activeFilters.dayTime.some(selectedTime => 
       task.dayTime.includes(selectedTime)
     );
+  });
+
+  // Filter subtasks based on active day time filters
+  const getFilteredSubtasks = (taskId: string) => {
+    const taskSubtasks = subtasks[taskId] || [];
+    
+    // If no day time filters are active, show all subtasks
+    if (activeFilters.dayTime.length === 0) {
+      return taskSubtasks;
+    }
+
+    // Filter subtasks that have any of the selected day times
+    return taskSubtasks.filter(subtask => 
+      activeFilters.dayTime.some(selectedTime => 
+        subtask.dayTime.includes(selectedTime)
+      )
+    );
+  };
+
+  // Sort filtered tasks based on sortBy state
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    if (sortBy === 'priority-asc') {
+      // Lower number = higher priority, so ascending order
+      return a.priority - b.priority || a.title.localeCompare(b.title);
+    } else {
+      // Higher number = lower priority, so descending order  
+      return b.priority - a.priority || a.title.localeCompare(b.title);
+    }
   });
 
   // Toggle day time filter
@@ -335,7 +370,6 @@ export default function ProjectPage() {
               <ArrowRight className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-3 flex-1">
-              <Eye className="h-6 w-6 text-primary" />
               <div>
                 <h1 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
                   {projectName}
@@ -343,7 +377,7 @@ export default function ProjectPage() {
                 <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
                   {hasActiveFilters ? (
                     <>
-                      {filteredTasks.length} מתוך {tasks.length} משימות
+                      {sortedTasks.length} מתוך {tasks.length} משימות
                       {activeFilters.dayTime.length > 0 && (
                         <span className="mr-2">
                           • מסונן לפי: {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
@@ -351,7 +385,7 @@ export default function ProjectPage() {
                       )}
                     </>
                   ) : (
-                    `${tasks.length} משימות זמינות`
+                    `${tasks.length} משימות`
                   )}
                 </p>
               </div>
@@ -367,9 +401,11 @@ export default function ProjectPage() {
         <div className="bg-muted/20 border-b border-border">
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4">
-              {/* Filter Dropdown */}
-              {availableDayTimes.length > 0 && (
-                <div className="relative" data-filter-dropdown>
+              {/* Filter and Sort Controls */}
+              <div className="flex items-center gap-3">
+                {/* Filter Dropdown */}
+                {availableDayTimes.length > 0 && (
+                  <div className="relative" data-filter-dropdown>
                   <button
                     onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
                     className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg hover:bg-accent transition-colors"
@@ -447,23 +483,77 @@ export default function ProjectPage() {
                 </div>
               )}
 
-              {/* Stats */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
-                  {hasActiveFilters ? (
-                    <>
-                      {filteredTasks.length} מתוך {tasks.length} משימות
-                      {activeFilters.dayTime.length > 0 && (
-                        <span className="mr-2">
-                          • {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    `${tasks.length} משימות זמינות`
-                  )}
-                </span>
+              {/* Sort Dropdown */}
+              <div className="relative" data-sort-dropdown>
+                <button
+                  onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <ArrowRight className={`h-4 w-4 text-muted-foreground transition-transform ${sortBy === 'priority-asc' ? 'rotate-90' : '-rotate-90'}`} />
+                  <span className="text-sm font-medium">
+                    {sortBy === 'priority-asc' ? 'עדיפות: גבוהה ראשונה' : 'עדיפות: נמוכה ראשונה'}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* Sort Dropdown Menu */}
+                {isSortDropdownOpen && (
+                  <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-56">
+                    <div className="space-y-1">
+                      <button
+                        onClick={() => {
+                          setSortBy('priority-asc');
+                          setIsSortDropdownOpen(false);
+                        }}
+                        className={`
+                          w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-right
+                          ${sortBy === 'priority-asc'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-accent text-foreground'
+                          }
+                        `}
+                      >
+                        <ArrowRight className="h-4 w-4 rotate-90" />
+                        <span>עדיפות: גבוהה ראשונה</span>
+                        <span className="text-xs opacity-70">(1, 2, 3...)</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setSortBy('priority-desc');
+                          setIsSortDropdownOpen(false);
+                        }}
+                        className={`
+                          w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-right
+                          ${sortBy === 'priority-desc'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-accent text-foreground'
+                          }
+                        `}
+                      >
+                        <ArrowRight className="h-4 w-4 -rotate-90" />
+                        <span>עדיפות: נמוכה ראשונה</span>
+                        <span className="text-xs opacity-70">(10, 9, 8...)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+
+              {/* Stats */}
+              {hasActiveFilters && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
+                    {sortedTasks.length} מתוך {tasks.length} משימות
+                    {activeFilters.dayTime.length > 0 && (
+                      <span className="mr-2">
+                        • {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -477,7 +567,7 @@ export default function ProjectPage() {
             <h3 className="text-lg font-semibold text-foreground mb-2">אין משימות זמינות</h3>
             <p className="text-muted-foreground">משימות יופיעו כאן כאשר יתווספו על ידי המנהל</p>
           </div>
-        ) : filteredTasks.length === 0 ? (
+        ) : sortedTasks.length === 0 ? (
           <div className="text-center py-12">
             <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">אין משימות מתאימות לסינון</h3>
@@ -496,11 +586,10 @@ export default function ProjectPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredTasks
-              .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
+            {sortedTasks
               .map((task) => {
                 const isExpanded = expandedTasks.has(task.id);
-                const taskSubtasks = subtasks[task.id] || [];
+                const taskSubtasks = getFilteredSubtasks(task.id);
                 
                 return (
                   <div key={task.id} className="bg-card rounded-lg border border-border overflow-hidden">
@@ -687,20 +776,20 @@ export default function ProjectPage() {
                                               </div>
                                             </div>
 
-                                            {/* Day Time Display */}
-                                            {subtask.dayTime && subtask.dayTime.length > 0 && (
-                                              <div>
-                                                <span className="font-medium text-foreground text-xs">זמני יום: </span>
-                                                <div className="inline-flex gap-1 mt-1">
-                                                  {subtask.dayTime.map((dt) => (
-                                                    <span key={dt} className="inline-flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-xs">
-                                                      <span>{getDayTimeIcon(dt)}</span>
-                                                      <span>{getDayTimeLabel(dt)}</span>
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
+                                                                        {/* Day Time Display */}
+                            {subtask.dayTime && subtask.dayTime.length > 0 && (
+                              <div>
+                                <span className="font-medium text-foreground text-xs">זמני יום: </span>
+                                <div className="inline-flex gap-1 mt-1">
+                                  {subtask.dayTime.map((dt, index) => (
+                                    <span key={`${subtask.id}-dayTime-${index}-${dt}`} className="inline-flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-xs">
+                                      <span>{getDayTimeIcon(dt)}</span>
+                                      <span>{getDayTimeLabel(dt)}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
                                             {/* Target Cars */}
                                             <div>
