@@ -30,6 +30,10 @@ function ImageViewerModal({
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  
+  // Touch handling for mobile swipe gestures
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
 
   // Reset states when modal opens/closes or image changes
   useEffect(() => {
@@ -157,23 +161,67 @@ function ImageViewerModal({
     }
   };
 
+  // Touch handlers for mobile swipe navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const isLeftSwipe = distanceX > 50;
+    const isRightSwipe = distanceX < -50;
+    const isUpSwipe = distanceY > 50;
+    const isDownSwipe = distanceY < -50;
+    
+    // Only handle horizontal swipes if they're more significant than vertical
+    if (Math.abs(distanceX) > Math.abs(distanceY)) {
+      if (isLeftSwipe && images.length > 1) {
+        nextImage();
+      }
+      if (isRightSwipe && images.length > 1) {
+        prevImage();
+      }
+    }
+    // Handle vertical swipe down to close (mobile-friendly)
+    else if (isDownSwipe && Math.abs(distanceY) > 100) {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div 
       ref={modalRef}
-      className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm transition-all duration-300 ease-out"
+      className="fixed inset-0 z-[9999] bg-background/80 backdrop-blur-lg transition-all duration-300 ease-out"
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-4">
+      <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background/70 to-transparent backdrop-blur-md p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {title && (
-              <h2 className="text-white text-lg font-medium">{title}</h2>
+              <h2 className="text-foreground text-lg font-medium">{title}</h2>
             )}
             {images.length > 1 && (
-              <div className="text-white/80 text-sm bg-black/30 px-3 py-1 rounded-full">
+              <div className="text-muted-foreground text-sm bg-muted/70 px-3 py-1 rounded-full">
                 {currentIndex + 1} / {images.length}
               </div>
             )}
@@ -186,7 +234,7 @@ function ImageViewerModal({
                 e.stopPropagation();
                 setIsZoomed(!isZoomed);
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
               title={isZoomed ? 'Zoom Out' : 'Zoom In'}
             >
               {isZoomed ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
@@ -198,7 +246,7 @@ function ImageViewerModal({
                 e.stopPropagation();
                 setRotation(prev => (prev + 90) % 360);
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
               title="Rotate"
             >
               <RotateCw className="h-5 w-5" />
@@ -210,7 +258,7 @@ function ImageViewerModal({
                 e.stopPropagation();
                 handleDownload();
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
               title="Download"
             >
               <Download className="h-5 w-5" />
@@ -222,7 +270,7 @@ function ImageViewerModal({
                 e.stopPropagation();
                 handleShare();
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
               title="Share"
             >
               <Share2 className="h-5 w-5" />
@@ -234,22 +282,22 @@ function ImageViewerModal({
                 e.stopPropagation();
                 toggleFullscreen();
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-2 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors backdrop-blur-sm"
               title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
             </button>
 
-            {/* Close */}
+            {/* Close Button - Made larger and more prominent for mobile */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-2 bg-black/30 hover:bg-black/50 text-white rounded-full transition-colors"
+              className="p-3 bg-destructive/80 hover:bg-destructive text-destructive-foreground rounded-full transition-colors backdrop-blur-sm"
               title="Close"
             >
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -263,7 +311,7 @@ function ImageViewerModal({
               e.stopPropagation();
               prevImage();
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all hover:scale-110"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-all hover:scale-110 backdrop-blur-sm"
             title="Previous Image"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -274,7 +322,7 @@ function ImageViewerModal({
               e.stopPropagation();
               nextImage();
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full transition-all hover:scale-110"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-all hover:scale-110 backdrop-blur-sm"
             title="Next Image"
           >
             <ChevronRight className="h-6 w-6" />
@@ -291,16 +339,16 @@ function ImageViewerModal({
           {/* Loading Spinner */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
           )}
 
           {/* Error State */}
           {imageError && (
-            <div className="flex flex-col items-center justify-center text-white p-8">
-              <ImageIcon className="h-16 w-16 mb-4 text-white/50" />
+            <div className="flex flex-col items-center justify-center text-foreground p-8">
+              <ImageIcon className="h-16 w-16 mb-4 text-muted-foreground" />
               <p className="text-lg">Failed to load image</p>
-              <p className="text-sm text-white/70 mt-2">Please try again later</p>
+              <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
             </div>
           )}
 
@@ -329,7 +377,7 @@ function ImageViewerModal({
 
       {/* Thumbnail Strip (for multiple images) */}
       {images.length > 1 && (
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/50 to-transparent p-4">
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-background/70 to-transparent backdrop-blur-md p-4">
           <div className="flex justify-center gap-2 overflow-x-auto max-w-full">
             {images.map((image, index) => (
               <button
@@ -341,8 +389,8 @@ function ImageViewerModal({
                 className={`
                   flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all
                   ${index === currentIndex 
-                    ? 'border-white shadow-lg scale-110' 
-                    : 'border-white/30 hover:border-white/60'
+                    ? 'border-primary shadow-lg scale-110' 
+                    : 'border-border hover:border-primary/60'
                   }
                 `}
               >
@@ -358,9 +406,22 @@ function ImageViewerModal({
         </div>
       )}
 
-      {/* Keyboard Shortcuts Help */}
-      <div className="absolute bottom-4 left-4 text-white/60 text-xs">
-        <div>ESC: Close • ←/→: Navigate • Space: Zoom • R: Rotate</div>
+      {/* Mobile-friendly close overlay */}
+      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10 md:hidden">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="px-6 py-3 bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded-full transition-colors backdrop-blur-sm font-medium shadow-lg"
+        >
+          סגור תצוגה
+        </button>
+      </div>
+
+      {/* Keyboard Shortcuts Help - Hidden on mobile */}
+      <div className="absolute bottom-4 left-4 text-muted-foreground text-xs hidden md:block">
+        <div>ESC: Close • ←/→: Navigate • Space: Zoom • R: Rotate • Click outside: Close</div>
       </div>
     </div>
   );

@@ -20,7 +20,11 @@ import {
   Sun,
   Moon,
   Sunset,
-  Sunrise
+  Sunrise,
+  ImageIcon,
+  Hash,
+  TrendingUp,
+  Layers
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
@@ -244,11 +248,11 @@ export default function ProjectPage() {
 
   const getDayTimeIcon = (dayTime: string) => {
     switch (dayTime) {
-      case 'day': return '☀️';
-      case 'night': return '🌙';
-      case 'dusk': return '🌆';
-      case 'dawn': return '🌅';
-      default: return '🕐';
+      case 'day': return <Sun className="h-2.5 w-2.5" />;
+      case 'night': return <Moon className="h-2.5 w-2.5" />;
+      case 'dusk': return <Sunset className="h-2.5 w-2.5" />;
+      case 'dawn': return <Sunrise className="h-2.5 w-2.5" />;
+      default: return <Clock className="h-2.5 w-2.5" />;
     }
   };
 
@@ -317,6 +321,19 @@ export default function ProjectPage() {
   // Check if any filters are active
   const hasActiveFilters = activeFilters.dayTime.length > 0;
 
+  // Calculate total subtasks
+  const totalSubtasks = Object.values(subtasks).reduce((total, taskSubtasks) => total + taskSubtasks.length, 0);
+  const filteredSubtasks = hasActiveFilters 
+    ? Object.values(subtasks).reduce((total, taskSubtasks) => {
+        const filtered = taskSubtasks.filter(subtask => 
+          activeFilters.dayTime.some(selectedTime => 
+            subtask.dayTime.includes(selectedTime)
+          )
+        );
+        return total + filtered.length;
+      }, 0)
+    : totalSubtasks;
+
   // Get unique day times from all tasks for filter options
   const availableDayTimes = Array.from(
     new Set(tasks.flatMap(task => task.dayTime))
@@ -359,48 +376,65 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Page Header */}
-      <div className="bg-card border-b border-border">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              aria-label="חזור"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </button>
-            <div className="flex items-center gap-3 flex-1">
-              <div>
-                <h1 className={`text-2xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+      <div className="border-b border-border/50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Side - Back Button + Project Name */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <button
+                onClick={() => router.back()}
+                className="p-1.5 rounded-md hover:bg-accent/50 transition-colors"
+                aria-label="חזור"
+              >
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+              <div className="min-w-0">
+                <h1 className={`text-xl font-semibold text-foreground truncate ${hebrewHeading.fontClass}`}>
                   {projectName}
                 </h1>
-                <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                  {hasActiveFilters ? (
-                    <>
-                      {sortedTasks.length} מתוך {tasks.length} משימות
-                      {activeFilters.dayTime.length > 0 && (
-                        <span className="mr-2">
-                          • מסונן לפי: {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    `${tasks.length} משימות`
-                  )}
-                </p>
+                {hasActiveFilters && activeFilters.dayTime.length > 0 && (
+                  <p className={`text-xs text-muted-foreground/60 mt-0.5 ${mixedBody.fontClass}`}>
+                    מסונן לפי: {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
+                  </p>
+                )}
               </div>
             </div>
-            
 
+            {/* Right Side - Stats */}
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="text-xs">
+                  <span className={`font-medium text-foreground ${mixedBody.fontClass}`}>
+                    {hasActiveFilters ? sortedTasks.length : tasks.length}
+                  </span>
+                  <span className={`text-muted-foreground/70 ${mixedBody.fontClass}`}>
+                    {hasActiveFilters && sortedTasks.length !== tasks.length ? `/${tasks.length}` : ''} משימות
+                  </span>
+                </div>
+                {totalSubtasks > 0 && (
+                  <>
+                    <div className="w-px h-4 bg-border"></div>
+                    <div className="text-xs">
+                      <span className={`font-medium text-foreground ${mixedBody.fontClass}`}>
+                        {hasActiveFilters ? filteredSubtasks : totalSubtasks}
+                      </span>
+                      <span className={`text-muted-foreground/70 ${mixedBody.fontClass}`}>
+                        {hasActiveFilters && filteredSubtasks !== totalSubtasks ? `/${totalSubtasks}` : ''} תת-משימות
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Filter Dropdown Section */}
       {tasks.length > 0 && (
-        <div className="bg-muted/20 border-b border-border">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-between gap-4">
+        <div className="bg-muted/10 border-b border-border/30">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center justify-between gap-3">
               {/* Filter and Sort Controls */}
               <div className="flex items-center gap-3">
                 {/* Filter Dropdown */}
@@ -408,16 +442,16 @@ export default function ProjectPage() {
                   <div className="relative" data-filter-dropdown>
                   <button
                     onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-                    className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg hover:bg-accent transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
                   >
-                    <Filter className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">
                       {hasActiveFilters 
-                        ? `סינון פעיל (${activeFilters.dayTime.length})`
-                        : 'סנן לפי זמן יום'
+                        ? `סינון (${activeFilters.dayTime.length})`
+                        : 'סנן'
                       }
                     </span>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   
                   {/* Dropdown Menu */}
@@ -487,13 +521,13 @@ export default function ProjectPage() {
               <div className="relative" data-sort-dropdown>
                 <button
                   onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg hover:bg-accent transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
                 >
-                  <ArrowRight className={`h-4 w-4 text-muted-foreground transition-transform ${sortBy === 'priority-asc' ? 'rotate-90' : '-rotate-90'}`} />
-                  <span className="text-sm font-medium">
-                    {sortBy === 'priority-asc' ? 'עדיפות: גבוהה ראשונה' : 'עדיפות: נמוכה ראשונה'}
+                  <ArrowRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${sortBy === 'priority-asc' ? 'rotate-90' : '-rotate-90'}`} />
+                  <span className="text-xs font-medium">
+                    {sortBy === 'priority-asc' ? 'עדיפות ↑' : 'עדיפות ↓'}
                   </span>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {/* Sort Dropdown Menu */}
@@ -543,14 +577,9 @@ export default function ProjectPage() {
 
               {/* Stats */}
               {hasActiveFilters && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
-                    {sortedTasks.length} מתוך {tasks.length} משימות
-                    {activeFilters.dayTime.length > 0 && (
-                      <span className="mr-2">
-                        • {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
-                      </span>
-                    )}
+                <div className="flex items-center text-xs">
+                  <span className={`text-muted-foreground/70 ${mixedBody.fontClass}`}>
+                    {sortedTasks.length}/{tasks.length}
                   </span>
                 </div>
               )}
@@ -592,42 +621,80 @@ export default function ProjectPage() {
                 const taskSubtasks = getFilteredSubtasks(task.id);
                 
                 return (
-                  <div key={task.id} className="bg-card rounded-lg border border-border overflow-hidden">
+                  <div key={task.id} className="group bg-card rounded-xl border border-border/60 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:border-border">
                     {/* Task Header - Always Visible (Collapsed View) */}
                     <button
                       onClick={() => toggleTaskExpansion(task.id)}
-                      className="w-full p-4 text-right hover:bg-accent/50 transition-colors"
+                      className="w-full p-5 text-right hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 transition-all duration-300 group relative"
                     >
+                      {/* Subtle accent border on left when hovered */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           {/* Top row: Title and Dataco number only */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-base font-semibold text-foreground">{task.title}</h3>
-                            <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
+                          <div className="flex items-center gap-4 mb-3">
+                            <h3 className="text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors duration-300">{task.title}</h3>
+                            <span className="text-xs text-muted-foreground font-mono px-3 py-1.5 bg-muted/60 rounded-lg border border-border/30 backdrop-blur-sm flex-shrink-0">
                               {formatDatacoNumber(task.datacoNumber)}
                             </span>
                           </div>
                           
-                          {/* Bottom row: Priority and subtask count */}
+                          {/* Bottom row: Enhanced priority and subtask count with icons */}
                           {!isExpanded && (
-                            <div className="flex items-center gap-3 text-xs">
-                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${getPriorityColor(task.priority)}`}>
+                                <TrendingUp className="h-2.5 w-2.5" />
                                 {getPriorityLabel(task.priority)}
                               </div>
                               {taskSubtasks.length > 0 && (
-                                <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
+                                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-medium border border-blue-200/30 dark:border-blue-800/30">
+                                  <Layers className="h-2.5 w-2.5" />
                                   {taskSubtasks.length} תת-משימות
                                 </span>
+                              )}
+                              {/* Day time indicators */}
+                              {task.dayTime && task.dayTime.length > 0 && (
+                                <div className="flex items-center gap-0.5">
+                                  {task.dayTime.slice(0, 2).map((dt, index) => {
+                                    const getIconBg = (dayTime: string) => {
+                                      switch (dayTime) {
+                                        case 'day': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200/40 dark:border-yellow-700/40';
+                                        case 'night': return 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border-slate-200/40 dark:border-slate-600/40';
+                                        case 'dusk': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200/40 dark:border-orange-700/40';
+                                        case 'dawn': return 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 border-pink-200/40 dark:border-pink-700/40';
+                                        default: return 'bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 border-gray-200/40 dark:border-gray-600/40';
+                                      }
+                                    };
+                                    return (
+                                      <span key={index} className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border ${getIconBg(dt)}`}>
+                                        {getDayTimeIcon(dt)}
+                                      </span>
+                                    );
+                                  })}
+                                  {task.dayTime.length > 2 && (
+                                    <span className="text-[10px] text-muted-foreground ml-0.5">+{task.dayTime.length - 2}</span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {isExpanded ? (
-                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          {/* Image preview count for collapsed state */}
+                          {!isExpanded && task.images && task.images.length > 0 && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 rounded-md text-[11px] border border-slate-200/30 dark:border-slate-700/30">
+                              <ImageIcon className="h-2.5 w-2.5" />
+                              {task.images.length}
+                            </div>
                           )}
+                          <div className="group-hover:scale-110 transition-transform duration-200">
+                            {isExpanded ? (
+                              <ChevronUp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </button>
@@ -679,12 +746,29 @@ export default function ProjectPage() {
                           {task.images && task.images.length > 0 && (
                             <div>
                               <h4 className="font-semibold text-foreground mb-2 text-sm">תמונות המשימה</h4>
-                              <ImageGallery 
-                                images={task.images} 
-                                className="w-full"
-                                showExpand={true}
-                                maxDisplay={4}
-                              />
+                              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                {task.images.slice(0, 6).map((imageUrl, index) => (
+                                  <div 
+                                    key={`task-image-${index}`} 
+                                    className="relative group aspect-square bg-muted rounded-md overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 w-16 h-16"
+                                  >
+                                    <img 
+                                      src={imageUrl} 
+                                      alt={`Task image ${index + 1}`} 
+                                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                      draggable="false"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                      <Eye className="h-3 w-3 text-white" />
+                                    </div>
+                                    {index === 5 && task.images && task.images.length > 6 && (
+                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                        <span className="text-white text-xs font-bold">+{task.images.length - 6}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
 
@@ -709,40 +793,68 @@ export default function ProjectPage() {
 
                           {/* Subtasks */}
                           {taskSubtasks.length > 0 && (
-                            <div>
-                              <h4 className="font-semibold text-foreground mb-3 text-sm">תת-משימות</h4>
-                              <div className="space-y-2">
+                            <div className="bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 rounded-xl p-4 border border-border/30 backdrop-blur-sm shadow-sm">
+                              <h4 className="font-semibold text-foreground mb-3 text-sm flex items-center gap-2">
+                                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                תת-משימות ({taskSubtasks.length})
+                              </h4>
+                              <div className="space-y-3">
                                 {taskSubtasks.map((subtask) => {
                                   const isSubtaskExpanded = expandedSubtasks.has(subtask.id);
                                   
                                   return (
-                                    <div key={subtask.id} className="bg-muted/30 rounded-lg overflow-hidden">
+                                    <div key={subtask.id} className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/20 shadow-sm hover:shadow-md transition-all duration-200">
                                       {/* Subtask Header - Minimal Info (Collapsed) */}
                                       <button
                                         onClick={() => toggleSubtaskExpansion(subtask.id)}
-                                        className="w-full p-3 text-right hover:bg-muted/50 transition-colors"
+                                        className="w-full p-3 text-right hover:bg-muted/30 transition-all duration-200 group"
                                       >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center gap-3">
-                                            <h5 className="font-medium text-foreground text-sm">{subtask.title}</h5>
-                                            <span className="text-xs text-muted-foreground font-mono px-2 py-1 bg-background rounded">
-                                              {formatDatacoNumber(subtask.datacoNumber)}
-                                            </span>
+                                            {/* Small preview image for collapsed state */}
+                                            {!isSubtaskExpanded && subtask.images && subtask.images.length > 0 && (
+                                              <div className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                                <img 
+                                                  src={subtask.images[0]} 
+                                                  alt="Preview" 
+                                                  className="w-full h-full object-cover"
+                                                  draggable="false"
+                                                />
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
+                                              <h5 className="font-medium text-foreground text-sm truncate">{subtask.title}</h5>
+                                              <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 bg-background/80 rounded text-[10px]">
+                                                  {formatDatacoNumber(subtask.datacoNumber)}
+                                                </span>
+                                                <span className="text-xs text-primary font-medium">
+                                                  {subtask.amountNeeded} {subtask.type === 'events' ? 'אירועים' : 'שעות'}
+                                                </span>
+                                              </div>
+                                            </div>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            {isSubtaskExpanded ? (
-                                              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                            ) : (
-                                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                            {subtask.images && subtask.images.length > 0 && !isSubtaskExpanded && (
+                                              <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                                {subtask.images.length} תמונות
+                                              </span>
                                             )}
+                                            <div className="group-hover:scale-110 transition-transform duration-200">
+                                              {isSubtaskExpanded ? (
+                                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                              ) : (
+                                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                       </button>
 
                                       {/* Subtask Details - Collapsible */}
                                       {isSubtaskExpanded && (
-                                        <div className="px-3 pb-3 border-t border-border/50">
-                                          <div className="pt-3 space-y-4">
+                                        <div className="px-3 pb-3 border-t border-border/20 bg-muted/10">
+                                          <div className="pt-3 space-y-3">
                                             {/* Subtitle */}
                                             {subtask.subtitle && (
                                               <div>
@@ -817,13 +929,33 @@ export default function ProjectPage() {
                                             {/* Image Section */}
                                             {subtask.images && subtask.images.length > 0 && (
                                               <div>
-                                                <h6 className="font-medium text-foreground mb-2 text-xs">תמונות</h6>
-                                                <ImageGallery 
-                                                  images={subtask.images} 
-                                                  className="w-full"
-                                                  showExpand={true}
-                                                  maxDisplay={3}
-                                                />
+                                                <h6 className="font-medium text-foreground mb-2 text-xs flex items-center gap-1">
+                                                  <ImageIcon className="h-3 w-3" />
+                                                  תמונות ({subtask.images.length})
+                                                </h6>
+                                                <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+                                                  {subtask.images.slice(0, 8).map((imageUrl, index) => (
+                                                    <div 
+                                                      key={`subtask-image-${index}`} 
+                                                      className="relative group aspect-square bg-muted rounded-sm overflow-hidden cursor-pointer shadow-xs hover:shadow-sm transition-all duration-200 w-12 h-12"
+                                                    >
+                                                      <img 
+                                                        src={imageUrl} 
+                                                        alt={`Subtask image ${index + 1}`} 
+                                                        className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+                                                        draggable="false"
+                                                      />
+                                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                                        <Eye className="h-2.5 w-2.5 text-white" />
+                                                      </div>
+                                                      {index === 7 && subtask.images && subtask.images.length > 8 && (
+                                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                                          <span className="text-white text-[10px] font-bold">+{subtask.images.length - 8}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
                                               </div>
                                             )}
                                           </div>

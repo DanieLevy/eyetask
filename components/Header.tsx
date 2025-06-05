@@ -89,7 +89,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto px-4 py-2">
         <div className="flex items-center justify-between">
-          {/* Logo Only */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-6 w-auto">
               <svg
@@ -135,6 +135,13 @@ export default function Header() {
               </svg>
             </div>
           </Link>
+
+          {/* Center - App Name */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
+            <h1 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+              Drivers Hub
+            </h1>
+          </div>
 
           {/* Actions - Theme Toggle and Mobile Menu Button */}
           <div className="flex items-center gap-2">
