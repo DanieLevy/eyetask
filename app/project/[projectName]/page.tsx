@@ -87,6 +87,9 @@ export default function ProjectPage() {
   }>({
     dayTime: []
   });
+  
+  // Dropdown state
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
@@ -181,6 +184,24 @@ export default function ProjectPage() {
   useEffect(() => {
     fetchProjectData();
   }, [fetchProjectData]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('[data-filter-dropdown]')) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+
+    if (isFilterDropdownOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isFilterDropdownOpen]);
 
   const toggleTaskExpansion = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -340,74 +361,107 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* Minimal Filter Section */}
+      {/* Filter Dropdown Section */}
       {tasks.length > 0 && (
         <div className="bg-muted/20 border-b border-border">
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between gap-4">
-              {/* Filter Controls */}
+              {/* Filter Dropdown */}
               {availableDayTimes.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                  {availableDayTimes.map((dayTime) => {
-                    const isActive = activeFilters.dayTime.includes(dayTime);
-                    const taskCount = tasks.filter(task => task.dayTime.includes(dayTime)).length;
-                    
-                    return (
-                      <button
-                        key={dayTime}
-                        onClick={() => toggleDayTimeFilter(dayTime)}
-                        className={`
-                          flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
-                          ${isActive
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'bg-background hover:bg-accent text-foreground border border-border hover:border-primary/50'
-                          }
-                        `}
-                        title={`${getDayTimeLabel(dayTime)} (${taskCount} משימות)`}
-                      >
-                        <span className="text-sm">
-                          {getDayTimeIcon(dayTime)}
-                        </span>
-                        <span className="hidden sm:inline">
-                          {getDayTimeLabel(dayTime)}
-                        </span>
-                        <span className={`
-                          px-1 rounded text-xs font-bold leading-none
-                          ${isActive 
-                            ? 'bg-primary-foreground/20 text-primary-foreground' 
-                            : 'bg-muted text-muted-foreground'
-                          }
-                        `}>
-                          {taskCount}
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div className="relative" data-filter-dropdown>
+                  <button
+                    onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
+                    className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      {hasActiveFilters 
+                        ? `סינון פעיל (${activeFilters.dayTime.length})`
+                        : 'סנן לפי זמן יום'
+                      }
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isFilterDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {isFilterDropdownOpen && (
+                    <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-64 max-w-[calc(100vw-2rem)]">
+                      <div className="space-y-1">
+                        {availableDayTimes.map((dayTime) => {
+                          const isActive = activeFilters.dayTime.includes(dayTime);
+                          const taskCount = tasks.filter(task => task.dayTime.includes(dayTime)).length;
+                          
+                          return (
+                            <button
+                              key={dayTime}
+                              onClick={() => toggleDayTimeFilter(dayTime)}
+                              className={`
+                                w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors
+                                ${isActive
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'hover:bg-accent text-foreground'
+                                }
+                              `}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">
+                                  {getDayTimeIcon(dayTime)}
+                                </span>
+                                <span>
+                                  {getDayTimeLabel(dayTime)}
+                                </span>
+                              </div>
+                              <span className={`
+                                px-2 py-0.5 rounded-full text-xs font-medium
+                                ${isActive 
+                                  ? 'bg-primary-foreground/20 text-primary-foreground' 
+                                  : 'bg-muted text-muted-foreground'
+                                }
+                              `}>
+                                {taskCount}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Clear All Option */}
+                        {hasActiveFilters && (
+                          <>
+                            <hr className="my-2 border-border" />
+                            <button
+                              onClick={() => {
+                                clearAllFilters();
+                                setIsFilterDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md text-sm transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                              <span>נקה את כל הסינונים</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Clear Button & Stats */}
+              {/* Stats */}
               <div className="flex items-center gap-2 text-sm">
-                {hasActiveFilters ? (
-                  <>
-                    <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
-                      {filteredTasks.length}/{tasks.length}
-                    </span>
-                    <button
-                      onClick={clearAllFilters}
-                      className="flex items-center gap-1 px-2 py-1 text-destructive hover:bg-destructive/10 rounded transition-colors"
-                      title="נקה סינון"
-                    >
-                      <X className="h-3 w-3" />
-                      <span className="hidden sm:inline text-xs">נקה</span>
-                    </button>
-                  </>
-                ) : (
-                  <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
-                    {tasks.length} משימות
-                  </span>
-                )}
+                <span className={`text-muted-foreground ${mixedBody.fontClass}`}>
+                  {hasActiveFilters ? (
+                    <>
+                      {filteredTasks.length} מתוך {tasks.length} משימות
+                      {activeFilters.dayTime.length > 0 && (
+                        <span className="mr-2">
+                          • {activeFilters.dayTime.map(getDayTimeLabel).join(', ')}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    `${tasks.length} משימות זמינות`
+                  )}
+                </span>
               </div>
             </div>
           </div>

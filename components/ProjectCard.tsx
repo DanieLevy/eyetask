@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Clock, Folder } from 'lucide-react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useEffect, useState } from 'react';
@@ -41,69 +41,59 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
         onClick={handleProjectClick}
         className="block cursor-pointer"
       >
-        {/* Use consistent classes that don't change between server/client */}
-        <div className="bg-card rounded-lg border border-border p-4 hover:shadow-lg transition-all duration-200 group-hover:border-primary/50 relative overflow-hidden">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-primary/20 to-transparent" />
+        {/* Main Card Container */}
+        <div className="relative bg-card border border-border/40 rounded-2xl p-6 overflow-hidden transition-all duration-300 ease-out hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5 group-hover:bg-card/80">
           
-          {/* Status Indicators - Only when offline and after mount */}
+          {/* Subtle Background Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
+          {/* Status Indicators */}
           {showOfflineIndicators && (
-            <div className="absolute top-3 left-3">
-              <div className="w-2 h-2 bg-yellow-600 dark:bg-yellow-400 rounded-full animate-pulse" title="מצב אופליין" />
+            <div className="absolute top-4 right-4 z-20">
+              <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" title="מצב אופליין" />
             </div>
           )}
           
-          {/* Project Info - Static layout that doesn't change */}
-          <div className="relative text-right space-y-3 min-h-[120px] flex flex-col justify-center">
-            <div>
-              <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewFont.fontClass} leading-tight`}>
+          {/* Urgent Indicator - Very Minimal */}
+          {highPriorityCount > 0 && (
+            <div className="absolute top-4 left-4 z-20">
+              <div className="w-2 h-2 bg-red-400 rounded-full" title={`${highPriorityCount} משימות דחופות`} />
+            </div>
+          )}
+          
+                    {/* Content */}
+          <div className="relative z-10 flex items-start justify-between">
+            {/* Project Info */}
+            <div className="flex-1 pr-4">
+              <h3 className={`text-xl font-bold text-foreground group-hover:text-primary transition-colors duration-300 ${hebrewFont.fontClass} leading-tight`}>
                 {project.name}
               </h3>
               {project.description && (
-                <p className={`text-sm text-muted-foreground line-clamp-2 ${hebrewFont.fontClass} leading-relaxed mt-2`}>
+                <p className={`text-sm text-muted-foreground/70 line-clamp-2 ${hebrewFont.fontClass} leading-relaxed mt-1`}>
                   {project.description}
                 </p>
               )}
             </div>
             
-            {/* Stats Row - Right aligned */}
-            <div className="flex items-center justify-end gap-4 text-sm pt-1">
-              {highPriorityCount > 0 && (
-                <span className="bg-destructive/10 text-destructive px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 border border-destructive/20">
-                  <AlertTriangle className="h-3 w-3" />
-                  {highPriorityCount} דחוף
-                </span>
-              )}
-              <span className={`text-muted-foreground flex items-center gap-1 ${hebrewFont.fontClass}`}>
-                <span className="w-2 h-2 bg-primary rounded-full" />
-                {taskCount} משימות
+            {/* Task Count - Right Side */}
+            <div className="flex flex-col items-center text-center">
+              <span className={`text-2xl font-bold text-foreground ${hebrewFont.fontClass}`}>
+                {taskCount}
+              </span>
+              <span className={`text-sm text-muted-foreground ${hebrewFont.fontClass}`}>
+                משימות
               </span>
             </div>
           </div>
 
-          {/* Cache Info (when offline and after mount) */}
+          {/* Cache Info - Minimal */}
           {showOfflineIndicators && (
-            <div className="relative mt-3 pt-3 border-t border-border">
-              <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                <span className={hebrewFont.fontClass}>נתונים שמורים במטמון</span>
-              </div>
+            <div className="absolute bottom-4 right-4 opacity-60">
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
         </div>
       </div>
-
-      {/* Loading State Overlay - Only show after mount */}
-      {showOfflineIndicators && (
-        <div className="absolute inset-0 bg-yellow-50/80 dark:bg-yellow-900/20 backdrop-blur-sm rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <div className="text-center">
-            <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
-            <p className={`text-xs text-yellow-800 dark:text-yellow-200 ${hebrewFont.fontClass}`}>
-              נתונים לא מעודכנים
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
