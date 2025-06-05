@@ -42,10 +42,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
 };
 
 export default function RootLayout({
@@ -69,6 +65,10 @@ export default function RootLayout({
         <meta name="supported-color-schemes" content="light dark" />
         <meta name="color-scheme" content="light dark" />
         
+        {/* Theme color meta tags */}
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+        
         {/* Prevent iOS zoom on input focus */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
         
@@ -83,7 +83,6 @@ export default function RootLayout({
                     try {
                       return localStorage.getItem('theme');
                     } catch (error) {
-                      console.warn('localStorage not available:', error);
                       return null;
                     }
                   };
@@ -116,7 +115,7 @@ export default function RootLayout({
                           if (root) root.scrollTop = root.scrollTop; // Force style recalculation
                           if (body && body.offsetHeight !== undefined) body.offsetHeight;
                         } catch (reflowError) {
-                          console.warn('iOS reflow error:', reflowError);
+                          // iOS reflow error ignored
                         }
                       }
                       
@@ -133,7 +132,7 @@ export default function RootLayout({
                           root.style.setProperty('--ios-theme-force', resolvedTheme);
                           root.style.removeProperty('--ios-theme-force');
                         } catch (cssError) {
-                          console.warn('iOS CSS property error:', cssError);
+                          // iOS CSS property error ignored
                         }
                       }
                       
@@ -171,11 +170,11 @@ export default function RootLayout({
                                           }
                                         }
                                       } catch (finalReflowError) {
-                                        console.warn('Final reflow error:', finalReflowError);
+                                        // Final reflow error ignored
                                       }
                                     });
                                   } catch (cleanupError) {
-                                    console.warn('iOS cleanup error:', cleanupError);
+                                    // iOS cleanup error ignored
                                   }
                                 });
                               } catch (accelerationError) {

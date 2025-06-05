@@ -36,7 +36,6 @@ export default function ThemeToggle() {
 
   // Apply theme with iOS-specific handling
   const applyTheme = (newTheme: Theme) => {
-    console.log('[ThemeToggle] applyTheme called with:', newTheme);
     
     const applyThemeLogic = () => {
       const root = document.documentElement;
@@ -46,10 +45,8 @@ export default function ThemeToggle() {
       let resolvedTheme: 'light' | 'dark';
       if (newTheme === 'system') {
         resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        console.log('[ThemeToggle] System theme detected as:', resolvedTheme);
       } else {
         resolvedTheme = newTheme;
-        console.log('[ThemeToggle] Resolved theme set to:', resolvedTheme);
       }
       
       // Phase 1: Enhanced iOS class removal with forced reflows
@@ -62,7 +59,7 @@ export default function ThemeToggle() {
           root.scrollTop = root.scrollTop;
           if (body.offsetHeight !== undefined) body.offsetHeight;
         } catch (error) {
-          console.warn('[ThemeToggle] iOS reflow error:', error);
+          // iOS reflow error ignored
         }
         
         // Force CSS custom properties to update on iOS
@@ -70,7 +67,7 @@ export default function ThemeToggle() {
           root.style.setProperty('--ios-theme-force', Date.now().toString());
           root.style.removeProperty('--ios-theme-force');
         } catch (error) {
-          console.warn('[ThemeToggle] iOS CSS property error:', error);
+          // iOS CSS property error ignored
         }
       }
       
@@ -82,8 +79,7 @@ export default function ThemeToggle() {
       root.style.colorScheme = resolvedTheme;
       root.setAttribute('data-theme', resolvedTheme);
       body.style.colorScheme = resolvedTheme;
-      
-      console.log('[ThemeToggle] Applied theme class:', resolvedTheme, 'New root classList:', root.classList.toString());
+
       
       // Phase 4: Enhanced iOS DOM manipulation with multiple RAF
       if (typeof requestAnimationFrame !== 'undefined') {
@@ -98,7 +94,7 @@ export default function ThemeToggle() {
               root.style.transform = 'translateZ(0)';
               root.style.willChange = 'transform';
             } catch (error) {
-              console.warn('[ThemeToggle] iOS hardware acceleration error:', error);
+              // iOS hardware acceleration error ignored
             }
           }
           
@@ -106,7 +102,7 @@ export default function ThemeToggle() {
           try {
             if (root.offsetHeight !== undefined) root.offsetHeight;
           } catch (error) {
-            console.warn('[ThemeToggle] RAF reflow error:', error);
+            // RAF reflow error ignored
           }
           
           requestAnimationFrame(() => {
@@ -123,7 +119,7 @@ export default function ThemeToggle() {
                 document.head.appendChild(newMetaThemeColor);
               }
             } catch (error) {
-              console.warn('[ThemeToggle] Meta theme-color update error:', error);
+              // Meta theme-color update error ignored
             }
             
             // iOS-specific: Force viewport update with error handling
@@ -140,9 +136,9 @@ export default function ThemeToggle() {
                     }, 100);
                   }
                 }
-              } catch (error) {
-                console.warn('[ThemeToggle] iOS viewport update error:', error);
-              }
+                              } catch (error) {
+                  // iOS viewport update error ignored
+                }
             }
             
             requestAnimationFrame(() => {
@@ -176,12 +172,12 @@ export default function ThemeToggle() {
                       htmlElement.style.display = 'none';
                       if (htmlElement.offsetHeight !== undefined) htmlElement.offsetHeight; // Trigger reflow
                       htmlElement.style.display = currentDisplay || '';
-                    } catch (error) {
-                      console.warn('[ThemeToggle] iOS final reflow error:', error);
-                    }
+                                      } catch (error) {
+                    // iOS final reflow error ignored
+                  }
                   }, 10);
                 } catch (error) {
-                  console.warn('[ThemeToggle] iOS cleanup error:', error);
+                  // iOS cleanup error ignored
                 }
               }
             });
@@ -202,7 +198,7 @@ export default function ThemeToggle() {
             // Verify theme application and retry if needed
             setTimeout(() => {
               if (!root.classList.contains(resolvedTheme)) {
-                console.warn('[ThemeToggle] iOS theme application failed, retrying...');
+                // iOS theme application failed, retrying
                 root.classList.add(resolvedTheme);
                 root.style.colorScheme = resolvedTheme;
                 body.style.colorScheme = resolvedTheme;
@@ -213,13 +209,13 @@ export default function ThemeToggle() {
                     if (root.offsetHeight !== undefined) root.offsetHeight;
                     if (body.offsetHeight !== undefined) body.offsetHeight;
                   } catch (error) {
-                    console.warn('[ThemeToggle] iOS retry reflow error:', error);
+                    // iOS retry reflow error ignored
                   }
                 }, 50);
               }
             }, 100);
           } catch (error) {
-            console.warn('[ThemeToggle] iOS additional rerender error:', error);
+            // iOS additional rerender error ignored
           }
         }, 10);
         
@@ -253,16 +249,13 @@ export default function ThemeToggle() {
   // Initialize theme on mount with better iOS handling
   useEffect(() => {
     setMounted(true);
-    console.log('[ThemeToggle] Component mounted.');
     
     // Get stored theme with fallback
     const storedTheme = getTheme() || 'system';
-    console.log('[ThemeToggle] Stored theme from localStorage:', storedTheme);
     setTheme(storedTheme);
     
     // Apply theme with proper timing
     const initializeTheme = () => {
-    console.log('[ThemeToggle] Applying initial theme:', storedTheme);
     applyTheme(storedTheme);
     };
 
@@ -311,16 +304,14 @@ export default function ThemeToggle() {
           }
         }
       } catch (error) {
-        console.warn('[ThemeToggle] Event handling error:', error);
+        // Event handling error ignored
       }
     }
     
-    console.log('[ThemeToggle] toggleTheme called. Current theme:', theme);
     const themeOrder: Theme[] = ['system', 'light', 'dark'];
     const currentIndex = themeOrder.indexOf(theme);
     const nextIndex = (currentIndex + 1) % themeOrder.length;
     const newTheme = themeOrder[nextIndex];
-    console.log('[ThemeToggle] New theme will be:', newTheme);
     
     // Update state first
     setTheme(newTheme);
@@ -328,9 +319,8 @@ export default function ThemeToggle() {
     // Save to localStorage with enhanced error handling
     try {
       saveTheme(newTheme);
-      console.log('[ThemeToggle] Successfully stored new theme in localStorage:', newTheme);
     } catch (error) {
-      console.warn('[ThemeToggle] Failed to store theme in localStorage:', error);
+      // Failed to store theme in localStorage - ignored
     }
     
     // Apply theme with iOS-specific timing and error handling
@@ -349,7 +339,7 @@ export default function ThemeToggle() {
             (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : 
             newTheme;
           if (!root.classList.contains(expectedTheme)) {
-            console.warn('[ThemeToggle] Backup iOS theme application triggered');
+            // Backup iOS theme application triggered
             applyTheme(newTheme);
           }
         }, 200);
@@ -360,13 +350,12 @@ export default function ThemeToggle() {
         }, 0);
       }
     } catch (error) {
-      console.error('[ThemeToggle] Error applying theme:', error);
-      // Fallback: try to apply theme again
+      // Error applying theme - fallback: try to apply theme again
       setTimeout(() => {
         try {
     applyTheme(newTheme);
         } catch (fallbackError) {
-          console.error('[ThemeToggle] Fallback theme application also failed:', fallbackError);
+          // Fallback theme application also failed - ignored
         }
       }, 100);
     }
@@ -438,7 +427,7 @@ export default function ThemeToggle() {
           try {
             e.currentTarget.style.transform = 'scale(0.95)';
           } catch (error) {
-            console.warn('[ThemeToggle] Touch start error:', error);
+            // Touch start error ignored
           }
         }
       }}
@@ -451,7 +440,7 @@ export default function ThemeToggle() {
             e.preventDefault();
             toggleTheme(e);
           } catch (error) {
-            console.warn('[ThemeToggle] Touch end error:', error);
+            // Touch end error ignored
           }
         }
       }}
