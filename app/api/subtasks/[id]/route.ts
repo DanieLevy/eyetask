@@ -39,6 +39,7 @@ export async function GET(
       targetCar: subtaskResult.targetCar,
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
+      dayTime: subtaskResult.dayTime || [],
       createdAt: subtaskResult.createdAt.toISOString(),
       updatedAt: subtaskResult.updatedAt.toISOString()
     };
@@ -111,6 +112,7 @@ export async function PUT(
       targetCar: subtaskResult.targetCar,
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
+      dayTime: subtaskResult.dayTime || [],
       createdAt: subtaskResult.createdAt.toISOString(),
       updatedAt: subtaskResult.updatedAt.toISOString()
     };

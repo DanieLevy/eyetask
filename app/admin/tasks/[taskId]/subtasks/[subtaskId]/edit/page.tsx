@@ -31,6 +31,7 @@ interface Subtask {
   targetCar: string[];
   weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
+  dayTime: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -377,6 +378,43 @@ export default function EditSubtaskPage() {
                     <option value="Mixed">מעורב (Mixed)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Day Time */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">זמני יום</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { value: 'day', label: 'יום ☀️' },
+                    { value: 'night', label: 'לילה 🌙' },
+                    { value: 'dusk', label: 'דמדומים 🌆' },
+                    { value: 'dawn', label: 'שחר 🌅' }
+                  ].map((dayTimeOption) => (
+                    <label key={dayTimeOption.value} className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editSubtaskData.dayTime?.includes(dayTimeOption.value) || false}
+                        onChange={(e) => {
+                          const currentDayTime = editSubtaskData.dayTime || [];
+                          if (e.target.checked) {
+                            setEditSubtaskData(prev => ({
+                              ...prev,
+                              dayTime: [...currentDayTime, dayTimeOption.value]
+                            }));
+                          } else {
+                            setEditSubtaskData(prev => ({
+                              ...prev,
+                              dayTime: currentDayTime.filter(dt => dt !== dayTimeOption.value)
+                            }));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">{dayTimeOption.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">בחר את זמני היום הרלוונטיים לתת-המשימה</p>
               </div>
 
               {/* Target Cars */}

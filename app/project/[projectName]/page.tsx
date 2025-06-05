@@ -64,6 +64,7 @@ interface Subtask {
   targetCar: string[];
   weather: string;
   scene: string;
+  dayTime: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -685,6 +686,21 @@ export default function ProjectPage() {
                                                 </div>
                                               </div>
                                             </div>
+
+                                            {/* Day Time Display */}
+                                            {subtask.dayTime && subtask.dayTime.length > 0 && (
+                                              <div>
+                                                <span className="font-medium text-foreground text-xs">זמני יום: </span>
+                                                <div className="inline-flex gap-1 mt-1">
+                                                  {subtask.dayTime.map((dt) => (
+                                                    <span key={dt} className="inline-flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-xs">
+                                                      <span>{getDayTimeIcon(dt)}</span>
+                                                      <span>{getDayTimeLabel(dt)}</span>
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
 
                                             {/* Target Cars */}
                                             <div>

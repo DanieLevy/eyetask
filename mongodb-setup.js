@@ -197,6 +197,14 @@ db.createCollection("subtasks", {
           enum: ["Highway", "Urban", "Rural", "Sub-Urban", "Test Track", "Mixed"],
           description: "Scene type"
         },
+        dayTime: { 
+          bsonType: "array",
+          items: { 
+            bsonType: "string",
+            enum: ["day", "night", "dusk", "dawn"]
+          },
+          description: "Day time requirements"
+        },
         createdAt: { bsonType: "date" },
         updatedAt: { bsonType: "date" }
       }
@@ -210,6 +218,7 @@ db.subtasks.createIndex({ "taskId": 1 });
 db.subtasks.createIndex({ "type": 1 });
 db.subtasks.createIndex({ "weather": 1 });
 db.subtasks.createIndex({ "scene": 1 });
+db.subtasks.createIndex({ "dayTime": 1 });
 db.subtasks.createIndex({ "createdAt": -1 });
 
 // =============================================================================

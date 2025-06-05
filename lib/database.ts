@@ -47,6 +47,7 @@ export interface Subtask {
   targetCar: string[];
   weather?: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene?: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
+  dayTime: string[];
   createdAt: Date;
   updatedAt: Date;
 }

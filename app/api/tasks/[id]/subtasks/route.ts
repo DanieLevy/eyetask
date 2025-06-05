@@ -13,7 +13,8 @@ const subtaskSchema = {
   amountNeeded: { required: true, type: 'number' },
   labels: { required: true, type: 'object' },
   weather: { required: true, type: 'string' },
-  scene: { required: true, type: 'string' }
+  scene: { required: true, type: 'string' },
+  dayTime: { required: false, type: 'object' }
 };
 
 interface RouteParams {
@@ -177,6 +178,21 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    if (requestBody.dayTime && !Array.isArray(requestBody.dayTime)) {
+      return NextResponse.json(
+        { error: 'Day time must be an array', success: false },
+        { status: 400 }
+      );
+    }
+
+    const validDayTimeTypes = ['day', 'night', 'dusk', 'dawn'];
+    if (requestBody.dayTime && requestBody.dayTime.some((dt: string) => !validDayTimeTypes.includes(dt))) {
+      return NextResponse.json(
+        { error: `Invalid day time type. Must be one of: ${validDayTimeTypes.join(', ')}`, success: false },
+        { status: 400 }
+      );
+    }
     
     const validWeatherTypes = ['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'];
     if (requestBody.weather && !validWeatherTypes.includes(requestBody.weather)) {
@@ -206,6 +222,7 @@ export async function POST(
       targetCar: Array.isArray(requestBody.targetCar) ? requestBody.targetCar : [],
       weather: requestBody.weather || 'Clear',
       scene: requestBody.scene || 'Urban',
+      dayTime: Array.isArray(requestBody.dayTime) ? requestBody.dayTime : [],
       taskId: toObjectId(taskId)
     };
     

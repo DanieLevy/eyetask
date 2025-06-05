@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (taskIdFilter) {
       // Get subtasks for a specific task
       const subtaskResults = await db.getSubtasksByTask(taskIdFilter);
-      subtasks = subtaskResults.map(subtask => ({
+              subtasks = subtaskResults.map(subtask => ({
         id: fromObjectId(subtask._id!),
         taskId: fromObjectId(subtask.taskId),
         title: subtask.title,
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         targetCar: subtask.targetCar,
         weather: subtask.weather,
         scene: subtask.scene,
+        dayTime: subtask.dayTime || [],
         createdAt: subtask.createdAt.toISOString(),
         updatedAt: subtask.updatedAt.toISOString()
       }));
@@ -173,6 +174,7 @@ export async function POST(request: NextRequest) {
       targetCar: subtaskResult.targetCar,
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
+      dayTime: subtaskResult.dayTime || [],
       createdAt: subtaskResult.createdAt.toISOString(),
       updatedAt: subtaskResult.updatedAt.toISOString()
     };

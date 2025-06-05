@@ -32,6 +32,7 @@ interface NewSubtaskData {
   targetCar: string[];
   weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
+  dayTime: string[];
 }
 
 export default function NewSubtaskPage() {
@@ -53,7 +54,8 @@ export default function NewSubtaskPage() {
     labels: [],
     targetCar: ['EQ'],
     weather: 'Clear',
-    scene: 'Urban'
+    scene: 'Urban',
+    dayTime: []
   });
 
   useEffect(() => {
@@ -361,6 +363,43 @@ export default function NewSubtaskPage() {
                     <option value="Mixed">מעורב (Mixed)</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Day Time */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">זמני יום</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { value: 'day', label: 'יום ☀️' },
+                    { value: 'night', label: 'לילה 🌙' },
+                    { value: 'dusk', label: 'דמדומים 🌆' },
+                    { value: 'dawn', label: 'שחר 🌅' }
+                  ].map((dayTimeOption) => (
+                    <label key={dayTimeOption.value} className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newSubtaskData.dayTime?.includes(dayTimeOption.value) || false}
+                        onChange={(e) => {
+                          const currentDayTime = newSubtaskData.dayTime || [];
+                          if (e.target.checked) {
+                            setNewSubtaskData(prev => ({
+                              ...prev,
+                              dayTime: [...currentDayTime, dayTimeOption.value]
+                            }));
+                          } else {
+                            setNewSubtaskData(prev => ({
+                              ...prev,
+                              dayTime: currentDayTime.filter(dt => dt !== dayTimeOption.value)
+                            }));
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">{dayTimeOption.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">בחר את זמני היום הרלוונטיים לתת-המשימה</p>
               </div>
 
               <div>
