@@ -657,9 +657,9 @@ export default function ProjectPage() {
                                   {taskSubtasks.length} תת-משימות
                                 </span>
                               )}
-                              {/* Day time indicators */}
+                              {/* Day time indicators - now aligned with other labels */}
                               {task.dayTime && task.dayTime.length > 0 && (
-                                <div className="flex items-center gap-0.5">
+                                <div className="inline-flex items-center gap-0.5 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 px-2.5 py-1 rounded-md border border-indigo-200/30 dark:border-indigo-800/30">
                                   {task.dayTime.slice(0, 2).map((dt, index) => {
                                     const getIconBg = (dayTime: string) => {
                                       switch (dayTime) {
@@ -671,13 +671,15 @@ export default function ProjectPage() {
                                       }
                                     };
                                     return (
-                                      <span key={index} className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs border ${getIconBg(dt)}`}>
+                                      <span key={index} className={`inline-flex items-center px-1 py-0.5 rounded text-[10px] border ${getIconBg(dt)}`} title={getDayTimeLabel(dt)}>
                                         {getDayTimeIcon(dt)}
                                       </span>
                                     );
                                   })}
                                   {task.dayTime.length > 2 && (
-                                    <span className="text-[10px] text-muted-foreground ml-0.5">+{task.dayTime.length - 2}</span>
+                                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium ml-1" title={`${task.dayTime.length - 2} זמני יום נוספים: ${task.dayTime.slice(2).map(getDayTimeLabel).join(', ')}`}>
+                                      +{task.dayTime.length - 2}
+                                    </span>
                                   )}
                                 </div>
                               )}

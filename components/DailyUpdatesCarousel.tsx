@@ -338,10 +338,16 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                 e.stopPropagation();
                 hideUpdate(currentUpdate.id);
               }}
-              className="absolute top-2 left-2 p-1 hover:bg-slate-700/50 dark:hover:bg-slate-600/50 rounded-full transition-colors z-10"
+              className={`absolute top-2 left-2 w-5 h-5 rounded-full transition-all duration-200 ease-in-out z-10 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none focus:ring-1 focus:ring-offset-0 focus:ring-current/30 ${
+                currentUpdate.type === 'warning' ? 'hover:bg-yellow-200/50 dark:hover:bg-yellow-700/30 text-yellow-700 dark:text-yellow-300' :
+                currentUpdate.type === 'success' ? 'hover:bg-green-200/50 dark:hover:bg-green-700/30 text-green-700 dark:text-green-300' :
+                currentUpdate.type === 'error' ? 'hover:bg-red-200/50 dark:hover:bg-red-700/30 text-red-700 dark:text-red-300' :
+                currentUpdate.type === 'announcement' ? 'hover:bg-blue-200/50 dark:hover:bg-blue-700/30 text-blue-700 dark:text-blue-300' :
+                'hover:bg-slate-200/50 dark:hover:bg-slate-700/30 text-slate-700 dark:text-slate-300'
+              }`}
               title="הסתר עדכון זה"
             >
-              <X className="h-3 w-3 opacity-60 hover:opacity-100 text-slate-600 dark:text-slate-300" />
+              <X className="h-3 w-3" />
             </button>
           )}
 

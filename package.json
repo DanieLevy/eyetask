@@ -29,12 +29,12 @@
     "postcss": "^8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-simple-image-viewer": "^1.2.2",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.8",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^9.0.1",
-    "ws": "^8.16.0"
+    "ws": "^8.16.0",
+    "yet-another-react-lightbox": "^3.23.2"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.11.2",

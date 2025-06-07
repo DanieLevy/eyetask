@@ -1,8 +1,106 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, Eye } from 'lucide-react';
-import ImageViewer from 'react-simple-image-viewer';
+import { Upload, X, Eye, ZoomIn, Download as DownloadIcon } from 'lucide-react';
+import Lightbox from 'yet-another-react-lightbox';
+import Counter from 'yet-another-react-lightbox/plugins/counter';
+import Download from 'yet-another-react-lightbox/plugins/download';
+import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import 'yet-another-react-lightbox/styles.css';
+import 'yet-another-react-lightbox/plugins/counter.css';
+import 'yet-another-react-lightbox/plugins/thumbnails.css';
+
+// =============================================
+// IMAGE UTILITIES
+// =============================================
+
+// Shared lightbox styling for consistent appearance
+export const lightboxStyles = {
+  default: {
+    container: { backgroundColor: "rgba(0, 0, 0, 0.85)" },
+    button: { 
+      filter: "none",
+      backgroundColor: "rgba(255, 255, 255, 0.15)",
+      borderRadius: "50%",
+      padding: "8px",
+      margin: "8px"
+    }
+  },
+  light: {
+    container: { backgroundColor: "rgba(255, 255, 255, 0.95)" },
+    button: { 
+      filter: "none",
+      backgroundColor: "rgba(0, 0, 0, 0.15)",
+      borderRadius: "50%",
+      padding: "8px",
+      margin: "8px"
+    }
+  }
+};
+
+export const imageUtils = {
+  // Validate file type and size
+  validateImage: (file: File, maxSizeMB: number = 5): { valid: boolean; error?: string } => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    
+    if (!validTypes.includes(file.type)) {
+      return { valid: false, error: 'Please select a valid image file (JPG, PNG, WebP, GIF)' };
+    }
+    
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return { valid: false, error: `Image must be smaller than ${maxSizeMB}MB` };
+    }
+    
+    return { valid: true };
+  },
+
+  // Create optimized preview URL
+  createPreviewUrl: (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          resolve(e.target.result as string);
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  },
+
+  // Get image dimensions
+  getImageDimensions: (file: File): Promise<{ width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.width, height: img.height });
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = url;
+    });
+  },
+
+  // Format file size for display
+  formatFileSize: (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+};
 
 // =============================================
 // SIMPLE IMAGE UPLOAD COMPONENT
@@ -29,17 +127,23 @@ export function ImageUpload({
   const handleFileSelect = useCallback(async (file: File) => {
     if (disabled || isUploading) return;
 
+    // Validate image first
+    const validation = imageUtils.validateImage(file);
+    if (!validation.valid) {
+      alert(validation.error);
+      return;
+    }
+
     setIsUploading(true);
     
     try {
-      // Create preview immediately
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPreview(result);
-      };
-      reader.readAsDataURL(file);
+      // Create optimized preview
+      const previewUrl = await imageUtils.createPreviewUrl(file);
+      setPreview(previewUrl);
 
+      // Get image dimensions for better handling
+      const dimensions = await imageUtils.getImageDimensions(file);
+      
       // Simulate upload - replace with your actual upload logic
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -217,15 +321,29 @@ function ImagePreview({ imageUrl, onRemove, disabled }: ImagePreviewProps) {
         </p>
       </div>
 
-      {showViewer && (
-        <ImageViewer
-          src={[imageUrl]}
-          currentIndex={0}
-          onClose={() => setShowViewer(false)}
-          disableScroll={false}
-          closeOnClickOutside={true}
-        />
-      )}
+      <Lightbox
+        open={showViewer}
+        close={() => setShowViewer(false)}
+        slides={[{ src: imageUrl }]}
+        plugins={[Counter, Download, Fullscreen, Zoom]}
+        animation={{ fade: 400, swipe: 300 }}
+        controller={{ 
+          closeOnBackdropClick: true,
+          closeOnPullDown: true,
+          closeOnPullUp: true 
+        }}
+        zoom={{
+          maxZoomPixelRatio: 4,
+          zoomInMultiplier: 2,
+          doubleTapDelay: 300,
+          doubleClickDelay: 300,
+          scrollToZoom: true
+        }}
+        counter={{
+          container: { style: { top: "unset", bottom: 0 } },
+        }}
+        styles={lightboxStyles.default}
+      />
     </>
   );
 }
@@ -265,9 +383,25 @@ export function MultipleImageUpload({
   const handleFilesSelect = useCallback(async (files: File[]) => {
     if (disabled || isUploading) return;
 
-    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    // Filter and validate images
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    for (const file of Array.from(files)) {
+      const validation = imageUtils.validateImage(file);
+      if (validation.valid) {
+        validFiles.push(file);
+      } else {
+        errors.push(`${file.name}: ${validation.error}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      alert(`Some files were rejected:\n${errors.join('\n')}`);
+    }
+
     const remainingSlots = maxImages - previews.length;
-    const filesToProcess = imageFiles.slice(0, remainingSlots);
+    const filesToProcess = validFiles.slice(0, remainingSlots);
 
     if (filesToProcess.length === 0) return;
 
@@ -276,11 +410,15 @@ export function MultipleImageUpload({
     try {
       const newImageUrls: string[] = [];
       
-      // Process each file
+      // Process each file with better error handling
       for (const file of filesToProcess) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const imageUrl = URL.createObjectURL(file);
-        newImageUrls.push(imageUrl);
+        try {
+          const previewUrl = await imageUtils.createPreviewUrl(file);
+          await new Promise(resolve => setTimeout(resolve, 300)); // Simulate upload
+          newImageUrls.push(previewUrl);
+        } catch (fileError) {
+          console.error(`Failed to process ${file.name}:`, fileError);
+        }
       }
       
       const updatedImages = [...previews, ...newImageUrls];
@@ -463,15 +601,30 @@ function MultipleImagePreview({ imageUrl, onRemove, disabled, index, allImages }
         </p>
       </div>
 
-      {showViewer && (
-        <ImageViewer
-          src={allImages}
-          currentIndex={index}
-          onClose={() => setShowViewer(false)}
-          disableScroll={false}
-          closeOnClickOutside={true}
-        />
-      )}
+      <Lightbox
+        open={showViewer}
+        close={() => setShowViewer(false)}
+        slides={allImages.map(src => ({ src }))}
+        index={index}
+        plugins={[Counter, Download, Fullscreen, Zoom]}
+        animation={{ fade: 400, swipe: 300 }}
+        controller={{ 
+          closeOnBackdropClick: true,
+          closeOnPullDown: true,
+          closeOnPullUp: true 
+        }}
+        zoom={{
+          maxZoomPixelRatio: 4,
+          zoomInMultiplier: 2,
+          doubleTapDelay: 300,
+          doubleClickDelay: 300,
+          scrollToZoom: true
+        }}
+        counter={{
+          container: { style: { top: "unset", bottom: 0 } },
+        }}
+        styles={lightboxStyles.default}
+      />
     </>
   );
 }
@@ -550,15 +703,30 @@ export function ImageDisplay({
         ))}
       </div>
 
-      {showViewer && (
-        <ImageViewer
-          src={images}
-          currentIndex={currentIndex}
-          onClose={() => setShowViewer(false)}
-          disableScroll={false}
-          closeOnClickOutside={true}
-        />
-      )}
+      <Lightbox
+        open={showViewer}
+        close={() => setShowViewer(false)}
+        slides={images.map(src => ({ src }))}
+        index={currentIndex}
+        plugins={[Counter, Download, Fullscreen, Zoom]}
+        animation={{ fade: 400, swipe: 300 }}
+        controller={{ 
+          closeOnBackdropClick: true,
+          closeOnPullDown: true,
+          closeOnPullUp: true 
+        }}
+        zoom={{
+          maxZoomPixelRatio: 4,
+          zoomInMultiplier: 2,
+          doubleTapDelay: 300,
+          doubleClickDelay: 300,
+          scrollToZoom: true
+        }}
+        counter={{
+          container: { style: { top: "unset", bottom: 0 } },
+        }}
+        styles={lightboxStyles.default}
+      />
     </>
   );
 }
@@ -625,18 +793,212 @@ export function ImageGallery({
         ))}
       </div>
 
-      {showViewer && (
-        <ImageViewer
-          src={images}
-          currentIndex={currentIndex}
-          onClose={() => setShowViewer(false)}
-          disableScroll={false}
-          closeOnClickOutside={true}
-        />
-      )}
+      <Lightbox
+        open={showViewer}
+        close={() => setShowViewer(false)}
+        slides={images.map(src => ({ src }))}
+        index={currentIndex}
+        plugins={[Counter, Download, Fullscreen, Zoom]}
+        animation={{ fade: 400, swipe: 300 }}
+        controller={{ 
+          closeOnBackdropClick: true,
+          closeOnPullDown: true,
+          closeOnPullUp: true 
+        }}
+        zoom={{
+          maxZoomPixelRatio: 4,
+          zoomInMultiplier: 2,
+          doubleTapDelay: 300,
+          doubleClickDelay: 300,
+          scrollToZoom: true
+        }}
+        counter={{
+          container: { style: { top: "unset", bottom: 0 } },
+        }}
+        styles={lightboxStyles.default}
+      />
     </>
   );
 }
 
+// =============================================
+// SHARED IMAGE VIEWER COMPONENT 
+// =============================================
+
+interface SharedImageViewerProps {
+  images: string[];
+  currentIndex: number;
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  theme?: 'dark' | 'light' | 'blurred' | 'custom';
+  customBackgroundColor?: string;
+}
+
+export const SharedImageViewer: React.FC<SharedImageViewerProps> = ({ 
+  images, 
+  currentIndex, 
+  isOpen, 
+  onClose,
+  title = '',
+  theme = 'dark',
+  customBackgroundColor
+}) => {
+  const slides = images.map((src, index) => ({ 
+    src,
+    alt: `${title} תמונה ${index + 1} מתוך ${images.length}`,
+    download: src // Enable download with original filename
+  }));
+
+  // Background theme options
+  const getBackgroundColor = () => {
+    if (customBackgroundColor) return customBackgroundColor;
+    
+    switch (theme) {
+      case 'light':
+        return 'rgba(255, 255, 255, 0.95)';
+      case 'blurred':
+        return 'rgba(255, 255, 255, 0.85)';
+      case 'dark':
+      default:
+        return 'rgba(0, 0, 0, 0.85)'; // Lighter than before
+    }
+  };
+
+  // Button colors based on theme
+  const getButtonStyles = () => {
+    const isLightTheme = theme === 'light' || theme === 'blurred';
+    return {
+      filter: "none",
+      backgroundColor: isLightTheme ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.15)",
+      borderRadius: "50%",
+      padding: "8px",
+      margin: "8px",
+      backdropFilter: theme === 'blurred' ? "blur(10px)" : "none"
+    };
+  };
+
+  // Counter colors based on theme
+  const getCounterStyles = () => {
+    const isLightTheme = theme === 'light' || theme === 'blurred';
+    return {
+      top: "unset", 
+      bottom: 0, 
+      right: 0,
+      left: "unset",
+      padding: "12px 16px",
+      backgroundColor: isLightTheme ? "rgba(255, 255, 255, 0.9)" : "rgba(0, 0, 0, 0.8)",
+      color: isLightTheme ? "#1f2937" : "#ffffff",
+      borderRadius: "8px 0 0 0",
+      fontSize: "14px",
+      fontWeight: "500",
+      backdropFilter: theme === 'blurred' ? "blur(10px)" : "none"
+    };
+  };
+
+  return (
+    <Lightbox
+      open={isOpen}
+      close={onClose}
+      slides={slides}
+      index={currentIndex}
+      plugins={[Counter, Download, Fullscreen, Zoom]}
+      animation={{ 
+        fade: 400, 
+        swipe: 300
+      }}
+      controller={{ 
+        closeOnBackdropClick: true,
+        closeOnPullDown: true,
+        closeOnPullUp: true,
+        preventDefaultWheelX: true,
+        preventDefaultWheelY: true
+      }}
+      zoom={{
+        maxZoomPixelRatio: 4,
+        zoomInMultiplier: 2,
+        doubleTapDelay: 300,
+        doubleClickDelay: 300,
+        doubleClickMaxStops: 2,
+        keyboardMoveDistance: 50,
+        wheelZoomDistanceFactor: 100,
+        pinchZoomDistanceFactor: 100,
+        scrollToZoom: true
+      }}
+      counter={{
+        container: { 
+          style: getCounterStyles()
+        },
+      }}
+      styles={{
+        container: { 
+          backgroundColor: getBackgroundColor(),
+          backdropFilter: theme === 'blurred' ? "blur(20px)" : "none"
+        },
+        button: getButtonStyles()
+      }}
+      carousel={{
+        finite: false,
+        preload: 2,
+        padding: "16px",
+        spacing: "30%",
+        imageFit: "contain"
+      }}
+    />
+  );
+};
+
 // Make ImageUpload the default export for backward compatibility
 export { ImageUpload as default };
+
+// =============================================
+// USAGE EXAMPLES FOR DIFFERENT THEMES
+// =============================================
+
+/*
+// Example 1: Default dark theme
+<SharedImageViewer
+  images={images}
+  currentIndex={0}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Gallery"
+/>
+
+// Example 2: Light theme
+<SharedImageViewer
+  images={images}
+  currentIndex={0}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Gallery"
+  theme="light"
+/>
+
+// Example 3: Blurred backdrop theme
+<SharedImageViewer
+  images={images}
+  currentIndex={0}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Gallery"
+  theme="blurred"
+/>
+
+// Example 4: Custom background color
+<SharedImageViewer
+  images={images}
+  currentIndex={0}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Gallery"
+  theme="custom"
+  customBackgroundColor="rgba(30, 58, 138, 0.9)" // Blue background
+/>
+
+// Available themes:
+// - 'dark' (default): rgba(0, 0, 0, 0.85) - Semi-transparent black
+// - 'light': rgba(255, 255, 255, 0.95) - Semi-transparent white  
+// - 'blurred': rgba(255, 255, 255, 0.85) with backdrop blur
+// - 'custom': Use customBackgroundColor prop
+*/
