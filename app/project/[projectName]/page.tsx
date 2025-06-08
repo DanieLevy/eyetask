@@ -635,40 +635,44 @@ export default function ProjectPage() {
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       
                       <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          {/* First row: Title only */}
-                          <div className="mb-2">
-                            <h3 className="text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors duration-300">{task.title}</h3>
-                          </div>
-                          
-                          {/* Second row: All labels including Dataco number */}
-                          {!isExpanded && (
-                            <div className="flex items-center gap-1.5 text-xs">
-                              {/* Dataco number as a label */}
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted/60 text-muted-foreground border border-border/30 backdrop-blur-sm font-mono">
+                        <div className="flex-1 min-w-0 pr-4">
+                          {/* First row: Title with minimal Dataco indicator */}
+                          <div className="mb-3">
+                            <div className="flex items-start gap-3">
+                              <h3 className="text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2 flex-1">
+                                {task.title}
+                              </h3>
+                              {/* Minimal Dataco indicator */}
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted/40 text-muted-foreground border border-border/20 font-mono text-right flex-shrink-0 mt-0.5">
                                 {formatDatacoNumber(task.datacoNumber)}
                               </span>
-                              <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${getPriorityColor(task.priority)}`}>
+                            </div>
+                          </div>
+                          
+                          {/* Second row: Functional labels with more space */}
+                          {!isExpanded && (
+                            <div className="flex items-center flex-wrap gap-2 text-xs">
+                              <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 shadow-sm ${getPriorityColor(task.priority)}`}>
                                 <TrendingUp className="h-2.5 w-2.5" />
                                 {getPriorityLabel(task.priority)}
                               </div>
                               {taskSubtasks.length > 0 && (
-                                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md text-[11px] font-medium border border-blue-200/30 dark:border-blue-800/30">
+                                <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-blue-200/30 dark:border-blue-800/30 shadow-sm">
                                   <Layers className="h-2.5 w-2.5" />
                                   {taskSubtasks.length} תת-משימות
                                 </span>
                               )}
-                              {/* Day time indicators - now aligned with other labels */}
+                              {/* Day time indicators */}
                               {task.dayTime && task.dayTime.length > 0 && (
-                                <div className="inline-flex items-center gap-0.5 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 px-2.5 py-1 rounded-md border border-indigo-200/30 dark:border-indigo-800/30">
+                                <div className="inline-flex items-center gap-0.5 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 px-3 py-1.5 rounded-lg border border-purple-200/30 dark:border-purple-800/30 shadow-sm">
                                   {task.dayTime.slice(0, 2).map((dt, index) => {
                                     const getIconBg = (dayTime: string) => {
                                       switch (dayTime) {
-                                        case 'day': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200/40 dark:border-yellow-700/40';
-                                        case 'night': return 'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border-slate-200/40 dark:border-slate-600/40';
-                                        case 'dusk': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200/40 dark:border-orange-700/40';
-                                        case 'dawn': return 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 border-pink-200/40 dark:border-pink-700/40';
-                                        default: return 'bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 border-gray-200/40 dark:border-gray-600/40';
+                                        case 'day': return 'bg-yellow-200/50 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-yellow-300/40 dark:border-yellow-700/40';
+                                        case 'night': return 'bg-slate-200/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border-slate-300/40 dark:border-slate-600/40';
+                                        case 'dusk': return 'bg-orange-200/50 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 border-orange-300/40 dark:border-orange-700/40';
+                                        case 'dawn': return 'bg-pink-200/50 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 border-pink-300/40 dark:border-pink-700/40';
+                                        default: return 'bg-gray-200/50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-gray-300/40 dark:border-gray-600/40';
                                       }
                                     };
                                     return (
@@ -678,7 +682,7 @@ export default function ProjectPage() {
                                     );
                                   })}
                                   {task.dayTime.length > 2 && (
-                                    <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium ml-1" title={`${task.dayTime.length - 2} זמני יום נוספים: ${task.dayTime.slice(2).map(getDayTimeLabel).join(', ')}`}>
+                                    <span className="text-[10px] text-purple-700 dark:text-purple-300 font-medium ml-1" title={`${task.dayTime.length - 2} זמני יום נוספים: ${task.dayTime.slice(2).map(getDayTimeLabel).join(', ')}`}>
                                       +{task.dayTime.length - 2}
                                     </span>
                                   )}
