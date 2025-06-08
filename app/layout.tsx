@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -11,15 +10,16 @@ import OfflineBanner from "@/components/OfflineBanner";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
 
-const geistSans = Geist({
+// Using system fonts to avoid network issues during build
+const systemSans = {
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+  className: "font-sans",
+};
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const systemMono = {
+  variable: "--font-geist-mono", 
+  className: "font-mono",
+};
 
 export const metadata: Metadata = {
   title: "DC Drivers Hub - Mobileye",
@@ -307,7 +307,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${systemSans.variable} ${systemMono.variable} antialiased font-sans`}
       >
         <CSSFailsafe />
         <DeepLinkHandler>

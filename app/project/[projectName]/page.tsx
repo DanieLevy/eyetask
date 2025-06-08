@@ -636,21 +636,18 @@ export default function ProjectPage() {
                       
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          {/* Top row: Title only */}
+                          {/* First row: Title only */}
                           <div className="mb-2">
                             <h3 className="text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors duration-300">{task.title}</h3>
                           </div>
                           
-                          {/* Second row: Dataco number */}
-                          <div className="mb-3">
-                            <span className="text-xs text-muted-foreground font-mono px-3 py-1.5 bg-muted/60 rounded-lg border border-border/30 backdrop-blur-sm">
-                              {formatDatacoNumber(task.datacoNumber)}
-                            </span>
-                          </div>
-                          
-                          {/* Bottom row: Enhanced priority and subtask count with icons */}
+                          {/* Second row: All labels including Dataco number */}
                           {!isExpanded && (
                             <div className="flex items-center gap-1.5 text-xs">
+                              {/* Dataco number as a label */}
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-muted/60 text-muted-foreground border border-border/30 backdrop-blur-sm font-mono">
+                                {formatDatacoNumber(task.datacoNumber)}
+                              </span>
                               <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all duration-200 ${getPriorityColor(task.priority)}`}>
                                 <TrendingUp className="h-2.5 w-2.5" />
                                 {getPriorityLabel(task.priority)}
