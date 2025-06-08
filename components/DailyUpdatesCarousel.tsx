@@ -335,19 +335,21 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
           {hasUpdates && currentUpdate && (
             <button
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 hideUpdate(currentUpdate.id);
               }}
-              className={`absolute top-2 left-2 w-5 h-5 rounded-full transition-all duration-200 ease-in-out z-10 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none focus:ring-1 focus:ring-offset-0 focus:ring-current/30 ${
-                currentUpdate.type === 'warning' ? 'hover:bg-yellow-200/50 dark:hover:bg-yellow-700/30 text-yellow-700 dark:text-yellow-300' :
-                currentUpdate.type === 'success' ? 'hover:bg-green-200/50 dark:hover:bg-green-700/30 text-green-700 dark:text-green-300' :
-                currentUpdate.type === 'error' ? 'hover:bg-red-200/50 dark:hover:bg-red-700/30 text-red-700 dark:text-red-300' :
-                currentUpdate.type === 'announcement' ? 'hover:bg-blue-200/50 dark:hover:bg-blue-700/30 text-blue-700 dark:text-blue-300' :
-                'hover:bg-slate-200/50 dark:hover:bg-slate-700/30 text-slate-700 dark:text-slate-300'
-              }`}
+              className={`absolute top-2 left-2 w-6 h-6 rounded-full transition-all duration-200 ease-in-out z-20 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-current/50 touch-manipulation ${
+                currentUpdate.type === 'warning' ? 'hover:bg-yellow-200/70 dark:hover:bg-yellow-700/50 text-yellow-700 dark:text-yellow-300' :
+                currentUpdate.type === 'success' ? 'hover:bg-green-200/70 dark:hover:bg-green-700/50 text-green-700 dark:text-green-300' :
+                currentUpdate.type === 'error' ? 'hover:bg-red-200/70 dark:hover:bg-red-700/50 text-red-700 dark:text-red-300' :
+                currentUpdate.type === 'announcement' ? 'hover:bg-blue-200/70 dark:hover:bg-blue-700/50 text-blue-700 dark:text-blue-300' :
+                'hover:bg-slate-200/70 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+              } bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-current/20`}
               title="הסתר עדכון זה"
+              type="button"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3 w-3 pointer-events-none" />
             </button>
           )}
 

@@ -256,7 +256,7 @@ export default function AnalyticsPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Total Tasks */}
-                <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-shadow">
+                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <Target className="h-8 w-8 text-primary" />
                     <div className="text-right">
@@ -271,7 +271,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Projects */}
-                <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-shadow">
+                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <Users className="h-8 w-8 text-blue-500" />
                     <div className="text-right">
@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* Visits */}
-                <div className="bg-card rounded-lg border border-border p-6 hover:shadow-lg transition-shadow">
+                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <Activity className="h-8 w-8 text-green-500" />
                     <div className="text-right">
@@ -307,7 +307,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* System Health */}
-                <div className={`rounded-lg border p-6 hover:shadow-lg transition-shadow ${getHealthBgColor(analyticsData.systemHealth.score)}`}>
+                <div className={`rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 ${getHealthBgColor(analyticsData.systemHealth.score)}`}>
                   <div className="flex items-center justify-between mb-4">
                     <Zap className={`h-8 w-8 ${getHealthColor(analyticsData.systemHealth.score)}`} />
                     <div className="text-right">

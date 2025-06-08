@@ -333,8 +333,14 @@ export function usePWADetection(): UsePWADetectionReturn {
     
     // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as PWAInstallPrompt);
+      // Only prevent default if we want to control the prompt timing
+      const neverShow = localStorage.getItem(STORAGE_KEYS.NEVER_SHOW) === 'true';
+      const isStandalone = checkStandaloneMode();
+      
+      if (!neverShow && !isStandalone) {
+        e.preventDefault(); // Only prevent if we plan to show our own prompt
+        setDeferredPrompt(e as PWAInstallPrompt);
+      }
     };
 
     // Listen for app installed

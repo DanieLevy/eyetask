@@ -24,6 +24,22 @@ export default function Header() {
     setMounted(true);
   }, []);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const header = target.closest('header');
+      if (!header || !header.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside, true);
+    return () => document.removeEventListener('click', handleClickOutside, true);
+  }, [menuOpen]);
+
   // Auto-detect admin status and load user context - only after mount
   useEffect(() => {
     if (!mounted) return;
@@ -88,7 +104,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
       <div className="container mx-auto px-4 py-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-6 w-auto">
@@ -144,24 +160,29 @@ export default function Header() {
           </div>
 
           {/* Actions - Theme Toggle and Mobile Menu Button */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative z-10">
             {/* Theme Toggle - Available for all users */}
             <ThemeToggle />
             
             {/* Mobile Menu Button */}
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuOpen(!menuOpen);
+              }}
+              className="p-2 rounded-lg hover:bg-accent transition-colors touch-manipulation"
               aria-label="תפריט"
+              type="button"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5 pointer-events-none" />
             </button>
           </div>
         </div>
 
         {/* Mobile Menu - Only show after mount to prevent hydration mismatch */}
         {mounted && menuOpen && (
-          <div className="md:hidden mt-3 p-3 bg-card rounded-lg border border-border">
+          <div className="md:hidden mt-3 p-3 bg-card rounded-lg border border-border relative z-40 shadow-lg">
             <nav className="space-y-2">
               {!isHomePage && (
                 <Link 

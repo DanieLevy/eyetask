@@ -625,7 +625,7 @@ export default function ProjectPage() {
                 const taskSubtasks = getFilteredSubtasks(task.id);
                 
                 return (
-                  <div key={task.id} className="group bg-card rounded-xl border border-border/60 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:border-border">
+                  <div key={task.id} className="group bg-card rounded-xl border border-border/40 overflow-hidden shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 hover:border-border/60">
                     {/* Task Header - Always Visible (Collapsed View) */}
                     <button
                       onClick={() => toggleTaskExpansion(task.id)}
@@ -790,7 +790,7 @@ export default function ProjectPage() {
 
                           {/* Subtasks */}
                           {taskSubtasks.length > 0 && (
-                            <div className="bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 rounded-xl p-4 border border-border/30 backdrop-blur-sm shadow-sm">
+                            <div className="bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 rounded-xl p-4 border border-border/30 backdrop-blur-sm shadow-md shadow-black/5 dark:shadow-black/15">
                               <h4 className="font-semibold text-foreground mb-3 text-sm flex items-center gap-2">
                                 <div className="w-2 h-2 bg-primary rounded-full"></div>
                                 תת-משימות ({taskSubtasks.length})
@@ -800,7 +800,7 @@ export default function ProjectPage() {
                                   const isSubtaskExpanded = expandedSubtasks.has(subtask.id);
                                   
                                   return (
-                                    <div key={subtask.id} className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/20 shadow-sm hover:shadow-md transition-all duration-200">
+                                    <div key={subtask.id} className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/30 shadow-md shadow-black/5 dark:shadow-black/15 hover:shadow-lg hover:shadow-black/8 dark:hover:shadow-black/25 transition-all duration-200">
                                       {/* Subtask Header - Minimal Info (Collapsed) */}
                                       <button
                                         onClick={() => toggleSubtaskExpansion(subtask.id)}

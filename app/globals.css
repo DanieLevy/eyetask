@@ -909,10 +909,28 @@ html[lang="en"] {
   background-color: hsl(var(--muted)) !important;
 }
 
-/* Fix shadow colors for dark mode */
+/* Enhanced shadow system for better card visibility */
 .dark [class*="shadow"] {
   --tw-shadow-color: hsl(var(--border) / 0.1);
   --tw-shadow: var(--tw-shadow-colored);
+}
+
+/* Global card shadow enhancement - light but visible */
+.bg-card {
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+}
+
+.dark .bg-card {
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.25);
+}
+
+/* Enhanced hover shadows for cards */
+.bg-card:hover {
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.12);
+}
+
+.dark .bg-card:hover {
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.35);
 }
 
 /* Ensure all borders use theme colors */

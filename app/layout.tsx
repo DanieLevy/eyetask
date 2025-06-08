@@ -65,9 +65,8 @@ export default function RootLayout({
         <meta name="supported-color-schemes" content="light dark" />
         <meta name="color-scheme" content="light dark" />
         
-        {/* Theme color meta tags */}
-        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+        {/* Theme color meta tag - single without media query */}
+        <meta name="theme-color" content="#ffffff" />
         
         {/* Prevent iOS zoom on input focus */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -187,21 +186,14 @@ export default function RootLayout({
                         });
                       }
                       
-                      // Phase 5: Update meta theme-color properly - avoid the warning
+                      // Phase 5: Update meta theme-color - simplified
                       try {
-                        // Look for the main theme-color meta tag (without media query)
-                        var metaThemeColor = document.querySelector('meta[name="theme-color"]:not([media])');
+                        var metaThemeColor = document.querySelector('meta[name="theme-color"]');
                         if (metaThemeColor) {
-                          metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
-                        } else {
-                          // Create theme-color meta tag if it doesn't exist
-                          var newMetaThemeColor = document.createElement('meta');
-                          newMetaThemeColor.setAttribute('name', 'theme-color');
-                          newMetaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
-                          document.head.appendChild(newMetaThemeColor);
+                          metaThemeColor.content = resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff';
                         }
                       } catch (metaError) {
-                        console.warn('Meta theme-color update error:', metaError);
+                        // Ignore meta theme-color errors
                       }
                       
                       // iOS-specific: Force viewport update with error handling

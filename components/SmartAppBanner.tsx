@@ -89,11 +89,16 @@ export default function SmartAppBanner() {
                 התקן
               </button>
               <button
-                onClick={handleDismiss}
-                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDismiss();
+                }}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-200 touch-manipulation"
                 aria-label="סגור"
+                type="button"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 pointer-events-none" />
               </button>
             </div>
           </div>
@@ -119,10 +124,15 @@ export default function SmartAppBanner() {
                 </h3>
               </div>
               <button
-                onClick={() => setShowIOSInstructions(false)}
-                className="p-1 text-muted-foreground hover:text-card-foreground transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowIOSInstructions(false);
+                }}
+                className="p-1 text-muted-foreground hover:text-card-foreground transition-colors touch-manipulation"
+                type="button"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 pointer-events-none" />
               </button>
             </div>
 

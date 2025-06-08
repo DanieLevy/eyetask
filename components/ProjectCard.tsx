@@ -42,7 +42,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
         className="block cursor-pointer"
       >
         {/* Main Card Container */}
-        <div className="relative bg-card border border-border/40 rounded-2xl p-6 overflow-hidden transition-all duration-300 ease-out hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-0.5 group-hover:bg-card/80">
+        <div className="relative bg-card border border-border/40 rounded-2xl p-6 overflow-hidden shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 hover:border-primary/30 hover:-translate-y-0.5 group-hover:bg-card/80 transition-all duration-300 ease-out">
           
           {/* Subtle Background Gradient */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
