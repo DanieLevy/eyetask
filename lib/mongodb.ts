@@ -61,9 +61,17 @@ class MongoDBConnection {
       const dbName = process.env.MONGODB_DB_NAME!;
 
       this.client = new MongoClient(uri, {
-        maxPoolSize: 10,
+        maxPoolSize: 20, // Increased pool size for better concurrency
+        minPoolSize: 5, // Maintain minimum connections
+        maxIdleTimeMS: 30000, // Close connections after 30s of inactivity
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+        heartbeatFrequencyMS: 10000,
+        retryWrites: true,
+        retryReads: true,
+        readPreference: 'primaryPreferred', // Allow reads from secondaries if primary is slow
+        compressors: ['zlib'], // Enable compression for better network performance
       });
 
       await this.client.connect();

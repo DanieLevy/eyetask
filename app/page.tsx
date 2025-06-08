@@ -10,6 +10,8 @@ import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { usePWADetection } from '@/hooks/usePWADetection';
 import ProjectCard from '@/components/ProjectCard';
+import { useHomepageData, useDataPreloader } from '@/hooks/useOptimizedData';
+import { HomepageLoadingSkeleton, ProgressiveLoader } from '@/components/SkeletonLoaders';
 
 interface Project {
   id: string;
@@ -28,14 +30,10 @@ interface Task {
 }
 
 function HomePageCore() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dataFetched, setDataFetched] = useState(false);
-  
   const { status: offlineStatus } = useOfflineStatus();
   const { status: pwaStatus } = usePWADetection();
   const searchParams = useSearchParams();
+  const { preloadProject } = useDataPreloader();
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
@@ -45,157 +43,43 @@ function HomePageCore() {
   const isPWALaunch = searchParams?.get('utm_source') === 'pwa';
   const launchSource = searchParams?.get('utm_medium');
 
-  const fetchData = useCallback(async () => {
-    try {
-      // Only show loading on initial fetch if no data has been fetched yet
-      if (!dataFetched) {
-        setLoading(true);
-      }
-      
-      // Check if we're in offline mode and should show cached data
-      const urlParams = new URLSearchParams(window.location.search);
-      const isOfflineMode = urlParams.get('offline') === 'true' || !offlineStatus.isOnline;
-      
-      if (isOfflineMode) {
-        // Try to load from cache first in offline mode
-        const cachedProjects = await getCachedData('/api/projects');
-        const cachedTasks = await getCachedData('/api/tasks');
-        
-        if (cachedProjects) {
-          setProjects(cachedProjects.projects || []);
-        }
-        
-        if (cachedTasks) {
-          const visibleTasks = (cachedTasks.tasks || []).filter((t: Task) => t.isVisible);
-          setTasks(visibleTasks);
-        }
-        
-        setDataFetched(true);
-        setLoading(false);
-        
-        // If we have cached data, don't try network calls
-        if (cachedProjects || cachedTasks) {
-          return;
-        }
-      }
-      
-      // Clear any cached data to ensure fresh content (when online)
-      if ('caches' in window && offlineStatus.isOnline) {
-        const cacheNames = await caches.keys();
-        for (const cacheName of cacheNames) {
-          if (cacheName.includes('eyetask-api')) {
-            await caches.delete(cacheName);
-          }
-        }
-      }
-      
-      // Log visit for analytics (only when online)
-      if (offlineStatus.isOnline) {
-        await fetch('/api/analytics', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
-          body: JSON.stringify({ 
-            isUniqueVisitor: true,
-            isPWALaunch,
-            launchSource,
-            displayMode: pwaStatus.displayMode,
-            isStandalone: pwaStatus.isStandalone
-          }),
-        }).catch(console.error);
-      }
+  // Use optimized data fetching
+  const { 
+    data: homepageData, 
+    loading, 
+    error, 
+    refetch,
+    isStale 
+  } = useHomepageData();
 
-      // Add cache busting timestamp
-      const timestamp = Date.now();
-      
-      // Fetch projects and tasks with cache busting
-      const [projectsResponse, tasksResponse] = await Promise.all([
-        fetch(`/api/projects?_t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }),
-        fetch(`/api/tasks?_t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
-      ]);
-
-      const [projectsData, tasksData] = await Promise.all([
-        projectsResponse.json(),
-        tasksResponse.json()
-      ]);
-
-      // Projects API returns { projects: [...], success: true }
-      if (projectsData.success && projectsData.projects) {
-        setProjects(projectsData.projects);
-      }
-      
-      // Tasks API returns { tasks: [...], success: true }
-      if (tasksData.success && tasksData.tasks) {
-        const visibleTasks = tasksData.tasks.filter((t: Task) => t.isVisible);
-        setTasks(visibleTasks);
-      }
-      
-      setDataFetched(true);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      
-      // If network fails, try to load cached data
-      if (!offlineStatus.isOnline) {
-        try {
-          const cachedProjects = await getCachedData('/api/projects');
-          const cachedTasks = await getCachedData('/api/tasks');
-          
-          if (cachedProjects?.projects) {
-            setProjects(cachedProjects.projects);
-          }
-          
-          if (cachedTasks?.tasks) {
-            const visibleTasks = cachedTasks.tasks.filter((t: Task) => t.isVisible);
-            setTasks(visibleTasks);
-          }
-        } catch (cacheError) {
-          console.error('Error loading cached data:', cacheError);
-        }
-      }
-      
-      setDataFetched(true);
-      setLoading(false);
-    }
-  }, [offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.displayMode, pwaStatus.isStandalone, dataFetched]);
-
-  // Helper function to get cached data
-  const getCachedData = async (url: string) => {
-    if (!('caches' in window)) return null;
-    
-    try {
-      const cache = await caches.open('eyetask-api-v3');
-      const cachedResponse = await cache.match(url);
-      
-      if (cachedResponse) {
-        return await cachedResponse.json();
-      }
-    } catch (error) {
-      console.error('Error retrieving cached data:', error);
-    }
-    
-    return null;
-  };
+  const projects = homepageData?.projects || [];
+  const tasks = homepageData?.tasks || [];
 
   // Register refresh function for pull-to-refresh
-  usePageRefresh(fetchData);
+  usePageRefresh(refetch);
 
+  // Log analytics for homepage visits
   useEffect(() => {
-    fetchData();
+    if (offlineStatus.isOnline && homepageData) {
+      fetch('/api/analytics', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ 
+          isUniqueVisitor: true,
+          isPWALaunch,
+          launchSource,
+          displayMode: pwaStatus.displayMode,
+          isStandalone: pwaStatus.isStandalone
+        }),
+      }).catch(console.error);
+    }
+  }, [homepageData, offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.displayMode, pwaStatus.isStandalone]);
 
-    // Register service worker for offline functionality
+  // Register service worker for offline functionality
+  useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then(registration => {
@@ -205,7 +89,12 @@ function HomePageCore() {
           console.error('Service worker registration failed:', error);
         });
     }
-  }, [fetchData]);
+  }, []);
+
+  // Preload project data on hover
+  const handleProjectHover = useCallback((projectName: string) => {
+    preloadProject(projectName);
+  }, [preloadProject]);
 
   const getTaskCountForProject = (projectId: string) => {
     return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
@@ -240,64 +129,88 @@ function HomePageCore() {
     return 'ברוכים הבאים ל-Drivers Hub';
   };
 
-  // Show loading state if we haven't fetched data yet
-  if (loading && !dataFetched) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {offlineStatus.isOnline ? 'טוען נתונים...' : 'טוען נתונים מהמטמון...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      {/* Offline indicator */}
-      {!offlineStatus.isOnline && (projects.length > 0 || tasks.length > 0) && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg p-4 text-yellow-800 dark:text-yellow-200">
-          <p className="text-sm font-medium">
-            📱 מציג נתונים שמורים במטמון • הנתונים עשויים להיות לא מעודכנים
-          </p>
-        </div>
-      )}
-
-      {/* Daily Updates Section */}
-      <DailyUpdatesCarousel className="mb-8" />
-
-      {/* Main Content */}
-      <div className="space-y-8">
-        {/* Projects Grid */}
-        {projects.length === 0 ? (
+    <ProgressiveLoader
+      loading={loading}
+      error={error}
+      skeleton={<HomepageLoadingSkeleton />}
+      errorFallback={
+        <div className="container mx-auto p-6">
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">📋</div>
+            <div className="text-6xl mb-4">⚠️</div>
             <h3 className={`text-xl font-semibold mb-2 ${hebrewHeading.fontClass}`}>
-              אין פרויקטים זמינים
+              שגיאה בטעינת הנתונים
             </h3>
-            <p className={`text-muted-foreground ${mixedBody.fontClass}`}>
-              {offlineStatus.isOnline ? 
-                'נראה שעדיין לא נוספו פרויקטים למערכת' :
-                'אין פרויקטים במטמון - התחבר לאינטרנט לטעינה'
-              }
+            <p className={`text-muted-foreground mb-4 ${mixedBody.fontClass}`}>
+              {error?.message || 'אירעה שגיאה בטעינת הנתונים'}
+            </p>
+            <button
+              onClick={refetch}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              נסה שוב
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Offline indicator */}
+        {!offlineStatus.isOnline && projects.length > 0 && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg p-4 text-yellow-800 dark:text-yellow-200">
+            <p className="text-sm font-medium">
+              📱 מציג נתונים שמורים במטמון • הנתונים עשויים להיות לא מעודכנים
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                taskCount={getTaskCountForProject(project.id)}
-                highPriorityCount={getHighPriorityTasksForProject(project.id)}
-              />
-            ))}
+        )}
+
+        {/* Stale data indicator */}
+        {isStale && projects.length > 0 && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg p-3 text-blue-800 dark:text-blue-200">
+            <p className="text-sm">
+              🔄 מעדכן נתונים ברקע...
+            </p>
           </div>
         )}
+
+        {/* Daily Updates Section */}
+        <DailyUpdatesCarousel className="mb-8" />
+
+        {/* Main Content */}
+        <div className="space-y-8">
+          {/* Projects Grid */}
+          {projects.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📋</div>
+              <h3 className={`text-xl font-semibold mb-2 ${hebrewHeading.fontClass}`}>
+                אין פרויקטים זמינים
+              </h3>
+              <p className={`text-muted-foreground ${mixedBody.fontClass}`}>
+                {offlineStatus.isOnline ? 
+                  'נראה שעדיין לא נוספו פרויקטים למערכת' :
+                  'אין פרויקטים במטמון - התחבר לאינטרנט לטעינה'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => (
+                <div
+                  key={project.id}
+                  onMouseEnter={() => handleProjectHover(project.name)}
+                >
+                  <ProjectCard
+                    project={project}
+                    taskCount={getTaskCountForProject(project.id)}
+                    highPriorityCount={getHighPriorityTasksForProject(project.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ProgressiveLoader>
   );
 }
 

@@ -596,6 +596,133 @@ export class DatabaseService {
       return [];
     }
   }
+
+  // Optimized method to get all homepage data in a single aggregation query
+  async getHomepageData(): Promise<{
+    projects: Project[];
+    tasks: Task[];
+  }> {
+    try {
+      const { projects, tasks } = await mongodb.getCollections();
+      
+      // Use Promise.all to fetch projects and visible tasks concurrently
+      const [projectsResult, tasksResult] = await Promise.all([
+        projects.find({}).sort({ createdAt: -1 }).toArray(),
+        tasks.find({ isVisible: true }).sort({ priority: 1, createdAt: -1 }).toArray()
+      ]);
+      
+      return {
+        projects: projectsResult as Project[],
+        tasks: tasksResult as Task[]
+      };
+    } catch (error) {
+      handleMongoError(error, 'getHomepageData');
+      return { projects: [], tasks: [] };
+    }
+  }
+
+  // Optimized method to get all project page data in a single aggregation query
+  async getProjectPageData(projectName: string): Promise<{
+    project: Project | null;
+    tasks: Task[];
+    subtasks: Record<string, any[]>;
+  }> {
+    try {
+      const { projects, tasks, subtasks } = await mongodb.getCollections();
+      
+      // First find the project by name
+      const project = await projects.findOne({ name: projectName });
+      
+      if (!project) {
+        return { project: null, tasks: [], subtasks: {} };
+      }
+      
+      // Use aggregation to get tasks with their subtasks in a single query
+      const pipeline = [
+        {
+          $match: {
+            projectId: project._id,
+            isVisible: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'subtasks',
+            localField: '_id',
+            foreignField: 'taskId',
+            as: 'taskSubtasks'
+          }
+        },
+        {
+          $sort: { priority: 1, createdAt: -1 }
+        }
+      ];
+      
+      const tasksWithSubtasks = await tasks.aggregate(pipeline).toArray();
+      
+      // Separate tasks and subtasks
+      const projectTasks: Task[] = [];
+      const subtasksMap: Record<string, any[]> = {};
+      
+      for (const taskData of tasksWithSubtasks) {
+        const { taskSubtasks, ...task } = taskData;
+        projectTasks.push(task as Task);
+        subtasksMap[task._id.toString()] = taskSubtasks || [];
+      }
+      
+      return {
+        project: project as Project,
+        tasks: projectTasks,
+        subtasks: subtasksMap
+      };
+    } catch (error) {
+      handleMongoError(error, 'getProjectPageData');
+      return { project: null, tasks: [], subtasks: {} };
+    }
+  }
+
+  // Optimized method to get project stats (task counts, etc.)
+  async getProjectStats(): Promise<Record<string, { taskCount: number; highPriorityCount: number }>> {
+    try {
+      const { tasks } = await mongodb.getCollections();
+      
+      const pipeline = [
+        {
+          $match: { isVisible: true }
+        },
+        {
+          $group: {
+            _id: '$projectId',
+            taskCount: { $sum: 1 },
+            highPriorityCount: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $gte: ['$priority', 1] }, { $lte: ['$priority', 3] }] },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ];
+      
+      const stats = await tasks.aggregate(pipeline).toArray();
+      const statsMap: Record<string, { taskCount: number; highPriorityCount: number }> = {};
+      
+      for (const stat of stats) {
+        statsMap[stat._id.toString()] = {
+          taskCount: stat.taskCount,
+          highPriorityCount: stat.highPriorityCount
+        };
+      }
+      
+      return statsMap;
+    } catch (error) {
+      handleMongoError(error, 'getProjectStats');
+      return {};
+    }
+  }
 }
 
 // Export singleton instance

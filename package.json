@@ -13,7 +13,8 @@
     "setup-mongodb": "node scripts/migrations/setup-mongodb-collections.js",
     "migrate-from-supabase": "node scripts/migrations/supabase-to-mongodb-migration.js",
     "migrate-to-multiple-images": "node scripts/migrations/migrate-to-multiple-images.js",
-    "generate-jwt-secret": "node scripts/generate-jwt-secret.js"
+    "generate-jwt-secret": "node scripts/generate-jwt-secret.js",
+    "optimize-db": "node scripts/optimize-database.js"
   },
   "dependencies": {
     "autoprefixer": "^10.4.21",

@@ -31,6 +31,8 @@ import { useTasksRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ImageDisplay, ImageGallery } from '@/components/ImageUpload';
+import { useProjectData } from '@/hooks/useOptimizedData';
+import { ProjectPageLoadingSkeleton, ProgressiveLoader } from '@/components/SkeletonLoaders';
 
 interface Task {
   id: string;
@@ -78,13 +80,22 @@ export default function ProjectPage() {
   const router = useRouter();
   const projectName = decodeURIComponent(params.projectName as string);
   
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [subtasks, setSubtasks] = useState<Record<string, Subtask[]>>({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [dataFetched, setDataFetched] = useState(false);
-  const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Use optimized data fetching
+  const { 
+    data: projectData, 
+    loading, 
+    error, 
+    refetch,
+    isStale 
+  } = useProjectData(projectName);
+
+  const project = projectData?.project;
+  const tasks = projectData?.tasks || [];
+  const subtasks = projectData?.subtasks || {};
+  const projectId = project?.id || null;
 
   // Image viewer is now handled directly by ImageDisplay components
 
@@ -106,95 +117,11 @@ export default function ProjectPage() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
-  const fetchProjectData = useCallback(async () => {
-    try {
-      // Only show loading on initial fetch if no data has been fetched yet
-      if (!dataFetched) {
-        setLoading(true);
-      }
-      
-      // Add cache busting timestamp
-      const timestamp = Date.now();
-      
-      // First, fetch all projects to find the project ID by name
-      const projectsResponse = await fetch(`/api/projects?_t=${timestamp}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      const projectsData = await projectsResponse.json();
-      const project = projectsData.projects?.find((p: any) => p.name === projectName);
-      
-      if (!project) {
-        console.error('Project not found:', projectName);
-        setDataFetched(true);
-        setLoading(false);
-        return;
-      }
-      
-      // Fetch tasks for this project with cache busting
-      const tasksResponse = await fetch(`/api/tasks?_t=${timestamp}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      const tasksData = await tasksResponse.json();
-      
-      // Find all visible tasks for this project - simplified and more robust filtering
-      const allTasks = tasksData.tasks || [];
-      
-      const projectTasks = allTasks.filter((task: Task) => {
-        const isVisible = task.isVisible;
-        const belongsToProject = task.projectId === project.id;
-        return isVisible && belongsToProject;
-      });
-      
-      setTasks(projectTasks);
-      
-      // Fetch subtasks for each task with cache busting
-      const subtaskPromises = projectTasks.map(async (task: Task) => {
-        const subtaskResponse = await fetch(`/api/tasks/${task.id}/subtasks?_t=${timestamp}`, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        });
-        const subtaskData = await subtaskResponse.json();
-        // Handle both old and new response formats
-        const subtasks = subtaskData.data?.subtasks || subtaskData.subtasks || [];
-        return { taskId: task.id, subtasks };
-      });
-      
-      const subtaskResults = await Promise.all(subtaskPromises);
-      const subtaskMap: Record<string, Subtask[]> = {};
-      subtaskResults.forEach(({ taskId, subtasks }) => {
-        subtaskMap[taskId] = subtasks;
-      });
-      
-      setSubtasks(subtaskMap);
-      setDataFetched(true);
-      setLoading(false);
-      setProjectId(project.id);
-    } catch (error) {
-      console.error('Error fetching project data:', error);
-      setDataFetched(true);
-      setLoading(false);
-    }
-  }, [projectName, dataFetched]);
-
   // Register this page's refresh function
-  usePageRefresh(fetchProjectData);
+  usePageRefresh(refetch);
 
   // Set up realtime subscription for tasks
-  useTasksRealtime(fetchProjectData);
-
-  useEffect(() => {
-    fetchProjectData();
-  }, [fetchProjectData]);
+  useTasksRealtime(refetch);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -366,18 +293,50 @@ export default function ProjectPage() {
 
 
 
-  if (loading && !dataFetched) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען משימות...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <ProgressiveLoader
+      loading={loading}
+      error={error}
+      skeleton={<ProjectPageLoadingSkeleton />}
+      errorFallback={
+        <div className="container mx-auto p-6">
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h3 className={`text-xl font-semibold mb-2 ${hebrewHeading.fontClass}`}>
+              שגיאה בטעינת הפרויקט
+            </h3>
+            <p className={`text-muted-foreground mb-4 ${mixedBody.fontClass}`}>
+              {error?.message || 'אירעה שגיאה בטעינת נתוני הפרויקט'}
+            </p>
+            <button
+              onClick={refetch}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              נסה שוב
+            </button>
+          </div>
+        </div>
+      }
+    >
+      {!project ? (
+        <div className="container mx-auto p-6">
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className={`text-xl font-semibold mb-2 ${hebrewHeading.fontClass}`}>
+              פרויקט לא נמצא
+            </h3>
+            <p className={`text-muted-foreground mb-4 ${mixedBody.fontClass}`}>
+              הפרויקט "{projectName}" לא קיים במערכת
+            </p>
+            <button
+              onClick={() => router.push('/')}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              חזור לעמוד הבית
+            </button>
+          </div>
+        </div>
+      ) : (
     <div className="min-h-screen bg-background">
       {/* Page Header */}
       <div className="border-b border-border/50">
@@ -965,5 +924,7 @@ export default function ProjectPage() {
 
       {/* Image viewer is now integrated into ImageDisplay components */}
     </div>
+      )}
+    </ProgressiveLoader>
   );
 } 
