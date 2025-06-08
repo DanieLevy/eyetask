@@ -1,281 +1,166 @@
-# Drivers Hub - Driver Task Management System
+# 🚗 Drivers Hub - Professional Task Management System
 
-A modern web application for managing automotive data collection tasks, built with Next.js 15 and MongoDB.
+A modern, robust web application for managing automotive data collection tasks with comprehensive admin dashboard and real-time analytics.
 
-## 🚀 Features
+## ✨ Key Features
 
-- **Task Management**: Create, view, and manage automotive data collection tasks
-- **Project Organization**: Organize tasks by projects with hierarchical structure
-- **Subtask Support**: Break down tasks into smaller, manageable subtasks
-- **User Authentication**: Secure admin authentication with JWT tokens
-- **Analytics Dashboard**: Track task completion and project metrics
-- **Daily Updates**: Carousel-style announcements and updates
-- **Responsive Design**: Mobile-first design with modern UI components
-- **Real-time Data**: Live updates and efficient data fetching
+- **🎯 Task Management** - Complete CRUD operations for automotive tasks
+- **📊 Real-time Analytics** - Comprehensive dashboard with activity tracking  
+- **🎫 Feedback System** - Public feedback form with admin management
+- **📱 PWA Support** - Offline-capable progressive web app
+- **🌐 Hebrew RTL** - Full Hebrew language support with RTL layout
+- **🔐 Secure Authentication** - JWT-based admin authentication
+- **📸 Multi-Image Upload** - Support for multiple images per task
+- **🏗️ Project Organization** - Hierarchical project and subtask structure
 
-## 🛠 Technology Stack
+## 🛠️ Technology Stack
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Database**: MongoDB with native driver
-- **Authentication**: JWT with bcryptjs password hashing
-- **Styling**: Tailwind CSS with custom components
-- **UI Components**: Radix UI primitives
-- **Icons**: Lucide React
-- **Deployment**: Netlify-ready configuration
+- **Frontend:** Next.js 15, React 19, TypeScript
+- **Database:** MongoDB with optimized schema
+- **Styling:** Tailwind CSS with Hebrew RTL support
+- **Authentication:** JWT with secure session management
+- **UI Components:** Radix UI primitives
+- **Analytics:** Real-time activity logging and metrics
 
-## 📋 Prerequisites
+## 🚀 Quick Start
 
-- Node.js 18+ 
-- MongoDB Atlas account or local MongoDB instance
-- npm or yarn package manager
-
-## 🔧 Installation
-
-1. **Clone the repository**
+1. **Clone & Install**
    ```bash
    git clone <repository-url>
    cd drivers-hub
-   ```
-
-2. **Install dependencies**
-   ```bash
    npm install
    ```
 
-3. **Environment Setup**
-   
-   Create a `.env.local` file in the root directory:
-   ```env
-   # MongoDB Configuration
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
-   MONGODB_DB_NAME=drivershub
-   NODE_ENV=development
-
-   # App Configuration
-   NEXT_PUBLIC_APP_NAME="Drivers Hub"
-   NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-   # Session Secret for authentication
-   NEXTAUTH_SECRET=your-secret-key-here
-   NEXTAUTH_URL=http://localhost:3000
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your MongoDB URI and secrets
    ```
 
-4. **Database Setup**
-   
-   Set up MongoDB collections (if not already done):
+3. **Database Setup**
    ```bash
    npm run setup-mongodb
    ```
 
-5. **Start Development Server**
+4. **Start Development**
    ```bash
    npm run dev
-   ```
-
-   The application will be available at `http://localhost:3000`
-
-## 📊 Database Schema
-
-### Collections
-
-- **projects**: Project information and metadata
-- **tasks**: Main tasks with detailed specifications
-- **subtasks**: Sub-components of tasks
-- **appUsers**: Admin user accounts
-- **analytics**: Application usage statistics
-- **dailyUpdates**: Announcements and updates
-- **dailyUpdatesSettings**: Configuration for updates
-
-### Key Features
-
-- **Schema Validation**: MongoDB schema validation for data integrity
-- **Indexes**: Optimized queries with proper indexing
-- **Relationships**: ObjectId references between collections
-- **Aggregation**: Complex queries for analytics and reporting
-
-## 🔐 Authentication
-
-The application uses a custom JWT-based authentication system:
-
-- **Password Hashing**: bcryptjs with salt rounds
-- **Token Management**: HTTP-only cookies for security
-- **Role-based Access**: Admin-only endpoints protection
-- **Session Management**: Automatic token refresh and validation
-
-### Admin Setup
-
-1. Navigate to `/admin/setup` (first-time only)
-2. Create admin credentials
-3. Login at `/admin/login`
-
-## 🎯 API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout  
-- `POST /api/auth/setup` - Initial admin setup
-
-### Projects
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Create new project (admin)
-
-### Tasks
-- `GET /api/tasks` - List tasks (filtered by role)
-- `POST /api/tasks` - Create new task (admin)
-
-### Analytics
-- `GET /api/analytics` - Application metrics
-- `POST /api/analytics` - Update analytics
-
-## 🚀 Deployment
-
-### Netlify Deployment
-
-1. **Build Configuration**
-   ```bash
-   npm run build
-   ```
-
-2. **Environment Variables**
-   
-   Set the following in Netlify dashboard:
-   - `MONGODB_URI`
-   - `MONGODB_DB_NAME`
-   - `NEXTAUTH_SECRET`
-   - `NEXTAUTH_URL`
-
-3. **Deploy**
-   
-   The project includes `netlify.toml` configuration for automatic deployment.
-
-### Manual Deployment
-
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-
-2. Start production server:
-   ```bash
-   npm start
    ```
 
 ## 📁 Project Structure
 
 ```
 drivers-hub/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── admin/             # Admin dashboard
-│   ├── project/           # Project pages
-│   └── globals.css        # Global styles
-├── components/            # React components
-├── lib/                   # Utility libraries
-│   ├── mongodb.ts         # MongoDB connection
-│   ├── database.ts        # Database service
-│   ├── auth.ts           # Authentication service
-│   └── logger.ts         # Logging utilities
-├── public/               # Static assets
-├── setup-mongodb-collections.js  # Database setup
-├── supabase-to-mongodb-migration.js  # Migration script
-└── package.json          # Dependencies and scripts
+├── app/                    # Next.js 15 app directory
+│   ├── api/               # API routes (tasks, projects, feedback, analytics)
+│   ├── admin/             # Admin dashboard pages
+│   ├── feedback/          # Public feedback system
+│   └── project/           # Project detail pages
+├── components/            # Reusable React components
+│   ├── admin/             # Admin-specific components
+│   └── icons/             # Icon components
+├── lib/                   # Core utilities and services
+│   ├── services/          # Business logic services
+│   ├── types/             # TypeScript type definitions
+│   └── mongodb.ts         # Database connection
+├── docs/                  # Comprehensive documentation
+│   ├── changelogs/        # Feature updates and changes
+│   ├── deployment/        # Deployment guides
+│   ├── features/          # Feature specifications
+│   └── technical/         # Technical documentation
+├── scripts/               # Utility scripts
+│   ├── migrations/        # Database migration scripts
+│   └── seed-activities.js # Sample data generation
+└── public/               # Static assets and PWA files
 ```
 
-## 🔄 Migration from Supabase
+## 🔧 Environment Variables
 
-If migrating from a Supabase setup:
+```env
+# MongoDB Configuration
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
+MONGODB_DB_NAME=drivershub
 
-1. **Run Migration Script**
-   ```bash
-   npm run migrate-from-supabase
-   ```
+# Authentication
+NEXTAUTH_SECRET=your-secret-key
+NEXTAUTH_URL=http://localhost:3000
 
-2. **Update Environment Variables**
-   
-   Replace Supabase variables with MongoDB configuration
+# App Configuration  
+NEXT_PUBLIC_APP_NAME="Drivers Hub"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
 
-3. **Test Connection**
-   
-   Verify database connectivity and data integrity
+## 📚 Documentation
 
-## 🧪 Development
+- **[📋 Changelogs](docs/changelogs/)** - Feature updates and system changes
+- **[🚀 Deployment](docs/deployment/)** - Deployment guides and configurations  
+- **[✨ Features](docs/features/)** - Feature specifications and implementations
+- **[🔧 Technical](docs/technical/)** - Architecture and technical details
 
-### Available Scripts
+## 🎯 API Endpoints
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run setup-mongodb` - Initialize database
-- `npm run migrate-from-supabase` - Migrate from Supabase
+### Public APIs
+- `POST /api/feedback` - Submit feedback (no auth required)
+- `GET /api/feedback/subtasks` - Get available subtasks
 
-### Code Style
+### Admin APIs  
+- `GET /api/tasks` - List tasks with filtering
+- `POST /api/tasks` - Create new task
+- `GET /api/analytics` - System analytics and metrics
+- `GET /api/feedback` - Manage feedback tickets
 
-- TypeScript for type safety
-- ESLint for code quality
-- Prettier for code formatting
-- Tailwind CSS for styling
+## 🔐 Admin Access
 
-## 📈 Performance
+1. **Initial Setup:** Visit `/admin/setup` (first-time only)
+2. **Login:** Access admin dashboard at `/admin/login`
+3. **Dashboard:** Comprehensive admin interface at `/admin/dashboard`
 
-- **Database Optimization**: Indexed queries and aggregation pipelines
-- **Caching**: Strategic caching for frequently accessed data
-- **Bundle Optimization**: Tree-shaking and code splitting
-- **Image Optimization**: Next.js automatic image optimization
+## 🌟 Recent Major Features
 
-## 🔒 Security
+- **✅ Feedback System** - Complete public feedback with admin management
+- **✅ Real Analytics** - Replaced mock data with real-time analytics
+- **✅ Debug Icon** - Context-aware bug reporting from any page
+- **✅ Activity Logging** - Comprehensive audit trail for all actions
+- **✅ Multi-Image Support** - Upload multiple images per task
 
-- **Authentication**: JWT tokens with HTTP-only cookies
-- **Authorization**: Role-based access control
-- **Input Validation**: Server-side validation for all inputs
-- **Environment Variables**: Secure configuration management
-- **CORS**: Proper cross-origin resource sharing setup
+## 🚀 Deployment
 
-## 🐛 Troubleshooting
+### Vercel (Recommended)
+```bash
+npm run build
+# Deploy to Vercel with environment variables
+```
 
-### Common Issues
+### Netlify
+```bash
+npm run build
+# Uses included netlify.toml configuration
+```
 
-1. **MongoDB Connection Failed**
-   - Verify `MONGODB_URI` in environment variables
-   - Check network connectivity and firewall settings
-   - Ensure MongoDB Atlas IP whitelist includes your IP
-
-2. **Authentication Issues**
-   - Verify `NEXTAUTH_SECRET` is set
-   - Clear browser cookies and try again
-   - Check admin user exists in database
-
-3. **Build Errors**
-   - Run `npm install` to ensure all dependencies
-   - Check TypeScript errors with `npm run lint`
-   - Verify environment variables are set
-
-### Logs
-
-Application logs are available in:
-- Browser console (development)
-- Server logs (production)
-- MongoDB logs (database operations)
+### Docker
+```bash
+docker build -t drivers-hub .
+docker run -p 3000:3000 drivers-hub
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-- Next.js team for the excellent framework
-- MongoDB for the robust database solution
-- Tailwind CSS for the utility-first CSS framework
-- Radix UI for accessible component primitives
+- **📖 Documentation:** Check the [docs](docs/) directory
+- **🐛 Bug Reports:** Use the debug icon in the app or create an issue
+- **💬 Questions:** Open a discussion or contact the development team
 
 ---
 
-For more information or support, please contact the development team.
+**Built with ❤️ for automotive data collection professionals**

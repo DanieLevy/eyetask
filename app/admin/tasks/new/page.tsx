@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -13,7 +13,10 @@ import {
   ArrowLeft,
   Trash2,
   Save,
-  RotateCcw
+  RotateCcw,
+  X,
+  Menu,
+  Home
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
@@ -44,7 +47,7 @@ interface NewTaskData {
   priority: number;
 }
 
-export default function NewTaskPage() {
+function NewTaskPageCore() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -53,6 +56,7 @@ export default function NewTaskPage() {
   const [user, setUser] = useState<any>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [newTaskData, setNewTaskData] = useState<NewTaskData>({
     title: '',
@@ -211,53 +215,94 @@ export default function NewTaskPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען נתונים...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm">טוען נתונים...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/dashboard"
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              aria-label="חזור ללוח הבקרה"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <Eye className="h-6 w-6 text-primary" />
-              <div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>פאנל ניהול משימות</span>
-                  <ChevronRight className="h-4 w-4" />
-                  <span>הוסף משימה חדשה</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile-First Header */}
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="px-3 md:px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left: Navigation and Title */}
+            <div className="flex items-center gap-2 md:gap-3">
+              <Link
+                href="/admin/dashboard"
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="חזור ללוח הבקרה"
+              >
+                <ArrowRight className="h-4 w-4 text-gray-600" />
+              </Link>
+              <div className="flex items-center gap-2">
+                <Eye className="h-5 w-5 text-blue-600" />
+                <div>
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900">
+                    משימה חדשה
+                  </h1>
+                  <p className="text-xs text-gray-500 hidden sm:block">
+                    צור משימה לפרויקט
+                  </p>
                 </div>
-                <h1 className="text-lg font-bold text-foreground">צור משימה חדשה</h1>
+              </div>
+            </div>
+
+            {/* Right: Mobile Menu */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <Menu className="h-5 w-5 text-gray-600" />
+                )}
+              </button>
+
+              {/* Desktop Actions */}
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <Home className="h-4 w-4" />
+                  עמוד הבית
+                </Link>
               </div>
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-3 pt-3 border-t border-gray-200">
+              <Link
+                href="/"
+                className="flex items-center gap-2 p-3 rounded-lg hover:bg-gray-100 transition-colors w-full text-right"
+              >
+                <Home className="h-4 w-4 text-gray-600" />
+                <span className="text-sm text-gray-700">עמוד הבית</span>
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="p-3 md:p-6">
         {projects.length === 0 ? (
-          <div className="text-center py-12">
-            <AlertTriangle className="h-16 w-16 text-orange-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">אין פרויקטים זמינים</h3>
-            <p className="text-muted-foreground mb-4">כדי ליצור משימה, קודם צריך ליצור פרויקט</p>
+          <div className="text-center py-8 md:py-12">
+            <AlertTriangle className="h-12 md:h-16 w-12 md:w-16 text-orange-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">אין פרויקטים זמינים</h3>
+            <p className="text-gray-600 mb-4 text-sm">כדי ליצור משימה, קודם צריך ליצור פרויקט</p>
             <Link 
               href="/admin/dashboard"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <ArrowRight className="h-4 w-4" />
               חזור ליצירת פרויקט
@@ -265,286 +310,278 @@ export default function NewTaskPage() {
           </div>
         ) : (
           <div className="max-w-2xl mx-auto">
-            <div className="bg-card rounded-lg border border-border p-6">
-              <div className="p-6 border-b border-border">
-                <h2 className="text-xl font-semibold text-foreground">הוסף משימה חדשה</h2>
-                <p className="text-sm text-muted-foreground mt-1">צור משימה חדשה ושייך אותה לפרויקט</p>
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              {/* Header */}
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">הוסף משימה חדשה</h2>
+                <p className="text-sm text-gray-600 mt-1">צור משימה חדשה ושייך אותה לפרויקט</p>
               </div>
               
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Form */}
+              <div className="p-4 space-y-4">
+                {/* Basic Information */}
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">כותרת *</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">כותרת *</label>
                     <input
                       type="text"
                       value={newTaskData.title}
                       onChange={(e) => setNewTaskData(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                      className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="הזן כותרת למשימה"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">כותרת משנה</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">כותרת משנה</label>
                     <input
                       type="text"
                       value={newTaskData.subtitle}
                       onChange={(e) => setNewTaskData(prev => ({ ...prev, subtitle: e.target.value }))}
-                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
+                      className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="כותרת משנה (אופציונלי)"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">מספר Dataco *</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={newTaskData.datacoNumber}
+                          onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
+                          className="pl-20 p-3 w-full border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="הזן מספר"
+                          dir="ltr"
+                        />
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium pointer-events-none">
+                          DATACO-
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                      </p>
+                      {newTaskData.datacoNumber && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          תוצג כ: {formatDatacoDisplay(newTaskData.datacoNumber)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">פרויקט *</label>
+                      <select
+                        value={newTaskData.projectId}
+                        onChange={(e) => setNewTaskData(prev => ({ ...prev, projectId: e.target.value }))}
+                        className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">בחר פרויקט</option>
+                        {projects.map(project => (
+                          <option key={project.id} value={project.id}>{project.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">מספר Dataco *</label>
-                    <div className="relative">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">תיאור המשימה *</label>
+                    <textarea
+                      value={newTaskData.description}
+                      onChange={(e) => setNewTaskData(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-24 resize-none"
+                      placeholder="תאר את המשימה בפירות"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">הוראות ביצוע (אופציונלי)</label>
+                    <textarea
+                      value={newTaskData.executionInstructions}
+                      onChange={(e) => setNewTaskData(prev => ({ ...prev, executionInstructions: e.target.value }))}
+                      className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"
+                      placeholder="הזן הוראות ספציפיות לביצוע המשימה"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">הוראות ספציפיות כיצד לבצע את המשימה. אם לא תמלא, יוצג טקסט ברירת מחדל.</p>
+                  </div>
+
+                  {/* Task Images Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">תמונות המשימה (אופציונלי)</label>
+                    <MultipleImageUpload
+                      onImagesChange={(images) => setNewTaskData(prev => ({ ...prev, images }))}
+                      currentImages={newTaskData.images}
+                      disabled={operationLoading}
+                      maxImages={5}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">עדיפות (1-10) *</label>
                       <input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={newTaskData.datacoNumber}
-                        onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
-                        className="pl-20 p-3 w-full border border-border rounded-lg bg-background text-foreground"
-                        placeholder="הזן מספר"
-                        dir="ltr"
+                        value={newTaskData.priority}
+                        onChange={(e) => {
+                          const value = Number(e.target.value.replace(/[^0-9]/g, ''));
+                          setNewTaskData(prev => ({ ...prev, priority: Math.min(Math.max(value, 1), 10) }))
+                        }}
+                        className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="1-10"
+                        min="1"
+                        max="10"
                       />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium pointer-events-none">
-                        DATACO-
+                      <p className="text-xs text-gray-500 mt-1">1 = גבוהה ביותר, 10 = נמוכה</p>
+                    </div>
+                    <div className="flex items-center pt-6">
+                      <ModernCheckbox
+                        checked={newTaskData.lidar}
+                        onChange={(checked) => setNewTaskData(prev => ({ ...prev, lidar: checked }))}
+                        label="נדרש LiDAR"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Task Categories - Mobile-Optimized */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">סוג משימה</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['events', 'objects', 'scenarios', 'weather'].map((type) => (
+                          <label key={type} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newTaskData.type.includes(type)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewTaskData(prev => ({ ...prev, type: [...prev.type, type] }));
+                                } else {
+                                  setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== type) }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700 capitalize">{type}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
-                    </p>
-                    {newTaskData.datacoNumber && (
-                      <p className="text-xs text-primary mt-1">
-                        תוצג כ: {formatDatacoDisplay(newTaskData.datacoNumber)}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">פרויקט *</label>
-                    <select
-                      value={newTaskData.projectId}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, projectId: e.target.value }))}
-                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
-                    >
-                      <option value="">בחר פרויקט</option>
-                      {projects.map(project => (
-                        <option key={project.id} value={project.id}>{project.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">תיאור המשימה *</label>
-                  <textarea
-                    value={newTaskData.description}
-                    onChange={(e) => setNewTaskData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-24"
-                    placeholder="תאר את המשימה בפירות"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">הוראות ביצוע (אופציונלי)</label>
-                  <textarea
-                    value={newTaskData.executionInstructions}
-                    onChange={(e) => setNewTaskData(prev => ({ ...prev, executionInstructions: e.target.value }))}
-                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground h-20"
-                    placeholder="הזן הוראות ספציפיות לביצוע המשימה (אם ריק, יוצג: 'יש לעקוב אחר הוראות המשימה')"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">הוראות ספציפיות כיצד לבצע את המשימה. אם לא תמלא, יוצג טקסט ברירת מחדל.</p>
-                </div>
-
-                {/* Task Images Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">תמונות המשימה (אופציונלי)</label>
-                  <MultipleImageUpload
-                    onImagesChange={(images) => setNewTaskData(prev => ({ ...prev, images }))}
-                    currentImages={newTaskData.images}
-                    disabled={operationLoading}
-                    maxImages={5}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">עדיפות (1-10) *</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={newTaskData.priority}
-                      onChange={(e) => {
-                        const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                        setNewTaskData(prev => ({ ...prev, priority: Math.min(Math.max(value, 1), 10) }))
-                      }}
-                      className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
-                      placeholder="1-10"
-                      min="1"
-                      max="10"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">1 = גבוהה ביותר, 10 = נמוכה</p>
-                  </div>
-                  <div className="flex items-center pt-6">
-                    <ModernCheckbox
-                      checked={newTaskData.lidar}
-                      onChange={(checked) => setNewTaskData(prev => ({ ...prev, lidar: checked }))}
-                      label="נדרש LiDAR"
-                    />
-                  </div>
-                </div>
-
-                {/* Type Selection (Multi-select) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">סוג משימה * (ניתן לבחור מספר)</label>
-                  <div className="flex gap-4">
-                    <ModernCheckbox
-                      checked={newTaskData.type.includes('events')}
-                      onChange={(checked) => {
-                        if (checked) {
-                          setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'events'), 'events'] }));
-                        } else {
-                          setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'events') }));
-                        }
-                      }}
-                      label="Events (אירועים)"
-                    />
-                    <ModernCheckbox
-                      checked={newTaskData.type.includes('hours')}
-                      onChange={(checked) => {
-                        if (checked) {
-                          setNewTaskData(prev => ({ ...prev, type: [...prev.type.filter(t => t !== 'hours'), 'hours'] }));
-                        } else {
-                          setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== 'hours') }));
-                        }
-                      }}
-                      label="Hours (שעות)"
-                    />
-                  </div>
-                </div>
-
-                {/* Locations (Multi-select) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">מיקומים * (ניתן לבחור מספר)</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {['Urban', 'Highway', 'Rural', 'Sub-Urban', 'Mixed'].map(location => (
-                      <ModernCheckbox
-                        key={location}
-                        checked={newTaskData.locations.includes(location)}
-                        onChange={(checked) => {
-                          if (checked) {
-                            setNewTaskData(prev => ({ ...prev, locations: [...prev.locations, location] }));
-                          } else {
-                            setNewTaskData(prev => ({ ...prev, locations: prev.locations.filter(l => l !== location) }));
-                          }
-                        }}
-                        label={
-                          location === 'Urban' ? 'עירוני' : 
-                          location === 'Highway' ? 'כביש מהיר' :
-                          location === 'Rural' ? 'כפרי' :
-                          location === 'Sub-Urban' ? 'פרברי' : 'מעורב'
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Target Cars (Editable input) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד *</label>
-                  <input
-                    type="text"
-                    value={newTaskData.targetCar.join(' ')}
-                    onChange={(e) => {
-                      const carsText = e.target.value;
-                      // Allow spaces while typing - only split when there are actual complete words
-                      if (carsText.endsWith(' ') && carsText.trim().includes(' ')) {
-                        // Split only when user completes a word with space
-                        const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
-                        setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                      } else {
-                        // Keep the raw text until user adds separating spaces
-                        const carsArray = carsText.length === 0 ? [] : [carsText];
-                        setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                      }
-                    }}
-                    onBlur={(e) => {
-                      // Process the final input when user leaves the field
-                      const carsText = e.target.value;
-                      const carsArray = carsText.split(' ').map(car => car.trim()).filter(car => car.length > 0);
-                      setNewTaskData(prev => ({ ...prev, targetCar: carsArray }));
-                    }}
-                    className="w-full p-3 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="הזן שמות רכבים מופרדים ברווח (למשל: EQ EQS GLS S-Class)"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">הזן שמות רכבי יעד מופרדים ברווח</p>
-                  {newTaskData.targetCar.length > 0 && newTaskData.targetCar[0] !== '' && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {newTaskData.targetCar.map((car, index) => (
-                        <span 
-                          key={index}
-                          className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-                        >
-                          {car}
-                        </span>
-                      ))}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">מיקומים</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['Urban', 'Highway', 'Rural', 'Parking'].map((location) => (
+                          <label key={location} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newTaskData.locations.includes(location)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewTaskData(prev => ({ ...prev, locations: [...prev.locations, location] }));
+                                } else {
+                                  setNewTaskData(prev => ({ ...prev, locations: prev.locations.filter(l => l !== location) }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{location}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Day Time (Multi-select) */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">זמני יום * (ניתן לבחור מספר)</label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {['day', 'night', 'dusk', 'dawn'].map(time => (
-                      <ModernCheckbox
-                        key={time}
-                        checked={newTaskData.dayTime.includes(time)}
-                        onChange={(checked) => {
-                          if (checked) {
-                            setNewTaskData(prev => ({ ...prev, dayTime: [...prev.dayTime, time] }));
-                          } else {
-                            setNewTaskData(prev => ({ ...prev, dayTime: prev.dayTime.filter(t => t !== time) }));
-                          }
-                        }}
-                        label={
-                          time === 'day' ? 'יום' : 
-                          time === 'night' ? 'לילה' :
-                          time === 'dusk' ? 'דמדומים' : 'שחר'
-                        }
-                      />
-                    ))}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">רכב יעד</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['EQ', 'MB', 'General'].map((car) => (
+                          <label key={car} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newTaskData.targetCar.includes(car)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewTaskData(prev => ({ ...prev, targetCar: [...prev.targetCar, car] }));
+                                } else {
+                                  setNewTaskData(prev => ({ ...prev, targetCar: prev.targetCar.filter(c => c !== car) }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{car}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">זמן יום</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['day', 'night', 'twilight'].map((time) => (
+                          <label key={time} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newTaskData.dayTime.includes(time)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewTaskData(prev => ({ ...prev, dayTime: [...prev.dayTime, time] }));
+                                } else {
+                                  setNewTaskData(prev => ({ ...prev, dayTime: prev.dayTime.filter(t => t !== time) }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700 capitalize">{time}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Create Another Checkbox */}
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <input
+                      type="checkbox"
+                      id="createAnother"
+                      checked={createAnother}
+                      onChange={(e) => setCreateAnother(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="createAnother" className="text-sm text-blue-800 font-medium">
+                      צור משימה נוספת לאחר השמירה
+                    </label>
                   </div>
                 </div>
-              </div>
-              
-              <div className="p-6 border-t border-border">
-                {/* Create Another Task Option */}
-                <div className="mb-4">
-                  <ModernCheckbox
-                    checked={createAnother}
-                    onChange={(checked) => setCreateAnother(checked)}
-                    label="צור משימה נוספת לאחר השמירה (שמור הגדרות)"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו למשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
-                </div>
-                
-                <div className="flex gap-3">
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     onClick={handleCreateTask}
-                    disabled={operationLoading || !newTaskData.title || !newTaskData.datacoNumber || !newTaskData.projectId || !newTaskData.description || newTaskData.type.length === 0 || newTaskData.locations.length === 0 || newTaskData.targetCar.length === 0 || newTaskData.dayTime.length === 0}
-                    className="flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 font-medium"
+                    disabled={operationLoading || !newTaskData.title || !newTaskData.datacoNumber || !newTaskData.description || !newTaskData.projectId}
+                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
                   >
-                    {operationLoading ? 'יוצר משימה...' : 'צור משימה'}
+                    {operationLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        יוצר משימה...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        צור משימה
+                      </>
+                    )}
                   </button>
+                  
                   <Link
                     href="/admin/dashboard"
-                    className="px-6 py-3 border border-border rounded-lg hover:bg-accent transition-colors font-medium"
+                    className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 font-medium"
                   >
+                    <X className="h-4 w-4" />
                     ביטול
                   </Link>
                 </div>
@@ -554,5 +591,26 @@ export default function NewTaskPage() {
         )}
       </main>
     </div>
+  );
+}
+
+// Loading fallback component
+function NewTaskPageFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+        <p className="text-gray-600 text-sm">טוען...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main export with Suspense boundary
+export default function NewTaskPage() {
+  return (
+    <Suspense fallback={<NewTaskPageFallback />}>
+      <NewTaskPageCore />
+    </Suspense>
   );
 } 

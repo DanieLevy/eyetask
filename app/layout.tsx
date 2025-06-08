@@ -9,7 +9,7 @@ import CSSFailsafe from "@/components/CSSFailsafe";
 import OfflineBanner from "@/components/OfflineBanner";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
-import DebugReportIcon from "@/components/DebugReportIcon";
+
 
 // Using system fonts to avoid network issues during build
 const systemSans = {
@@ -66,8 +66,7 @@ export default function RootLayout({
         <meta name="supported-color-schemes" content="light dark" />
         <meta name="color-scheme" content="light dark" />
         
-        {/* Theme color meta tag - single without media query */}
-        <meta name="theme-color" content="#ffffff" />
+        {/* Theme color meta tag removed to avoid console warnings */}
         
         {/* Prevent iOS zoom on input focus */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
@@ -187,15 +186,7 @@ export default function RootLayout({
                         });
                       }
                       
-                      // Phase 5: Update meta theme-color - simplified
-                      try {
-                        var metaThemeColor = document.querySelector('meta[name="theme-color"]');
-                        if (metaThemeColor) {
-                          metaThemeColor.content = resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff';
-                        }
-                      } catch (metaError) {
-                        // Ignore meta theme-color errors
-                      }
+                      // Phase 5: Skip meta theme-color to avoid console warnings
                       
                       // iOS-specific: Force viewport update with error handling
                       if (isIOS) {
@@ -316,7 +307,7 @@ export default function RootLayout({
                   </main>
                   <Footer />
                 </div>
-                <DebugReportIcon />
+
               </GlobalPullToRefresh>
             </RefreshProvider>
           </AdminClientLayout>

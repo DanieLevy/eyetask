@@ -40,7 +40,9 @@ import {
   Server,
   HardDrive,
   FolderOpen,
-  MessageCircle
+  MessageCircle,
+  Menu,
+  X
 } from 'lucide-react';
 import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
 
@@ -83,6 +85,7 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [cacheLoading, setCacheLoading] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const router = useRouter();
   
@@ -228,161 +231,198 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען נתוני לוח הבקרה...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm">טוען נתוני לוח הבקרה...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Modern Header */}
-      <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-6 py-3">
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile-First Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="px-3 md:px-6 py-3">
           <div className="flex items-center justify-between">
-            {/* Left side: Logo and Title */}
-            <div className="flex items-center gap-3">
-              <MobileyeLogoIcon className="h-8 w-auto text-slate-800 dark:text-white" /> 
+            {/* Left: Logo and Title */}
+            <div className="flex items-center gap-2 md:gap-3">
+              <MobileyeLogoIcon className="h-6 md:h-8 w-auto text-gray-800" /> 
               <div>
-                <h1 className={`text-xl font-bold text-slate-900 dark:text-white ${hebrewHeading.fontClass}`}>
-                  פאנל ניהול משימות
+                <h1 className="text-lg md:text-xl font-bold text-gray-900">
+                  פאנל ניהול
                 </h1>
                 {user && (
-                  <p className={`text-xs text-slate-500 dark:text-slate-200 ${hebrewBody.fontClass}`}>
+                  <p className="text-xs text-gray-500 hidden sm:block">
                     שלום, {user.username}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Right side: Actions */}
-            <div className="flex items-center gap-3">
-              {/* Quick Refresh Button */}
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              {/* Mobile Menu Toggle */}
               <button
-                onClick={refreshData}
-                disabled={refreshing}
-                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
-                title="רענן נתונים"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100"
               >
-                <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''} text-slate-600 dark:text-slate-400`} />
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <Menu className="h-5 w-5 text-gray-600" />
+                )}
               </button>
-              
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className={`text-sm ${hebrewBody.fontClass}`}>יציאה</span>
-              </button>
+
+              {/* Desktop Actions */}
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={refreshData}
+                  disabled={refreshing}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="רענן נתונים"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''} text-gray-600`} />
+                </button>
+                
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center gap-2 text-sm"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden lg:inline">יציאה</span>
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-3 pt-3 border-t border-gray-200">
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={refreshData}
+                  disabled={refreshing}
+                  className="flex items-center gap-2 p-3 rounded-lg hover:bg-gray-100 transition-colors w-full text-right"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''} text-gray-600`} />
+                  <span className="text-sm text-gray-700">רענן נתונים</span>
+                </button>
+                
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors w-full text-right"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="text-sm">יציאה</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8 space-y-8">
-        {/* Statistics Cards - Modern Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+        {/* Compact Statistics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {/* Total Projects */}
-          <div className="group bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700">
+          <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
-                  סך הפרויקטים
+                <p className="text-xs md:text-sm font-medium text-gray-600">
+                  פרויקטים
                 </p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
+                <p className="text-lg md:text-2xl font-bold text-gray-900 mt-1">
                   {stats.totalProjects}
                 </p>
               </div>
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
-                <FolderPlus className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <FolderPlus className="h-4 md:h-5 w-4 md:w-5 text-blue-600" />
               </div>
             </div>
           </div>
 
           {/* Active Tasks */}
-          <div className="group bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700">
+          <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
+                <p className="text-xs md:text-sm font-medium text-gray-600">
                   משימות פעילות
                 </p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
+                <p className="text-lg md:text-2xl font-bold text-gray-900 mt-1">
                   {stats.activeTasks}
                 </p>
               </div>
-              <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
-                <CheckSquare className="h-8 w-8 text-green-600 dark:text-green-400" />
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckSquare className="h-4 md:h-5 w-4 md:w-5 text-green-600" />
               </div>
             </div>
           </div>
 
           {/* High Priority */}
-          <div className="group bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700">
+          <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
+                <p className="text-xs md:text-sm font-medium text-gray-600">
                   עדיפות גבוהה
                 </p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">
+                <p className="text-lg md:text-2xl font-bold text-gray-900 mt-1">
                   {stats.highPriorityTasks}
                 </p>
               </div>
-              <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg group-hover:scale-110 transition-transform">
-                <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+              <div className="p-2 bg-red-50 rounded-lg">
+                <AlertCircle className="h-4 md:h-5 w-4 md:w-5 text-red-600" />
               </div>
             </div>
           </div>
 
           {/* Cache Status */}
-          <div className="group bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all border border-slate-200 dark:border-slate-700">
+          <div className="bg-white rounded-lg p-3 md:p-4 border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm font-medium text-slate-600 dark:text-slate-400 ${hebrewBody.fontClass}`}>
-                  מצב מטמון
+                <p className="text-xs md:text-sm font-medium text-gray-600">
+                  מטמון
                 </p>
-                <p className="text-lg font-bold text-slate-900 dark:text-white mt-2">
+                <p className="text-sm md:text-lg font-bold text-gray-900 mt-1">
                   {cacheStatus ? (
-                    <span className="text-green-600 dark:text-green-400">פעיל</span>
+                    <span className="text-green-600">פעיל</span>
                   ) : (
-                    <span className="text-yellow-600 dark:text-yellow-400">טוען...</span>
+                    <span className="text-yellow-600">טוען...</span>
                   )}
                 </p>
                 {cacheStatus && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <p className="text-xs text-gray-500">
                     גרסה: {cacheStatus.currentVersion}
                   </p>
                 )}
               </div>
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform">
-                <Database className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Database className="h-4 md:h-5 w-4 md:w-5 text-purple-600" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions - Modern Cards */}
-        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
-          <h2 className={`text-xl font-bold text-card-foreground mb-6 ${hebrewHeading.fontClass}`}>
+        {/* Mobile-First Quick Actions */}
+        <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">
             פעולות מהירות
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* Project Management */}
             <Link href="/admin/projects" 
-              className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 dark:!bg-blue-900 dark:hover:!bg-blue-800 transition-all border border-blue-200 dark:border-blue-700">
+              className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200 active:scale-95">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <Layers className="h-5 w-5 text-white" />
+                <div className="p-2 bg-blue-500 rounded-lg flex-shrink-0">
+                  <Layers className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <h3 className={`font-semibold text-blue-900 dark:text-blue-100 ${hebrewBody.fontClass}`}>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-blue-900 text-sm">
                     ניהול פרויקטים
                   </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                  <p className="text-xs text-blue-700 truncate">
                     עריכה, הוספה ומחיקה
                   </p>
                 </div>
@@ -391,85 +431,17 @@ export default function AdminDashboard() {
 
             {/* New Task */}
             <Link href="/admin/tasks/new" 
-              className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 dark:!bg-green-900 dark:hover:!bg-green-800 transition-all border border-green-200 dark:border-green-700">
+              className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 transition-all border border-green-200 active:scale-95">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <Plus className="h-5 w-5 text-white" />
+                <div className="p-2 bg-green-500 rounded-lg flex-shrink-0">
+                  <Plus className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <h3 className={`font-semibold text-green-900 dark:text-green-100 ${hebrewBody.fontClass}`}>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-green-900 text-sm">
                     משימה חדשה
                   </h3>
-                  <p className="text-xs text-green-700 dark:text-green-300">
-                    הוסף משימה חדשה
-                  </p>
-                </div>
-              </div>
-            </Link>
-
-            {/* Daily Updates */}
-            <Link href="/admin/daily-updates" 
-              className="group p-4 rounded-lg bg-yellow-50 hover:bg-yellow-100 dark:!bg-amber-900 dark:hover:!bg-amber-800 transition-all border border-yellow-200 dark:border-amber-700">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <Bell className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className={`font-semibold text-yellow-900 dark:text-amber-100 ${hebrewBody.fontClass}`}>
-                    עדכונים יומיים
-                  </h3>
-                  <p className="text-xs text-yellow-700 dark:text-amber-300">
-                    ניהול הודעות יומיות
-                  </p>
-                </div>
-              </div>
-            </Link>
-
-            {/* Cache Management */}
-            <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 dark:!bg-purple-900 dark:hover:!bg-purple-800 transition-all border border-purple-200 dark:border-purple-700">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-purple-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <HardDrive className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className={`font-semibold text-purple-900 dark:text-purple-100 ${hebrewBody.fontClass}`}>
-                    ניהול מטמון
-                  </h3>
-                  <p className="text-xs text-purple-700 dark:text-purple-300">
-                    עדכן וניקה מטמון
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={() => clearCache('soft')}
-                  disabled={cacheLoading}
-                  className="flex-1 px-3 py-1 bg-purple-200 text-purple-900 rounded text-xs hover:bg-purple-300 transition-colors disabled:opacity-50 dark:!bg-purple-700 dark:!text-purple-100 dark:hover:!bg-purple-600"
-                >
-                  עדכון רך
-                </button>
-                <Link href="/admin/cache"
-                  className="flex-1 px-3 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors flex items-center justify-center"
-                >
-                  ניהול מלא
-                </Link>
-              </div>
-            </div>
-
-            {/* Feedback Management */}
-            <Link href="/admin/feedback" 
-              className="group p-4 rounded-lg bg-teal-50 hover:bg-teal-100 dark:!bg-teal-900 dark:hover:!bg-teal-800 transition-all border border-teal-200 dark:border-teal-700">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <MessageCircle className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className={`font-semibold text-teal-900 dark:text-teal-100 ${hebrewBody.fontClass}`}>
-                    ניהול פניות
-                  </h3>
-                  <p className="text-xs text-teal-700 dark:text-teal-300">
-                    מענה לפניות ודיווחים
+                  <p className="text-xs text-green-700 truncate">
+                    הוסף משימה לפרויקט
                   </p>
                 </div>
               </div>
@@ -477,17 +449,71 @@ export default function AdminDashboard() {
 
             {/* Analytics */}
             <Link href="/admin/analytics" 
-              className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 dark:!bg-orange-900 dark:hover:!bg-orange-800 transition-all border border-orange-200 dark:border-orange-700">
+              className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200 active:scale-95">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500 rounded-lg group-hover:scale-110 transition-transform">
-                  <BarChart3 className="h-5 w-5 text-white" />
+                <div className="p-2 bg-purple-500 rounded-lg flex-shrink-0">
+                  <BarChart3 className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <h3 className={`font-semibold text-orange-900 dark:text-orange-100 ${hebrewBody.fontClass}`}>
-                    אנליטיקה
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-purple-900 text-sm">
+                    אנליטיקס
                   </h3>
-                  <p className="text-xs text-orange-700 dark:text-orange-300">
-                    דוחות וסטטיסטיקות
+                  <p className="text-xs text-purple-700 truncate">
+                    דוחות ונתונים
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Feedback Management */}
+            <Link href="/admin/feedback" 
+              className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200 active:scale-95">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500 rounded-lg flex-shrink-0">
+                  <MessageCircle className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-orange-900 text-sm">
+                    ניהול פניות
+                  </h3>
+                  <p className="text-xs text-orange-700 truncate">
+                    תמיכה ודיווחים
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Daily Updates */}
+            <Link href="/admin/daily-updates" 
+              className="group p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200 active:scale-95">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500 rounded-lg flex-shrink-0">
+                  <Calendar className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-indigo-900 text-sm">
+                    עדכונים יומיים
+                  </h3>
+                  <p className="text-xs text-indigo-700 truncate">
+                    הודעות ועדכונים
+                  </p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Cache Management */}
+            <Link href="/admin/cache" 
+              className="group p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 active:scale-95">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-500 rounded-lg flex-shrink-0">
+                  <Server className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    ניהול מטמון
+                  </h3>
+                  <p className="text-xs text-gray-700 truncate">
+                    ביצועים ומטמון
                   </p>
                 </div>
               </div>
@@ -495,115 +521,86 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Projects */}
-        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className={`text-xl font-bold text-card-foreground ${hebrewHeading.fontClass}`}>
-              פרויקטים אחרונים
-            </h2>
-            <Link href="/admin/projects" 
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 flex items-center gap-1 text-sm font-medium">
-              <span className={hebrewBody.fontClass}>הצג הכל</span>
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          {projects.length === 0 ? (
-            <div className="text-center py-12">
-              <FolderPlus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className={`text-muted-foreground ${hebrewBody.fontClass}`}>
-                אין פרויקטים עדיין
-              </p>
-              <Link href="/admin/projects" 
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <Plus className="h-4 w-4" />
-                <span className={hebrewBody.fontClass}>צור פרויקט ראשון</span>
+        {/* Mobile-Optimized Recent Items */}
+        <div className="space-y-4">
+          {/* Recent Projects */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900">פרויקטים אחרונים</h3>
+              <Link href="/admin/projects" className="text-blue-600 hover:text-blue-700 text-sm">
+                הצג הכל
               </Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {projects.slice(0, 6).map((project) => (
-                <div key={project.id} className="group p-4 bg-muted rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600 transition-all border border-border">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold text-foreground truncate ${hebrewBody.fontClass}`}>
-                        {project.name}
-                      </h3>
-                      {project.description && (
-                        <p className={`text-sm text-muted-foreground mt-1 line-clamp-2 ${hebrewBody.fontClass}`}>
-                          {project.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <CheckSquare className="h-3 w-3" />
-                          {getTaskCountForProject(project.id)} משימות
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Activity className="h-3 w-3" />
-                          {getActiveTasksForProject(project.id)} פעילות
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {getHighPriorityTasksForProject(project.id)} דחוף
-                        </span>
-                      </div>
+            
+            {projects.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">אין פרויקטים עדיין</p>
+            ) : (
+              <div className="space-y-2">
+                {projects.slice(0, 3).map((project) => (
+                  <div key={project.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-medium text-gray-900 text-sm truncate">{project.name}</h4>
+                      <p className="text-xs text-gray-500">
+                        {getTaskCountForProject(project.id)} משימות • 
+                        {getActiveTasksForProject(project.id)} פעילות
+                      </p>
                     </div>
-                    
-                    <Link href={`/admin/projects/${project.id}`}
-                      className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-200 dark:hover:bg-blue-800">
-                      <Eye className="h-4 w-4" />
-                    </Link>
+                    <div className="flex items-center gap-1 mr-3">
+                      <Link 
+                        href={`/admin/projects/${project.id}`}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* System Status */}
+          <div className="bg-white rounded-lg p-4 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3">מצב המערכת</h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="text-lg font-bold text-green-600">{stats.totalTasks}</div>
+                <div className="text-xs text-green-700">סה"כ משימות</div>
+              </div>
+              
+              <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-lg font-bold text-blue-600">{stats.activeTasks}</div>
+                <div className="text-xs text-blue-700">משימות פעילות</div>
+              </div>
+            </div>
+
+            {cacheStatus && (
+              <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium text-purple-900">מצב מטמון</div>
+                    <div className="text-xs text-purple-700">גרסה {cacheStatus.currentVersion}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => clearCache('soft')}
+                      disabled={cacheLoading}
+                      className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 disabled:opacity-50"
+                    >
+                      עדכון
+                    </button>
+                    <button
+                      onClick={() => clearCache('full')}
+                      disabled={cacheLoading}
+                      className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 disabled:opacity-50"
+                    >
+                      נקה
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* System Status */}
-        <div className="bg-card text-card-foreground rounded-xl p-6 shadow-sm border border-border">
-          <h2 className={`text-xl font-bold text-card-foreground mb-6 ${hebrewHeading.fontClass}`}>
-            מצב המערכת
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <div className="p-2 bg-green-100 dark:bg-green-800 rounded-lg">
-                <Server className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
-              <div>
-                <p className={`text-sm font-medium text-green-900 dark:text-green-100 ${hebrewBody.fontClass}`}>
-                  שרת API
-                </p>
-                <p className="text-xs text-green-700 dark:text-green-300">פעיל</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className={`text-sm font-medium text-blue-900 dark:text-blue-100 ${hebrewBody.fontClass}`}>
-                  מסד נתונים
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">מחובר</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-lg">
-                <Shield className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className={`text-sm font-medium text-purple-900 dark:text-purple-100 ${hebrewBody.fontClass}`}>
-                  אבטחה
-                </p>
-                <p className="text-xs text-purple-700 dark:text-purple-300">מאובטח</p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

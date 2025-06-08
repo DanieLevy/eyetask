@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, Suspense } from 'react';
+import React, { useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePWADetection } from '@/hooks/usePWADetection';
 
@@ -76,6 +76,26 @@ const DEEP_LINK_ROUTES: DeepLinkConfig = {
   'home': {
     path: '/',
     requiresAuth: false
+  },
+  'projects': {
+    path: '/admin/projects',
+    requiresAuth: true,
+    fallback: '/admin'
+  },
+  'feedback': {
+    path: '/feedback',
+    requiresAuth: false,
+    fallback: '/'
+  },
+  'task-view': {
+    path: '/task/{taskId}',
+    requiresAuth: false,
+    fallback: '/'
+  },
+  'project-view': {
+    path: '/project/{projectName}',
+    requiresAuth: false,
+    fallback: '/'
   }
 };
 
@@ -190,6 +210,13 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
     const sharedTitle = searchParams.get('title');
     const sharedText = searchParams.get('text');
     const sharedUrl = searchParams.get('url');
+
+    // Skip if this is a feedback form redirect or debug report
+    if (window.location.pathname === '/feedback' || 
+        window.location.search.includes('category=') ||
+        window.location.search.includes('issueType=')) {
+      return;
+    }
 
     if (sharedTitle || sharedText || sharedUrl) {
       // Redirect to appropriate handler
@@ -340,15 +367,22 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
   return <>{children}</>;
 }
 
-// Fallback component for suspense
-function DeepLinkHandlerFallback({ children }: DeepLinkHandlerProps) {
-  return <>{children}</>;
+// Loading fallback component
+function DeepLinkFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+        <p className="text-gray-600 text-sm">טוען...</p>
+      </div>
+    </div>
+  );
 }
 
-// Main export component with Suspense wrapper
+// Main export with Suspense boundary
 export default function DeepLinkHandler({ children }: DeepLinkHandlerProps) {
   return (
-    <Suspense fallback={<DeepLinkHandlerFallback>{children}</DeepLinkHandlerFallback>}>
+    <Suspense fallback={<DeepLinkFallback />}>
       <DeepLinkHandlerCore>{children}</DeepLinkHandlerCore>
     </Suspense>
   );

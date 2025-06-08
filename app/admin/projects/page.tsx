@@ -30,7 +30,8 @@ import {
   Info,
   List,
   Grid,
-  Download
+  Download,
+  Menu
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -64,9 +65,10 @@ export default function ProjectsManagementPage() {
   const [operationLoading, setOperationLoading] = useState(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list'); // Default to list for mobile
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const router = useRouter();
   
@@ -246,264 +248,428 @@ export default function ProjectsManagementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען פרויקטים...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm">טוען פרויקטים...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Notification - Enhanced for Mobile PWA */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile-First Notification */}
       {notification && (
-        <div className={`p-4 mb-6 rounded-lg border transition-all ${
-          notification.type === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50 text-green-800 dark:text-green-200' :
-          notification.type === 'error' ? 'bg-destructive/10 border-destructive/20 text-destructive' :
-          'bg-primary/10 border-primary/20 text-primary'
+        <div className={`fixed top-0 left-0 right-0 z-50 p-4 transition-all ${
+          notification.type === 'success' ? 'bg-green-600' :
+          notification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
         }`}>
-          <div className="flex items-center gap-2">
-            {notification.type === 'success' && <CheckCircle className="h-5 w-5" />}
-            {notification.type === 'error' && <AlertCircle className="h-5 w-5" />}
-            {notification.type === 'info' && <Info className="h-5 w-5" />}
-            <span className="font-medium">{notification.message}</span>
+          <div className="flex items-center gap-2 text-white">
+            {notification.type === 'success' && <CheckCircle className="h-4 w-4" />}
+            {notification.type === 'error' && <AlertCircle className="h-4 w-4" />}
+            {notification.type === 'info' && <Info className="h-4 w-4" />}
+            <span className="text-sm font-medium">{notification.message}</span>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
+      {/* Mobile-First Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div className="px-3 md:px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            {/* Left: Navigation and Title */}
+            <div className="flex items-center gap-2 md:gap-3">
               <Link
                 href="/admin/dashboard"
-                className="p-2 rounded-lg hover:bg-accent transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 title="חזור ללוח הבקרה"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4 text-gray-600" />
               </Link>
-              <div className="flex items-center gap-3">
-                <FolderOpen className="h-6 w-6 text-primary" />
+              <div className="flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-blue-600" />
                 <div>
-                  <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900">
                     ניהול פרויקטים
                   </h1>
-                  <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>
-                    {projects.length} פרויקטים במערכת • {tasks.length} משימות סה״כ
+                  <p className="text-xs text-gray-500 hidden sm:block">
+                    {projects.length} פרויקטים • {tasks.length} משימות
                   </p>
                 </div>
               </div>
             </div>
             
+            {/* Right: Actions */}
             <div className="flex items-center gap-2">
-              <Link
-                href="/"
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+              {/* Mobile Menu Toggle */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100"
               >
-                <Home className="h-4 w-4" />
-                עמוד הבית
-              </Link>
-              <Link
-                href="/admin/projects/new"
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                פרויקט חדש
-              </Link>
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <Menu className="h-5 w-5 text-gray-600" />
+                )}
+              </button>
+
+              {/* Desktop Actions */}
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <Home className="h-4 w-4" />
+                  עמוד הבית
+                </Link>
+                <Link
+                  href="/admin/projects/new"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  פרויקט חדש
+                </Link>
+              </div>
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-3 pt-3 border-t border-gray-200">
+              <div className="flex flex-col gap-2">
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 p-3 rounded-lg hover:bg-gray-100 transition-colors w-full text-right"
+                >
+                  <Home className="h-4 w-4 text-gray-600" />
+                  <span className="text-sm text-gray-700">עמוד הבית</span>
+                </Link>
+                <Link
+                  href="/admin/projects/new"
+                  className="flex items-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors w-full text-right"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="text-sm">פרויקט חדש</span>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Search and Filters */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="חפש פרויקטים..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-            {searchTerm && (
-              <span className="text-sm text-muted-foreground">
-                {filteredProjects.length} מתוך {projects.length} פרויקטים
-              </span>
-            )}
+      <main className="p-3 md:p-6">
+        {/* Mobile-First Search */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="חפש פרויקטים..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
+          {searchTerm && (
+            <p className="text-xs text-gray-500 mt-2">
+              {filteredProjects.length} מתוך {projects.length} פרויקטים
+            </p>
+          )}
         </div>
 
-        {/* Projects Grid */}
+        {/* View Toggle for Desktop */}
+        <div className="hidden md:flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Grid className="h-4 w-4" />
+            </button>
+          </div>
+          
+          <button
+            onClick={exportProjectsCsv}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            {isExporting ? 'מייצא...' : 'ייצא CSV'}
+          </button>
+        </div>
+
+        {/* Projects List/Grid */}
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-12">
-            <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
+          <div className="text-center py-8 md:py-12">
+            <FolderOpen className="h-12 md:h-16 w-12 md:w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {searchTerm ? 'לא נמצאו פרויקטים' : 'אין פרויקטים עדיין'}
             </h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-gray-600 mb-4 text-sm">
               {searchTerm ? 'נסה לחפש במילות מפתח אחרות' : 'צור את הפרויקט הראשון שלך כדי להתחיל'}
             </p>
             {!searchTerm && (
               <Link
                 href="/admin/projects/new"
-                className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors inline-block"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-block"
               >
                 צור פרויקט חדש
               </Link>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
             {filteredProjects.map((project) => {
               const stats = getTaskStats(project.id);
               const isEditing = editingProject?.id === project.id;
               const isDeleting = deletingProjectId === project.id;
               
-              return (
-                <div key={project.id} className={`bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-all group relative ${isDeleting ? 'opacity-50' : ''}`}>
-                  {/* Project Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingProject.name}
-                          onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
-                          className="text-lg font-semibold w-full p-2 border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      ) : (
-                        <h3 className={`text-lg font-semibold text-foreground group-hover:text-primary transition-colors ${hebrewHeading.fontClass}`}>
-                          {project.name}
-                        </h3>
-                      )}
-                      
-                      {isEditing ? (
-                        <textarea
-                          value={editingProject.description || ''}
-                          onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
-                          className="text-sm w-full mt-2 p-2 border border-border rounded bg-background text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary h-20 resize-none"
-                          placeholder="תיאור הפרויקט..."
-                        />
-                      ) : (
-                        project.description && (
-                          <p className={`text-sm text-muted-foreground mt-2 line-clamp-2 ${mixedBody.fontClass}`}>
-                            {project.description}
-                          </p>
-                        )
-                      )}
+              if (viewMode === 'grid') {
+                return (
+                  <div key={project.id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
+                    {/* Grid Card Layout */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editingProject.name}
+                            onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                            className="text-lg font-semibold w-full p-2 border border-gray-200 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                            {project.name}
+                          </h3>
+                        )}
+                        
+                        {isEditing ? (
+                          <textarea
+                            value={editingProject.description || ''}
+                            onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                            className="text-sm w-full mt-2 p-2 border border-gray-200 rounded bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none"
+                            placeholder="תיאור הפרויקט..."
+                          />
+                        ) : (
+                          project.description && (
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                              {project.description}
+                            </p>
+                          )
+                        )}
+                      </div>
                     </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-1 ml-2">
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="text-center p-2 bg-blue-50 rounded-lg">
+                        <div className="text-sm font-bold text-blue-600">{stats.totalTasks}</div>
+                        <div className="text-xs text-blue-700">משימות</div>
+                      </div>
+                      <div className="text-center p-2 bg-red-50 rounded-lg">
+                        <div className="text-sm font-bold text-red-600">{stats.highPriorityTasks}</div>
+                        <div className="text-xs text-red-700">דחוף</div>
+                      </div>
+                      <div className="text-center p-2 bg-green-50 rounded-lg">
+                        <div className="text-sm font-bold text-green-600">{stats.completedTasks}</div>
+                        <div className="text-xs text-green-700">הושלמו</div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between">
                       {isEditing ? (
-                        <div className="flex gap-1">
+                        <div className="flex gap-2">
                           <button
                             onClick={handleUpdateProject}
                             disabled={operationLoading}
-                            className="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg transition-colors disabled:opacity-50 border border-green-200 dark:border-green-700"
-                            title="שמור שינויים"
+                            className="flex items-center gap-1 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50 text-sm"
                           >
-                            {operationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            <Save className="h-3 w-3" />
+                            שמור
                           </button>
                           <button
                             onClick={() => setEditingProject(null)}
-                            disabled={operationLoading}
-                            className="p-2 hover:bg-muted text-muted-foreground rounded-lg transition-colors border border-border"
-                            title="בטל עריכה"
+                            className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
+                            ביטול
                           </button>
                         </div>
                       ) : (
-                        <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => setEditingProject(project)}
-                            disabled={isDeleting}
-                            className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg transition-colors disabled:opacity-50 border border-blue-200 dark:border-blue-700 shadow-sm hover:shadow-md"
-                            title="ערוך פרויקט"
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
+                          <Link
+                            href={`/admin/projects/${project.id}`}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Link>
                           <button
                             onClick={() => handleDeleteProject(project.id)}
                             disabled={isDeleting}
-                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg transition-colors disabled:opacity-50 border border-red-200 dark:border-red-700 shadow-sm hover:shadow-md"
-                            title="מחק פרויקט"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            {isDeleting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
+                );
+              } else {
+                // List View - Mobile-Optimized
+                return (
+                  <div key={project.id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      {/* Project Icon */}
+                      <div className="flex-shrink-0 p-2 bg-blue-50 rounded-lg">
+                        <FolderOpen className="h-4 w-4 text-blue-600" />
+                      </div>
 
-                  {/* Project Stats */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="text-center p-3 bg-primary/5 rounded-lg">
-                      <div className="text-lg font-bold text-primary">{stats.totalTasks}</div>
-                      <div className="text-xs text-muted-foreground">משימות</div>
-                    </div>
-                    <div className="text-center p-3 bg-orange-500/5 rounded-lg">
-                      <div className="text-lg font-bold text-orange-600">{stats.highPriorityTasks}</div>
-                      <div className="text-xs text-muted-foreground">דחוף</div>
-                    </div>
-                    <div className="text-center p-3 bg-green-500/5 rounded-lg">
-                      <div className="text-lg font-bold text-green-600">{stats.completedTasks}</div>
-                      <div className="text-xs text-muted-foreground">הושלמו</div>
+                      {/* Project Content */}
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={editingProject.name}
+                              onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                              className="text-base font-semibold w-full p-2 border border-gray-200 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <textarea
+                              value={editingProject.description || ''}
+                              onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                              className="text-sm w-full p-2 border border-gray-200 rounded bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 h-16 resize-none"
+                              placeholder="תיאור הפרויקט..."
+                            />
+                          </div>
+                        ) : (
+                          <div>
+                            <h3 className="text-base font-semibold text-gray-900 truncate">
+                              {project.name}
+                            </h3>
+                            {project.description && (
+                              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                {project.description}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Stats Row */}
+                        <div className="flex items-center gap-4 mt-2 text-xs">
+                          <span className="flex items-center gap-1 text-blue-600">
+                            <Target className="h-3 w-3" />
+                            {stats.totalTasks} משימות
+                          </span>
+                          <span className="flex items-center gap-1 text-red-600">
+                            <AlertCircle className="h-3 w-3" />
+                            {stats.highPriorityTasks} דחוף
+                          </span>
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CheckCircle className="h-3 w-3" />
+                            {stats.completedTasks} הושלמו
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex-shrink-0">
+                        {isEditing ? (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={handleUpdateProject}
+                              disabled={operationLoading}
+                              className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
+                            >
+                              <Save className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingProject(null)}
+                              className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setEditingProject(project)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <Link
+                              href={`/admin/projects/${project.id}`}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleDeleteProject(project.id)}
+                              disabled={isDeleting}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Project Actions */}
-                  <div className="space-y-2">
-                    <Link
-                      href={`/admin/projects/${project.id}`}
-                      className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors text-center text-sm font-medium flex items-center justify-center gap-2"
-                    >
-                      <Target className="h-4 w-4" />
-                      נהל משימות ({stats.totalTasks})
-                    </Link>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <Link
-                        href={`/project/${encodeURIComponent(project.name)}`}
-                        className="bg-secondary text-secondary-foreground px-3 py-2 rounded-lg hover:bg-secondary/90 transition-colors text-center text-xs flex items-center justify-center gap-1"
-                        target="_blank"
-                      >
-                        <Eye className="h-3 w-3" />
-                        צפייה
-                      </Link>
-                      <Link
-                        href={`/admin/tasks/new?projectId=${project.id}`}
-                        className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-center text-xs flex items-center justify-center gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        משימה
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Project Metadata */}
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>נוצר: {new Date(project.createdAt).toLocaleDateString('he-IL')}</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(project.updatedAt).toLocaleDateString('he-IL')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
+                );
+              }
             })}
           </div>
+        )}
+
+        {/* Mobile FAB for New Project */}
+        <Link
+          href="/admin/projects/new"
+          className="md:hidden fixed bottom-6 left-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center z-30"
+        >
+          <Plus className="h-6 w-6" />
+        </Link>
+
+        {/* Mobile Export Button */}
+        {filteredProjects.length > 0 && (
+          <button
+            onClick={exportProjectsCsv}
+            disabled={isExporting}
+            className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors flex items-center justify-center z-30 disabled:opacity-50"
+          >
+            {isExporting ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Download className="h-5 w-5" />
+            )}
+          </button>
         )}
       </main>
     </div>

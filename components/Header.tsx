@@ -7,6 +7,7 @@ import { Menu, LogOut, Home, Settings, BarChart3, MessageCircle } from 'lucide-r
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
+import HeaderDebugIcon from '@/components/HeaderDebugIcon';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -159,8 +160,11 @@ export default function Header() {
             </h1>
           </div>
 
-          {/* Actions - Theme Toggle and Mobile Menu Button */}
-          <div className="flex items-center gap-2 relative z-10">
+          {/* Actions - Debug Icon, Theme Toggle and Mobile Menu Button */}
+          <div className="flex items-center gap-1 relative z-10">
+            {/* Debug Report Icon */}
+            <HeaderDebugIcon />
+            
             {/* Theme Toggle - Available for all users */}
             <ThemeToggle />
             
