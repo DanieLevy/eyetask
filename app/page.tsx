@@ -237,7 +237,7 @@ function HomePageCore() {
       return 'ברוך הבא לאפליקציה!';
     }
     
-    return 'ברוכים הבאים ל-EyeTask';
+    return 'ברוכים הבאים ל-Drivers Hub';
   };
 
   // Show loading state if we haven't fetched data yet

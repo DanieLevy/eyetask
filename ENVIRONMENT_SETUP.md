@@ -1,6 +1,6 @@
 # Environment Setup Guide
 
-This document outlines the environment variables and configuration needed for the EyeTask application.
+This document outlines the environment variables and configuration needed for the Drivers Hub application.
 
 ## Required Environment Variables
 
@@ -52,4 +52,4 @@ Add the environment variables to your Netlify dashboard:
 
 ---
 
-**© 2025 Mobileye - EyeTask** 
+**© 2025 Mobileye - Drivers Hub** 

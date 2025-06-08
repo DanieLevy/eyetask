@@ -1,4 +1,4 @@
-# EyeTask PWA - Production Deployment Guide
+# Drivers Hub PWA - Production Deployment Guide
 
 ## 🚀 Netlify Deployment Configuration
 
@@ -25,7 +25,7 @@ SECRET_KEY=your-super-secure-jwt-secret-key-here-minimum-32-characters
 #### 3. Application Configuration
 ```bash
 NODE_ENV=production
-NEXT_PUBLIC_APP_NAME=EyeTask
+NEXT_PUBLIC_APP_NAME=Drivers Hub
 NEXT_PUBLIC_APP_URL=https://your-app-name.netlify.app
 NEXTAUTH_URL=https://your-app-name.netlify.app
 ```

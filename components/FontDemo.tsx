@@ -18,7 +18,7 @@ export default function FontDemo() {
     <div className="max-w-4xl mx-auto p-8 space-y-12">
       <div className="text-center mb-8">
         <h1 className={`text-3xl mb-2 ${mixedHeading.fontClass}`}>
-          EyeTask Font Demo - הדגמת גופנים
+          Drivers Hub Font Demo - הדגמת גופנים
         </h1>
         <p className={`text-lg ${mixedBody.fontClass}`}>
           Intel Display + Ploni Font Integration

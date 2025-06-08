@@ -93,7 +93,7 @@
   ],
   "protocol_handlers": [
     {
-      "protocol": "web+eyetask",
+      "protocol": "web+drivershub",
       "url": "/?protocol=%s"
     }
   ],

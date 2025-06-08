@@ -1,7 +1,7 @@
 {
-  "name": "eyetask",
+  "name": "drivers-hub",
   "version": "0.1.0",
-  "description": "EyeTask - Driver Task Management Web App for Mobileye",
+  "description": "Drivers Hub - Driver Task Management Web App for Mobileye",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,7 +1,7 @@
-# EyeTask - Driver Task Management Web App - Professional Workflow Plan
+# Drivers Hub - Driver Task Management Web App - Professional Workflow Plan
 
 ## Project Overview
-**App Name**: EyeTask
+**App Name**: Drivers Hub
 **Company**: Mobileye
 **Purpose**: Replace PDF-based task distribution with a real-time, mobile-first web application for drivers
 **Language**: Hebrew (RTL layout required)
@@ -25,7 +25,7 @@
 - **Project Sharing**: Project-level links for team coordination
 
 ### PWA Integration & App Opening
-- **PWA Detection**: Automatic detection if EyeTask PWA is installed
+- **PWA Detection**: Automatic detection if Drivers Hub PWA is installed
 - **Smart Redirecting**: 
   - If PWA installed → Automatically open in app
   - If PWA not installed → Show "Open in App" banner/prompt
@@ -52,7 +52,7 @@
 - **Layout**: Sticky header
 - **Elements**: 
   - Mobileye company logo
-  - EyeTask app name
+  - Drivers Hub app name
   - Hamburger menu (3-line button) for side navigation
 
 #### 3.2 Homepage
@@ -116,14 +116,14 @@
 - **Responsive**: Maintain aspect ratio across devices
 
 ### 8. Progressive Web App (PWA) Features
-- **App Name**: EyeTask
+- **App Name**: Drivers Hub
 - **Mobile Optimization**: Touch-friendly interface
 - **Responsive Design**: Adaptive layouts for all screen sizes
-- **PWA Manifest**: EyeTask app-like experience configuration
+- **PWA Manifest**: Drivers Hub app-like experience configuration
 - **Performance**: Fast loading and smooth animations
 - **Gestures**: Native mobile gesture support
 - **Typography**: Native font rendering
-- **URL Association**: Register PWA to handle EyeTask domain URLs
+- **URL Association**: Register PWA to handle Drivers Hub domain URLs
 - **App Install**: "Add to Home Screen" functionality
 - **Offline Support**: Basic offline capabilities for installed app
 
@@ -242,7 +242,7 @@
 ❌ Click to Expand: No click-to-expand full resolution functionality
 ❌ Image Upload: File upload exists in forms but actual image storage/display not working
 5. PWA Advanced Features Missing
-❌ Smart PWA Detection: No automatic detection if EyeTask PWA is installed
+❌ Smart PWA Detection: No automatic detection if Drivers Hub PWA is installed
 ❌ Auto-Redirect to PWA: No automatic opening in app when PWA is installed
 ❌ "Open in App" Prompts: No conditional banner/prompt for non-PWA users
 ❌ URL Handler Registration: PWA not registered to handle domain URLs

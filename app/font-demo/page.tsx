@@ -7,7 +7,7 @@ export default function FontDemoPage() {
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-2xl font-bold text-foreground">הדגמת גופנים - Font Demo</h1>
           <p className="text-sm text-muted-foreground">
-            הדגמה של גופני Intel Display ו-Ploni במערכת EyeTask
+            הדגמה של גופני Intel Display ו-Ploni במערכת Drivers Hub
           </p>
         </div>
       </div>

@@ -123,7 +123,7 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
     }
   }, [status.launchParams]);
 
-  // Handle custom protocol launches (web+eyetask://)
+      // Handle custom protocol launches (web+drivershub://)
   const handleProtocolLaunch = useCallback((protocolData: string) => {
     try {
       const decodedData = decodeURIComponent(protocolData);
@@ -397,8 +397,8 @@ export function useDeepLink() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: title || 'EyeTask',
-          text: text || 'צפה ב-EyeTask',
+          title: title || 'Drivers Hub',
+                      text: text || 'צפה ב-Drivers Hub',
           url: link
         });
         return true;

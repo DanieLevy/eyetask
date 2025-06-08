@@ -1,4 +1,4 @@
-# EyeTask - Driver Task Management System
+# Drivers Hub - Driver Task Management System
 
 A modern web application for managing automotive data collection tasks, built with Next.js 15 and MongoDB.
 
@@ -34,7 +34,7 @@ A modern web application for managing automotive data collection tasks, built wi
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd eyetask
+   cd drivers-hub
    ```
 
 2. **Install dependencies**
@@ -52,7 +52,7 @@ A modern web application for managing automotive data collection tasks, built wi
    NODE_ENV=development
 
    # App Configuration
-   NEXT_PUBLIC_APP_NAME="EyeTask"
+   NEXT_PUBLIC_APP_NAME="Drivers Hub"
    NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
    # Session Secret for authentication
@@ -163,7 +163,7 @@ The application uses a custom JWT-based authentication system:
 ## 📁 Project Structure
 
 ```
-eyetask/
+drivers-hub/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes
 │   ├── admin/             # Admin dashboard

@@ -1,6 +1,6 @@
-# EyeTask Font Integration
+# Drivers Hub Font Integration
 
-This document describes the font integration system for EyeTask, which includes both **Intel Display** fonts for English content and **Ploni** fonts for Hebrew content.
+This document describes the font integration system for Drivers Hub, which includes both **Intel Display** fonts for English content and **Ploni** fonts for Hebrew content.
 
 ## Font Files
 
@@ -142,14 +142,14 @@ Visit `/font-demo` to see all fonts and weights in action with:
 - Font weight demonstrations
 - Tailwind class references
 
-## Examples in EyeTask
+## Examples in Drivers Hub
 
 ### Admin Dashboard
 ```tsx
 const hebrewHeading = useHebrewFont('heading');
 const mixedBody = useMixedFont('body');
 
-<h1 className={hebrewHeading.fontClass}>EyeTask - לוח בקרה</h1>
+<h1 className={hebrewHeading.fontClass}>Drivers Hub - לוח בקרה</h1>
 <p className={mixedBody.fontClass}>שלום {user?.username} | Mobileye Admin</p>
 ```
 

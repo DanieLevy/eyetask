@@ -2,7 +2,7 @@
 
 ## Overview
 
-The EyeTask application has been fully optimized with a modern, React 19-compatible image viewer system using `yet-another-react-lightbox`. This replaces the previous `react-simple-image-viewer` implementation with enhanced features, better mobile support, and improved performance.
+The Drivers Hub application has been fully optimized with a modern, React 19-compatible image viewer system using `yet-another-react-lightbox`. This replaces the previous `react-simple-image-viewer` implementation with enhanced features, better mobile support, and improved performance.
 
 ## Key Features
 

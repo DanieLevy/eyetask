@@ -636,10 +636,14 @@ export default function ProjectPage() {
                       
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          {/* Top row: Title and Dataco number only */}
-                          <div className="flex items-center gap-4 mb-3">
+                          {/* Top row: Title only */}
+                          <div className="mb-2">
                             <h3 className="text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors duration-300">{task.title}</h3>
-                            <span className="text-xs text-muted-foreground font-mono px-3 py-1.5 bg-muted/60 rounded-lg border border-border/30 backdrop-blur-sm flex-shrink-0">
+                          </div>
+                          
+                          {/* Second row: Dataco number */}
+                          <div className="mb-3">
+                            <span className="text-xs text-muted-foreground font-mono px-3 py-1.5 bg-muted/60 rounded-lg border border-border/30 backdrop-blur-sm">
                               {formatDatacoNumber(task.datacoNumber)}
                             </span>
                           </div>

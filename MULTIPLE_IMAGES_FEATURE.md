@@ -2,7 +2,7 @@
 
 ## Overview
 
-EyeTask now supports **unlimited image uploads** for tasks and subtasks, with an enhanced image management system including galleries, lightbox view, and seamless mobile support.
+Drivers Hub now supports **unlimited image uploads** for tasks and subtasks, with an enhanced image management system including galleries, lightbox view, and seamless mobile support.
 
 ### Key Features
 - **Multiple Image Support**: Upload up to 5 images per task/subtask
@@ -325,10 +325,10 @@ DEBUG=* npm run migrate-to-multiple-images
 ### Debug Commands
 ```bash
 # Check database schema
-mongosh "mongodb://localhost:27017/eyetask" --eval "db.tasks.findOne()"
+mongosh "mongodb://localhost:27017/drivershub" --eval "db.tasks.findOne()"
 
 # Verify migration
-mongosh "mongodb://localhost:27017/eyetask" --eval "db.tasks.find({image: {$exists: true}}).count()"
+mongosh "mongodb://localhost:27017/drivershub" --eval "db.tasks.find({image: {$exists: true}}).count()"
 
 # Check image storage
 ls -la public/uploads/subtasks/

@@ -79,11 +79,11 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
           setFallbackMessage(settingsData.value);
         }
       } else {
-        setFallbackMessage('ברוכים הבאים ל-EyeTask! בדקו כאן עדכונים חשובים והודעות.');
+        setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
       }
     } catch (error) {
       console.error('❌ Error fetching carousel data:', error);
-      setFallbackMessage('ברוכים הבאים ל-EyeTask! בדקו כאן עדכונים חשובים והודעות.');
+              setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
     } finally {
       setLoading(false);
     }

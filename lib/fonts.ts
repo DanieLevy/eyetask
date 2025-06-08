@@ -1,4 +1,4 @@
-// Font configuration and utilities for EyeTask
+// Font configuration and utilities for Drivers Hub
 export type FontFamily = 'intel' | 'ploni' | 'hebrew' | 'english' | 'mixed';
 export type FontWeight = 'ultralight' | 'light' | 'regular' | 'medium' | 'bold';
 export type Language = 'he' | 'en' | 'mixed';

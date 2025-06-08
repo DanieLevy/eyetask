@@ -284,7 +284,7 @@ export function usePWADetection(): UsePWADetectionReturn {
     
     try {
       // Try to use custom URL scheme (if configured)
-      const appSchemeUrl = `eyetask://${new URL(targetUrl).pathname}${new URL(targetUrl).search}`;
+      const appSchemeUrl = `drivershub://${new URL(targetUrl).pathname}${new URL(targetUrl).search}`;
       window.location.href = appSchemeUrl;
       
       // Fallback to regular URL after short delay
