@@ -162,25 +162,25 @@ export default function NewTaskPage() {
       
       if (result.success) {
         if (createAnother) {
-          // Reset form but keep project selection and show success message
+          // Save current form data (except title and dataco) for next task
           setNewTaskData(prev => ({
-            title: '',
-            subtitle: '',
-            images: [],
-            datacoNumber: '',
-            description: '',
-            executionInstructions: '',
+            title: '', // Reset title
+            subtitle: '', // Reset subtitle
+            images: [], // Reset images
+            datacoNumber: '', // Reset dataco number
+            description: prev.description, // Keep description
+            executionInstructions: prev.executionInstructions, // Keep execution instructions
             projectId: prev.projectId, // Keep selected project
-            type: ['events'],
-            locations: ['Urban'],
-            targetCar: ['EQ'],
-            lidar: false,
-            dayTime: ['day'],
-            priority: 5
+            type: prev.type, // Keep task type
+            locations: prev.locations, // Keep locations
+            targetCar: prev.targetCar, // Keep target cars
+            lidar: prev.lidar, // Keep lidar setting
+            dayTime: prev.dayTime, // Keep day time settings
+            priority: prev.priority // Keep priority
           }));
           
           // Show success message
-          alert('משימה נוצרה בהצלחה! אתה יכול ליצור משימה נוספת.');
+          alert('משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות למשימה הבאה.');
         } else {
           // Redirect to the project management page where the task was created
           router.push(`/admin/projects/${newTaskData.projectId}`);
@@ -528,9 +528,9 @@ export default function NewTaskPage() {
                   <ModernCheckbox
                     checked={createAnother}
                     onChange={(checked) => setCreateAnother(checked)}
-                    label="צור משימה נוספת לאחר השמירה"
+                    label="צור משימה נוספת לאחר השמירה (שמור הגדרות)"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, הטופס יישאר פתוח לאחר יצירת המשימה</p>
+                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו למשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
                 </div>
                 
                 <div className="flex gap-3">

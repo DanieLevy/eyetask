@@ -43,6 +43,7 @@ export default function NewSubtaskPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
+  const [createAnother, setCreateAnother] = useState(false);
   
   const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
     title: '',
@@ -112,7 +113,27 @@ export default function NewSubtaskPage() {
       const result = await response.json();
       
       if (result.success) {
-        router.push(`/admin/tasks/${taskId}`);
+        if (createAnother) {
+          // Save current form data (except title and dataco) for next subtask
+          setNewSubtaskData(prev => ({
+            title: '', // Reset title
+            subtitle: '', // Reset subtitle
+            images: [], // Reset images
+            datacoNumber: '', // Reset dataco number
+            type: prev.type, // Keep type
+            amountNeeded: prev.amountNeeded, // Keep amount needed
+            labels: prev.labels, // Keep labels
+            targetCar: prev.targetCar, // Keep target cars
+            weather: prev.weather, // Keep weather
+            scene: prev.scene, // Keep scene
+            dayTime: prev.dayTime // Keep day time
+          }));
+          
+          // Show success message
+          alert('תת-משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות לתת-המשימה הבאה.');
+        } else {
+          router.push(`/admin/tasks/${taskId}`);
+        }
       } else {
         alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
       }
@@ -411,20 +432,32 @@ export default function NewSubtaskPage() {
               </div>
             </div>
             
-            <div className="p-6 border-t border-border flex gap-3">
-              <button
-                onClick={handleCreateSubtask}
-                disabled={operationLoading || !newSubtaskData.title || !newSubtaskData.datacoNumber}
-                className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {operationLoading ? 'יוצר...' : 'צור תת-משימה'}
-              </button>
-              <Link
-                href={`/admin/tasks/${taskId}`}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-center"
-              >
-                ביטול
-              </Link>
+            <div className="p-6 border-t border-border">
+              {/* Create Another Subtask Option */}
+                              <div className="mb-4">
+                  <ModernCheckbox
+                    checked={createAnother}
+                    onChange={(checked) => setCreateAnother(checked)}
+                    label="צור תת-משימה נוספת לאחר השמירה (שמור הגדרות)"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו לתת-המשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
+                </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCreateSubtask}
+                  disabled={operationLoading || !newSubtaskData.title || !newSubtaskData.datacoNumber}
+                  className="flex-1 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {operationLoading ? 'יוצר...' : 'צור תת-משימה'}
+                </button>
+                <Link
+                  href={`/admin/tasks/${taskId}`}
+                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-center"
+                >
+                  ביטול
+                </Link>
+              </div>
             </div>
           </div>
         </div>
