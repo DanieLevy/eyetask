@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, LogOut, Home, Settings, BarChart3 } from 'lucide-react';
+import { Menu, LogOut, Home, Settings, BarChart3, MessageCircle } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -197,14 +197,24 @@ export default function Header() {
               
               {/* Show admin dashboard for logged-in users */}
               {showAdminDashboard && (
-                <Link 
-                  href="/admin/dashboard" 
-                  className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  פאנל ניהול משימות
-                </Link>
+                <>
+                  <Link 
+                    href="/admin/dashboard" 
+                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    פאנל ניהול משימות
+                  </Link>
+                  <Link 
+                    href="/admin/feedback" 
+                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    ניהול פניות ודיווחים
+                  </Link>
+                </>
               )}
               
               {/* Show logout for logged-in users or login for non-logged users */}

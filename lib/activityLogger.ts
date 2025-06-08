@@ -8,7 +8,7 @@ export interface ActivityEvent {
   userId?: string;
   userType: 'admin' | 'user' | 'system';
   action: string;
-  category: 'task' | 'project' | 'subtask' | 'user' | 'system' | 'auth' | 'view' | 'daily_update';
+  category: 'task' | 'project' | 'subtask' | 'user' | 'system' | 'auth' | 'view' | 'daily_update' | 'feedback';
   target?: {
     id: string;
     type: string;
@@ -46,7 +46,7 @@ class ActivityLogger {
     try {
       const { activities } = await mongodb.getCollections();
       
-      const activityEvent: ActivityEvent = {
+      const activityEvent: Omit<ActivityEvent, '_id'> = {
         ...activity,
         timestamp: new Date(),
       };
@@ -316,7 +316,7 @@ class ActivityLogger {
         totalActions: totalStats,
         actionsByType: Object.fromEntries(actionsByType.map(item => [item._id, item.count])),
         actionsByCategory: Object.fromEntries(actionsByCategory.map(item => [item._id, item.count])),
-        recentActions: recentActions as ActivityEvent[],
+        recentActions: recentActions as unknown as ActivityEvent[],
         topUsers: topUsers.map(user => ({
           userId: user._id,
           actionCount: user.actionCount
@@ -352,7 +352,7 @@ class ActivityLogger {
         .limit(limit)
         .toArray();
 
-      return result as ActivityEvent[];
+      return result as unknown as ActivityEvent[];
       
     } catch (error) {
       logger.error('Failed to get recent activities', 'ACTIVITY_LOGGER', undefined, error as Error);

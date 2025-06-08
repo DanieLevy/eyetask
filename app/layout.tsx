@@ -9,6 +9,7 @@ import CSSFailsafe from "@/components/CSSFailsafe";
 import OfflineBanner from "@/components/OfflineBanner";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
+import DebugReportIcon from "@/components/DebugReportIcon";
 
 // Using system fonts to avoid network issues during build
 const systemSans = {
@@ -315,6 +316,7 @@ export default function RootLayout({
                   </main>
                   <Footer />
                 </div>
+                <DebugReportIcon />
               </GlobalPullToRefresh>
             </RefreshProvider>
           </AdminClientLayout>

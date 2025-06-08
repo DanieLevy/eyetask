@@ -39,7 +39,8 @@ import {
   Shield,
   Server,
   HardDrive,
-  FolderOpen
+  FolderOpen,
+  MessageCircle
 } from 'lucide-react';
 import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
 
@@ -369,7 +370,7 @@ export default function AdminDashboard() {
             פעולות מהירות
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Project Management */}
             <Link href="/admin/projects" 
               className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 dark:!bg-blue-900 dark:hover:!bg-blue-800 transition-all border border-blue-200 dark:border-blue-700">
@@ -455,6 +456,24 @@ export default function AdminDashboard() {
                 </Link>
               </div>
             </div>
+
+            {/* Feedback Management */}
+            <Link href="/admin/feedback" 
+              className="group p-4 rounded-lg bg-teal-50 hover:bg-teal-100 dark:!bg-teal-900 dark:hover:!bg-teal-800 transition-all border border-teal-200 dark:border-teal-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-teal-500 rounded-lg group-hover:scale-110 transition-transform">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className={`font-semibold text-teal-900 dark:text-teal-100 ${hebrewBody.fontClass}`}>
+                    ניהול פניות
+                  </h3>
+                  <p className="text-xs text-teal-700 dark:text-teal-300">
+                    מענה לפניות ודיווחים
+                  </p>
+                </div>
+              </div>
+            </Link>
 
             {/* Analytics */}
             <Link href="/admin/analytics" 
