@@ -40,15 +40,17 @@ const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', d
 const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
 
 interface Project {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
+  taskCount?: number;
+  highPriorityCount?: number;
 }
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   projectId: string;
   priority: number;
@@ -124,9 +126,18 @@ export default function ProjectsManagementPage() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, []); // Remove fetchData from dependencies to prevent infinite loop
 
   const getTaskStats = (projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.taskCount !== undefined && project.highPriorityCount !== undefined) {
+      return {
+        totalTasks: project.taskCount,
+        highPriorityTasks: project.highPriorityCount,
+        completedTasks: tasks.filter(task => task.projectId === projectId && !task.isVisible).length
+      };
+    }
+    
     const projectTasks = tasks.filter(task => task.projectId === projectId);
     const totalTasks = projectTasks.length;
     const highPriorityTasks = projectTasks.filter(task => task.priority >= 1 && task.priority <= 3).length;
@@ -151,7 +162,7 @@ export default function ProjectsManagementPage() {
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/projects/${editingProject.id}`, {
+      const response = await fetch(`/api/projects/${editingProject._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +192,7 @@ export default function ProjectsManagementPage() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find(p => p._id === projectId);
     const stats = getTaskStats(projectId);
     
     const confirmMessage = stats.totalTasks > 0 
@@ -432,13 +443,13 @@ export default function ProjectsManagementPage() {
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-3'}>
             {filteredProjects.map((project) => {
-              const stats = getTaskStats(project.id);
-              const isEditing = editingProject?.id === project.id;
-              const isDeleting = deletingProjectId === project.id;
+              const stats = getTaskStats(project._id);
+              const isEditing = editingProject?._id === project._id;
+              const isDeleting = deletingProjectId === project._id;
               
               if (viewMode === 'grid') {
                 return (
-                  <div key={project.id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
+                  <div key={project._id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
                     {/* Grid Card Layout */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
@@ -517,13 +528,13 @@ export default function ProjectsManagementPage() {
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <Link
-                            href={`/admin/projects/${project.id}`}
+                            href={`/admin/projects/${project._id}`}
                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
                           <button
-                            onClick={() => handleDeleteProject(project.id)}
+                            onClick={() => handleDeleteProject(project._id)}
                             disabled={isDeleting}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           >
@@ -541,7 +552,7 @@ export default function ProjectsManagementPage() {
               } else {
                 // List View - Mobile-Optimized
                 return (
-                  <div key={project.id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
+                  <div key={project._id} className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all ${isDeleting ? 'opacity-50' : ''}`}>
                     <div className="flex items-start gap-3">
                       {/* Project Icon */}
                       <div className="flex-shrink-0 p-2 bg-blue-50 rounded-lg">
@@ -622,13 +633,13 @@ export default function ProjectsManagementPage() {
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <Link
-                              href={`/admin/projects/${project.id}`}
+                              href={`/admin/projects/${project._id}`}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             >
                               <Eye className="h-4 w-4" />
                             </Link>
                             <button
-                              onClick={() => handleDeleteProject(project.id)}
+                              onClick={() => handleDeleteProject(project._id)}
                               disabled={isDeleting}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                             >

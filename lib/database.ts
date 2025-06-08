@@ -605,15 +605,60 @@ export class DatabaseService {
     try {
       const { projects, tasks } = await mongodb.getCollections();
       
-      // Use Promise.all to fetch projects and visible tasks concurrently
-      const [projectsResult, tasksResult] = await Promise.all([
-        projects.find({}).sort({ createdAt: -1 }).toArray(),
+      // Use aggregation to get projects with their task counts and stats
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'tasks',
+            let: { projectId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$projectId', '$$projectId'] },
+                  isVisible: true
+                }
+              }
+            ],
+            as: 'tasks'
+          }
+        },
+        {
+          $addFields: {
+            taskCount: { $size: '$tasks' },
+            highPriorityCount: {
+              $size: {
+                $filter: {
+                  input: '$tasks',
+                  cond: {
+                    $and: [
+                      { $gte: ['$$this.priority', 1] },
+                      { $lte: ['$$this.priority', 3] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            tasks: 0 // Remove tasks array to save memory, we only need counts
+          }
+        },
+        {
+          $sort: { createdAt: -1 }
+        }
+      ];
+
+      // Get projects with aggregated task stats and all visible tasks separately
+      const [projectsWithStats, visibleTasks] = await Promise.all([
+        projects.aggregate(pipeline).toArray(),
         tasks.find({ isVisible: true }).sort({ priority: 1, createdAt: -1 }).toArray()
       ]);
-      
+
       return {
-        projects: projectsResult as Project[],
-        tasks: tasksResult as Task[]
+        projects: projectsWithStats as Project[],
+        tasks: visibleTasks as Task[]
       };
     } catch (error) {
       handleMongoError(error, 'getHomepageData');
@@ -637,19 +682,31 @@ export class DatabaseService {
         return { project: null, tasks: [], subtasks: {} };
       }
       
+      // Convert project._id to ObjectId for proper matching
+      const projectObjectId = toObjectId(project._id!.toString());
+      
       // Use aggregation to get tasks with their subtasks in a single query
       const pipeline = [
         {
           $match: {
-            projectId: project._id,
+            projectId: projectObjectId,
             isVisible: true
           }
         },
         {
           $lookup: {
             from: 'subtasks',
-            localField: '_id',
-            foreignField: 'taskId',
+            let: { taskId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$taskId', '$$taskId'] }
+                }
+              },
+              {
+                $sort: { createdAt: -1 }
+              }
+            ],
             as: 'taskSubtasks'
           }
         },
@@ -666,12 +723,34 @@ export class DatabaseService {
       
       for (const taskData of tasksWithSubtasks) {
         const { taskSubtasks, ...task } = taskData;
-        projectTasks.push(task as Task);
-        subtasksMap[task._id.toString()] = taskSubtasks || [];
+        
+        // Ensure proper ID conversion for client-side usage
+        const taskWithId = {
+          ...task,
+          _id: task._id.toString(),
+          projectId: task.projectId.toString()
+        };
+        
+        projectTasks.push(taskWithId as any);
+        
+        // Process subtasks with proper ID conversion
+        const processedSubtasks = (taskSubtasks || []).map((subtask: any) => ({
+          ...subtask,
+          _id: subtask._id.toString(),
+          taskId: subtask.taskId.toString()
+        }));
+        
+        subtasksMap[task._id.toString()] = processedSubtasks;
       }
       
+      // Also ensure project has proper ID
+      const projectWithId = {
+        ...project,
+        _id: project._id!.toString()
+      };
+      
       return {
-        project: project as Project,
+        project: projectWithId as any,
         tasks: projectTasks,
         subtasks: subtasksMap
       };

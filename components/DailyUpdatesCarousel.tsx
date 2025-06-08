@@ -5,7 +5,7 @@ import { useHebrewFont } from '@/hooks/useFont';
 import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
 
 interface DailyUpdate {
-  id: string;
+  _id: string;
   title: string;
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
@@ -26,13 +26,14 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const [fallbackMessage, setFallbackMessage] = useState('');
+  const [fallbackMessage, setFallbackMessage] = useState('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
 
   const fetchData = async () => {
     try {
-      setLoading(true);
+      console.log('🔄 DailyUpdatesCarousel: Starting data fetch...');
+      
       const [updatesResponse, settingsResponse] = await Promise.all([
         fetch('/api/daily-updates', {
           headers: {
@@ -48,43 +49,73 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         })
       ]);
 
+      console.log('📡 DailyUpdatesCarousel: API responses:', { 
+        updatesStatus: updatesResponse.status,
+        settingsStatus: settingsResponse.status 
+      });
+
+      // Handle updates response
       if (updatesResponse.ok) {
         const updatesData = await updatesResponse.json();
-        if (updatesData.success && updatesData.updates) {
+        console.log('📋 DailyUpdatesCarousel: Updates data received:', updatesData);
+        
+        if (updatesData.success && updatesData.updates && Array.isArray(updatesData.updates)) {
           // Map to our interface format
-          const activeUpdates = updatesData.updates.map((update: any) => ({
-            id: update.id,
-            title: update.title,
-            content: update.content,
-            type: update.type,
-            priority: update.priority,
-            isPinned: update.isPinned || update.is_pinned,
-            isActive: update.isActive || update.is_active,
-            isHidden: update.isHidden || update.is_hidden || false,
-            expiresAt: update.expiresAt || update.expires_at
-          }));
+          const activeUpdates = updatesData.updates.map((update: any, index: number) => {
+            console.log(`🔄 DailyUpdatesCarousel: Processing update ${index + 1}:`, update);
+            
+            return {
+              _id: update._id?.toString() || `temp-${index}`,
+              title: update.title || 'ללא כותרת',
+              content: update.content || 'ללא תוכן',
+              type: update.type || 'info',
+              priority: update.priority || 5,
+              isPinned: update.isPinned || update.is_pinned || false,
+              isActive: update.isActive !== false, // Default to true unless explicitly false
+              isHidden: update.isHidden || update.is_hidden || false,
+              expiresAt: update.expiresAt || update.expires_at || null
+            };
+          });
           
+          console.log('✅ DailyUpdatesCarousel: Processed updates:', activeUpdates);
           setUpdates(activeUpdates);
+          
           // Reset index if current index is out of bounds
           if (currentIndex >= activeUpdates.length) {
             setCurrentIndex(0);
           }
+        } else {
+          console.log('⚠️ DailyUpdatesCarousel: No valid updates data received');
+          console.log('📄 DailyUpdatesCarousel: Raw updates response:', updatesData);
+          setUpdates([]);
         }
+      } else {
+        console.error('❌ DailyUpdatesCarousel: Updates API failed:', updatesResponse.status, updatesResponse.statusText);
+        setUpdates([]);
       }
 
       // Handle fallback message setting
       if (settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
+        console.log('⚙️ DailyUpdatesCarousel: Settings data received:', settingsData);
+        
         if (settingsData.success && settingsData.value) {
+          console.log('✅ DailyUpdatesCarousel: Setting fallback message:', settingsData.value);
           setFallbackMessage(settingsData.value);
+        } else {
+          console.log('⚠️ DailyUpdatesCarousel: No fallback message found, using default');
+          setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
         }
       } else {
+        console.log('⚠️ DailyUpdatesCarousel: Settings API failed, using default fallback message');
         setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
       }
     } catch (error) {
-      console.error('❌ Error fetching carousel data:', error);
-              setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+      console.error('❌ DailyUpdatesCarousel: Error fetching carousel data:', error);
+      setUpdates([]);
+      setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
     } finally {
+      console.log('🏁 DailyUpdatesCarousel: Fetch completed, setting loading to false');
       setLoading(false);
     }
   };
@@ -136,7 +167,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       }
       
       // Remove from current updates and adjust index
-      const newUpdates = updates.filter(update => update.id !== updateId);
+      const newUpdates = updates.filter(update => update._id !== updateId);
       setUpdates(newUpdates);
       
       // Adjust current index if needed
@@ -269,6 +300,20 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const hasUpdates = updates.length > 0;
   const currentUpdate = hasUpdates ? updates[currentIndex] : null;
   const colors = currentUpdate ? getTypeColors(currentUpdate.type) : getTypeColors('info');
+  
+  // Debug logging
+  console.log('🎨 DailyUpdatesCarousel: Render state:', { 
+    loading, 
+    hasUpdates, 
+    updatesCount: updates.length,
+    currentIndex,
+    currentUpdate: currentUpdate ? { 
+      _id: currentUpdate._id, 
+      title: currentUpdate.title,
+      content: currentUpdate.content?.substring(0, 50) + '...' 
+    } : null,
+    fallbackMessage: fallbackMessage?.substring(0, 50) + '...'
+  });
 
   return (
     <div className={`${className}`}>
@@ -337,7 +382,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                hideUpdate(currentUpdate.id);
+                                        hideUpdate(currentUpdate._id);
               }}
               className={`absolute top-2 left-2 w-6 h-6 rounded-full transition-all duration-200 ease-in-out z-20 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-current/50 touch-manipulation ${
                 currentUpdate.type === 'warning' ? 'hover:bg-yellow-200/70 dark:hover:bg-yellow-700/50 text-yellow-700 dark:text-yellow-300' :
@@ -371,16 +416,16 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
 
               {/* Text Content */}
               <div className="flex-1 min-w-0">
-                {hasUpdates ? (
+                {hasUpdates && currentUpdate ? (
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className={`
                         text-sm font-semibold leading-tight
                         ${colors.text} ${hebrewFont.fontClass}
                       `}>
-                        {currentUpdate!.title}
+                        {currentUpdate.title}
                       </h3>
-                      {currentUpdate!.isPinned && (
+                      {currentUpdate.isPinned && (
                         <Pin className="h-3 w-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                       )}
                     </div>
@@ -389,7 +434,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                       ${colors.text} ${hebrewFont.fontClass}
                       opacity-90
                     `}>
-                      {currentUpdate!.content}
+                      {currentUpdate.content}
                     </p>
                   </div>
                 ) : (
@@ -397,7 +442,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                     text-sm font-medium leading-relaxed
                     ${colors.text} ${hebrewFont.fontClass}
                   `}>
-                    {fallbackMessage}
+                    {fallbackMessage || 'ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.'}
                   </p>
                 )}
               </div>

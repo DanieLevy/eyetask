@@ -11,18 +11,22 @@ import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { usePWADetection } from '@/hooks/usePWADetection';
 import ProjectCard from '@/components/ProjectCard';
 import { useHomepageData, useDataPreloader } from '@/hooks/useOptimizedData';
-import { HomepageLoadingSkeleton, ProgressiveLoader } from '@/components/SkeletonLoaders';
+import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
+import { InlineLoading } from '@/components/LoadingSystem';
+import { usePageLoading } from '@/contexts/LoadingContext';
 
 interface Project {
-  id: string;
+  _id?: string;
   name: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
+  taskCount?: number;
+  highPriorityCount?: number;
 }
 
 interface Task {
-  id: string;
+  _id?: string;
   title: string;
   projectId: string;
   priority: number;
@@ -34,6 +38,7 @@ function HomePageCore() {
   const { status: pwaStatus } = usePWADetection();
   const searchParams = useSearchParams();
   const { preloadProject } = useDataPreloader();
+  const { withPageLoading } = usePageLoading();
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
@@ -97,10 +102,18 @@ function HomePageCore() {
   }, [preloadProject]);
 
   const getTaskCountForProject = (projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.taskCount !== undefined) {
+      return project.taskCount;
+    }
     return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
   };
 
   const getHighPriorityTasksForProject = (projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.highPriorityCount !== undefined) {
+      return project.highPriorityCount;
+    }
     return tasks.filter(task => 
       task.projectId === projectId && 
       task.isVisible && 
@@ -130,7 +143,7 @@ function HomePageCore() {
   };
 
   return (
-    <ProgressiveLoader
+    <InlineLoading
       loading={loading}
       error={error}
       skeleton={<HomepageLoadingSkeleton />}
@@ -153,6 +166,8 @@ function HomePageCore() {
           </div>
         </div>
       }
+      loadingText="טוען נתוני דף הבית..."
+      minHeight="50vh"
     >
       <div className="container mx-auto p-6 space-y-8">
         {/* Offline indicator */}
@@ -196,13 +211,13 @@ function HomePageCore() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
                 <div
-                  key={project.id}
+                  key={project._id || ''}
                   onMouseEnter={() => handleProjectHover(project.name)}
                 >
                   <ProjectCard
                     project={project}
-                    taskCount={getTaskCountForProject(project.id)}
-                    highPriorityCount={getHighPriorityTasksForProject(project.id)}
+                    taskCount={getTaskCountForProject(project._id || '')}
+                    highPriorityCount={getHighPriorityTasksForProject(project._id || '')}
                   />
                 </div>
               ))}
@@ -210,7 +225,7 @@ function HomePageCore() {
           )}
         </div>
       </div>
-    </ProgressiveLoader>
+    </InlineLoading>
   );
 }
 

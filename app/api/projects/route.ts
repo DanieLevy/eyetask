@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       projects: projects.map(project => ({
-        id: project._id?.toString(),
+        _id: project._id?.toString(),
         name: project.name,
         description: project.description,
         createdAt: project.createdAt.toISOString(),
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       project: {
-        id: newProject?._id?.toString(),
+        _id: newProject?._id?.toString(),
         name: newProject?.name,
         description: newProject?.description,
         createdAt: newProject?.createdAt.toISOString(),

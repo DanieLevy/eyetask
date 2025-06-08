@@ -6,7 +6,7 @@ import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useEffect, useState } from 'react';
 
 interface Project {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
 }

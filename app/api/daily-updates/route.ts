@@ -21,21 +21,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       updates: updates.map(update => ({
-        id: update._id?.toString(),
+        _id: update._id?.toString(),
         title: update.title,
         content: update.content,
         type: update.type,
         priority: update.priority,
-        duration_type: update.durationType,
-        duration_value: update.durationValue,
-        expires_at: update.expiresAt?.toISOString(),
-        is_active: update.isActive,
-        is_pinned: update.isPinned,
-        is_hidden: update.isHidden || false,
-        target_audience: update.targetAudience,
-        created_at: update.createdAt.toISOString(),
-        updated_at: update.updatedAt.toISOString(),
-        // Also include camelCase versions for compatibility
         durationType: update.durationType,
         durationValue: update.durationValue,
         expiresAt: update.expiresAt?.toISOString(),

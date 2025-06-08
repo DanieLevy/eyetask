@@ -32,10 +32,12 @@ import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ImageDisplay, ImageGallery } from '@/components/ImageUpload';
 import { useProjectData } from '@/hooks/useOptimizedData';
-import { ProjectPageLoadingSkeleton, ProgressiveLoader } from '@/components/SkeletonLoaders';
+import { ProjectPageLoadingSkeleton } from '@/components/SkeletonLoaders';
+import { InlineLoading } from '@/components/LoadingSystem';
+import { usePageLoading } from '@/contexts/LoadingContext';
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   subtitle?: string;
   images?: string[];
@@ -58,7 +60,7 @@ interface Task {
 }
 
 interface Subtask {
-  id: string;
+  _id: string;
   taskId: string;
   title: string;
   subtitle?: string;
@@ -95,7 +97,7 @@ export default function ProjectPage() {
   const project = projectData?.project;
   const tasks = projectData?.tasks || [];
   const subtasks = projectData?.subtasks || {};
-  const projectId = project?.id || null;
+  const projectId = project?._id || null;
 
   // Image viewer is now handled directly by ImageDisplay components
 
@@ -294,7 +296,7 @@ export default function ProjectPage() {
 
 
   return (
-    <ProgressiveLoader
+    <InlineLoading
       loading={loading}
       error={error}
       skeleton={<ProjectPageLoadingSkeleton />}
@@ -317,6 +319,8 @@ export default function ProjectPage() {
           </div>
         </div>
       }
+      loadingText="טוען נתוני פרויקט..."
+      minHeight="50vh"
     >
       {!project ? (
         <div className="container mx-auto p-6">
@@ -580,14 +584,14 @@ export default function ProjectPage() {
           <div className="space-y-4">
             {sortedTasks
               .map((task) => {
-                const isExpanded = expandedTasks.has(task.id);
-                const taskSubtasks = getFilteredSubtasks(task.id);
+                const isExpanded = expandedTasks.has(task._id);
+                const taskSubtasks = getFilteredSubtasks(task._id);
                 
                 return (
-                  <div key={task.id} className="group bg-card rounded-xl border border-border/40 overflow-hidden shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 hover:border-border/60">
+                  <div key={task._id} className="group bg-card rounded-xl border border-border/40 overflow-hidden shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 hover:border-border/60">
                     {/* Task Header - Always Visible (Collapsed View) */}
                     <button
-                      onClick={() => toggleTaskExpansion(task.id)}
+                      onClick={() => toggleTaskExpansion(task._id)}
                       className="w-full p-5 text-right hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 transition-all duration-300 group relative"
                     >
                       {/* Subtle accent border on left when hovered */}
@@ -756,13 +760,13 @@ export default function ProjectPage() {
                               </h4>
                               <div className="space-y-3">
                                 {taskSubtasks.map((subtask) => {
-                                  const isSubtaskExpanded = expandedSubtasks.has(subtask.id);
+                                  const isSubtaskExpanded = expandedSubtasks.has(subtask._id);
                                   
                                   return (
-                                    <div key={subtask.id} className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/30 shadow-md shadow-black/5 dark:shadow-black/15 hover:shadow-lg hover:shadow-black/8 dark:hover:shadow-black/25 transition-all duration-200">
+                                    <div key={subtask._id} className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/30 shadow-md shadow-black/5 dark:shadow-black/15 hover:shadow-lg hover:shadow-black/8 dark:hover:shadow-black/25 transition-all duration-200">
                                       {/* Subtask Header - Minimal Info (Collapsed) */}
                                       <button
-                                        onClick={() => toggleSubtaskExpansion(subtask.id)}
+                                        onClick={() => toggleSubtaskExpansion(subtask._id)}
                                         className="w-full p-3 text-right hover:bg-muted/30 transition-all duration-200 group"
                                       >
                                         <div className="flex items-center justify-between">
@@ -856,7 +860,7 @@ export default function ProjectPage() {
                                 <span className="font-medium text-foreground text-xs">זמני יום: </span>
                                 <div className="inline-flex gap-1 mt-1">
                                   {subtask.dayTime.map((dt, index) => (
-                                    <span key={`${subtask.id}-dayTime-${index}-${dt}`} className="inline-flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-xs">
+                                    <span key={`${subtask._id}-dayTime-${index}-${dt}`} className="inline-flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-xs">
                                       <span>{getDayTimeIcon(dt)}</span>
                                       <span>{getDayTimeLabel(dt)}</span>
                                     </span>
@@ -878,7 +882,7 @@ export default function ProjectPage() {
                                                 <div className="flex flex-wrap gap-2">
                                                   {subtask.labels.map((label, index) => (
                                                     <span 
-                                                      key={`${subtask.id}-label-${index}-${label}`}
+                                                      key={`${subtask._id}-label-${index}-${label}`}
                                                       className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
                                                     >
                                                       {label}
@@ -925,6 +929,6 @@ export default function ProjectPage() {
       {/* Image viewer is now integrated into ImageDisplay components */}
     </div>
       )}
-    </ProgressiveLoader>
+    </InlineLoading>
   );
 } 

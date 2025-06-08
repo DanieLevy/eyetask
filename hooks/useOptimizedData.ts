@@ -47,9 +47,25 @@ export function useOptimizedData<T>(
 
   const fetchInProgress = useRef(false);
   const mountTime = useRef(Date.now());
+  const lastFetchTime = useRef(0);
+  const requestDedupeKey = useRef('');
 
   const fetchData = useCallback(async (showLoading = true) => {
     if (!enabled || fetchInProgress.current) return;
+
+    // Prevent rapid successive calls (minimum 1 second between requests)
+    const now = Date.now();
+    if (now - lastFetchTime.current < 1000) {
+      return;
+    }
+
+    // Deduplicate identical requests
+    const currentDedupeKey = `${url}_${enabled}_${showLoading}`;
+    if (requestDedupeKey.current === currentDedupeKey && fetchInProgress.current) {
+      return;
+    }
+    requestDedupeKey.current = currentDedupeKey;
+    lastFetchTime.current = now;
 
     fetchInProgress.current = true;
     
@@ -96,21 +112,22 @@ export function useOptimizedData<T>(
     } finally {
       setLoading(false);
       fetchInProgress.current = false;
+      requestDedupeKey.current = ''; // Reset deduplication key
     }
-  }, [enabled, url, cacheTime, backgroundRefetch, data, onSuccess, onError, cacheKey]);
+  }, [enabled, url, cacheTime, backgroundRefetch, onSuccess, onError, cacheKey]);
 
   const refetch = useCallback(async () => {
     // Invalidate cache and refetch
     cacheManager.invalidate(url);
     await fetchData(true);
-  }, [fetchData, url]);
+  }, [url]); // Remove fetchData dependency to prevent infinite loop
 
   // Initial fetch on mount
   useEffect(() => {
     if (enabled && refetchOnMount) {
       fetchData();
     }
-  }, [enabled, refetchOnMount, fetchData]);
+  }, [enabled, refetchOnMount]); // Remove fetchData dependency to prevent infinite loop
 
   // Check if data is stale
   useEffect(() => {
@@ -123,15 +140,51 @@ export function useOptimizedData<T>(
 
       // If data is stale and background refresh is enabled, fetch new data
       if (isDataStale && backgroundRefetch && !fetchInProgress.current) {
-        fetchData(false); // Don't show loading for background refresh
+        // Use a fresh fetchData call to avoid dependency issues
+        const doBackgroundFetch = async () => {
+          if (!enabled || fetchInProgress.current) return;
+
+          fetchInProgress.current = true;
+          setError(null);
+
+          try {
+            const timestamp = Date.now();
+            const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
+            
+            const result = await cachedFetch<T>(fetchUrl, {
+              ttl: cacheTime,
+              version: '1',
+              background: backgroundRefetch,
+              staleWhileRevalidate: true,
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            });
+
+            setData(result);
+            setLastFetch(Date.now());
+            setIsStale(false);
+            onSuccess?.(result);
+
+          } catch (err) {
+            const error = err as Error;
+            setError(error);
+            onError?.(error);
+          } finally {
+            fetchInProgress.current = false;
+          }
+        };
+
+        doBackgroundFetch();
       }
     };
 
-    const interval = setInterval(checkStale, 30000); // Check every 30 seconds
+    const interval = setInterval(checkStale, 60000); // Check every 60 seconds instead of 30
     checkStale(); // Check immediately
 
     return () => clearInterval(interval);
-  }, [lastFetch, staleTime, backgroundRefetch, fetchData]);
+  }, [lastFetch, staleTime, backgroundRefetch, enabled, url, cacheTime, onSuccess, onError]);
 
   // Refetch on window focus
   useEffect(() => {
@@ -141,13 +194,49 @@ export function useOptimizedData<T>(
       // Only refetch if data is stale or it's been more than 1 minute since mount
       const shouldRefetch = isStale || (Date.now() - mountTime.current > 60000);
       if (shouldRefetch && !fetchInProgress.current) {
-        fetchData(false);
+        // Directly call fetchData to avoid dependency issues
+        const doRefetch = async () => {
+          if (!enabled || fetchInProgress.current) return;
+
+          fetchInProgress.current = true;
+          setError(null);
+
+          try {
+            const timestamp = Date.now();
+            const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
+            
+            const result = await cachedFetch<T>(fetchUrl, {
+              ttl: cacheTime,
+              version: '1',
+              background: backgroundRefetch,
+              staleWhileRevalidate: true,
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+              }
+            });
+
+            setData(result);
+            setLastFetch(Date.now());
+            setIsStale(false);
+            onSuccess?.(result);
+
+          } catch (err) {
+            const error = err as Error;
+            setError(error);
+            onError?.(error);
+          } finally {
+            fetchInProgress.current = false;
+          }
+        };
+
+        doRefetch();
       }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [refetchOnWindowFocus, isStale, fetchData]);
+  }, [refetchOnWindowFocus, isStale, enabled, url, cacheTime, backgroundRefetch, onSuccess, onError]);
 
   return {
     data,
@@ -161,15 +250,17 @@ export function useOptimizedData<T>(
 
 // Type definitions for homepage data
 interface Project {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
+  taskCount?: number;
+  highPriorityCount?: number;
 }
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   projectId: string;
   priority: number;
@@ -198,14 +289,14 @@ interface HomepageData {
 // Type definitions for project page data (matching component interfaces)
 interface ProjectPageData {
   project: {
-    id: string;
+    _id: string;
     name: string;
     description?: string;
     createdAt: string;
     updatedAt: string;
   };
   tasks: Array<{
-    id: string;
+    _id: string;
     title: string;
     subtitle?: string;
     images?: string[];
@@ -228,7 +319,7 @@ interface ProjectPageData {
   }>;
   subtasks: {
     [taskId: string]: Array<{
-      id: string;
+      _id: string;
       taskId: string;
       title: string;
       subtitle?: string;
@@ -253,10 +344,10 @@ interface ProjectPageData {
 export function useHomepageData() {
   return useOptimizedData<HomepageData>('/api/homepage-data', {
     cacheKey: 'homepage-data',
-    staleTime: 1 * 60 * 1000, // 1 minute for homepage
-    cacheTime: 3 * 60 * 1000, // 3 minutes cache
+    staleTime: 5 * 60 * 1000, // 5 minutes for homepage (increased to reduce requests)
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Disable to reduce requests
     backgroundRefetch: true
   });
 }

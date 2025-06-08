@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       tasks: tasks.map(task => ({
-        id: task._id?.toString(),
+        _id: task._id?.toString(),
         title: task.title,
         subtitle: task.subtitle,
         images: task.images || [],
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       task: {
-        id: newTask?._id?.toString(),
+        _id: newTask?._id?.toString(),
         title: newTask?.title,
         subtitle: newTask?.subtitle,
         images: newTask?.images || [],

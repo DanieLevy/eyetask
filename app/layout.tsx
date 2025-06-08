@@ -9,6 +9,9 @@ import CSSFailsafe from "@/components/CSSFailsafe";
 import OfflineBanner from "@/components/OfflineBanner";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
+import { LoadingProvider } from "@/contexts/LoadingContext";
+import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
+import { GlobalLoadingIndicator, LoadingStyles } from "@/components/LoadingSystem";
 
 
 // Using system fonts to avoid network issues during build
@@ -294,24 +297,29 @@ export default function RootLayout({
         className={`${systemSans.variable} ${systemMono.variable} antialiased font-sans`}
       >
         <CSSFailsafe />
-        <DeepLinkHandler>
-          <SmartAppBanner />
-          <OfflineBanner />
-          <AdminClientLayout>
-            <RefreshProvider>
-              <GlobalPullToRefresh>
-                <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
-                  <Header />
-                  <main className="flex-1 overflow-auto bg-background">
-                    {children}
-                  </main>
-                  <Footer />
-                </div>
-
-              </GlobalPullToRefresh>
-            </RefreshProvider>
-          </AdminClientLayout>
-        </DeepLinkHandler>
+        <LoadingStyles />
+        <LoadingProvider>
+          <NavigationLoadingProvider>
+            <DeepLinkHandler>
+              <SmartAppBanner />
+              <OfflineBanner />
+              <GlobalLoadingIndicator position="top" showProgress={true} />
+              <AdminClientLayout>
+                <RefreshProvider>
+                  <GlobalPullToRefresh>
+                    <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
+                      <Header />
+                      <main className="flex-1 overflow-auto bg-background">
+                        {children}
+                      </main>
+                      <Footer />
+                    </div>
+                  </GlobalPullToRefresh>
+                </RefreshProvider>
+              </AdminClientLayout>
+            </DeepLinkHandler>
+          </NavigationLoadingProvider>
+        </LoadingProvider>
       </body>
     </html>
   );

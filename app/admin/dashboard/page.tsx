@@ -54,15 +54,17 @@ const useProjectsRealtime = (callback: () => void) => { useEffect(() => { const 
 const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
 
 interface Project {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
+  taskCount?: number;
+  highPriorityCount?: number;
 }
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   projectId: string;
   priority: number;
@@ -214,14 +216,22 @@ export default function AdminDashboard() {
   };
 
   const getTaskCountForProject = (projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.taskCount !== undefined) {
+      return project.taskCount;
+    }
     return tasks.filter(task => task.projectId === projectId).length;
   };
 
   const getActiveTasksForProject = (projectId: string) => {
-    return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
+    return getTaskCountForProject(projectId);
   };
 
   const getHighPriorityTasksForProject = (projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.highPriorityCount !== undefined) {
+      return project.highPriorityCount;
+    }
     return tasks.filter(task => 
       task.projectId === projectId && 
       task.priority >= 1 && 
@@ -537,17 +547,17 @@ export default function AdminDashboard() {
             ) : (
               <div className="space-y-2">
                 {projects.slice(0, 3).map((project) => (
-                  <div key={project.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={project._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0 flex-1">
                       <h4 className="font-medium text-gray-900 text-sm truncate">{project.name}</h4>
                       <p className="text-xs text-gray-500">
-                        {getTaskCountForProject(project.id)} משימות • 
-                        {getActiveTasksForProject(project.id)} פעילות
+                        {getTaskCountForProject(project._id)} משימות • 
+                        {getActiveTasksForProject(project._id)} פעילות
                       </p>
                     </div>
                     <div className="flex items-center gap-1 mr-3">
                       <Link 
-                        href={`/admin/projects/${project.id}`}
+                        href={`/admin/projects/${project._id}`}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       >
                         <Eye className="h-4 w-4" />
