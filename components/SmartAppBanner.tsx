@@ -27,14 +27,24 @@ export default function SmartAppBanner() {
   useEffect(() => {
     if (!isClient) return;
     
-    // Show banner conditions
+    // Show banner conditions - be more conservative to avoid conflicts with native banner
     const shouldShow = !status.isStandalone && 
                       !status.isInstalled && 
                       !status.installDismissed && 
                       !status.neverShow &&
-                      status.canInstall;
+                      status.canInstall &&
+                      status.shouldShowInstallPrompt; // Only show if we should show custom prompt
 
     setShowBanner(shouldShow);
+    
+    // Add a small delay to let native banner show first if it's going to
+    const timeout = setTimeout(() => {
+      if (shouldShow && !document.querySelector('[role="banner"]')) {
+        setShowBanner(shouldShow);
+      }
+    }, 2000); // Wait 2 seconds for native banner
+
+    return () => clearTimeout(timeout);
   }, [status, isClient]);
 
   // Don't render on server to prevent hydration mismatch

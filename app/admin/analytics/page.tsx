@@ -94,6 +94,35 @@ interface AnalyticsData {
     responseTime: number;
     errorRate: number;
   };
+
+  // Activity Stats
+  activityStats?: {
+    totalActions: number;
+    actionsByCategory: Record<string, number>;
+    actionsByType: Record<string, number>;
+    topUsers: Array<{
+      userId: string;
+      username?: string;
+      actionCount: number;
+    }>;
+  };
+
+  // Last Actions - Real activity log
+  lastActions?: Array<{
+    id: string;
+    timestamp: Date;
+    userId?: string;
+    userType: 'admin' | 'user' | 'system';
+    action: string;
+    category: 'task' | 'project' | 'subtask' | 'user' | 'system' | 'auth' | 'view' | 'daily_update';
+    target?: {
+      id: string;
+      type: string;
+      title?: string;
+    };
+    severity: 'info' | 'warning' | 'error' | 'success';
+    metadata?: Record<string, any>;
+  }>;
 }
 
 export default function AnalyticsPage() {
@@ -496,6 +525,188 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             </section>
+
+            {/* Last Actions - Real Activity Log */}
+            {analyticsData.lastActions && analyticsData.lastActions.length > 0 && (
+              <section>
+                <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
+                  פעולות אחרונות (רישום פעילות)
+                </h2>
+                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                  <div className="p-6">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {analyticsData.lastActions.map((action, index) => {
+                        const getSeverityIcon = (severity: string) => {
+                          switch (severity) {
+                            case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
+                            case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+                            case 'error': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+                            default: return <Activity className="h-4 w-4 text-blue-500" />;
+                          }
+                        };
+
+                        const getCategoryIcon = (category: string) => {
+                          switch (category) {
+                            case 'task': return <Target className="h-4 w-4 text-blue-500" />;
+                            case 'subtask': return <CheckCircle className="h-4 w-4 text-purple-500" />;
+                            case 'project': return <BarChart3 className="h-4 w-4 text-green-500" />;
+                            case 'auth': return <Users className="h-4 w-4 text-indigo-500" />;
+                            case 'system': return <Zap className="h-4 w-4 text-orange-500" />;
+                            case 'daily_update': return <MessageSquare className="h-4 w-4 text-cyan-500" />;
+                            default: return <Activity className="h-4 w-4 text-gray-500" />;
+                          }
+                        };
+
+                        const formatDateTime = (timestamp: Date) => {
+                          const date = new Date(timestamp);
+                          const now = new Date();
+                          const diffMs = now.getTime() - date.getTime();
+                          const diffMins = Math.floor(diffMs / (1000 * 60));
+                          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                          if (diffMins < 1) return 'עכשיו';
+                          if (diffMins < 60) return `לפני ${diffMins} דקות`;
+                          if (diffHours < 24) return `לפני ${diffHours} שעות`;
+                          if (diffDays < 7) return `לפני ${diffDays} ימים`;
+                          
+                          return date.toLocaleDateString('he-IL', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+                        };
+
+                        return (
+                          <div key={action.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {getSeverityIcon(action.severity)}
+                              {getCategoryIcon(action.category)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground leading-5">
+                                    {action.action}
+                                  </p>
+                                  {action.target && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                      {action.target.title}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {formatDateTime(action.timestamp)}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                      action.userType === 'admin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                                      action.userType === 'system' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
+                                      'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                    }`}>
+                                      {action.userType === 'admin' ? 'מנהל' : action.userType === 'system' ? 'מערכת' : 'משתמש'}
+                                    </span>
+                                    {action.metadata?.device && (
+                                      <span className="text-xs opacity-75">
+                                        {action.metadata.device}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {analyticsData.activityStats && analyticsData.activityStats.totalActions > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="text-center">
+                            <div className="font-semibold text-foreground">{analyticsData.activityStats.totalActions}</div>
+                            <div className="text-muted-foreground">סה״כ פעולות</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold text-foreground">
+                              {Object.keys(analyticsData.activityStats.actionsByCategory).length}
+                            </div>
+                            <div className="text-muted-foreground">קטגוריות</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold text-foreground">
+                              {analyticsData.activityStats.topUsers.length}
+                            </div>
+                            <div className="text-muted-foreground">משתמשים פעילים</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold text-foreground">
+                              {Math.round(analyticsData.activityStats.totalActions / Math.max(1, Object.keys(analyticsData.activityStats.actionsByCategory).length))}
+                            </div>
+                            <div className="text-muted-foreground">ממוצע פעולות</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Activity Stats Summary */}
+            {analyticsData.activityStats && (
+              <section>
+                <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
+                  סיכום פעילות מערכת
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Actions by Category */}
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">פעולות לפי קטגוריה</h3>
+                    <div className="space-y-3">
+                      {Object.entries(analyticsData.activityStats.actionsByCategory).map(([category, count]) => {
+                        const categoryNames: Record<string, string> = {
+                          task: 'משימות',
+                          subtask: 'תת-משימות', 
+                          project: 'פרויקטים',
+                          auth: 'אימות',
+                          system: 'מערכת',
+                          daily_update: 'עדכונים יומיים',
+                          user: 'משתמשים',
+                          view: 'צפיות'
+                        };
+                        
+                        return (
+                          <div key={category} className="flex items-center justify-between">
+                            <span>{categoryNames[category] || category}</span>
+                            <span className="font-semibold">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Top Active Users */}
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">משתמשים פעילים</h3>
+                    <div className="space-y-3">
+                      {analyticsData.activityStats.topUsers.slice(0, 5).map((user, index) => (
+                        <div key={user.userId} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
+                              {index + 1}
+                            </div>
+                            <span>{user.username || `משתמש ${user.userId.slice(-6)}`}</span>
+                          </div>
+                          <span className="font-semibold">{user.actionCount} פעולות</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
         ) : (
           <div className="text-center py-12">

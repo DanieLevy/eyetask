@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { activityLogger } from '@/lib/activityLogger';
 
 // POST /api/auth/login - User authentication
 export async function POST(request: NextRequest) {
@@ -22,6 +23,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (result) {
+      // Log successful login activity
+      await activityLogger.logAuthActivity(
+        'login',
+        result.user.id,
+        result.user.username,
+        {
+          role: result.user.role,
+          email: result.user.email
+        },
+        request
+      );
+      
       logger.info('User login successful', 'AUTH_API', { 
         username: result.user.username,
         email: result.user.email 
@@ -44,6 +57,18 @@ export async function POST(request: NextRequest) {
       
       return response;
     } else {
+      // Log failed login attempt
+      await activityLogger.logAuthActivity(
+        'login_failed',
+        undefined,
+        body.username,
+        {
+          attemptedUsername: body.username,
+          reason: 'Invalid credentials'
+        },
+        request
+      );
+      
       logger.warn('User login failed', 'AUTH_API', { username: body.username });
       
       return NextResponse.json(

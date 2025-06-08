@@ -155,7 +155,7 @@ export function usePWADetection(): UsePWADetectionReturn {
     return launchCount > 10 && !hasBeenPrompted;
   }, [checkStandaloneMode, isClient]);
 
-  // Check if should show install prompt
+  // Check if should show install prompt (custom banner)
   const shouldShowInstallPrompt = useCallback((): boolean => {
     if (typeof window === 'undefined' || !isClient) return false;
     
@@ -170,10 +170,11 @@ export function usePWADetection(): UsePWADetectionReturn {
     if (dismissed) {
       const dismissedTime = parseInt(dismissed);
       const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
-      if (daysSinceDismissed < 7) return false; // Wait 7 days
+      if (daysSinceDismissed < 3) return false; // Wait 3 days instead of 7
     }
     
-    // Show if installable prompt is available
+    // Only show custom banner if browser doesn't show native banner
+    // Give native banner priority, show custom as fallback
     return deferredPrompt !== null;
   }, [checkStandaloneMode, deferredPrompt, isClient]);
 
@@ -333,13 +334,24 @@ export function usePWADetection(): UsePWADetectionReturn {
     
     // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Only prevent default if we want to control the prompt timing
+      console.log('PWA: beforeinstallprompt event fired');
+      
+      // Check user preferences and app state
       const neverShow = localStorage.getItem(STORAGE_KEYS.NEVER_SHOW) === 'true';
       const isStandalone = checkStandaloneMode();
       
-      if (!neverShow && !isStandalone) {
-        e.preventDefault(); // Only prevent if we plan to show our own prompt
-        setDeferredPrompt(e as PWAInstallPrompt);
+      // Store the prompt for potential later use
+      setDeferredPrompt(e as PWAInstallPrompt);
+      
+      // Only prevent default if user specifically opted out or already in standalone
+      // Otherwise, let the browser show its native install banner
+      if (neverShow || isStandalone) {
+        console.log('PWA: Preventing default install prompt (user opted out or already standalone)');
+        e.preventDefault();
+      } else {
+        console.log('PWA: Allowing native install banner to show');
+        // Don't prevent default - let browser show native prompt
+        // We can still show our custom banner alongside it
       }
     };
 

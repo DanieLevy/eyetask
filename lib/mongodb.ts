@@ -9,6 +9,7 @@ export interface DatabaseCollections {
   analytics: Collection;
   dailyUpdates: Collection;
   dailyUpdatesSettings: Collection;
+  activities: Collection;
 }
 
 class MongoDBConnection {
@@ -150,6 +151,7 @@ class MongoDBConnection {
       analytics: db.collection('analytics'),
       dailyUpdates: db.collection('dailyUpdates'),
       dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
+      activities: db.collection('activities'),
     };
   }
 

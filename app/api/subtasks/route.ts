@@ -3,6 +3,7 @@ import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 import { fromObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
+import { activityLogger } from '@/lib/activityLogger';
 
 // GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
@@ -147,6 +148,24 @@ export async function POST(request: NextRequest) {
     
     // Create the subtask
     const subtaskId = await db.createSubtask(body);
+    
+    // Log the activity
+    await activityLogger.logSubtaskActivity(
+      'created',
+      subtaskId,
+      body.title,
+      fromObjectId(body.taskId),
+      user?.id,
+      'admin',
+      {
+        type: body.type,
+        amountNeeded: body.amountNeeded,
+        datacoNumber: body.datacoNumber,
+        weather: body.weather,
+        scene: body.scene
+      },
+      request
+    );
     
     // Automatically recalculate task amount after creating subtask
     await updateTaskAmount(fromObjectId(body.taskId));

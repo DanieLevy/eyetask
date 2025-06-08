@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { activityLogger } from '@/lib/activityLogger';
 
 // GET /api/tasks - Fetch all tasks (admin) or visible tasks (public)
 export async function GET(request: NextRequest) {
@@ -118,6 +119,22 @@ export async function POST(request: NextRequest) {
     
     const taskId = await db.createTask(taskData);
     const newTask = await db.getTaskById(taskId);
+    
+    // Log the activity
+    await activityLogger.logTaskActivity(
+      'created',
+      taskId,
+      body.title,
+      user?.id,
+      'admin',
+      {
+        projectId: body.projectId,
+        type: body.type,
+        priority: priority,
+        datacoNumber: body.datacoNumber
+      },
+      request
+    );
     
     logger.info('Task created successfully', 'TASKS_API', { 
       taskId,
