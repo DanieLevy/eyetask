@@ -57,7 +57,7 @@ function HomePageCore() {
     isStale 
   } = useHomepageData();
 
-  const projects = homepageData?.projects || [];
+  const projects = (homepageData?.projects || []).sort((a, b) => (b.taskCount || 0) - (a.taskCount || 0));
   const tasks = homepageData?.tasks || [];
 
   // Register refresh function for pull-to-refresh

@@ -77,13 +77,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      ticket: {
-        id: ticketId,
-        ticketNumber: ticket?.ticketNumber,
-        title: ticket?.title,
-        status: ticket?.status,
-        createdAt: ticket?.createdAt
-      },
+      ticketId: ticketId,
+      ticketNumber: ticket?.ticketNumber,
       message: 'Your feedback has been submitted successfully. You will receive a response soon.'
     });
 

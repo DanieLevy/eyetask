@@ -601,12 +601,12 @@ export default function ProjectPage() {
                         <div className="flex-1 min-w-0 pr-4">
                           {/* First row: Title with minimal Dataco indicator */}
                           <div className="mb-3">
-                            <div className="flex items-start gap-3">
-                              <h3 className="text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <h3 className="text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
                                 {task.title}
                               </h3>
                               {/* Minimal Dataco indicator */}
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted/40 text-muted-foreground border border-border/20 font-mono text-right flex-shrink-0 mt-0.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted/40 text-muted-foreground border border-border/20 font-mono flex-shrink-0 mt-0.5">
                                 {formatDatacoNumber(task.datacoNumber)}
                               </span>
                             </div>
@@ -790,12 +790,12 @@ export default function ProjectPage() {
                                             )}
                                             <div className="min-w-0">
                                               <h5 className="font-medium text-foreground text-sm truncate">{subtask.title}</h5>
-                                              <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 bg-background/80 rounded text-[10px]">
-                                                  {formatDatacoNumber(subtask.datacoNumber)}
-                                                </span>
+                                              <div className="flex items-center justify-between gap-2 mt-0.5">
                                                 <span className="text-xs text-primary font-medium">
                                                   {subtask.amountNeeded} {subtask.type === 'events' ? 'אירועים' : 'שעות'}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 bg-background/80 rounded text-[10px]">
+                                                  {formatDatacoNumber(subtask.datacoNumber)}
                                                 </span>
                                               </div>
                                             </div>

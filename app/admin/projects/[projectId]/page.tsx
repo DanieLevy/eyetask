@@ -394,7 +394,7 @@ export default function ProjectManagement() {
                           <p className="font-semibold text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">{task.title}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{task.subtitle || 'אין תת-כותרת'}</p>
                         </Link>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400 w-full justify-between">
                           <span className={`font-bold ${getPriorityColor(task.priority)}`}>
                             {`עדיפות ${getPriorityLabel(task.priority)}`}
                           </span>
