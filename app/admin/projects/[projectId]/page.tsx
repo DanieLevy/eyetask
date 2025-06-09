@@ -23,7 +23,8 @@ import {
   FileText,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  Layers
 } from 'lucide-react';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
@@ -53,6 +54,11 @@ interface Task {
   updatedAt: string;
 }
 
+interface Subtask {
+  _id: string;
+  taskId: string;
+}
+
 interface Project {
   _id: string;
   name: string;
@@ -68,6 +74,7 @@ export default function ProjectManagement() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [operationLoading, setOperationLoading] = useState(false);
@@ -149,19 +156,15 @@ export default function ProjectManagement() {
       const token = localStorage.getItem('adminToken');
       const timestamp = Date.now();
       
-      const [projectRes, tasksRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}?_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json()),
-        fetch(`/api/tasks?projectId=${projectId}&_t=${timestamp}`, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(res => res.json())
+      const commonHeaders = {
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      };
+
+      const [projectRes, tasksRes, subtasksRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}?_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json()),
+        fetch(`/api/tasks?projectId=${projectId}&_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json()),
+        fetch(`/api/subtasks?_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json())
       ]);
 
       if (projectRes.success) {
@@ -176,6 +179,11 @@ export default function ProjectManagement() {
       if (tasksRes.success) {
         setTasks(tasksRes.tasks);
       }
+      
+      if (subtasksRes.success) {
+        setSubtasks(subtasksRes.subtasks || []);
+      }
+
       if(isManualRefresh){
         toast.success('Project data refreshed');
       }
@@ -242,6 +250,10 @@ export default function ProjectManagement() {
       console.error('Error toggling task visibility:', error);
       toast.error('An error occurred while updating visibility.');
     }
+  };
+  
+  const getSubtaskCount = (taskId: string) => {
+    return subtasks.filter(subtask => subtask.taskId === taskId).length;
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -386,47 +398,58 @@ export default function ProjectManagement() {
               <ul className="divide-y divide-gray-100 dark:divide-gray-700/50">
                 {tasks
                   .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
-                  .map((task) => (
-                  <li key={task._id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div className="flex-1 min-w-0">
-                        <Link href={`/admin/tasks/${task._id}`} className="block">
-                          <p className="font-semibold text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">{task.title}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{task.subtitle || 'אין תת-כותרת'}</p>
-                        </Link>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400 w-full justify-between">
-                          <span className={`font-bold ${getPriorityColor(task.priority)}`}>
-                            {`עדיפות ${getPriorityLabel(task.priority)}`}
-                          </span>
-                          <span className="font-mono text-xs">{formatDatacoDisplay(task.datacoNumber)}</span>
+                  .map((task) => {
+                    const subtaskCount = getSubtaskCount(task._id);
+                    return (
+                      <li key={task._id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div className="flex-1 min-w-0">
+                            <Link href={`/admin/tasks/${task._id}`} className="block">
+                              <p className="font-semibold text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">{task.title}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{task.subtitle || 'אין תת-כותרת'}</p>
+                            </Link>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400 w-full justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold ${getPriorityColor(task.priority)}`}>
+                                  {`עדיפות ${getPriorityLabel(task.priority)}`}
+                                </span>
+                                {subtaskCount > 0 && (
+                                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
+                                    <Layers className="h-3 w-3" />
+                                    {subtaskCount} {subtaskCount === 1 ? 'תת-משימה' : 'תת-משימות'}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono text-xs">{formatDatacoDisplay(task.datacoNumber)}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleToggleVisibility(task._id, task.isVisible)}
+                              className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                              title={task.isVisible ? 'הסתר' : 'הצג'}
+                            >
+                              {task.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-yellow-500"/>}
+                            </button>
+                            <Link
+                              href={`/admin/tasks/${task._id}/edit`}
+                              className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                              title="ערוך משימה"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                            <button
+                              onClick={() => setDeleteConfirm(task._id)}
+                              className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                              title="מחק משימה"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleToggleVisibility(task._id, task.isVisible)}
-                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
-                          title={task.isVisible ? 'הסתר' : 'הצג'}
-                        >
-                          {task.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-yellow-500"/>}
-                        </button>
-                        <Link
-                          href={`/admin/tasks/${task._id}/edit`}
-                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
-                          title="ערוך משימה"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                        <button
-                          onClick={() => setDeleteConfirm(task._id)}
-                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
-                          title="מחק משימה"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                      </li>
+                    );
+                  })}
               </ul>
             )}
           </div>

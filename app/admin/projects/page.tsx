@@ -2,12 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Project } from '@/lib/types/project';
-import { Task } from '@/lib/types/task';
 import Header from '@/components/Header';
 import { PlusCircle, Loader2, AlertTriangle, ChevronLeft, List, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import he from 'date-fns/locale/he';
+import { he } from 'date-fns/locale/he';
+
+interface Project {
+  _id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'completed' | 'planning';
+  updatedAt?: string;
+  taskCount?: number;
+}
+
+interface Task {
+  _id: string;
+  projectId: string;
+  status: 'open' | 'in-progress' | 'completed';
+  updatedAt?: string;
+}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -15,12 +29,12 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
+  
   useEffect(() => {
     async function fetchData() {
-      try {
-        setLoading(true);
-        const [projectsRes, tasksRes] = await Promise.all([
+    try {
+      setLoading(true);
+      const [projectsRes, tasksRes] = await Promise.all([
           fetch('/api/projects'),
           fetch('/api/tasks'),
         ]);
@@ -35,20 +49,20 @@ export default function ProjectsPage() {
         const projectsData = await projectsRes.json();
         const tasksData = await tasksRes.json();
         
-        const projectsWithTaskCounts = (projectsData.projects || []).map(project => ({
+        const projectsWithTaskCounts = (projectsData.projects || []).map((project: Project) => ({
           ...project,
-          taskCount: (tasksData.tasks || []).filter(task => task.projectId === project._id).length
+          taskCount: (tasksData.tasks || []).filter((task: Task) => task.projectId === project._id).length
         }));
 
-        projectsWithTaskCounts.sort((a, b) => b.taskCount - a.taskCount);
+        projectsWithTaskCounts.sort((a: Project, b: Project) => (b.taskCount ?? 0) - (a.taskCount ?? 0));
 
         setProjects(projectsWithTaskCounts);
         setTasks(tasksData.tasks || []);
       } catch (e: any) {
         setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+    } finally {
+      setLoading(false);
+    }
     }
     fetchData();
   }, []);
@@ -86,7 +100,7 @@ export default function ProjectsPage() {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
         <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-      </div>
+        </div>
     );
   }
 
@@ -113,7 +127,7 @@ export default function ProjectsPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
               פרויקטים
-            </h1>
+                  </h1>
             <button
               onClick={() => router.push('/admin/projects/new')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -122,13 +136,13 @@ export default function ProjectsPage() {
               <span>פרויקט חדש</span>
             </button>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map(project => {
               const { openTasks, completedTasks } = getTaskCounts(project._id);
               const lastUpdate = getMostRecentUpdate(project._id);
               
-              return (
+                return (
                 <div
                   key={project._id}
                   onClick={() => navigateToProject(project._id)}
@@ -137,7 +151,7 @@ export default function ProjectsPage() {
                   <div className="p-6">
                     <div className="flex justify-between items-start">
                       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">
-                        {project.name}
+                            {project.name}
                       </h2>
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                         project.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
@@ -162,17 +176,17 @@ export default function ProjectsPage() {
                              <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>{completedTasks}</span>
                           </div>
-                       </div>
-                    </div>
+                        </div>
+                      </div>
 
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                        <p className="text-xs text-gray-500 dark:text-gray-400">
                         עדכון אחרון: {lastUpdate ? format(lastUpdate, 'd MMM yyyy, HH:mm', { locale: he }) : 'אין עדכונים'}
                       </p>
                     </div>
+                    </div>
                   </div>
-                </div>
-              );
+                );
             })}
           </div>
 

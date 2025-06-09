@@ -102,20 +102,17 @@ export default function TaskManagement() {
   const [project, setProject] = useState<Project | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [operationLoading, setOperationLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'task' | 'subtask'; id: string } | null>(null);
 
-  const fetchTaskData = useCallback(async (isManualRefresh = false) => {
-    if (operationLoading && !isManualRefresh) return;
-    
-    if (isManualRefresh) {
-      setOperationLoading(true);
-    } else {
-      setLoading(true);
+  const fetchTaskData = useCallback(async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin');
+      return;
     }
-
+    
     try {
-      const token = localStorage.getItem('adminToken');
       const timestamp = Date.now();
       
       const taskRes = await fetch(`/api/tasks/${taskId}?_t=${timestamp}`, {
@@ -124,11 +121,18 @@ export default function TaskManagement() {
 
       if (!taskRes.ok) throw new Error('Failed to fetch task');
       const taskData = await taskRes.json();
+      
       const taskInfo = taskData.task;
-      setTask(taskInfo);
+      
+      // Ensure the task object has the _id property as the interface expects.
+      const formattedTask = {
+        ...taskInfo,
+        _id: taskInfo._id || taskInfo.id
+      };
+      setTask(formattedTask);
 
-      if (taskInfo.projectId) {
-        const projectRes = await fetch(`/api/projects/${taskInfo.projectId}?_t=${timestamp}`, {
+      if (formattedTask.projectId) {
+        const projectRes = await fetch(`/api/projects/${formattedTask.projectId}?_t=${timestamp}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if(projectRes.ok) {
@@ -142,33 +146,37 @@ export default function TaskManagement() {
       });
       if (subtasksRes.ok) {
         const subtasksData = await subtasksRes.json();
-        setSubtasks(subtasksData.subtasks || []);
+        setSubtasks(subtasksData.data?.subtasks || []);
       }
 
     } catch (error) {
       console.error('Error fetching task data:', error);
       toast.error("שגיאה בטעינת נתוני המשימה.");
       router.push('/admin/dashboard');
-    } finally {
-      setLoading(false);
-      setOperationLoading(false);
-      if (isManualRefresh) toast.success("הנתונים עודכנו");
     }
-  }, [taskId, router, operationLoading]);
+  }, [taskId, router]);
+
+  const handleManualRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchTaskData();
+    setIsRefreshing(false);
+    toast.success("הנתונים עודכנו");
+  }, [fetchTaskData]);
 
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('adminToken');
     if (!token) {
       router.push('/admin');
       return;
     }
-    fetchTaskData(true);
-  }, [taskId, fetchTaskData]);
+    setLoading(true);
+    fetchTaskData().finally(() => setLoading(false));
+  }, [fetchTaskData]);
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
 
-    setOperationLoading(true);
+    setIsRefreshing(true);
     const { type, id } = deleteConfirm;
     const url = type === 'task' ? `/api/tasks/${id}` : `/api/subtasks/${id}`;
     const successMessage = type === 'task' ? 'המשימה נמחקה בהצלחה' : 'תת-המשימה נמחקה בהצלחה';
@@ -195,7 +203,7 @@ export default function TaskManagement() {
     } catch (error) {
       toast.error(errorMessage);
     } finally {
-      setOperationLoading(false);
+      setIsRefreshing(false);
       setDeleteConfirm(null);
     }
   };
@@ -257,7 +265,7 @@ export default function TaskManagement() {
               </button>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">{task.title}</h1>
-                {project && (
+                  {project && (
                   <Link href={`/admin/projects/${project._id}`} className="text-sm text-blue-600 hover:underline">
                     {project.name}
                   </Link>
@@ -266,12 +274,12 @@ export default function TaskManagement() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => fetchTaskData(true)}
-                disabled={operationLoading}
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
                 className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                 title="רענן נתונים"
               >
-                <RefreshCw className={`h-5 w-5 ${operationLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
                 href={`/admin/tasks/${task._id}/edit`}
@@ -291,7 +299,7 @@ export default function TaskManagement() {
           </div>
         </div>
       </header>
-      
+
       <main className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Details & Description */}
@@ -309,8 +317,8 @@ export default function TaskManagement() {
                 <div className="mt-6 border-t pt-6">
                   <h3 className="text-lg font-semibold mb-4">הוראות ביצוע</h3>
                   <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{task.description.howToExecute}</p>
-                </div>
-              )}
+                  </div>
+                )}
             </div>
             
             {task.images && task.images.length > 0 && (
@@ -319,7 +327,7 @@ export default function TaskManagement() {
                 <ImageGallery images={task.images} />
               </div>
             )}
-          </div>
+        </div>
 
           {/* Right Column: Info Pills */}
           <div className="space-y-6">
@@ -341,15 +349,17 @@ export default function TaskManagement() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="p-4 sm:p-5 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">תת-משימות ({subtasks.length})</h2>
+            {task && task._id && (
             <Link
-              href={`/admin/tasks/${task._id}/subtasks/new`}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm transition-all hover:scale-105"
+                href={`/admin/tasks/${task._id}/subtasks/new`}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm transition-all hover:scale-105"
             >
               <Plus className="h-4 w-4" />
-              הוסף תת-משימה
+                הוסף תת-משימה
             </Link>
+            )}
           </div>
-
+          
           <div>
             {subtasks.length === 0 ? (
               <div className="text-center py-16">
@@ -406,18 +416,18 @@ export default function TaskManagement() {
               }
             </p>
             <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setDeleteConfirm(null)}
+                <button
+                  onClick={() => setDeleteConfirm(null)}
                 className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-              >
-                ביטול
-              </button>
+                >
+                  ביטול
+                </button>
               <button
                 onClick={handleDelete}
-                disabled={operationLoading}
+                disabled={isRefreshing}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
               >
-                {operationLoading ? (
+                {isRefreshing ? (
                   <Loader2 className="h-4 w-4 animate-spin"/>
                 ) : (
                   'אשר מחיקה'

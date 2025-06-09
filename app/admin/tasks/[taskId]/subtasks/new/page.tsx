@@ -45,6 +45,7 @@ export default function NewSubtaskPage() {
   const [loading, setLoading] = useState(true);
   const [operationLoading, setOperationLoading] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
+  const [labelInput, setLabelInput] = useState('');
   
   const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
     title: '',
@@ -55,13 +56,15 @@ export default function NewSubtaskPage() {
     amountNeeded: 1,
     labels: [],
     targetCar: ['EQ'],
-    weather: 'Clear',
-    scene: 'Urban',
+    weather: 'Mixed',
+    scene: 'Mixed',
     dayTime: []
   });
 
   useEffect(() => {
-    fetchTaskData();
+    if (taskId) {
+      fetchTaskData();
+    }
   }, [taskId]);
 
   const fetchTaskData = async () => {
@@ -87,6 +90,14 @@ export default function NewSubtaskPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLabelInput = e.target.value;
+    setLabelInput(newLabelInput);
+    
+    const labels = newLabelInput.split(' ').filter(label => label.trim() !== '');
+    setNewSubtaskData(prev => ({ ...prev, labels }));
   };
 
   const handleCreateSubtask = async () => {
@@ -318,29 +329,23 @@ export default function NewSubtaskPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">לייבלים (מופרדים ברווח)</label>
                 <input
                   type="text"
-                  value={newSubtaskData.labels.join(' ')}
-                  onChange={(e) => {
-                    const labelsText = e.target.value;
-                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
-                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                    } else {
-                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
-                      setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                    setNewSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                  }}
+                  value={labelInput}
+                  onChange={handleLabelChange}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
+                  placeholder="לייבל1 לייבל2 לייבל3"
                 />
-                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
+                {newSubtaskData.labels.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {newSubtaskData.labels.map((label, index) => (
+                      <span key={index} className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -435,14 +440,18 @@ export default function NewSubtaskPage() {
             
             <div className="p-6 border-t border-border">
               {/* Create Another Subtask Option */}
-                              <div className="mb-4">
-                  <ModernCheckbox
+              <div className="mb-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
                     checked={createAnother}
-                    onChange={(checked) => setCreateAnother(checked)}
-                    label="צור תת-משימה נוספת לאחר השמירה (שמור הגדרות)"
+                    onChange={(e) => setCreateAnother(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו לתת-המשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
-                </div>
+                  <span className="ml-2 text-sm text-foreground">צור תת-משימה נוספת לאחר השמירה (שמור הגדרות)</span>
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו לתת-המשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
+              </div>
               
               <div className="flex gap-3">
                 <button

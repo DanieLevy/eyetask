@@ -40,8 +40,8 @@ export async function GET(
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
       dayTime: subtaskResult.dayTime || [],
-      createdAt: subtaskResult.createdAt.toISOString(),
-      updatedAt: subtaskResult.updatedAt.toISOString()
+      createdAt: new Date(subtaskResult.createdAt).toISOString(),
+      updatedAt: new Date(subtaskResult.updatedAt).toISOString()
     };
 
     return NextResponse.json({
@@ -77,6 +77,10 @@ export async function PUT(
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
     const body = await request.json();
+    
+    // Sanitize body to prevent changing the parent taskId
+    delete body.taskId;
+
     const updated = await db.updateSubtask(id, body);
     
     if (!updated) {
@@ -113,8 +117,8 @@ export async function PUT(
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
       dayTime: subtaskResult.dayTime || [],
-      createdAt: subtaskResult.createdAt.toISOString(),
-      updatedAt: subtaskResult.updatedAt.toISOString()
+      createdAt: new Date(subtaskResult.createdAt).toISOString(),
+      updatedAt: new Date(subtaskResult.updatedAt).toISOString()
     };
 
     return NextResponse.json({
