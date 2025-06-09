@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 
 interface UseRealtimeOptions {
   interval?: number;
@@ -33,6 +34,7 @@ export function useRealtime(
 
     intervalRef.current = setInterval(async () => {
       try {
+        logger.info(`Realtime update triggered`, 'USE_REALTIME', { interval });
         await callbackRef.current();
       } catch (error) {
         console.error('Realtime update error:', error);
@@ -86,7 +88,7 @@ export function useRealtime(
 
 // Specific realtime hooks for different data types - these just do periodic refreshing
 export function useTasksRealtime(refreshCallback: () => Promise<void> | void, options?: UseRealtimeOptions) {
-  return useRealtime(refreshCallback, { interval: 15000, ...options });
+  return useRealtime(refreshCallback, { interval: 300000, ...options });
 }
 
 export function useProjectsRealtime(refreshCallback: () => Promise<void> | void, options?: UseRealtimeOptions) {

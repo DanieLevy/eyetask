@@ -173,8 +173,8 @@ export function useOptimizedData<T>(
             onError?.(error);
           } finally {
             fetchInProgress.current = false;
-          }
-        };
+      }
+    };
 
         doBackgroundFetch();
       }
@@ -357,7 +357,7 @@ export function useProjectData(projectName: string, enabled = true) {
   return useOptimizedData<ProjectPageData>(`/api/project-data/${encodeURIComponent(projectName)}`, {
     cacheKey: `project-data-${projectName}`,
     enabled: enabled && !!projectName,
-    staleTime: 2 * 60 * 1000, // 2 minutes for project pages
+    staleTime: 60000, // 2 minutes for project pages
     cacheTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnMount: true,
     refetchOnWindowFocus: true,

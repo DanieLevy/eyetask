@@ -655,7 +655,7 @@ export class DatabaseService {
         projects.aggregate(pipeline).toArray(),
         tasks.find({ isVisible: true }).sort({ priority: 1, createdAt: -1 }).toArray()
       ]);
-
+      
       return {
         projects: projectsWithStats as Project[],
         tasks: visibleTasks as Task[]

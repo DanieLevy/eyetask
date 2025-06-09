@@ -72,7 +72,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
               priority: update.priority || 5,
               isPinned: update.isPinned || update.is_pinned || false,
               isActive: update.isActive !== false, // Default to true unless explicitly false
-              isHidden: update.isHidden || update.is_hidden || false,
+            isHidden: update.isHidden || update.is_hidden || false,
               expiresAt: update.expiresAt || update.expires_at || null
             };
           });
@@ -113,7 +113,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     } catch (error) {
       console.error('❌ DailyUpdatesCarousel: Error fetching carousel data:', error);
       setUpdates([]);
-      setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+              setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
     } finally {
       console.log('🏁 DailyUpdatesCarousel: Fetch completed, setting loading to false');
       setLoading(false);

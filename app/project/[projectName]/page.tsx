@@ -123,7 +123,7 @@ export default function ProjectPage() {
   usePageRefresh(refetch);
 
   // Set up realtime subscription for tasks
-  useTasksRealtime(refetch);
+  // useTasksRealtime(refetch);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
