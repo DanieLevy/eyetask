@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -16,40 +16,147 @@ import {
   RotateCcw,
   X,
   Menu,
-  Home
+  Home,
+  ChevronDown,
+  Car,
+  Road,
+  Clock,
+  Zap,
+  Tag,
+  Info
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import ImageUpload, { MultipleImageUpload } from '@/components/ImageUpload';
 import ModernCheckbox from '@/components/ModernCheckbox';
+import { toast } from 'sonner';
 
 interface Project {
-  id: string;
+  _id: string;
   name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface NewTaskData {
   title: string;
-  subtitle?: string;
+  subtitle: string;
   images?: string[];
   datacoNumber: string;
   description: string;
-  executionInstructions?: string;
+  executionInstructions: string;
   projectId: string;
-  type: string[];
-  locations: string[];
-  targetCar: string[];
+  type: ('events' | 'hours')[];
+  locations: ('Highway' | 'Urban' | 'Country')[];
+  targetCar: string;
   lidar: boolean;
-  dayTime: string[];
+  dayTime: ('day' | 'night' | 'dusk' | 'dawn')[];
   priority: number;
+}
+
+// --- Reusable MultiSelect Component ---
+interface MultiSelectProps<T extends string> {
+  label: string;
+  options: readonly T[];
+  selectedOptions: T[];
+  onSelectionChange: (selected: T[]) => void;
+  icon?: React.ReactNode;
+  hebrewMap: Record<T, string>;
+}
+
+function MultiSelect<T extends string>({ label, options, selectedOptions, onSelectionChange, icon, hebrewMap }: MultiSelectProps<T>) {
+  const toggleOption = (option: T) => {
+    const newSelection = selectedOptions.includes(option)
+      ? selectedOptions.filter((item) => item !== option)
+      : [...selectedOptions, option];
+    onSelectionChange(newSelection);
+  };
+
+  return (
+    <div>
+      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        {icon}
+        {label}
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => toggleOption(option)}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+              selectedOptions.includes(option)
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            {hebrewMap[option]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Target Car Input Component ---
+interface TargetCarInputProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function TargetCarInput({ value, onChange }: TargetCarInputProps) {
+  const quickAddOptions = ['Cay4', 'Cay8', 'Wstn'];
+  const detectedVehicles = useMemo(() => value.split(' ').filter(v => v.trim() !== ''), [value]);
+
+  const addQuickVehicle = (vehicle: string) => {
+    if (!detectedVehicles.includes(vehicle)) {
+      onChange((value + ' ' + vehicle).trim());
+    }
+  };
+
+  return (
+    <div>
+      <label htmlFor="targetCar" className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <Car className="h-5 w-5" />
+        רכבי מטרה
+      </label>
+      <input
+        id="targetCar"
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="לדוגמה: Cay4 Cay8 Wstn"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500 dark:text-gray-400">הוספה מהירה:</span>
+        {quickAddOptions.map(vehicle => (
+          <button 
+            key={vehicle}
+            type="button"
+            onClick={() => addQuickVehicle(vehicle)}
+            className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            {vehicle}
+          </button>
+        ))}
+      </div>
+      {detectedVehicles.length > 0 && (
+        <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+          <span className="font-semibold">רכבים שזוהו:</span>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {detectedVehicles.map((v, i) => (
+              <span key={i} className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-md">{v}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function NewTaskPageCore() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const initialProjectId = searchParams.get('projectId');
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,17 +165,17 @@ function NewTaskPageCore() {
   const [createAnother, setCreateAnother] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const [newTaskData, setNewTaskData] = useState<NewTaskData>({
+  const [task, setTask] = useState<NewTaskData>({
     title: '',
     subtitle: '',
     images: [],
     datacoNumber: '',
     description: '',
     executionInstructions: '',
-    projectId: '',
+    projectId: initialProjectId || '',
     type: ['events'],
     locations: ['Urban'],
-    targetCar: ['EQ'],
+    targetCar: '',
     lidar: false,
     dayTime: ['day'],
     priority: 5
@@ -98,11 +205,10 @@ function NewTaskPageCore() {
     fetchProjects();
 
     // Set projectId from query params
-    const queryProjectId = searchParams.get('projectId');
-    if (queryProjectId) {
-      setNewTaskData(prev => ({ ...prev, projectId: queryProjectId }));
+    if (initialProjectId) {
+      setTask(prev => ({ ...prev, projectId: initialProjectId }));
     }
-  }, [router, searchParams]);
+  }, [router, initialProjectId]);
 
   const fetchProjects = async () => {
     try {
@@ -134,21 +240,21 @@ function NewTaskPageCore() {
     try {
       const token = localStorage.getItem('adminToken');
       const taskPayload = {
-        title: newTaskData.title,
-        subtitle: newTaskData.subtitle,
-        images: newTaskData.images,
-        datacoNumber: newTaskData.datacoNumber,
+        title: task.title,
+        subtitle: task.subtitle,
+        images: task.images,
+        datacoNumber: task.datacoNumber,
         description: {
-          main: newTaskData.description,
-          howToExecute: newTaskData.executionInstructions || "יש לעקוב אחר הוראות המשימה"
+          main: task.description,
+          howToExecute: task.executionInstructions || "יש לעקוב אחר הוראות המשימה"
         },
-        projectId: newTaskData.projectId,
-        type: newTaskData.type,
-        locations: newTaskData.locations,
-        targetCar: newTaskData.targetCar,
-        lidar: newTaskData.lidar,
-        dayTime: newTaskData.dayTime,
-        priority: newTaskData.priority,
+        projectId: task.projectId,
+        type: task.type,
+        locations: task.locations,
+        targetCar: task.targetCar.split(' ').filter(v => v.trim() !== ''),
+        lidar: task.lidar,
+        dayTime: task.dayTime,
+        priority: task.priority,
         isVisible: true
       };
 
@@ -167,7 +273,7 @@ function NewTaskPageCore() {
       if (result.success) {
         if (createAnother) {
           // Save current form data (except title and dataco) for next task
-          setNewTaskData(prev => ({
+          setTask(prev => ({
             title: '', // Reset title
             subtitle: '', // Reset subtitle
             images: [], // Reset images
@@ -177,24 +283,24 @@ function NewTaskPageCore() {
             projectId: prev.projectId, // Keep selected project
             type: prev.type, // Keep task type
             locations: prev.locations, // Keep locations
-            targetCar: prev.targetCar, // Keep target cars
+            targetCar: '', // Reset target car
             lidar: prev.lidar, // Keep lidar setting
             dayTime: prev.dayTime, // Keep day time settings
             priority: prev.priority // Keep priority
           }));
           
           // Show success message
-          alert('משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות למשימה הבאה.');
+          toast.success('משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות למשימה הבאה.');
         } else {
           // Redirect to the project management page where the task was created
-          router.push(`/admin/projects/${newTaskData.projectId}`);
+          router.push(`/admin/projects/${task.projectId}`);
         }
       } else {
-        alert('Failed to create task: ' + (result.error || 'Unknown error'));
+        toast.error(`שגיאה ביצירת המשימה: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Error creating task');
+      toast.error('Error creating task');
     } finally {
       setOperationLoading(false);
     }
@@ -204,7 +310,7 @@ function NewTaskPageCore() {
   const handleDatacoNumberChange = (value: string) => {
     // Remove any non-numeric characters
     const numericValue = value.replace(/[^0-9]/g, '');
-    setNewTaskData(prev => ({ ...prev, datacoNumber: numericValue }));
+    setTask(prev => ({ ...prev, datacoNumber: numericValue }));
   };
 
   // Format DATACO number for display
@@ -224,25 +330,31 @@ function NewTaskPageCore() {
     );
   }
 
+  const HEBREW_MAPS = {
+    type: { events: 'אירועים', hours: 'שעות' },
+    locations: { Highway: 'כביש מהיר', Urban: 'עירוני', Country: 'בין-עירוני' },
+    dayTime: { day: 'יום', night: 'לילה', dusk: 'בין ערביים', dawn: 'שחר' }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir="rtl">
       {/* Mobile-First Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-3 md:px-6 py-3">
+      <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Left: Navigation and Title */}
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2">
               <Link
                 href="/admin/dashboard"
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 aria-label="חזור ללוח הבקרה"
               >
-                <ArrowRight className="h-4 w-4 text-gray-600" />
+                <ArrowRight className="h-5 w-5 text-gray-600 dark:text-gray-300" />
               </Link>
               <div className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-blue-600" />
                 <div>
-                  <h1 className="text-lg md:text-xl font-bold text-gray-900">
+                  <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">
                     משימה חדשה
                   </h1>
                   <p className="text-xs text-gray-500 hidden sm:block">
@@ -256,7 +368,7 @@ function NewTaskPageCore() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 {mobileMenuOpen ? (
                   <X className="h-5 w-5 text-gray-600" />
@@ -294,7 +406,7 @@ function NewTaskPageCore() {
       </header>
 
       {/* Main Content */}
-      <main className="p-3 md:p-6">
+      <main className="container mx-auto p-4">
         {projects.length === 0 ? (
           <div className="text-center py-8 md:py-12">
             <AlertTriangle className="h-12 md:h-16 w-12 md:w-16 text-orange-500 mx-auto mb-4" />
@@ -325,8 +437,8 @@ function NewTaskPageCore() {
                     <label className="block text-sm font-medium text-gray-900 mb-2">כותרת *</label>
                     <input
                       type="text"
-                      value={newTaskData.title}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, title: e.target.value }))}
+                      value={task.title}
+                      onChange={(e) => setTask(prev => ({ ...prev, title: e.target.value }))}
                       className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="הזן כותרת למשימה"
                     />
@@ -336,8 +448,8 @@ function NewTaskPageCore() {
                     <label className="block text-sm font-medium text-gray-900 mb-2">כותרת משנה</label>
                     <input
                       type="text"
-                      value={newTaskData.subtitle}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, subtitle: e.target.value }))}
+                      value={task.subtitle}
+                      onChange={(e) => setTask(prev => ({ ...prev, subtitle: e.target.value }))}
                       className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="כותרת משנה (אופציונלי)"
                     />
@@ -351,8 +463,8 @@ function NewTaskPageCore() {
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          value={newTaskData.datacoNumber}
-                          onChange={(e) => setNewTaskData(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
+                          value={task.datacoNumber}
+                          onChange={(e) => setTask(prev => ({ ...prev, datacoNumber: e.target.value.replace(/[^0-9]/g, '') }))}
                           className="pl-20 p-3 w-full border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="הזן מספר"
                           dir="ltr"
@@ -364,9 +476,9 @@ function NewTaskPageCore() {
                       <p className="text-xs text-gray-500 mt-1">
                         הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
                       </p>
-                      {newTaskData.datacoNumber && (
+                      {task.datacoNumber && (
                         <p className="text-xs text-blue-600 mt-1">
-                          תוצג כ: {formatDatacoDisplay(newTaskData.datacoNumber)}
+                          תוצג כ: {formatDatacoDisplay(task.datacoNumber)}
                         </p>
                       )}
                     </div>
@@ -374,13 +486,13 @@ function NewTaskPageCore() {
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">פרויקט *</label>
                       <select
-                        value={newTaskData.projectId}
-                        onChange={(e) => setNewTaskData(prev => ({ ...prev, projectId: e.target.value }))}
+                        value={task.projectId}
+                        onChange={(e) => setTask(prev => ({ ...prev, projectId: e.target.value }))}
                         className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">בחר פרויקט</option>
                         {projects.map(project => (
-                          <option key={project.id} value={project.id}>{project.name}</option>
+                          <option key={project._id} value={project._id}>{project.name}</option>
                         ))}
                       </select>
                     </div>
@@ -389,8 +501,8 @@ function NewTaskPageCore() {
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">תיאור המשימה *</label>
                     <textarea
-                      value={newTaskData.description}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, description: e.target.value }))}
+                      value={task.description}
+                      onChange={(e) => setTask(prev => ({ ...prev, description: e.target.value }))}
                       className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-24 resize-none"
                       placeholder="תאר את המשימה בפירות"
                     />
@@ -399,8 +511,8 @@ function NewTaskPageCore() {
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">הוראות ביצוע (אופציונלי)</label>
                     <textarea
-                      value={newTaskData.executionInstructions}
-                      onChange={(e) => setNewTaskData(prev => ({ ...prev, executionInstructions: e.target.value }))}
+                      value={task.executionInstructions}
+                      onChange={(e) => setTask(prev => ({ ...prev, executionInstructions: e.target.value }))}
                       className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-20 resize-none"
                       placeholder="הזן הוראות ספציפיות לביצוע המשימה"
                     />
@@ -411,8 +523,8 @@ function NewTaskPageCore() {
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">תמונות המשימה (אופציונלי)</label>
                     <MultipleImageUpload
-                      onImagesChange={(images) => setNewTaskData(prev => ({ ...prev, images }))}
-                      currentImages={newTaskData.images}
+                      onImagesChange={(images) => setTask(prev => ({ ...prev, images }))}
+                      currentImages={task.images}
                       disabled={operationLoading}
                       maxImages={5}
                     />
@@ -426,10 +538,10 @@ function NewTaskPageCore() {
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={newTaskData.priority}
+                        value={task.priority}
                         onChange={(e) => {
                           const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                          setNewTaskData(prev => ({ ...prev, priority: Math.min(Math.max(value, 1), 10) }))
+                          setTask(prev => ({ ...prev, priority: Math.min(Math.max(value, 1), 10) }))
                         }}
                         className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="1-10"
@@ -440,8 +552,8 @@ function NewTaskPageCore() {
                     </div>
                     <div className="flex items-center pt-6">
                       <ModernCheckbox
-                        checked={newTaskData.lidar}
-                        onChange={(checked) => setNewTaskData(prev => ({ ...prev, lidar: checked }))}
+                        checked={task.lidar}
+                        onChange={(checked) => setTask(prev => ({ ...prev, lidar: checked }))}
                         label="נדרש LiDAR"
                       />
                     </div>
@@ -451,96 +563,42 @@ function NewTaskPageCore() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">סוג משימה</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['events', 'objects', 'scenarios', 'weather'].map((type) => (
-                          <label key={type} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={newTaskData.type.includes(type)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewTaskData(prev => ({ ...prev, type: [...prev.type, type] }));
-                                } else {
-                                  setNewTaskData(prev => ({ ...prev, type: prev.type.filter(t => t !== type) }));
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700 capitalize">{type}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <MultiSelect
+                        label="סוג משימה"
+                        options={['events', 'hours']}
+                        selectedOptions={task.type}
+                        onSelectionChange={(selected) => setTask(prev => ({...prev, type: selected as ('events' | 'hours')[]}))}
+                        icon={<Zap className="h-5 w-5" />}
+                        hebrewMap={HEBREW_MAPS.type}
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">מיקומים</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['Urban', 'Highway', 'Rural', 'Parking'].map((location) => (
-                          <label key={location} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={newTaskData.locations.includes(location)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewTaskData(prev => ({ ...prev, locations: [...prev.locations, location] }));
-                                } else {
-                                  setNewTaskData(prev => ({ ...prev, locations: prev.locations.filter(l => l !== location) }));
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{location}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">רכב יעד</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['EQ', 'MB', 'General'].map((car) => (
-                          <label key={car} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={newTaskData.targetCar.includes(car)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewTaskData(prev => ({ ...prev, targetCar: [...prev.targetCar, car] }));
-                                } else {
-                                  setNewTaskData(prev => ({ ...prev, targetCar: prev.targetCar.filter(c => c !== car) }));
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{car}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <MultiSelect
+                        label="סוגי כביש"
+                        options={['Highway', 'Urban', 'Country']}
+                        selectedOptions={task.locations}
+                        onSelectionChange={(selected) => setTask(prev => ({...prev, locations: selected as ('Highway' | 'Urban' | 'Country')[]}))}
+                        icon={<Road className="h-5 w-5" />}
+                        hebrewMap={HEBREW_MAPS.locations}
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">זמן יום</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['day', 'night', 'twilight'].map((time) => (
-                          <label key={time} className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={newTaskData.dayTime.includes(time)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewTaskData(prev => ({ ...prev, dayTime: [...prev.dayTime, time] }));
-                                } else {
-                                  setNewTaskData(prev => ({ ...prev, dayTime: prev.dayTime.filter(t => t !== time) }));
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700 capitalize">{time}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <MultiSelect
+                        label="זמן ביום"
+                        options={['day', 'night', 'dusk', 'dawn']}
+                        selectedOptions={task.dayTime}
+                        onSelectionChange={(selected) => setTask(prev => ({...prev, dayTime: selected as ('day' | 'night' | 'dusk' | 'dawn')[]}))}
+                        icon={<Clock className="h-5 w-5" />}
+                        hebrewMap={HEBREW_MAPS.dayTime}
+                      />
                     </div>
                   </div>
+
+                  <TargetCarInput value={task.targetCar} onChange={(value) => setTask(prev => ({ ...prev, targetCar: value }))} />
 
                   {/* Create Another Checkbox */}
                   <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -561,7 +619,7 @@ function NewTaskPageCore() {
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     onClick={handleCreateTask}
-                    disabled={operationLoading || !newTaskData.title || !newTaskData.datacoNumber || !newTaskData.description || !newTaskData.projectId}
+                    disabled={operationLoading || !task.title || !task.datacoNumber || !task.description || !task.projectId}
                     className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
                   >
                     {operationLoading ? (
@@ -596,6 +654,7 @@ function NewTaskPageCore() {
 
 // Loading fallback component
 function NewTaskPageFallback() {
+  useHebrewFont();
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="text-center">

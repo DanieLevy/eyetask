@@ -7,17 +7,24 @@ import { activityLogger } from '@/lib/activityLogger';
 // GET /api/tasks - Fetch all tasks (admin) or visible tasks (public)
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId');
+    
     const user = auth.extractUserFromRequest(request);
     const isAdmin = auth.isAdmin(user);
     
     let tasks;
     
-    if (isAdmin) {
-      // Admin can see all tasks
-      tasks = await db.getAllTasks(true);
+    if (projectId) {
+      // If a projectId is provided, fetch tasks for that project
+      tasks = await db.getTasksByProject(projectId);
+      if (!isAdmin) {
+        // If user is not admin, filter out hidden tasks
+        tasks = tasks.filter(task => task.isVisible);
+      }
     } else {
-      // Public users only see visible tasks
-      tasks = await db.getAllTasks(false);
+      // If no projectId, fetch all tasks based on admin status
+      tasks = await db.getAllTasks(isAdmin);
     }
     
     logger.info('Tasks fetched successfully', 'TASKS_API', { 
