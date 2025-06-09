@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Bug, Send, AlertTriangle } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 
 interface BugReportModalProps {
   isOpen: boolean;
@@ -113,7 +114,7 @@ export default function BugReportModal({ isOpen, onClose, pageContext }: BugRepo
         const result = await response.json();
         
         // Show success message briefly then close
-        alert(`דיווח נשלח בהצלחה!\nמספר הטיקט: ${result.ticketNumber}`);
+        toast.success(`דיווח נשלח בהצלחה! מספר הטיקט: ${result.ticketNumber}`);
         
         // Reset form and close modal
         setFormData({
@@ -128,7 +129,7 @@ export default function BugReportModal({ isOpen, onClose, pageContext }: BugRepo
       }
     } catch (error) {
       console.error('Error submitting bug report:', error);
-      alert('שגיאה בשליחת הדיווח. אנא נסה שוב.');
+      toast.error('שגיאה בשליחת הדיווח. אנא נסה שוב.');
     } finally {
       setIsSubmitting(false);
     }

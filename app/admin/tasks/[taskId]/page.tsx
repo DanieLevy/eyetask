@@ -12,7 +12,7 @@ import {
   Trash2,
   RefreshCw,
   Calendar,
-  MapPin,
+  MapPin as Road,
   Car,
   Zap,
   Clock,

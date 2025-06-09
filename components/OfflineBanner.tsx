@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Clock, RefreshCw, AlertTriangle, X, Info, ChevronUp } from 'lucide-react';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useHebrewFont } from '@/hooks/useFont';
+import { toast } from 'sonner';
 
 interface CacheInfo {
   isServedFromCache: boolean;
@@ -191,6 +192,19 @@ export default function OfflineBanner() {
     }
   };
 
+  const manualSync = async () => {
+    try {
+      if (!isOnline) {
+        toast.error('בדוק את החיבור לאינטרנט ונסה שוב');
+        return;
+      }
+      
+      // ... existing code ...
+    } catch (error) {
+      console.error('Error in manualSync:', error);
+    }
+  };
+
   const getStatusInfo = () => {
     return {
       icon: <WifiOff className="h-4 w-4" />,
@@ -320,10 +334,7 @@ export default function OfflineBanner() {
               </button>
 
               <button
-                onClick={() => {
-                  // Open network settings or show network troubleshooting
-                  alert('בדוק את החיבור לאינטרנט ונסה שוב');
-                }}
+                onClick={manualSync}
                 className={`
                   flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded
                   bg-card/50 hover:bg-card/70 transition-colors

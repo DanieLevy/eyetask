@@ -12,6 +12,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { toast } from 'sonner';
 
 interface DailyUpdate {
   id: string;
@@ -64,11 +65,11 @@ export default function DailyUpdatesPage() {
       if (response.ok) {
         setUpdates(prev => prev.filter(update => update.id !== id));
       } else {
-        alert('שגיאה במחיקת העדכון');
+        toast.error('שגיאה במחיקת העדכון');
       }
     } catch (error) {
       console.error('Error deleting update:', error);
-      alert('שגיאה במחיקת העדכון');
+      toast.error('שגיאה במחיקת העדכון');
     }
   };
 
@@ -87,11 +88,11 @@ export default function DailyUpdatesPage() {
             : update
         ));
       } else {
-        alert('שגיאה בעדכון הצמדה');
+        toast.error('שגיאה בעדכון הצמדה');
       }
     } catch (error) {
       console.error('Error toggling pin:', error);
-      alert('שגיאה בעדכון הצמדה');
+      toast.error('שגיאה בעדכון הצמדה');
     }
   };
 

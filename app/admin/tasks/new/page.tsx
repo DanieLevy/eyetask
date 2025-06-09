@@ -19,11 +19,11 @@ import {
   Home,
   ChevronDown,
   Car,
-  Road,
   Clock,
   Zap,
   Tag,
-  Info
+  Info,
+  MapPin as Road,
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';

@@ -6,6 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { X, Trash2, Send, AlertTriangle } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 
 interface Props {
   ticket: FeedbackTicket;
@@ -149,7 +150,7 @@ const TicketModal: React.FC<Props> = ({ ticket, isOpen, onClose, onUpdate }) => 
       }
     } catch (error) {
       console.error('Failed to delete ticket:', error);
-      alert('שגיאה במחיקת הפניה. אנא נסה שוב.');
+      toast.error('שגיאה במחיקת הפניה. אנא נסה שוב.');
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);

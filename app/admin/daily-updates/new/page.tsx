@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import ModernCheckbox from '@/components/ModernCheckbox';
+import { toast } from 'sonner';
 
 interface UpdateForm {
   title: string;
@@ -66,13 +67,13 @@ export default function NewDailyUpdatePage() {
           durationType: prev.durationType,
           durationValue: prev.durationValue
         }));
-        alert('עדכון יומי נוצר בהצלחה! אתה יכול ליצור עדכון נוסף.');
+        toast.success('עדכון יומי נוצר בהצלחה! אתה יכול ליצור עדכון נוסף.');
       } else {
         router.push('/admin/daily-updates');
       }
     } catch (error) {
       console.error('❌ Error submitting form:', error);
-      alert('שגיאה בשמירת העדכון');
+      toast.error('שגיאה בשמירת העדכון');
     } finally {
       setSubmitting(false);
     }

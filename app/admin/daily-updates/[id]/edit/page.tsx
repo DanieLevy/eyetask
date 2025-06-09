@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import ModernCheckbox from '@/components/ModernCheckbox';
+import { toast } from 'sonner';
 
 interface DailyUpdate {
   id: string;
@@ -79,12 +80,12 @@ export default function EditDailyUpdatePage() {
           isPinned: updateData.is_pinned
         });
       } else {
-        alert('שגיאה בטעינת העדכון');
+        toast.error('שגיאה בטעינת העדכון');
         router.push('/admin/daily-updates');
       }
     } catch (error) {
       console.error('Error fetching update:', error);
-      alert('שגיאה בטעינת העדכון');
+      toast.error('שגיאה בטעינת העדכון');
       router.push('/admin/daily-updates');
     } finally {
       setLoading(false);
@@ -109,7 +110,7 @@ export default function EditDailyUpdatePage() {
       router.push('/admin/daily-updates');
     } catch (error) {
       console.error('❌ Error submitting form:', error);
-      alert('שגיאה בעדכון העדכון');
+      toast.error('שגיאה בעדכון העדכון');
     } finally {
       setSubmitting(false);
     }

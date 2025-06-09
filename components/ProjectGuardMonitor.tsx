@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useProjectHealth } from '@/hooks/useSafeDataFetching';
 import { logger } from '@/lib/logger';
+import { toast } from 'sonner';
 
 interface ProjectGuardMonitorProps {
   enableDevWarnings?: boolean;
@@ -14,8 +15,6 @@ export default function ProjectGuardMonitor({
   showHealthIndicator = process.env.NODE_ENV === 'development'
 }: ProjectGuardMonitorProps) {
   const healthReport = useProjectHealth();
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
     if (!healthReport || !enableDevWarnings) return;
@@ -40,8 +39,10 @@ export default function ProjectGuardMonitor({
     // Show alert if concerns detected
     if (concerns.length > 0) {
       const message = `⚠️ Performance Issues Detected:\n${concerns.join('\n')}`;
-      setAlertMessage(message);
-      setShowAlert(true);
+      toast.warning(message, {
+        description: 'Check console for detailed information.',
+        duration: 10000,
+      });
 
       // Log detailed information
       logger.warn('Performance concerns detected', 'PROJECT_GUARD_MONITOR', {
@@ -50,9 +51,6 @@ export default function ProjectGuardMonitor({
         totalRequests,
         totalErrors
       });
-
-      // Auto-hide alert after 10 seconds
-      setTimeout(() => setShowAlert(false), 10000);
     }
   }, [healthReport, enableDevWarnings]);
 
@@ -63,27 +61,6 @@ export default function ProjectGuardMonitor({
 
   return (
     <>
-      {/* Development Alert */}
-      {showAlert && (
-        <div className="fixed top-4 right-4 z-50 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded-lg shadow-lg max-w-md">
-          <div className="flex justify-between items-start">
-            <div>
-              <h4 className="font-semibold text-sm">Project Guard Alert</h4>
-              <pre className="text-xs mt-1 whitespace-pre-wrap">{alertMessage}</pre>
-              <div className="text-xs mt-2 opacity-75">
-                Check console for detailed information
-              </div>
-            </div>
-            <button
-              onClick={() => setShowAlert(false)}
-              className="ml-2 text-yellow-600 hover:text-yellow-800"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Health Indicator */}
       {showHealthIndicator && healthReport && (
         <div className="fixed bottom-4 right-4 z-40 bg-gray-900 text-white px-3 py-2 rounded-lg text-xs opacity-75 hover:opacity-100 transition-opacity">

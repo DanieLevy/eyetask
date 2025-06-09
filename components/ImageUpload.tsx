@@ -10,6 +10,7 @@ import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import 'yet-another-react-lightbox/styles.css';
 import 'yet-another-react-lightbox/plugins/counter.css';
 import 'yet-another-react-lightbox/plugins/thumbnails.css';
+import { toast } from 'sonner';
 
 // =============================================
 // IMAGE UTILITIES
@@ -130,7 +131,7 @@ export function ImageUpload({
     // Validate image first
     const validation = imageUtils.validateImage(file);
     if (!validation.valid) {
-      alert(validation.error);
+      toast.error(validation.error);
       return;
     }
 
@@ -152,7 +153,7 @@ export function ImageUpload({
       onImageSelect(imageUrl);
     } catch (error) {
       console.error('Image upload error:', error);
-      alert('Failed to upload image. Please try again.');
+      toast.error('Failed to upload image. Please try again.');
       setPreview(currentImage || null);
     } finally {
       setIsUploading(false);
@@ -374,63 +375,59 @@ export function MultipleImageUpload({
   const [previews, setPreviews] = useState<string[]>(currentImages);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Unified callback function for backward compatibility
-  const handleImagesUpdate = useCallback((images: string[]) => {
-    if (onImagesSelect) onImagesSelect(images);
-    if (onImagesChange) onImagesChange(images);
-  }, [onImagesSelect, onImagesChange]);
+  // Backward compatibility for onImagesChange
+  const onSelect = onImagesSelect || onImagesChange;
 
   const handleFilesSelect = useCallback(async (files: File[]) => {
     if (disabled || isUploading) return;
-
-    // Filter and validate images
+    
+    if (previews.length + files.length > maxImages) {
+      toast.error(`You can only upload a maximum of ${maxImages} images.`);
+      files = files.slice(0, maxImages - previews.length);
+    }
+    
+    setIsUploading(true);
+    
     const validFiles: File[] = [];
     const errors: string[] = [];
 
-    for (const file of Array.from(files)) {
+    files.forEach(file => {
       const validation = imageUtils.validateImage(file);
       if (validation.valid) {
         validFiles.push(file);
       } else {
         errors.push(`${file.name}: ${validation.error}`);
       }
-    }
+    });
 
     if (errors.length > 0) {
-      alert(`Some files were rejected:\n${errors.join('\n')}`);
+      toast.error(`Some files were rejected:\n${errors.join('\n')}`);
     }
 
-    const remainingSlots = maxImages - previews.length;
-    const filesToProcess = validFiles.slice(0, remainingSlots);
+    if (validFiles.length === 0) {
+      setIsUploading(false);
+      return;
+    }
 
-    if (filesToProcess.length === 0) return;
-
-    setIsUploading(true);
-    
     try {
-      const newImageUrls: string[] = [];
+      const newPreviews = await Promise.all(validFiles.map(imageUtils.createPreviewUrl));
+      setPreviews(prev => [...prev, ...newPreviews]);
+
+      // Simulate upload
+      await new Promise(resolve => setTimeout(resolve, 1000 * validFiles.length));
+
+      const newImageUrls = validFiles.map(file => URL.createObjectURL(file));
       
-      // Process each file with better error handling
-      for (const file of filesToProcess) {
-        try {
-          const previewUrl = await imageUtils.createPreviewUrl(file);
-          await new Promise(resolve => setTimeout(resolve, 300)); // Simulate upload
-          newImageUrls.push(previewUrl);
-        } catch (fileError) {
-          console.error(`Failed to process ${file.name}:`, fileError);
-        }
+      if (onSelect) {
+        onSelect([...previews, ...newImageUrls]);
       }
-      
-      const updatedImages = [...previews, ...newImageUrls];
-      setPreviews(updatedImages);
-      handleImagesUpdate(updatedImages);
     } catch (error) {
-      console.error('Multiple image upload error:', error);
-      alert('Failed to upload some images. Please try again.');
+      console.error('Image upload error:', error);
+      toast.error('Failed to upload some images. Please try again.');
     } finally {
       setIsUploading(false);
     }
-  }, [disabled, isUploading, previews, maxImages, handleImagesUpdate]);
+  }, [disabled, isUploading, onSelect, previews, maxImages]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -461,11 +458,13 @@ export function MultipleImageUpload({
     if (disabled) return;
     const updatedImages = previews.filter((_, i) => i !== index);
     setPreviews(updatedImages);
-    handleImagesUpdate(updatedImages);
+    if (onSelect) {
+      onSelect(updatedImages);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [disabled, previews, handleImagesUpdate]);
+  }, [disabled, previews, onSelect]);
 
   const handleClick = useCallback(() => {
     if (!disabled && fileInputRef.current && previews.length < maxImages) {
