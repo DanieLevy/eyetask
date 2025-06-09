@@ -7,10 +7,48 @@ import {
   ArrowRight, 
   Save,
   ChevronRight,
-  Target
+  Target,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { AdvancedImageUploader } from '@/components/AdvancedImageUploader';
 import { toast } from 'sonner';
+
+// Re-using the SimpleImageGallery from the parent page for consistency
+function SimpleImageGallery({ 
+  images, 
+  onRemove,
+  removable = false 
+}: { 
+  images: { id: string, url: string }[], 
+  onRemove?: (id: string) => void,
+  removable?: boolean 
+}) {
+  if (!images || images.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+      {images.map(({ id, url }) => (
+        <div key={id} className="relative group aspect-square">
+          <img 
+            src={url} 
+            alt={`Image ${id}`} 
+            className="w-full h-full object-cover rounded-md"
+          />
+          {removable && onRemove && (
+             <button
+                onClick={() => onRemove(id)}
+                className="absolute top-1 right-1 p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100"
+                aria-label="Remove image"
+            >
+                <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface Task {
   id: string;
@@ -48,7 +86,7 @@ export default function EditSubtaskPage() {
   const [submitting, setSubmitting] = useState(false);
   
   const [editSubtaskData, setEditSubtaskData] = useState<Partial<Subtask>>({});
-  const [imagesToUpload, setImagesToUpload] = useState<File[]>([]);
+  const [newImages, setNewImages] = useState<File[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
 
 
@@ -64,11 +102,11 @@ export default function EditSubtaskPage() {
           fetch(`/api/tasks/${taskId}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`/api/subtasks/${subtaskId}`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-
+      
       if (taskRes.ok) {
         const taskResult = await taskRes.json();
         setTask(taskResult.task);
-      }
+        }
       
       if (subtaskRes.ok) {
         const subtaskResult = await subtaskRes.json();
@@ -93,11 +131,24 @@ export default function EditSubtaskPage() {
     }
   };
   
-  const handleImagesUpdate = useCallback((files: File[], urlsToKeep: string[]) => {
-    setImagesToUpload(files);
-    setExistingImageUrls(urlsToKeep);
-  }, []);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    // Simple validation, can be expanded
+    if (newImages.length + files.length > 10) {
+      toast.error('You can upload a maximum of 10 new images.');
+      return;
+    }
+    setNewImages(prev => [...prev, ...files]);
+  };
 
+  const handleRemoveNewImage = (indexToRemove: number) => {
+    setNewImages(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+  
+  const handleRemoveExistingImage = (urlToRemove: string) => {
+    setExistingImageUrls(prev => prev.filter(url => url !== urlToRemove));
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editSubtaskData) return;
@@ -122,7 +173,7 @@ export default function EditSubtaskPage() {
       formData.append('scene', editSubtaskData.scene || 'Mixed');
       
       // Append images to upload
-      imagesToUpload.forEach(file => {
+      newImages.forEach(file => {
           formData.append('newImages', file);
       });
       
@@ -228,7 +279,7 @@ export default function EditSubtaskPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="bg-card rounded-lg border border-border">
             <div className="p-6 border-b border-border">
               <h2 className="text-xl font-semibold text-foreground">ערוך תת-משימה</h2>
@@ -260,107 +311,130 @@ export default function EditSubtaskPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO *</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={editSubtaskData.datacoNumber || ''}
-                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
-                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                      placeholder="הזן מספר DATACO (מספרים בלבד)"
-                    />
-                    {editSubtaskData.datacoNumber && (
-                      <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                        {formatDatacoDisplay(editSubtaskData.datacoNumber)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    כמות נדרשת *
-                  </label>
+              {/* DATACO Number */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                    DATACO-
+                  </span>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={editSubtaskData.amountNeeded || 0}
-                    onChange={(e) => {
-                      const value = Number(e.target.value.replace(/[^0-9]/g, ''));
-                      setEditSubtaskData(prev => ({ ...prev, amountNeeded: Math.max(value, 0) }))
-                    }}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    placeholder="הכנס כמות"
-                    min="0"
+                    value={editSubtaskData.datacoNumber || ''}
+                    onChange={(e) => handleDatacoNumberChange(e.target.value)}
+                    className="w-full p-2 pl-16 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="12345"
                   />
                 </div>
               </div>
 
-              {/* Type */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">סוג תת-משימה *</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="subtaskType"
-                      value="events"
-                      checked={editSubtaskData.type === 'events'}
-                      onChange={(e) => setEditSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
-                      className="mr-2"
-                    />
-                    Events (אירועים)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="subtaskType"
-                      value="hours"
-                      checked={editSubtaskData.type === 'hours'}
-                      onChange={(e) => setEditSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
-                      className="mr-2"
-                    />
-                    Hours (שעות)
-                  </label>
+              {/* Type and Amount */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
+                  <select
+                    value={editSubtaskData.type || 'events'}
+                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                  >
+                    <option value="events">אירועים</option>
+                    <option value="hours">שעות</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">כמות נדרשת</label>
+                  <input
+                    type="number"
+                    value={editSubtaskData.amountNeeded || 0}
+                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, amountNeeded: Number(e.target.value) }))}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    placeholder="כמות"
+                  />
                 </div>
               </div>
 
               {/* Labels */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תוויות (Labels)</label>
+                <label className="block text-sm font-medium text-foreground mb-1">תוויות</label>
                 <input
                   type="text"
-                  value={editSubtaskData.labels?.join(' ') || ''}
-                  onChange={(e) => {
-                    const labelsText = e.target.value;
-                    if (labelsText.endsWith(' ') && labelsText.trim().includes(' ')) {
-                      const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                      setEditSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                    } else {
-                      const labelsArray = labelsText.length === 0 ? [] : [labelsText];
-                      setEditSubtaskData(prev => ({ ...prev, labels: labelsArray }));
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const newLabel = e.currentTarget.value.trim();
+                      if (newLabel && !(editSubtaskData.labels || []).includes(newLabel)) {
+                        setEditSubtaskData(prev => ({...prev, labels: [...(prev.labels || []), newLabel]}));
+                        e.currentTarget.value = '';
+                      }
                     }
                   }}
-                  onBlur={(e) => {
-                    const labelsText = e.target.value;
-                    const labelsArray = labelsText.split(' ').map(label => label.trim()).filter(label => label.length > 0);
-                    setEditSubtaskData(prev => ({ ...prev, labels: labelsArray }));
-                  }}
                   className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                  placeholder="הפרד תוויות ברווח (למשל: urban daytime clear_weather)"
+                  placeholder="הכנס תווית ולחץ Enter"
                 />
-                <p className="text-xs text-muted-foreground mt-1">הפרד תוויות ברווח</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(editSubtaskData.labels || []).map((label, index) => (
+                    <div key={index} className="flex items-center bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-sm">
+                      {label}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setEditSubtaskData(prev => ({
+                            ...prev,
+                            labels: (prev.labels || []).filter(l => l !== label)
+                          }));
+                        }}
+                        className="mr-2 text-muted-foreground hover:text-foreground"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Images */}
+              {/* Image Uploader */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות</label>
-                <AdvancedImageUploader
-                  existingImages={(subtask?.images || []).map(url => ({ id: url, url }))}
-                  onImagesUpdate={handleImagesUpdate}
-                />
+                <label className="block text-sm font-medium text-foreground mb-1">תמונות קיימות</label>
+                 <SimpleImageGallery 
+                    images={existingImageUrls.map(url => ({ id: url, url }))}
+                    onRemove={handleRemoveExistingImage}
+                    removable={true}
+                  />
+                  {existingImageUrls.length === 0 && (
+                    <p className="text-sm text-muted-foreground">אין תמונות קיימות.</p>
+                  )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">העלה תמונות חדשות</label>
+                <div className="mt-2">
+                    <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="w-full text-sm text-slate-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-violet-50 file:text-violet-700
+                          hover:file:bg-violet-100"
+                    />
+                </div>
+                {/* Preview for new images */}
+                {newImages.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-foreground">תצוגה מקדימה של תמונות חדשות:</h4>
+                    <SimpleImageGallery 
+                      images={newImages.map((file, index) => ({ id: `${file.name}-${index}`, url: URL.createObjectURL(file) }))}
+                      onRemove={(id) => {
+                        const indexToRemove = newImages.findIndex((file, index) => `${file.name}-${index}` === id);
+                        handleRemoveNewImage(indexToRemove);
+                      }}
+                      removable={true}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Technical Details */}

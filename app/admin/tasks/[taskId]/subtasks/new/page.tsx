@@ -12,9 +12,44 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { capitalizeEnglishArray } from '@/lib/utils';
-import { AdvancedImageUploader } from '@/components/AdvancedImageUploader';
 import ModernCheckbox from '@/components/ModernCheckbox';
 import { toast } from 'sonner';
+
+// Re-using the SimpleImageGallery from the parent page for consistency
+function SimpleImageGallery({ 
+  images, 
+  onRemove,
+  removable = false 
+}: { 
+  images: { id: string, url: string }[], 
+  onRemove?: (id: string) => void,
+  removable?: boolean 
+}) {
+  if (!images || images.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+      {images.map(({ id, url }) => (
+        <div key={id} className="relative group aspect-square">
+          <img 
+            src={url} 
+            alt={`Image ${id}`} 
+            className="w-full h-full object-cover rounded-md"
+          />
+          {removable && onRemove && (
+             <button
+                onClick={() => onRemove(id)}
+                className="absolute top-1 right-1 p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100"
+                aria-label="Remove image"
+            >
+                <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface Task {
   id: string;
@@ -62,7 +97,7 @@ export default function NewSubtaskPage() {
 
   useEffect(() => {
     if (taskId) {
-      fetchTaskData();
+    fetchTaskData();
     }
   }, [taskId]);
 
@@ -91,9 +126,18 @@ export default function NewSubtaskPage() {
     }
   };
   
-  const handleImagesUpdate = useCallback((files: File[]) => {
-    setImagesToUpload(files);
-  }, []);
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (imagesToUpload.length + files.length > 10) {
+      toast.error('You can upload a maximum of 10 new images.');
+      return;
+    }
+    setImagesToUpload(prev => [...prev, ...files]);
+  };
+
+  const handleRemoveNewImage = (indexToRemove: number) => {
+    setImagesToUpload(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLabelInput = e.target.value;
@@ -354,10 +398,34 @@ export default function NewSubtaskPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
-                <AdvancedImageUploader 
-                  onImagesUpdate={(files, _urlsToKeep) => handleImagesUpdate(files)} 
-                />
+                <label className="block text-sm font-medium text-foreground mb-1">העלה תמונות</label>
+                <div className="mt-2">
+                    <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="w-full text-sm text-slate-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-violet-50 file:text-violet-700
+                          hover:file:bg-violet-100"
+                    />
+                </div>
+                {imagesToUpload.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-foreground">תצוגה מקדימה:</h4>
+                    <SimpleImageGallery 
+                      images={imagesToUpload.map((file, index) => ({ id: `${file.name}-${index}`, url: URL.createObjectURL(file) }))}
+                      onRemove={(id) => {
+                        const indexToRemove = imagesToUpload.findIndex((file, index) => `${file.name}-${index}` === id);
+                        handleRemoveNewImage(indexToRemove);
+                      }}
+                      removable={true}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -441,7 +509,7 @@ export default function NewSubtaskPage() {
             
             <div className="p-6 border-t border-border">
               {/* Create Another Subtask Option */}
-              <div className="mb-4">
+                              <div className="mb-4">
                 <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -451,8 +519,8 @@ export default function NewSubtaskPage() {
                   />
                   <span className="ml-2 text-sm text-foreground">צור תת-משימה נוספת לאחר השמירה (שמור הגדרות)</span>
                 </label>
-                <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו לתת-המשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
-              </div>
+                  <p className="text-xs text-muted-foreground mt-1">אם מסומן, כל ההגדרות יישמרו לתת-המשימה הבאה (מלבד הכותרת ומספר DATACO)</p>
+                </div>
               
               <div className="flex gap-3">
                 <button
