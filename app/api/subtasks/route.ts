@@ -143,16 +143,33 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'amountNeeded must be a number', success: false }, { status: 400 });
     }
 
+    const subtaskData = {
+      taskId: body.taskId,
+      title: body.title,
+      subtitle: body.subtitle || '',
+      images: body.images || [],
+      datacoNumber: body.datacoNumber,
+      type: body.type,
+      amountNeeded: body.amountNeeded,
+      labels: Array.isArray(body.labels) ? body.labels : [body.labels],
+      targetCar: Array.isArray(body.targetCar) ? body.targetCar : [body.targetCar],
+      weather: body.weather,
+      scene: body.scene,
+      dayTime: Array.isArray(body.dayTime) ? body.dayTime : (body.dayTime ? [body.dayTime] : []),
+    };
+
     // Create the subtask
-    const subtaskId = await db.createSubtask(body);
+    const subtaskId = await db.createSubtask(subtaskData);
     
     // Log the activity
-    await activityLogger.logActivity('subtask_created', {
-      subtaskId: fromObjectId(subtaskId),
-      subtaskTitle: body.title,
-      taskId: fromObjectId(body.taskId),
-      adminId: user?.id,
-    });
+    await activityLogger.logSubtaskActivity(
+      'created',
+      subtaskId,
+      subtaskData.title,
+      subtaskData.taskId,
+      user?.id,
+      'admin'
+    );
     
     // Automatically recalculate task amount
     await updateTaskAmount(fromObjectId(body.taskId));

@@ -12,7 +12,6 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { capitalizeEnglishArray } from '@/lib/utils';
-import ModernCheckbox from '@/components/ModernCheckbox';
 import { toast } from 'sonner';
 
 // Re-using the SimpleImageGallery from the parent page for consistency

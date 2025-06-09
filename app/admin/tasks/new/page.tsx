@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
-import ImageUpload, { MultipleImageUpload } from '@/components/ImageUpload';
+import { MultipleImageUpload } from '@/components/ImageUpload';
 import ModernCheckbox from '@/components/ModernCheckbox';
 import { toast } from 'sonner';
 
@@ -521,14 +521,11 @@ function NewTaskPageCore() {
 
                   {/* Task Images Upload */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">תמונות המשימה (אופציונלי)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
                     <MultipleImageUpload
-                      onImagesChange={(images) => setTask(prev => ({ ...prev, images }))}
+                      onImagesChange={(images) => setTask(prev => ({...prev, images}))}
                       currentImages={task.images}
-                      disabled={operationLoading}
-                      maxImages={5}
                     />
-                    <p className="text-xs text-gray-500 mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

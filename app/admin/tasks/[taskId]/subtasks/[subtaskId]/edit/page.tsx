@@ -11,7 +11,6 @@ import {
   Image as ImageIcon,
   X
 } from 'lucide-react';
-import { AdvancedImageUploader } from '@/components/AdvancedImageUploader';
 import { toast } from 'sonner';
 
 // Re-using the SimpleImageGallery from the parent page for consistency

@@ -312,10 +312,8 @@ export default function EditTaskPage() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">תמונות המשימה</label>
                 <MultipleImageUpload
-                  onImagesChange={(images) => setEditTaskData(prev => ({ ...prev, images }))}
                   currentImages={editTaskData.images}
-                  disabled={submitting}
-                  maxImages={5}
+                  onImagesChange={(images) => setEditTaskData(prev => ({ ...prev, images }))}
                 />
                 <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות למשימה (עד 5 תמונות)</p>
               </div>

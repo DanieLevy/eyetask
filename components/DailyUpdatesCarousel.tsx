@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
+import { useOfflineStatus } from '@/hooks/useOfflineStatus';
+import { useRouter } from 'next/navigation';
 
 interface DailyUpdate {
   _id: string;
@@ -29,96 +31,73 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const [fallbackMessage, setFallbackMessage] = useState('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
+  const { status } = useOfflineStatus();
+  const { isOnline } = status;
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      console.log('🔄 DailyUpdatesCarousel: Starting data fetch...');
+      // Fetching updates
+      const updatesResponse = await fetch('/api/daily-updates');
       
-      const [updatesResponse, settingsResponse] = await Promise.all([
-        fetch('/api/daily-updates', {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }),
-        fetch('/api/daily-updates/settings/fallback_message', {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
-      ]);
+      // Fetching settings for fallback message
+      const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
 
-      console.log('📡 DailyUpdatesCarousel: API responses:', { 
-        updatesStatus: updatesResponse.status,
-        settingsStatus: settingsResponse.status 
-      });
-
-      // Handle updates response
       if (updatesResponse.ok) {
         const updatesData = await updatesResponse.json();
-        console.log('📋 DailyUpdatesCarousel: Updates data received:', updatesData);
         
-        if (updatesData.success && updatesData.updates && Array.isArray(updatesData.updates)) {
-          // Map to our interface format
-          const activeUpdates = updatesData.updates.map((update: any, index: number) => {
-            console.log(`🔄 DailyUpdatesCarousel: Processing update ${index + 1}:`, update);
+        if (updatesData && Array.isArray(updatesData.data)) {
+          const processedUpdates = updatesData.data.map((update: any, index: number) => {
+            
+            const title = update.attributes.title;
+            const content = update.attributes.content;
+            const date = new Date(update.attributes.createdAt).toLocaleDateString('he-IL', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
             
             return {
-              _id: update._id?.toString() || `temp-${index}`,
-              title: update.title || 'ללא כותרת',
-              content: update.content || 'ללא תוכן',
-              type: update.type || 'info',
-              priority: update.priority || 5,
-              isPinned: update.isPinned || update.is_pinned || false,
-              isActive: update.isActive !== false, // Default to true unless explicitly false
-            isHidden: update.isHidden || update.is_hidden || false,
-              expiresAt: update.expiresAt || update.expires_at || null
+              id: update.id,
+              title,
+              content,
+              date,
+              imageUrl: update.attributes.image?.data?.attributes?.url
             };
           });
           
-          console.log('✅ DailyUpdatesCarousel: Processed updates:', activeUpdates);
-          setUpdates(activeUpdates);
-          
-          // Reset index if current index is out of bounds
-          if (currentIndex >= activeUpdates.length) {
-            setCurrentIndex(0);
-          }
+          setUpdates(processedUpdates);
         } else {
-          console.log('⚠️ DailyUpdatesCarousel: No valid updates data received');
-          console.log('📄 DailyUpdatesCarousel: Raw updates response:', updatesData);
-          setUpdates([]);
+          
         }
       } else {
-        console.error('❌ DailyUpdatesCarousel: Updates API failed:', updatesResponse.status, updatesResponse.statusText);
-        setUpdates([]);
+        
       }
 
-      // Handle fallback message setting
-      if (settingsResponse.ok) {
+      // Handling settings for fallback message
+      if(settingsResponse.ok) {
         const settingsData = await settingsResponse.json();
-        console.log('⚙️ DailyUpdatesCarousel: Settings data received:', settingsData);
         
-        if (settingsData.success && settingsData.value) {
-          console.log('✅ DailyUpdatesCarousel: Setting fallback message:', settingsData.value);
+        if(settingsData && settingsData.value) {
+          
           setFallbackMessage(settingsData.value);
         } else {
-          console.log('⚠️ DailyUpdatesCarousel: No fallback message found, using default');
-          setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+          
+          setFallbackMessage('לא נמצאו עדכונים להצגה');
         }
       } else {
-        console.log('⚠️ DailyUpdatesCarousel: Settings API failed, using default fallback message');
-        setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+        
+        setFallbackMessage('לא נמצאו עדכונים להצגה');
       }
     } catch (error) {
-      console.error('❌ DailyUpdatesCarousel: Error fetching carousel data:', error);
-      setUpdates([]);
-              setFallbackMessage('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+      
+      setError('אירעה שגיאה בטעינת העדכונים.');
     } finally {
-      console.log('🏁 DailyUpdatesCarousel: Fetch completed, setting loading to false');
+      
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -127,7 +106,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     const refreshInterval = setInterval(fetchData, 5 * 60 * 1000);
     
     return () => clearInterval(refreshInterval);
-  }, []); // Remove hiddenUpdates dependency
+  }, [fetchData]);
 
   useEffect(() => {
     if (updates.length <= 1 || isPaused) return;
