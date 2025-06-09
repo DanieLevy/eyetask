@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { mongodb } from '@/lib/mongodb';
+import { DatabaseService } from '@/lib/database';
+import { connectToDatabase } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
+
+const db = new DatabaseService();
 
 // GET /api/health - Health check endpoint
 export async function GET(req: NextRequest) {
@@ -10,14 +12,18 @@ export async function GET(req: NextRequest) {
     let dbStatus = 'disconnected';
     let dbDetails = {};
     try {
-      const isConnected = await mongodb.testConnection();
-      if (isConnected) {
+      const connection = await connectToDatabase();
+      if (connection && connection.db) {
+        await connection.db.admin().ping();
+        
         const projects = await db.getAllProjects();
         dbStatus = 'connected';
         dbDetails = {
           projectCount: projects.length,
           connectionType: 'MongoDB Atlas'
         };
+      } else {
+        throw new Error("Failed to connect to database.");
       }
     } catch (error) {
       logger.warn('Database health check failed', 'HEALTH', { error: (error as Error).message });

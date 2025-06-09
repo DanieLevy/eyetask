@@ -1,4 +1,4 @@
-import { mongodb } from './mongodb';
+import { connectToDatabase } from './mongodb';
 import { logger } from './logger';
 import { NextRequest } from 'next/server';
 
@@ -38,20 +38,27 @@ export interface ActivityStats {
 }
 
 class ActivityLogger {
+  private async getActivitiesCollection() {
+    const connection = await connectToDatabase();
+    if (!connection || !connection.db) {
+      throw new Error('Failed to get database connection for activity logger.');
+    }
+    return connection.db.collection<ActivityEvent>('activities');
+  }
   
   /**
    * Log an activity event
    */
   async logActivity(activity: Omit<ActivityEvent, '_id' | 'timestamp'>): Promise<void> {
     try {
-      const { activities } = await mongodb.getCollections();
+      const activities = await this.getActivitiesCollection();
       
-      const activityEvent: Omit<ActivityEvent, '_id'> = {
+      const activityEvent: ActivityEvent = {
         ...activity,
         timestamp: new Date(),
       };
 
-      await activities.insertOne(activityEvent);
+      await activities.insertOne(activityEvent as any);
       
       // Also log to system logger for debugging
       logger.info(`Activity: ${activity.action}`, 'ACTIVITY_LOGGER', {
@@ -272,9 +279,8 @@ class ActivityLogger {
    * Get activity statistics
    */
   async getActivityStats(timeRange?: { start: Date; end: Date }): Promise<ActivityStats> {
+    const activities = await this.getActivitiesCollection();
     try {
-      const { activities } = await mongodb.getCollections();
-      
       const matchCondition = timeRange ? {
         timestamp: { $gte: timeRange.start, $lte: timeRange.end }
       } : {};
@@ -339,9 +345,8 @@ class ActivityLogger {
    * Get recent activities for public display
    */
   async getRecentActivities(limit: number = 20, includeViews: boolean = false): Promise<ActivityEvent[]> {
+    const activities = await this.getActivitiesCollection();
     try {
-      const { activities } = await mongodb.getCollections();
-      
       const filter = includeViews ? { isVisible: true } : { 
         isVisible: true,
         action: { $not: /צפה ב/ } // Exclude view actions

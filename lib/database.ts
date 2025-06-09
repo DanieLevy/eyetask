@@ -1,4 +1,5 @@
-import { mongodb, toObjectId, fromObjectId, handleMongoError } from './mongodb';
+import { connectToDatabase } from './mongodb';
+import { toObjectId, fromObjectId, handleMongoError } from './mongodb';
 import { logger } from './logger';
 import { ObjectId } from 'mongodb';
 
@@ -104,12 +105,32 @@ export interface DailyUpdateSetting {
 
 // Database service class
 export class DatabaseService {
+  private async getCollections() {
+    const connection = await connectToDatabase();
+    if (!connection || !connection.db) {
+      throw new Error('Failed to get database connection for DatabaseService.');
+    }
+    const db = connection.db;
+    return {
+      projects: db.collection<Project>('projects'),
+      tasks: db.collection<Task>('tasks'),
+      subtasks: db.collection<Subtask>('subtasks'),
+      appUsers: db.collection<AppUser>('appUsers'),
+      analytics: db.collection<Analytics>('analytics'),
+      dailyUpdates: db.collection<DailyUpdate>('dailyUpdates'),
+      dailyUpdatesSettings: db.collection<DailyUpdateSetting>('dailyUpdatesSettings'),
+      // Add other collections as needed
+      activities: db.collection('activities'),
+      feedbackTickets: db.collection('feedbackTickets'),
+    };
+  }
+
   // Project operations
   async getAllProjects(): Promise<Project[]> {
     try {
-      const { projects } = await mongodb.getCollections();
+      const { projects } = await this.getCollections();
       const result = await projects.find({}).sort({ createdAt: -1 }).toArray();
-      return result as Project[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getAllProjects');
       return [];
@@ -118,9 +139,9 @@ export class DatabaseService {
 
   async getProjectById(id: string): Promise<Project | null> {
     try {
-      const { projects } = await mongodb.getCollections();
+      const { projects } = await this.getCollections();
       const result = await projects.findOne({ _id: toObjectId(id) });
-      return result as Project;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getProjectById');
       return null;
@@ -129,7 +150,7 @@ export class DatabaseService {
 
   async createProject(project: Omit<Project, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const { projects } = await mongodb.getCollections();
+      const { projects } = await this.getCollections();
       const now = new Date();
       const result = await projects.insertOne({
         ...project,
@@ -145,7 +166,7 @@ export class DatabaseService {
 
   async updateProject(id: string, updates: Partial<Project>): Promise<boolean> {
     try {
-      const { projects } = await mongodb.getCollections();
+      const { projects } = await this.getCollections();
       const result = await projects.updateOne(
         { _id: toObjectId(id) },
         { 
@@ -164,7 +185,7 @@ export class DatabaseService {
 
   async deleteProject(id: string): Promise<boolean> {
     try {
-      const { projects, tasks, subtasks } = await mongodb.getCollections();
+      const { projects, tasks, subtasks } = await this.getCollections();
       
       // First delete all subtasks for tasks in this project
       const projectTasks = await tasks.find({ projectId: toObjectId(id) }).toArray();
@@ -187,10 +208,10 @@ export class DatabaseService {
   // Task operations
   async getAllTasks(includeHidden = false): Promise<Task[]> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const filter = includeHidden ? {} : { isVisible: true };
       const result = await tasks.find(filter).sort({ priority: -1, createdAt: -1 }).toArray();
-      return result as Task[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getAllTasks');
       return [];
@@ -199,9 +220,9 @@ export class DatabaseService {
 
   async getTaskById(id: string): Promise<Task | null> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const result = await tasks.findOne({ _id: toObjectId(id) });
-      return result as Task;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getTaskById');
       return null;
@@ -210,9 +231,9 @@ export class DatabaseService {
 
   async getTasksByProject(projectId: string): Promise<Task[]> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const result = await tasks.find({ projectId: toObjectId(projectId) }).sort({ priority: -1 }).toArray();
-      return result as Task[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getTasksByProject');
       return [];
@@ -221,7 +242,7 @@ export class DatabaseService {
 
   async createTask(task: Omit<Task, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const now = new Date();
       const result = await tasks.insertOne({
         ...task,
@@ -238,7 +259,7 @@ export class DatabaseService {
 
   async updateTask(id: string, updates: Partial<Task>): Promise<boolean> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const result = await tasks.updateOne(
         { _id: toObjectId(id) },
         { 
@@ -257,7 +278,7 @@ export class DatabaseService {
 
   async deleteTask(id: string): Promise<boolean> {
     try {
-      const { tasks, subtasks } = await mongodb.getCollections();
+      const { tasks, subtasks } = await this.getCollections();
       
       // First delete all subtasks for this task
       await subtasks.deleteMany({ taskId: toObjectId(id) });
@@ -274,9 +295,9 @@ export class DatabaseService {
   // Subtask operations
   async getSubtasksByTask(taskId: string): Promise<Subtask[]> {
     try {
-      const { subtasks } = await mongodb.getCollections();
+      const { subtasks } = await this.getCollections();
       const result = await subtasks.find({ taskId: toObjectId(taskId) }).sort({ createdAt: -1 }).toArray();
-      return result as Subtask[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getSubtasksByTask');
       return [];
@@ -285,7 +306,7 @@ export class DatabaseService {
 
   async createSubtask(subtask: Omit<Subtask, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const { subtasks } = await mongodb.getCollections();
+      const { subtasks } = await this.getCollections();
       const now = new Date();
       const result = await subtasks.insertOne({
         ...subtask,
@@ -302,9 +323,9 @@ export class DatabaseService {
 
   async getSubtaskById(id: string): Promise<Subtask | null> {
     try {
-      const { subtasks } = await mongodb.getCollections();
+      const { subtasks } = await this.getCollections();
       const result = await subtasks.findOne({ _id: toObjectId(id) });
-      return result as Subtask;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getSubtaskById');
       return null;
@@ -313,7 +334,7 @@ export class DatabaseService {
 
   async updateSubtask(id: string, updates: Partial<Subtask>): Promise<boolean> {
     try {
-      const { subtasks } = await mongodb.getCollections();
+      const { subtasks } = await this.getCollections();
       const result = await subtasks.updateOne(
         { _id: toObjectId(id) },
         { 
@@ -332,7 +353,7 @@ export class DatabaseService {
 
   async deleteSubtask(id: string): Promise<boolean> {
     try {
-      const { subtasks } = await mongodb.getCollections();
+      const { subtasks } = await this.getCollections();
       const result = await subtasks.deleteOne({ _id: toObjectId(id) });
       return result.deletedCount > 0;
     } catch (error) {
@@ -344,9 +365,9 @@ export class DatabaseService {
   // User operations
   async getUserByEmail(email: string): Promise<AppUser | null> {
     try {
-      const { appUsers } = await mongodb.getCollections();
+      const { appUsers } = await this.getCollections();
       const result = await appUsers.findOne({ email });
-      return result as AppUser;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getUserByEmail');
       return null;
@@ -355,9 +376,9 @@ export class DatabaseService {
 
   async getUserByUsername(username: string): Promise<AppUser | null> {
     try {
-      const { appUsers } = await mongodb.getCollections();
+      const { appUsers } = await this.getCollections();
       const result = await appUsers.findOne({ username });
-      return result as AppUser;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getUserByUsername');
       return null;
@@ -366,7 +387,7 @@ export class DatabaseService {
 
   async createUser(user: Omit<AppUser, '_id' | 'createdAt'>): Promise<string> {
     try {
-      const { appUsers } = await mongodb.getCollections();
+      const { appUsers } = await this.getCollections();
       const result = await appUsers.insertOne({
         ...user,
         createdAt: new Date()
@@ -381,9 +402,9 @@ export class DatabaseService {
   // Analytics operations
   async getAnalytics(): Promise<Analytics | null> {
     try {
-      const { analytics } = await mongodb.getCollections();
+      const { analytics } = await this.getCollections();
       const result = await analytics.findOne({});
-      return result as Analytics;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getAnalytics');
       return null;
@@ -392,7 +413,7 @@ export class DatabaseService {
 
   async updateAnalytics(updates: Partial<Analytics>): Promise<boolean> {
     try {
-      const { analytics } = await mongodb.getCollections();
+      const { analytics } = await this.getCollections();
       const result = await analytics.updateOne(
         {},
         { 
@@ -412,7 +433,7 @@ export class DatabaseService {
 
   async incrementPageView(page: string): Promise<boolean> {
     try {
-      const { analytics } = await mongodb.getCollections();
+      const { analytics } = await this.getCollections();
       const result = await analytics.updateOne(
         {},
         { 
@@ -435,10 +456,10 @@ export class DatabaseService {
   // Daily Updates operations
   async getActiveDailyUpdates(includeHidden = false): Promise<DailyUpdate[]> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const now = new Date();
       
-      const baseFilter = {
+      const filter: any = {
         isActive: true,
         $or: [
           { expiresAt: { $exists: false } },
@@ -446,23 +467,17 @@ export class DatabaseService {
           { expiresAt: { $gt: now } }
         ]
       };
-
-      // For homepage: exclude hidden updates
-      // For admin: include all updates regardless of hidden status
-      const filter = includeHidden ? baseFilter : {
-        ...baseFilter,
-        $and: [
-          baseFilter,
-          { $or: [{ isHidden: { $exists: false } }, { isHidden: false }] }
-        ]
-      };
       
-      const result = await dailyUpdates.find(filter).sort({ 
+      if (!includeHidden) {
+        filter.isHidden = false;
+      }
+
+      const result = await dailyUpdates.find(filter).sort({
         isPinned: -1,    // Pinned first
         priority: 1,     // Priority 1 first, 10 last (ascending)
         createdAt: -1    // Newest first within same priority
       }).toArray();
-      return result as DailyUpdate[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getActiveDailyUpdates');
       return [];
@@ -471,13 +486,13 @@ export class DatabaseService {
 
   async getAllDailyUpdates(): Promise<DailyUpdate[]> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const result = await dailyUpdates.find({}).sort({ 
         isPinned: -1,    // Pinned first
         priority: 1,     // Priority 1 first, 10 last (ascending)
         createdAt: -1    // Newest first within same priority
       }).toArray();
-      return result as DailyUpdate[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'getAllDailyUpdates');
       return [];
@@ -486,7 +501,7 @@ export class DatabaseService {
 
   async createDailyUpdate(update: Omit<DailyUpdate, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const now = new Date();
       const result = await dailyUpdates.insertOne({
         ...update,
@@ -502,9 +517,9 @@ export class DatabaseService {
 
   async getDailyUpdateById(id: string): Promise<DailyUpdate | null> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const result = await dailyUpdates.findOne({ _id: toObjectId(id) });
-      return result as DailyUpdate;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getDailyUpdateById');
       return null;
@@ -513,7 +528,7 @@ export class DatabaseService {
 
   async updateDailyUpdate(id: string, updates: Partial<DailyUpdate>): Promise<boolean> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const result = await dailyUpdates.updateOne(
         { _id: toObjectId(id) },
         { 
@@ -532,7 +547,7 @@ export class DatabaseService {
 
   async deleteDailyUpdate(id: string): Promise<boolean> {
     try {
-      const { dailyUpdates } = await mongodb.getCollections();
+      const { dailyUpdates } = await this.getCollections();
       const result = await dailyUpdates.deleteOne({ _id: toObjectId(id) });
       return result.deletedCount > 0;
     } catch (error) {
@@ -544,9 +559,9 @@ export class DatabaseService {
   // Daily Update Settings operations
   async getDailyUpdateSetting(key: string): Promise<DailyUpdateSetting | null> {
     try {
-      const { dailyUpdatesSettings } = await mongodb.getCollections();
+      const { dailyUpdatesSettings } = await this.getCollections();
       const result = await dailyUpdatesSettings.findOne({ key });
-      return result as DailyUpdateSetting;
+      return result;
     } catch (error) {
       handleMongoError(error, 'getDailyUpdateSetting');
       return null;
@@ -555,7 +570,7 @@ export class DatabaseService {
 
   async upsertDailyUpdateSetting(key: string, value: string): Promise<boolean> {
     try {
-      const { dailyUpdatesSettings } = await mongodb.getCollections();
+      const { dailyUpdatesSettings } = await this.getCollections();
       const now = new Date();
       const result = await dailyUpdatesSettings.updateOne(
         { key },
@@ -581,7 +596,7 @@ export class DatabaseService {
   // Search operations
   async searchTasks(query: string): Promise<Task[]> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       const result = await tasks.find({
         $or: [
           { title: { $regex: query, $options: 'i' } },
@@ -590,7 +605,7 @@ export class DatabaseService {
           { 'description.main': { $regex: query, $options: 'i' } }
         ]
       }).toArray();
-      return result as Task[];
+      return result;
     } catch (error) {
       handleMongoError(error, 'searchTasks');
       return [];
@@ -603,7 +618,7 @@ export class DatabaseService {
     tasks: Task[];
   }> {
     try {
-      const { projects, tasks } = await mongodb.getCollections();
+      const { projects, tasks } = await this.getCollections();
       
       // Use aggregation to get projects with their task counts and stats
       const pipeline = [
@@ -673,7 +688,7 @@ export class DatabaseService {
     subtasks: Record<string, any[]>;
   }> {
     try {
-      const { projects, tasks, subtasks } = await mongodb.getCollections();
+      const { projects, tasks, subtasks } = await this.getCollections();
       
       // First find the project by name
       const project = await projects.findOne({ name: projectName });
@@ -763,7 +778,7 @@ export class DatabaseService {
   // Optimized method to get project stats (task counts, etc.)
   async getProjectStats(): Promise<Record<string, { taskCount: number; highPriorityCount: number }>> {
     try {
-      const { tasks } = await mongodb.getCollections();
+      const { tasks } = await this.getCollections();
       
       const pipeline = [
         {

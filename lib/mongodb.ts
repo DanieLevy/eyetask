@@ -13,183 +13,102 @@ export interface DatabaseCollections {
   feedbackTickets: Collection;
 }
 
-class MongoDBConnection {
-  private client: MongoClient | null = null;
-  private db: Db | null = null;
-  private connectionPromise: Promise<MongoClient> | null = null;
+/**
+ * Global is used here to maintain a cached connection across hot reloads
+ * in development. This prevents connections from growing exponentially
+ * during API Route usage.
+ */
+interface CachedConnection {
+  client: MongoClient | null;
+  db: Db | null;
+}
 
-  constructor() {
-    this.validateEnvironment();
+const globalWithMongo = global as typeof global & {
+  mongo: CachedConnection | null;
+};
+
+let cached = globalWithMongo.mongo;
+
+if (!cached) {
+  cached = globalWithMongo.mongo = { client: null, db: null };
+}
+
+export async function connectToDatabase() {
+  if (cached && cached.client && cached.db) {
+    return cached;
   }
 
-  private validateEnvironment() {
-    const uri = process.env.MONGODB_URI;
-    const dbName = process.env.MONGODB_DB_NAME;
+  const MONGODB_URI = process.env.MONGODB_URI;
+  const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
 
-    if (!uri) {
-      throw new Error('MONGODB_URI environment variable is not set');
-    }
-    if (!dbName) {
-      throw new Error('MONGODB_DB_NAME environment variable is not set');
-    }
+  if (!MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
   }
 
-  async connect(): Promise<MongoClient> {
-    if (this.client) {
-      try {
-        // Test if the connection is still alive
-        await this.client.db('admin').command({ ping: 1 });
-        return this.client;
-      } catch (error) {
-        // Connection is dead, reset and reconnect
-        this.client = null;
-        this.db = null;
-      }
-    }
-
-    if (this.connectionPromise) {
-      return this.connectionPromise;
-    }
-
-    this.connectionPromise = this.establishConnection();
-    return this.connectionPromise;
+  if (!MONGODB_DB_NAME) {
+    throw new Error('Please define the MONGODB_DB_NAME environment variable inside .env.local');
   }
 
-  private async establishConnection(): Promise<MongoClient> {
-    try {
-      const uri = process.env.MONGODB_URI!;
-      const dbName = process.env.MONGODB_DB_NAME!;
+  const client = new MongoClient(MONGODB_URI);
+  
+  await client.connect();
+  
+  const db = client.db(MONGODB_DB_NAME);
 
-      this.client = new MongoClient(uri, {
-        maxPoolSize: 20, // Increased pool size for better concurrency
-        minPoolSize: 5, // Maintain minimum connections
-        maxIdleTimeMS: 30000, // Close connections after 30s of inactivity
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        connectTimeoutMS: 10000,
-        heartbeatFrequencyMS: 10000,
-        retryWrites: true,
-        retryReads: true,
-        readPreference: 'primaryPreferred', // Allow reads from secondaries if primary is slow
-        compressors: ['zlib'], // Enable compression for better network performance
-      });
+  cached = { client, db };
 
-      await this.client.connect();
-      this.db = this.client.db(dbName);
+  console.log("New MongoDB connection established.");
 
-      logger.info('MongoDB connected successfully', 'MONGODB_CONNECTION', {
-        database: dbName,
-        collections: await this.db.listCollections().toArray().then(cols => cols.length)
-      });
+  return cached;
+}
 
-      return this.client;
-    } catch (error) {
-      this.connectionPromise = null;
-      logger.error('Failed to connect to MongoDB', 'MONGODB_CONNECTION', undefined, error as Error);
-      throw error;
-    }
+export async function getDatabase(): Promise<Db> {
+  const connection = await connectToDatabase();
+  if (!connection || !connection.db) {
+    throw new Error('Could not get database from connection.');
   }
+  return connection.db;
+}
 
-  async getDatabase(): Promise<Db> {
-    // Ensure the client is connected.
-    // this.connect() handles establishing or verifying the connection.
-    // If establishConnection is called within connect(), it sets this.db.
-    // If connect() uses an existing client (after a successful ping), this.db should ideally already be valid.
-    await this.connect();
+export async function getCollections(): Promise<DatabaseCollections> {
+  const db = await getDatabase();
+  
+  return {
+    projects: db.collection('projects'),
+    tasks: db.collection('tasks'),
+    subtasks: db.collection('subtasks'),
+    appUsers: db.collection('appUsers'),
+    analytics: db.collection('analytics'),
+    dailyUpdates: db.collection('dailyUpdates'),
+    dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
+    activities: db.collection('activities'),
+    feedbackTickets: db.collection('feedbackTickets'),
+  };
+}
 
-    // After connect() resolves, check if this.db is populated.
-    // This handles the edge case where connect() might succeed (e.g., ping success)
-    // but this.db was null or became null.
-    if (!this.db) {
-      logger.warn(
-        'MongoDBConnection: this.db is null after connect(). Attempting to re-initialize from client.',
-        'MONGODB_RECOVERY'
-      );
-      if (this.client) {
-        const dbName = process.env.MONGODB_DB_NAME;
-        if (!dbName) {
-          logger.error(
-            'MongoDBConnection: MONGODB_DB_NAME is not set. Cannot re-initialize db.',
-            'MONGODB_CRITICAL'
-          );
-          throw new Error(
-            'MONGODB_DB_NAME environment variable is not set for DB re-initialization.'
-          );
-        }
-        this.db = this.client.db(dbName); // Attempt to re-initialize db from the existing client.
-        
-        if (!this.db) {
-          // If still null, the client might be in a strange state or dbName is invalid.
-          logger.error(
-            'MongoDBConnection: Failed to re-initialize this.db from existing client. Forcing full reconnect.',
-            'MONGODB_CRITICAL'
-          );
-          this.client = null; // Force full reconnect path
-          this.connectionPromise = null;
-          await this.connect(); // Try one more full connection attempt
-        }
-      } else {
-        // If there's no client either, a full connect was needed but might have failed to set db.
-        logger.error(
-          'MongoDBConnection: this.db and this.client are null after connect(). This indicates a connection failure.',
-          'MONGODB_CRITICAL'
-        );
-      }
-    }
-
-    // Final check after all recovery attempts
-    if (!this.db) {
-      logger.error(
-        'MongoDBConnection: Unable to obtain a valid DB instance after all attempts.',
-        'MONGODB_CRITICAL'
-      );
-      throw new Error('Failed to get a valid database instance.');
-    }
-    
-    return this.db; // Now this.db should be valid, or an error would have been thrown.
+export async function disconnect(): Promise<void> {
+  if (cached && cached.client) {
+    await cached.client.close();
+    cached.client = null;
+    cached.db = null;
+    logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
   }
+}
 
-  async getCollections(): Promise<DatabaseCollections> {
-    const db = await this.getDatabase();
-    
-    return {
-      projects: db.collection('projects'),
-      tasks: db.collection('tasks'),
-      subtasks: db.collection('subtasks'),
-      appUsers: db.collection('appUsers'),
-      analytics: db.collection('analytics'),
-      dailyUpdates: db.collection('dailyUpdates'),
-      dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
-      activities: db.collection('activities'),
-      feedbackTickets: db.collection('feedbackTickets'),
-    };
-  }
-
-  async disconnect(): Promise<void> {
-    if (this.client) {
-      await this.client.close();
-      this.client = null;
-      this.db = null;
-      this.connectionPromise = null;
-      logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
-    }
-  }
-
-  async testConnection(): Promise<boolean> {
-    try {
-      const db = await this.getDatabase();
-      await db.admin().ping();
-      logger.info('MongoDB connection test successful', 'MONGODB_TEST');
-      return true;
-    } catch (error) {
-      logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
-      return false;
-    }
+export async function testConnection(): Promise<boolean> {
+  try {
+    const db = await getDatabase();
+    await db.admin().ping();
+    logger.info('MongoDB connection test successful', 'MONGODB_TEST');
+    return true;
+  } catch (error) {
+    logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
+    return false;
   }
 }
 
 // Create a singleton instance
-const mongodb = new MongoDBConnection();
+const mongodb = { connect: connectToDatabase };
 
 // Export the singleton and utilities
 export { mongodb };
@@ -230,7 +149,7 @@ export function handleMongoError(error: any, operation: string) {
 
 // Helper function to get a collection
 async function getCollection<T extends Document = Document>(collectionName: string) {
-  const db = await mongodb.getDatabase();
+  const db = await getDatabase();
   return db.collection<T>(collectionName);
 }
 
@@ -376,4 +295,5 @@ export class MongoAnalytics {
   }
 }
 
-export default mongodb.connect(); 
+// Remove the default export if it exists
+// export default connectToDatabase; // This line should be removed or commented out 

@@ -23,14 +23,13 @@ import {
   FileText,
   Image as ImageIcon
 } from 'lucide-react';
-import { useTasksRealtime, useSubtasksRealtime } from '@/hooks/useRealtime';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ImageGallery } from '@/components/ImageUpload';
 
 interface Task {
-  id: string;
+  _id: string;
   title: string;
   subtitle?: string;
   images?: string[];
@@ -53,7 +52,7 @@ interface Task {
 }
 
 interface Subtask {
-  id: string;
+  _id: string;
   taskId: string;
   title: string;
   subtitle?: string;
@@ -71,7 +70,7 @@ interface Subtask {
 }
 
 interface Project {
-  id: string;
+  _id: string;
   name: string;
   description?: string;
 }
@@ -97,78 +96,6 @@ export default function TaskManagement() {
   const isUserInteracting = useCallback(() => {
     return operationLoading || deleteConfirm !== null;
   }, [operationLoading, deleteConfirm]);
-
-  // Realtime handlers
-  const handleTaskChange = useCallback((payload: any) => {
-    console.log('🔄 Task realtime update:', payload);
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    if (eventType === 'UPDATE' && newRecord && newRecord.id === taskId) {
-      // Only update if user is not interacting with forms
-      if (!isUserInteracting()) {
-        setTask(newRecord);
-        showNotification('המשימה עודכנה', 'update');
-      }
-    } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === taskId) {
-      // Task was deleted, redirect back
-      showNotification('המשימה נמחקה', 'error');
-      if (project) {
-        router.push(`/admin/projects/${project.id}`);
-      } else {
-        router.push('/admin/dashboard');
-      }
-    }
-  }, [taskId, project, router, showNotification, isUserInteracting]);
-
-  const handleSubtaskChange = useCallback((payload: any) => {
-    console.log('🔄 Subtask realtime update:', payload);
-    
-    // Don't update subtasks if user is actively working with forms
-    if (isUserInteracting()) {
-      console.log('⏸️ Skipping subtask update - user is interacting');
-      return;
-    }
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    setSubtasks(current => {
-      switch (eventType) {
-        case 'INSERT':
-          if (newRecord && newRecord.task_id === taskId) {
-            // Add new subtask
-            const exists = current.find(s => s.id === newRecord.id);
-            if (!exists) {
-              showNotification('תת-משימה חדשה נוספה', 'success');
-              return [...current, newRecord];
-            }
-            return current;
-          }
-          return current;
-          
-        case 'UPDATE':
-          if (newRecord && newRecord.task_id === taskId) {
-            // Update existing subtask
-            showNotification('תת-משימה עודכנה', 'update');
-            return current.map(subtask => 
-              subtask.id === newRecord.id ? newRecord : subtask
-            );
-          }
-          return current;
-          
-        case 'DELETE':
-          if (oldRecord) {
-            // Remove deleted subtask
-            showNotification('תת-משימה נמחקה', 'error');
-            return current.filter(subtask => subtask.id !== oldRecord.id);
-          }
-          return current;
-          
-        default:
-          return current;
-      }
-    });
-  }, [taskId, showNotification, isUserInteracting]);
 
   const fetchTaskData = useCallback(async (forceRefresh = false) => {
     // Prevent automatic refreshes when user is interacting unless forced
@@ -247,26 +174,10 @@ export default function TaskManagement() {
     }
   }, [taskId, isUserInteracting]);
 
-  // Smart refresh function that only refreshes when safe
-  const safeRefresh = useCallback(() => {
-    fetchTaskData(false); // Non-forced refresh
-  }, [fetchTaskData]);
-
-  // Force refresh function for when we need to update regardless
-  const forceRefresh = useCallback(() => {
-    fetchTaskData(true); // Forced refresh
-  }, [fetchTaskData]);
-
-  // Set up realtime subscriptions with safe refresh
-  useTasksRealtime(safeRefresh);
-  useSubtasksRealtime(taskId, safeRefresh);
-
-  // Register this page's refresh function
-  usePageRefresh(forceRefresh);
+  usePageRefresh(fetchTaskData);
 
   useEffect(() => {
-    // Initial load should always work
-    fetchTaskData(true);
+    fetchTaskData(true); // Initial fetch
   }, [taskId]);
 
   const handleUpdateSubtask = async () => {
@@ -286,7 +197,7 @@ export default function TaskManagement() {
       if (response.ok) {
         setDeleteConfirm(null);
         // Refresh data after successful deletion
-        await forceRefresh();
+        await fetchTaskData();
       } else {
         alert('Failed to delete subtask');
       }
@@ -319,7 +230,7 @@ export default function TaskManagement() {
       if (result.success) {
         // Navigate back to project or dashboard
         if (project) {
-          router.push(`/admin/projects/${project.id}`);
+          router.push(`/admin/projects/${project._id}`);
         } else {
           router.push('/admin/dashboard');
         }
@@ -415,7 +326,7 @@ export default function TaskManagement() {
       if (result.success) {
         setDeleteConfirm(null);
         // Refresh data after successful deletion
-        await forceRefresh();
+        await fetchTaskData();
       } else {
         alert('Failed to delete subtask: ' + (result.error || 'Unknown error'));
       }
@@ -429,7 +340,7 @@ export default function TaskManagement() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">טוען נתוני משימה...</p>
@@ -440,7 +351,7 @@ export default function TaskManagement() {
 
   if (!task) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
         <div className="text-center">
           <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">משימה לא נמצאה</h3>
@@ -457,358 +368,188 @@ export default function TaskManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href={project ? `/admin/projects/${project.id}` : '/admin/dashboard'}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              aria-label="חזור"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <Eye className="h-6 w-6 text-primary" />
-              <div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>פאנל ניהול משימות</span>
-                  <ChevronRight className="h-4 w-4" />
-                  {project && (
-                    <>
-                      <span>{project.name}</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </>
-                  )}
-                  <span>פאנל ניהול משימות</span>
-                </div>
-                <h1 className="text-lg font-bold text-foreground">{task.title}</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir="rtl">
+      <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => router.back()}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                title="חזור"
+              >
+                <ArrowRight className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+              </button>
+              <div className="flex flex-col">
+                <p className="text-xs text-gray-500 dark:text-gray-400">פרטי משימה</p>
+                <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 truncate">
+                  {task.title}
+                </h1>
               </div>
             </div>
-            <div className="mr-auto">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => fetchTaskData(true)}
-                className="flex items-center gap-2 px-3 py-2 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
+                disabled={operationLoading}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 title="רענן נתונים"
               >
-                <RefreshCw className="h-4 w-4" />
-                רענן
+                <RefreshCw className={`h-5 w-5 text-gray-600 dark:text-gray-300 ${operationLoading ? 'animate-spin' : ''}`} />
               </button>
+              <Link
+                href={`/admin/tasks/${task._id}/edit`}
+                className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900"
+                title="ערוך משימה"
+              >
+                <Edit className="h-5 w-5" />
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Task Details */}
-        <div className="bg-card rounded-lg border border-border p-6 mb-8">
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-xl font-semibold text-foreground">{task.title}</h2>
-                <span className="text-sm text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
-                  {formatDatacoDisplay(task.datacoNumber)}
-                </span>
-                {task.priority > 0 && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                    {getPriorityLabel(task.priority)}
-                  </span>
-                )}
-              </div>
-              {task.subtitle && (
-                <p className="text-muted-foreground mb-4">{task.subtitle}</p>
-              )}
-              
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-foreground mb-2">תיאור המשימה</h4>
-                  <p className="text-sm text-muted-foreground">{task.description.main}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-foreground mb-2">אופן ביצוע</h4>
-                  <p className="text-sm text-muted-foreground">{task.description.howToExecute}</p>
-                </div>
-                
-                {/* Task Image Display */}
-                {task.images && task.images.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4" />
-                      תמונות המשימה ({task.images.length})
-                    </h4>
-                    <ImageGallery 
-                      images={task.images} 
-                      className="w-full"
-                      maxDisplay={4}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="text-sm text-muted-foreground text-left">
-              <p>נוצר: {new Date(task.createdAt).toLocaleDateString('he-IL')}</p>
-              <p>עודכן: {new Date(task.updatedAt).toLocaleDateString('he-IL')}</p>
-            </div>
+      <main className="container mx-auto p-4 space-y-6">
+        {/* Task Details Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{task.title}</h2>
+            {task.subtitle && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{task.subtitle}</p>}
           </div>
-
-          {/* Task Details Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-muted/30 rounded-lg p-4">
-              <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                כמות נדרשת
-              </h5>
-              <p className="text-lg font-bold text-primary">{task.amountNeeded}</p>
+          <div className="p-4 space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">תיאור</h3>
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{task.description.main}</p>
             </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                מיקומים
-              </h5>
-              <p className="text-sm">{capitalizeEnglishArray(task.locations).join(', ')}</p>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <Car className="h-4 w-4" />
-                רכבי יעד
-              </h5>
-              <p className="text-sm">{capitalizeEnglishArray(task.targetCar).join(', ')}</p>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                זמני יום
-              </h5>
-              <p className="text-sm">{task.dayTime.map(getDayTimeLabel).join(', ')}</p>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                סוג משימה
-              </h5>
-              <p className="text-sm">{capitalizeEnglishArray(task.type).join(', ')}</p>
-            </div>
-            {task.lidar && (
-              <div className="bg-muted/30 rounded-lg p-4">
-                <h5 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  LiDAR
-                </h5>
-                <p className="text-sm text-green-600 dark:text-green-400">נדרש</p>
+            {task.description.howToExecute && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">הוראות ביצוע</h3>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{task.description.howToExecute}</p>
+              </div>
+            )}
+            {task.images && task.images.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">תמונות</h3>
+                <ImageGallery images={task.images} />
               </div>
             )}
           </div>
-        </div>
-
-        {/* Subtasks Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Target className="h-8 w-8 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">סה״כ תת-משימות</p>
-                <p className="text-2xl font-bold text-foreground">{subtasks.length}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Calendar className="h-8 w-8 text-green-600 dark:text-green-400" />
-              <div>
-                <p className="text-sm text-muted-foreground">Events</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {subtasks.filter(s => s.type === 'events').length}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Clock className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <div>
-                <p className="text-sm text-muted-foreground">Hours</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {subtasks.filter(s => s.type === 'hours').length}
-                </p>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-100 dark:bg-gray-700/50 rounded-b-lg overflow-hidden">
+            <InfoPill icon={FileText} label="DATACO" value={formatDatacoDisplay(task.datacoNumber)} />
+            <InfoPill icon={Zap} label="עדיפות" value={getPriorityLabel(task.priority)} color={getPriorityColor(task.priority)} />
+            <InfoPill icon={Building} label="פרויקט" value={project?.name || 'N/A'} />
+            <InfoPill icon={Car} label="רכב מטרה" value={task.targetCar.join(', ') || 'Any'} />
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-card rounded-lg border border-border p-6 mb-8">
-          <h3 className="text-lg font-semibold text-foreground mb-4">פעולות מהירות</h3>
-          <div className="flex flex-wrap gap-4">
+        {/* Subtasks Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">תת-משימות ({subtasks.length})</h2>
             <Link
-              href={`/admin/tasks/${task.id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Edit className="h-4 w-4" />
-              ערוך משימה
-            </Link>
-            <Link
-              href={`/admin/tasks/${task.id}/subtasks/new`}
-              className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
+              href={`/admin/tasks/${task._id}/subtasks/new`}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
             >
               <Plus className="h-4 w-4" />
-              תת-משימה חדשה
+              הוסף תת-משימה
             </Link>
-            <button
-              onClick={() => handleDeleteTask()}
-              className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-              מחק משימה
-            </button>
           </div>
-        </div>
 
-        {/* Subtasks List */}
-        <div className="bg-card rounded-lg border border-border">
-          <div className="p-6 border-b border-border">
-            <h3 className="text-lg font-semibold text-foreground">תת-משימות</h3>
-            <p className="text-sm text-muted-foreground mt-1">נהל את כל התת-משימות של המשימה</p>
-          </div>
-          
-          <div className="p-6">
+          <div className="p-4">
             {subtasks.length === 0 ? (
-              <div className="text-center py-12">
-                <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h4 className="text-lg font-semibold text-foreground mb-2">אין תת-משימות</h4>
-                <p className="text-muted-foreground mb-4">הוסף תת-משימה ראשונה כדי להתחיל</p>
-                <Link
-                  href={`/admin/tasks/${taskId}/subtasks/new`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  הוסף תת-משימה ראשונה
-                </Link>
+              <div className="text-center py-10">
+                <p className="text-gray-500 dark:text-gray-400">לא נוצרו תת-משימות.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <ul className="space-y-3">
                 {subtasks.map((subtask) => (
-                  <div key={subtask.id} className="bg-muted/30 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-foreground">{subtask.title}</h4>
-                          <span className="text-xs text-muted-foreground px-2 py-1 bg-background rounded font-mono">
-                            {formatDatacoDisplay(subtask.datacoNumber)}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            subtask.type === 'events' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                          }`}>
-                            {capitalizeEnglish(subtask.type)}
-                          </span>
-                        </div>
-                        {subtask.subtitle && (
-                          <p className="text-sm text-muted-foreground mb-2">{subtask.subtitle}</p>
-                        )}
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3 text-muted-foreground" />
-                            <span>{subtask.amountNeeded} {capitalizeEnglish(subtask.type)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Cloud className="h-3 w-3 text-muted-foreground" />
-                            <span>{capitalizeEnglish(subtask.weather)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Building className="h-3 w-3 text-muted-foreground" />
-                            <span>{subtask.scene}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Car className="h-3 w-3 text-muted-foreground" />
-                            <span>{capitalizeEnglishArray(subtask.targetCar).join(', ')}</span>
-                          </div>
-                        </div>
-                        
-                        {subtask.labels.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {subtask.labels.map((label, index) => (
-                              <span 
-                                key={index}
-                                className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-                              >
-                                {label}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Images Display */}
-                        {subtask.images && subtask.images.length > 0 && (
-                          <div className="mt-3">
-                            <h6 className="text-xs font-medium text-muted-foreground mb-2">
-                              תמונות ({subtask.images.length})
-                            </h6>
-                            <ImageGallery 
-                              images={subtask.images} 
-                              className="w-full"
-                              maxDisplay={3}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/tasks/${taskId}/subtasks/${subtask.id}/edit`}
-                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                          title="ערוך תת-משימה"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                        <button
-                          onClick={() => setDeleteConfirm(subtask.id)}
-                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                          title="מחק תת-משימה"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                  <li key={subtask._id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800 dark:text-gray-100">{subtask.title}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{subtask.subtitle || 'אין תת-כותרת'}</p>
                     </div>
-                  </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-white dark:bg-gray-800 rounded-full font-mono">
+                        {subtask.datacoNumber || 'N/A'}
+                      </span>
+                      <Link
+                        href={`/admin/tasks/${taskId}/subtasks/${subtask._id}/edit`}
+                        className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
+                        title="ערוך תת-משימה"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Link>
+                      <button
+                        onClick={() => setDeleteConfirm(subtask._id)}
+                        className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
+                        title="מחק תת-משימה"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
-      </main>
-      
-      {/* Realtime Notifications */}
-      <RealtimeNotification {...notification} />
 
-      {/* Delete Confirmation Dialog */}
+        {/* Delete Task Section */}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg p-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-red-800 dark:text-red-200">מחק משימה</h3>
+              <p className="text-sm text-red-700 dark:text-red-300">פעולה זו היא קבועה ולא ניתנת לביטול.</p>
+            </div>
+            <button
+              onClick={() => setDeleteConfirm(task._id)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              מחק
+            </button>
+        </div>
+      </main>
+
+      {/* Deletion Confirmation Modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-lg border border-border w-full max-w-sm">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">אישור מחיקה</h3>
-              <p className="text-muted-foreground mb-4">האם אתה בטוח שברצונך למחוק את התת-משימה? פעולה זו לא ניתנת לביטול.</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleDeleteSubtask(deleteConfirm)}
-                  disabled={operationLoading}
-                  className="flex-1 bg-red-600 dark:bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-700 dark:hover:bg-red-800 transition-colors disabled:opacity-50"
-                >
-                  {operationLoading ? 'מוחק...' : 'מחק'}
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  disabled={operationLoading}
-                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors"
-                >
-                  ביטול
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold">האם אתה בטוח?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+              {`הפעולה תמחק לצמיתות את ה${deleteConfirm === task._id ? 'משימה' : 'תת-משימה'}.`}
+            </p>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={deleteConfirm === task._id ? handleDeleteTask : () => handleDeleteSubtask(deleteConfirm)}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                אשר מחיקה
+              </button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-} 
+}
+
+const InfoPill: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  color?: string;
+}> = ({ icon: Icon, label, value, color }) => (
+  <div className="p-3 bg-white dark:bg-gray-800">
+    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+      <Icon className="h-4 w-4" />
+      <span>{label}</span>
+    </div>
+    <p className={`text-base font-semibold text-gray-800 dark:text-gray-100 mt-1 truncate ${color || ''}`}>
+      {value}
+    </p>
+  </div>
+); 

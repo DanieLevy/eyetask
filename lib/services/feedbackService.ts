@@ -1,4 +1,5 @@
-import { mongodb, toObjectId, fromObjectId } from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/mongodb';
+import { toObjectId, fromObjectId } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
 import { 
@@ -16,13 +17,34 @@ import {
 } from '@/lib/types/feedback';
 
 class FeedbackService {
+  private async getFeedbackCollection() {
+    const connection = await connectToDatabase();
+    if (!connection || !connection.db) {
+      throw new Error('Database connection failed in FeedbackService');
+    }
+    return connection.db.collection<FeedbackTicket>('feedbackTickets');
+  }
+
+  private async getCollections() {
+    const connection = await connectToDatabase();
+    if (!connection || !connection.db) {
+      throw new Error('Database connection failed in FeedbackService');
+    }
+    const db = connection.db;
+    return {
+      feedbackTickets: db.collection<FeedbackTicket>('feedbackTickets'),
+      projects: db.collection('projects'),
+      tasks: db.collection('tasks'),
+      subtasks: db.collection('subtasks'),
+    };
+  }
   
   /**
    * Generate unique ticket number
    */
   private async generateTicketNumber(): Promise<string> {
     const year = new Date().getFullYear();
-    const { feedbackTickets } = await mongodb.getCollections();
+    const feedbackTickets = await this.getFeedbackCollection();
     
     // Count tickets created this year
     const ticketCount = await feedbackTickets.countDocuments({
@@ -41,7 +63,7 @@ class FeedbackService {
     metadata?: { userAgent?: string; ipAddress?: string }
   ): Promise<string> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       const ticketNumber = await this.generateTicketNumber();
       const now = new Date();
@@ -130,7 +152,7 @@ class FeedbackService {
    */
   private async getRelatedItemTitle(type: string, id: string): Promise<string> {
     try {
-      const { tasks, subtasks, projects } = await mongodb.getCollections();
+      const { tasks, subtasks, projects } = await this.getCollections();
       
       switch (type) {
         case 'project':
@@ -159,7 +181,7 @@ class FeedbackService {
    */
   async getTicketById(ticketId: string): Promise<FeedbackTicket | null> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       const ticket = await feedbackTickets.findOne({ _id: toObjectId(ticketId) });
       return ticket as FeedbackTicket;
     } catch (error) {
@@ -173,7 +195,7 @@ class FeedbackService {
    */
   async getTicketByNumber(ticketNumber: string): Promise<FeedbackTicket | null> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       const ticket = await feedbackTickets.findOne({ ticketNumber });
       return ticket as FeedbackTicket;
     } catch (error) {
@@ -191,7 +213,7 @@ class FeedbackService {
     limit: number = 20
   ): Promise<{ tickets: FeedbackTicket[]; total: number; hasMore: boolean }> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       // Build filter query
       const query: any = {};
@@ -269,7 +291,7 @@ class FeedbackService {
     adminName?: string
   ): Promise<boolean> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       const updateData: any = {
         ...updates,
@@ -326,7 +348,7 @@ class FeedbackService {
    */
   async deleteTicket(ticketId: string, adminId?: string, adminName?: string): Promise<boolean> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       // Get ticket for logging
       const ticket = await this.getTicketById(ticketId);
@@ -372,7 +394,7 @@ class FeedbackService {
     authorId?: string
   ): Promise<boolean> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       const response: FeedbackResponse = {
         responseId: `resp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -435,7 +457,7 @@ class FeedbackService {
     authorId: string
   ): Promise<boolean> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       const note: FeedbackInternalNote = {
         noteId: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -465,7 +487,7 @@ class FeedbackService {
    */
   async getStats(dateRange?: { start: Date; end: Date }): Promise<FeedbackStats> {
     try {
-      const { feedbackTickets } = await mongodb.getCollections();
+      const feedbackTickets = await this.getFeedbackCollection();
       
       const matchCondition = dateRange ? {
         createdAt: { $gte: dateRange.start, $lte: dateRange.end }
@@ -629,7 +651,7 @@ class FeedbackService {
    */
   async getAvailableSubtasks(): Promise<Array<{ id: string; title: string; taskTitle: string }>> {
     try {
-      const { subtasks, tasks } = await mongodb.getCollections();
+      const { subtasks, tasks } = await this.getCollections();
       
       const subtaskList = await subtasks.find({}).toArray();
       const result = [];
