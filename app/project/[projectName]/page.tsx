@@ -30,11 +30,62 @@ import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useTasksRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import { ImageDisplay, ImageGallery } from '@/components/ImageUpload';
 import { useProjectData } from '@/hooks/useOptimizedData';
 import { ProjectPageLoadingSkeleton } from '@/components/SkeletonLoaders';
 import { InlineLoading } from '@/components/LoadingSystem';
 import { usePageLoading } from '@/contexts/LoadingContext';
+
+// Simple component to display images, moved here to be self-contained
+function SimpleImageGallery({ images }: { images: string[] }) {
+  if (!images || images.length === 0) return null;
+
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+
+  const openImageViewer = (index: number) => {
+    setCurrentImage(index);
+    setViewerOpen(true);
+  };
+
+  const closeImageViewer = () => {
+    setViewerOpen(false);
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+        {images.map((src, index) => (
+          <div key={index} className="aspect-square cursor-pointer" onClick={() => openImageViewer(index)}>
+            <img 
+              src={src} 
+              alt={`Image ${index + 1}`} 
+              className="w-full h-full object-cover rounded-md hover:scale-105 transition-transform duration-200"
+            />
+          </div>
+        ))}
+      </div>
+      {viewerOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
+          onClick={closeImageViewer}
+        >
+          <button 
+              onClick={closeImageViewer} 
+              className="absolute top-4 right-4 text-white text-3xl z-50"
+          >
+              &times;
+          </button>
+          <img 
+            src={images[currentImage]} 
+            alt="Full screen view" 
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking on image
+          />
+        </div>
+      )}
+    </>
+  );
+}
 
 interface Task {
   _id: string;
@@ -723,12 +774,7 @@ export default function ProjectPage() {
                                 <ImageIcon className="h-3 w-3" />
                                 תמונות המשימה ({task.images.length})
                               </h4>
-                              <ImageDisplay
-                                images={task.images}
-                                title={task.title}
-                                maxDisplay={6}
-                                size="lg"
-                              />
+                              <SimpleImageGallery images={task.images} />
                             </div>
                           )}
 
@@ -899,12 +945,7 @@ export default function ProjectPage() {
                                                   <ImageIcon className="h-3 w-3" />
                                                   תמונות ({subtask.images.length})
                                                 </h6>
-                                                <ImageDisplay
-                                                  images={subtask.images}
-                                                  title={`${task.title} - ${subtask.title}`}
-                                                  maxDisplay={8}
-                                                  size="md"
-                                                />
+                                                <SimpleImageGallery images={subtask.images} />
                                               </div>
                                             )}
                                           </div>

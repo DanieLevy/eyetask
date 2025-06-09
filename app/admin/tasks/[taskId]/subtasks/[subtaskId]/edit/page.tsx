@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -9,8 +9,7 @@ import {
   ChevronRight,
   Target
 } from 'lucide-react';
-import { capitalizeEnglishArray } from '@/lib/utils';
-import { MultipleImageUpload } from '@/components/ImageUpload';
+import { AdvancedImageUploader } from '@/components/AdvancedImageUploader';
 import { toast } from 'sonner';
 
 interface Task {
@@ -20,7 +19,7 @@ interface Task {
 }
 
 interface Subtask {
-  id: string;
+  _id: string;
   taskId: string;
   title: string;
   subtitle?: string;
@@ -49,6 +48,9 @@ export default function EditSubtaskPage() {
   const [submitting, setSubmitting] = useState(false);
   
   const [editSubtaskData, setEditSubtaskData] = useState<Partial<Subtask>>({});
+  const [imagesToUpload, setImagesToUpload] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+
 
   useEffect(() => {
     fetchData();
@@ -58,36 +60,23 @@ export default function EditSubtaskPage() {
     try {
       const token = localStorage.getItem('adminToken');
       
-      // Fetch task data
-      const taskResponse = await fetch(`/api/tasks/${taskId}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (taskResponse.ok) {
-        const taskResult = await taskResponse.json();
-        const taskData = taskResult.data?.task || taskResult.task;
-        if (taskData) {
-          setTask(taskData);
-        }
+      const [taskRes, subtaskRes] = await Promise.all([
+          fetch(`/api/tasks/${taskId}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`/api/subtasks/${subtaskId}`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+
+      if (taskRes.ok) {
+        const taskResult = await taskRes.json();
+        setTask(taskResult.task);
       }
       
-      // Fetch subtask data
-      const subtaskResponse = await fetch(`/api/subtasks/${subtaskId}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (subtaskResponse.ok) {
-        const subtaskResult = await subtaskResponse.json();
-        const subtaskData = subtaskResult.data?.subtask || subtaskResult.subtask;
+      if (subtaskRes.ok) {
+        const subtaskResult = await subtaskRes.json();
+        const subtaskData = subtaskResult.subtask;
         if (subtaskData) {
           setSubtask(subtaskData);
           setEditSubtaskData(subtaskData);
+          setExistingImageUrls(subtaskData.images || []);
         } else {
           toast.error('תת-משימה לא נמצאה');
           router.push(`/admin/tasks/${taskId}`);
@@ -99,26 +88,55 @@ export default function EditSubtaskPage() {
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('שגיאה בטעינת הנתונים');
-      router.push(`/admin/tasks/${taskId}`);
     } finally {
       setLoading(false);
     }
   };
+  
+  const handleImagesUpdate = useCallback((files: File[], urlsToKeep: string[]) => {
+    setImagesToUpload(files);
+    setExistingImageUrls(urlsToKeep);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editSubtaskData) return;
     setSubmitting(true);
 
     try {
       const token = localStorage.getItem('adminToken');
+      const formData = new FormData();
+
+      // Explicitly append only the fields that are meant to be edited.
+      // This is safer than iterating over the whole state object.
+      formData.append('title', editSubtaskData.title || '');
+      formData.append('subtitle', editSubtaskData.subtitle || '');
+      formData.append('datacoNumber', editSubtaskData.datacoNumber || '');
+      formData.append('type', editSubtaskData.type || 'events');
+      formData.append('amountNeeded', String(editSubtaskData.amountNeeded || 0));
+      
+      (editSubtaskData.labels || []).forEach(label => formData.append('labels[]', label));
+      (editSubtaskData.dayTime || []).forEach(dt => formData.append('dayTime[]', dt));
+      
+      formData.append('weather', editSubtaskData.weather || 'Mixed');
+      formData.append('scene', editSubtaskData.scene || 'Mixed');
+      
+      // Append images to upload
+      imagesToUpload.forEach(file => {
+          formData.append('newImages', file);
+      });
+      
+      // Append existing images to keep
+      existingImageUrls.forEach(url => {
+          formData.append('existingImages[]', url);
+      });
+
       const response = await fetch(`/api/subtasks/${subtaskId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify(editSubtaskData)
+        body: formData,
       });
 
       const result = await response.json();
@@ -338,15 +356,15 @@ export default function EditSubtaskPage() {
 
               {/* Images */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
-                <MultipleImageUpload
-                  onImagesChange={(images) => setEditSubtaskData(prev => ({ ...prev, images }))}
-                  currentImages={editSubtaskData.images || []}
-                  disabled={submitting}
-                  maxImages={5}
+                <label className="block text-sm font-medium text-foreground mb-1">תמונות</label>
+                <AdvancedImageUploader
+                  existingImages={(subtask?.images || []).map(url => ({ id: url, url }))}
+                  onImagesUpdate={handleImagesUpdate}
                 />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
               </div>
+
+              {/* Technical Details */}
+              <h3 className="text-lg font-semibold text-foreground pt-4 border-t border-border">פרטים טכניים</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -422,7 +440,7 @@ export default function EditSubtaskPage() {
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">רכבי יעד (ירושה מהמשימה)</label>
                 <div className="p-2 border border-border rounded-lg bg-muted/30 text-foreground">
-                  {capitalizeEnglishArray(task.targetCar || []).join(', ') || 'לא נבחרו רכבים'}
+                  {task.targetCar?.join(', ') || 'לא נבחרו רכבים'}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">רכבי היעד עוברים בירושה מהמשימה הראשית</p>
               </div>

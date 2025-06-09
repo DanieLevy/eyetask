@@ -72,38 +72,38 @@ export async function getDatabase(): Promise<Db> {
 
 export async function getCollections(): Promise<DatabaseCollections> {
   const db = await getDatabase();
-  
-  return {
-    projects: db.collection('projects'),
-    tasks: db.collection('tasks'),
-    subtasks: db.collection('subtasks'),
-    appUsers: db.collection('appUsers'),
-    analytics: db.collection('analytics'),
-    dailyUpdates: db.collection('dailyUpdates'),
-    dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
-    activities: db.collection('activities'),
-    feedbackTickets: db.collection('feedbackTickets'),
-  };
-}
+    
+    return {
+      projects: db.collection('projects'),
+      tasks: db.collection('tasks'),
+      subtasks: db.collection('subtasks'),
+      appUsers: db.collection('appUsers'),
+      analytics: db.collection('analytics'),
+      dailyUpdates: db.collection('dailyUpdates'),
+      dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
+      activities: db.collection('activities'),
+      feedbackTickets: db.collection('feedbackTickets'),
+    };
+  }
 
 export async function disconnect(): Promise<void> {
   if (cached && cached.client) {
     await cached.client.close();
     cached.client = null;
     cached.db = null;
-    logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
+      logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
+    }
   }
-}
 
 export async function testConnection(): Promise<boolean> {
-  try {
+    try {
     const db = await getDatabase();
-    await db.admin().ping();
-    logger.info('MongoDB connection test successful', 'MONGODB_TEST');
-    return true;
-  } catch (error) {
-    logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
-    return false;
+      await db.admin().ping();
+      logger.info('MongoDB connection test successful', 'MONGODB_TEST');
+      return true;
+    } catch (error) {
+      logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
+      return false;
   }
 }
 

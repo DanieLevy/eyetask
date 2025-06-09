@@ -28,8 +28,59 @@ import {
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
-import { ImageGallery } from '@/components/ImageUpload';
 import { toast } from 'sonner';
+
+// Simple component to display images, added here to be self-contained
+function SimpleImageGallery({ images }: { images: string[] }) {
+  if (!images || images.length === 0) return null;
+
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+
+  const openImageViewer = (index: number) => {
+    setCurrentImage(index);
+    setViewerOpen(true);
+  };
+
+  const closeImageViewer = () => {
+    setViewerOpen(false);
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
+        {images.map((src, index) => (
+          <div key={index} className="aspect-square cursor-pointer" onClick={() => openImageViewer(index)}>
+            <img 
+              src={src} 
+              alt={`Image ${index + 1}`} 
+              className="w-full h-full object-cover rounded-md hover:scale-105 transition-transform duration-200"
+            />
+          </div>
+        ))}
+      </div>
+      {viewerOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center"
+          onClick={closeImageViewer}
+        >
+          <button 
+              onClick={closeImageViewer} 
+              className="absolute top-4 right-4 text-white text-3xl z-50"
+          >
+              &times;
+          </button>
+          <img 
+            src={images[currentImage]} 
+            alt="Full screen view" 
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking on image
+          />
+        </div>
+      )}
+    </>
+  );
+}
 
 interface Task {
   _id: string;
@@ -323,8 +374,11 @@ export default function TaskManagement() {
             
             {task.images && task.images.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><ImageIcon className="h-5 w-5 text-gray-400"/> תמונות</h3>
-                <ImageGallery images={task.images} />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-3">
+                  <ImageIcon className="h-5 w-5 text-gray-400" />
+                  תמונות מצורפות למשימה ({task.images.length})
+                </h3>
+                <SimpleImageGallery images={task.images} />
               </div>
             )}
         </div>
@@ -397,6 +451,14 @@ export default function TaskManagement() {
                         </button>
                       </div>
                     </div>
+                    {subtask.images && subtask.images.length > 0 && (
+                      <div className="mt-3 col-span-2">
+                         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                           תמונות ({subtask.images.length})
+                         </h4>
+                        <SimpleImageGallery images={subtask.images} />
+                  </div>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -12,7 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { capitalizeEnglishArray } from '@/lib/utils';
-import { MultipleImageUpload } from '@/components/ImageUpload';
+import { AdvancedImageUploader } from '@/components/AdvancedImageUploader';
 import ModernCheckbox from '@/components/ModernCheckbox';
 import { toast } from 'sonner';
 
@@ -25,7 +25,6 @@ interface Task {
 interface NewSubtaskData {
   title: string;
   subtitle?: string;
-  images?: string[];
   datacoNumber: string;
   type: 'events' | 'hours';
   amountNeeded: number;
@@ -46,11 +45,11 @@ export default function NewSubtaskPage() {
   const [operationLoading, setOperationLoading] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
   const [labelInput, setLabelInput] = useState('');
+  const [imagesToUpload, setImagesToUpload] = useState<File[]>([]);
   
   const [newSubtaskData, setNewSubtaskData] = useState<NewSubtaskData>({
     title: '',
     subtitle: '',
-    images: [],
     datacoNumber: '',
     type: 'events',
     amountNeeded: 1,
@@ -91,6 +90,10 @@ export default function NewSubtaskPage() {
       setLoading(false);
     }
   };
+  
+  const handleImagesUpdate = useCallback((files: File[]) => {
+    setImagesToUpload(files);
+  }, []);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLabelInput = e.target.value;
@@ -106,43 +109,45 @@ export default function NewSubtaskPage() {
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const subtaskPayload = {
-        ...newSubtaskData,
-        taskId: task.id,
-        targetCar: task.targetCar
-      };
+      const formData = new FormData();
+      
+      // Append all text fields to formData
+      Object.entries(newSubtaskData).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(item => formData.append(`${key}[]`, item));
+        } else {
+          formData.append(key, String(value));
+        }
+      });
+      formData.append('taskId', task.id);
+      
+      // Append images
+      imagesToUpload.forEach(file => {
+        formData.append('images', file);
+      });
 
       const response = await fetch(`/api/subtasks?_t=${Date.now()}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify(subtaskPayload)
+        body: formData,
       });
 
       const result = await response.json();
       
       if (result.success) {
         if (createAnother) {
-          // Save current form data (except title and dataco) for next subtask
+          // Reset form but keep some preferences
           setNewSubtaskData(prev => ({
-            title: '', // Reset title
-            subtitle: '', // Reset subtitle
-            images: [], // Reset images
-            datacoNumber: '', // Reset dataco number
-            type: prev.type, // Keep type
-            amountNeeded: prev.amountNeeded, // Keep amount needed
-            labels: prev.labels, // Keep labels
-            targetCar: prev.targetCar, // Keep target cars
-            weather: prev.weather, // Keep weather
-            scene: prev.scene, // Keep scene
-            dayTime: prev.dayTime // Keep day time
+            ...prev, // Keep most settings
+            title: '', 
+            subtitle: '',
+            datacoNumber: '',
           }));
+          setImagesToUpload([]); // Clear images for the next one
           
-          // Show success message
-          toast.success('תת-משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות לתת-המשימה הבאה.');
+          toast.success('תת-משימה נוצרה בהצלחה! הטופס נשמר חלקית למשימה הבאה.');
         } else {
           router.push(`/admin/tasks/${taskId}`);
         }
@@ -350,13 +355,9 @@ export default function NewSubtaskPage() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">תמונות (אופציונלי)</label>
-                <MultipleImageUpload
-                  onImagesChange={(images) => setNewSubtaskData(prev => ({ ...prev, images }))}
-                  currentImages={newSubtaskData.images}
-                  disabled={operationLoading}
-                  maxImages={5}
+                <AdvancedImageUploader 
+                  onImagesUpdate={(files, _urlsToKeep) => handleImagesUpdate(files)} 
                 />
-                <p className="text-xs text-muted-foreground mt-1">העלה תמונות רלוונטיות לתת-המשימה (עד 5 תמונות)</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

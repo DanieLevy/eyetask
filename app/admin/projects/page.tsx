@@ -183,7 +183,7 @@ export default function ProjectsPage() {
                        <p className="text-xs text-gray-500 dark:text-gray-400">
                         עדכון אחרון: {lastUpdate ? format(lastUpdate, 'd MMM yyyy, HH:mm', { locale: he }) : 'אין עדכונים'}
                       </p>
-                    </div>
+                      </div>
                     </div>
                   </div>
                 );

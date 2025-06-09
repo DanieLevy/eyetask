@@ -4,6 +4,7 @@ import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/
 import { fromObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { activityLogger } from '@/lib/activityLogger';
+import { saveFile } from '@/lib/fileStorage';
 
 // GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
@@ -94,80 +95,66 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const body = await request.json();
+    const formData = await request.formData();
+    const images = formData.getAll('images') as File[];
+    const imageUrls: string[] = [];
+
+    // Save uploaded images and get their URLs
+    if (images && images.length > 0) {
+      for (const image of images) {
+        // Basic validation for the file
+        if (image.size === 0) continue;
+        const url = await saveFile(image);
+        imageUrls.push(url);
+      }
+    }
     
-    // Validate required fields (image is optional)
+    // Construct subtask data from form fields
+    const body: { [key: string]: any } = {};
+    formData.forEach((value, key) => {
+        if (key.endsWith('[]')) {
+            const cleanKey = key.slice(0, -2);
+            if (!body[cleanKey]) {
+                body[cleanKey] = [];
+            }
+            body[cleanKey].push(value);
+        } else if(key !== 'images') {
+            body[key] = value;
+        }
+    });
+
+    // Add image URLs to the data
+    body.images = imageUrls;
+
+    // Manual validation since we're not using a strict JSON body anymore
     const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'targetCar', 'weather', 'scene'];
-    
     for (const field of requiredFields) {
-      if (!(field in body)) {
+      if (!body[field] || (Array.isArray(body[field]) && body[field].length === 0)) {
         return NextResponse.json(
-          { error: `Missing required field: ${field}`, success: false },
+          { error: `Missing or empty required field: ${field}`, success: false },
           { status: 400 }
         );
       }
     }
     
-    // Validate field types and values
-    if (typeof body.title !== 'string' || body.title.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Title must be a non-empty string', success: false },
-        { status: 400 }
-      );
+    // Type conversion for numeric fields
+    body.amountNeeded = Number(body.amountNeeded);
+    if (isNaN(body.amountNeeded)) {
+        return NextResponse.json({ error: 'amountNeeded must be a number', success: false }, { status: 400 });
     }
-    
-    if (body.subtitle && typeof body.subtitle !== 'string') {
-      return NextResponse.json(
-        { error: 'Subtitle must be a string', success: false },
-        { status: 400 }
-      );
-    }
-    
-    if (body.images && !Array.isArray(body.images)) {
-      return NextResponse.json(
-        { error: 'Images must be an array', success: false },
-        { status: 400 }
-      );
-    }
-    
-    const validWeatherTypes = ['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'];
-    if (!validWeatherTypes.includes(body.weather)) {
-      return NextResponse.json(
-        { error: `Invalid weather type. Must be one of: ${validWeatherTypes.join(', ')}`, success: false },
-        { status: 400 }
-      );
-    }
-    
-    const validSceneTypes = ['Highway', 'Urban', 'Rural', 'Sub-Urban', 'Test Track', 'Mixed'];
-    if (!validSceneTypes.includes(body.scene)) {
-      return NextResponse.json(
-        { error: `Invalid scene type. Must be one of: ${validSceneTypes.join(', ')}`, success: false },
-        { status: 400 }
-      );
-    }
-    
+
     // Create the subtask
     const subtaskId = await db.createSubtask(body);
     
     // Log the activity
-    await activityLogger.logSubtaskActivity(
-      'created',
-      subtaskId,
-      body.title,
-      fromObjectId(body.taskId),
-      user?.id,
-      'admin',
-      {
-        type: body.type,
-        amountNeeded: body.amountNeeded,
-        datacoNumber: body.datacoNumber,
-        weather: body.weather,
-        scene: body.scene
-      },
-      request
-    );
+    await activityLogger.logActivity('subtask_created', {
+      subtaskId: fromObjectId(subtaskId),
+      subtaskTitle: body.title,
+      taskId: fromObjectId(body.taskId),
+      adminId: user?.id,
+    });
     
-    // Automatically recalculate task amount after creating subtask
+    // Automatically recalculate task amount
     await updateTaskAmount(fromObjectId(body.taskId));
     
     // Get the created subtask to return
@@ -194,8 +181,8 @@ export async function POST(request: NextRequest) {
       weather: subtaskResult.weather,
       scene: subtaskResult.scene,
       dayTime: subtaskResult.dayTime || [],
-      createdAt: subtaskResult.createdAt.toISOString(),
-      updatedAt: subtaskResult.updatedAt.toISOString()
+      createdAt: new Date(subtaskResult.createdAt).toISOString(),
+      updatedAt: new Date(subtaskResult.updatedAt).toISOString()
     };
     
     return NextResponse.json({ subtask, success: true }, { status: 201 });

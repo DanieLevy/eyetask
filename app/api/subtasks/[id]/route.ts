@@ -3,6 +3,7 @@ import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
 import { fromObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
+import { saveFile, deleteFile } from '@/lib/fileStorage';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -74,12 +75,71 @@ export async function PUT(
       );
     }
 
-    // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    const body = await request.json();
+    const formData = await request.formData();
     
-    // Sanitize body to prevent changing the parent taskId
+    console.log('[PUT /api/subtasks] Received form data for subtask:', id);
+
+    // 1. Get current subtask to find out which images to delete
+    const currentSubtask = await db.getSubtaskById(id);
+    if (!currentSubtask) {
+        return NextResponse.json({ error: 'Subtask not found' }, { status: 404 });
+    }
+    const currentImageUrls = currentSubtask.images || [];
+
+    // 2. Process FormData
+    const body: { [key: string]: any } = {};
+    const existingImagesToKeep = formData.getAll('existingImages[]').map(String);
+    const newImages = formData.getAll('newImages') as File[];
+
+    formData.forEach((value, key) => {
+        if (!key.endsWith('[]') && key !== 'newImages') {
+            if (body[key] === undefined) {
+                body[key] = value;
+            }
+        } else if (key.endsWith('[]') && key !== 'existingImages[]') {
+            const cleanKey = key.slice(0, -2);
+            if (!body[cleanKey]) {
+                body[cleanKey] = [];
+            }
+            body[cleanKey].push(value);
+        }
+    });
+
+    // CRITICAL LOG: What is in the body before we add images or touch taskId?
+    console.log('[PUT /api/subtasks] Parsed body from form data:', JSON.stringify(body, null, 2));
+
+    // 3. Determine which images to delete
+    const imagesToDelete = currentImageUrls.filter(url => !existingImagesToKeep.includes(url));
+
+    // 4. Delete old images from storage
+    await Promise.all(imagesToDelete.map(url => deleteFile(url)));
+
+    // 5. Save new images to storage
+    const newImageUrls = await Promise.all(newImages.map(file => saveFile(file)));
+
+    // 6. Combine image lists
+    body.images = [...existingImagesToKeep, ...newImageUrls];
+    
+    // CRITICAL: Explicitly remove taskId from the update payload to prevent it from being overwritten.
+    // This is a safeguard against any form data issues.
     delete body.taskId;
+
+    // Type conversion for numeric fields
+    if (body.amountNeeded) {
+        body.amountNeeded = Number(body.amountNeeded);
+        if (isNaN(body.amountNeeded)) {
+            return NextResponse.json({ error: 'amountNeeded must be a number' }, { status: 400 });
+        }
+    }
+    if (body.priority) {
+        body.priority = Number(body.priority);
+        if (isNaN(body.priority)) {
+            return NextResponse.json({ error: 'priority must be a number' }, { status: 400 });
+        }
+    }
+
+    console.log('[PUT /api/subtasks] Final update payload for DB:', JSON.stringify(body, null, 2));
 
     const updated = await db.updateSubtask(id, body);
     
