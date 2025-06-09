@@ -14,6 +14,7 @@ import {
 import { capitalizeEnglishArray } from '@/lib/utils';
 import { MultipleImageUpload } from '@/components/ImageUpload';
 import ModernCheckbox from '@/components/ModernCheckbox';
+import { toast } from 'sonner';
 
 interface Task {
   id: string;
@@ -130,16 +131,16 @@ export default function NewSubtaskPage() {
           }));
           
           // Show success message
-          alert('תת-משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות לתת-המשימה הבאה.');
+          toast.success('תת-משימה נוצרה בהצלחה! הטופס נשמר עם כל ההגדרות לתת-המשימה הבאה.');
         } else {
           router.push(`/admin/tasks/${taskId}`);
         }
       } else {
-        alert('Failed to create subtask: ' + (result.error || 'Unknown error'));
+        toast.error('Failed to create subtask: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating subtask:', error);
-      alert('Error creating subtask');
+      toast.error('Error creating subtask');
     } finally {
       setOperationLoading(false);
     }

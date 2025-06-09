@@ -22,7 +22,8 @@ import {
   Building,
   FileText,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
@@ -137,7 +138,7 @@ export default function ProjectManagement() {
   }, [projectId]);
 
   const fetchProjectData = useCallback(async (isManualRefresh = false) => {
-    if (operationLoading) return;
+    if (operationLoading && !isManualRefresh) return;
     if (isManualRefresh) {
       setOperationLoading(true);
     } else {
@@ -271,9 +272,9 @@ export default function ProjectManagement() {
   };
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 1 && priority <= 3) return 'text-red-600 dark:text-red-400';
-    if (priority >= 4 && priority <= 6) return 'text-yellow-600 dark:text-yellow-400';
-    if (priority >= 7 && priority <= 10) return 'text-green-600 dark:text-green-400';
+    if (priority >= 1 && priority <= 3) return 'text-red-500 dark:text-red-400';
+    if (priority >= 4 && priority <= 6) return 'text-amber-500 dark:text-amber-400';
+    if (priority >= 7 && priority <= 10) return 'text-green-500 dark:text-green-400';
     return 'text-gray-500 dark:text-gray-400';
   };
 
@@ -281,7 +282,7 @@ export default function ProjectManagement() {
     if (priority >= 1 && priority <= 3) return 'גבוהה';
     if (priority >= 4 && priority <= 6) return 'בינונית';
     if (priority >= 7 && priority <= 10) return 'נמוכה';
-    return 'ללא';
+    return 'לא הוגדרה';
   };
 
   // Format DATACO number for display
@@ -292,9 +293,9 @@ export default function ProjectManagement() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center" dir="rtl">
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 flex items-center justify-center" dir="rtl">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-300">טוען פרויקט...</p>
         </div>
       </div>
@@ -303,13 +304,13 @@ export default function ProjectManagement() {
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center" dir="rtl">
-        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 flex items-center justify-center" dir="rtl">
+        <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">שגיאה בטעינת פרויקט</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-2">{error || 'הפרויקט לא נמצא.'}</p>
-          <Link href="/admin/dashboard" className="mt-6 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            חזור ללוח הבקרה
+          <Link href="/admin/projects" className="mt-6 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+            חזור לרשימת הפרויקטים
           </Link>
         </div>
       </div>
@@ -317,21 +318,21 @@ export default function ProjectManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir="rtl">
-      <header className="sticky top-0 z-40 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900" dir="rtl">
+      <header className="sticky top-0 z-30 w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4 h-16">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                 title="חזור"
               >
-                <ArrowRight className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                <ArrowRight className="h-5 w-5" />
               </button>
               <div className="flex flex-col">
-                <p className="text-xs text-gray-500 dark:text-gray-400">פרטי פרויקט</p>
-                <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100 truncate">
+                <p className="text-sm text-gray-500 dark:text-gray-400">פרויקט</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {project.name}
                 </h1>
               </div>
@@ -340,14 +341,14 @@ export default function ProjectManagement() {
               <button
                 onClick={() => fetchProjectData(true)}
                 disabled={operationLoading}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                 title="רענן נתונים"
               >
-                <RefreshCw className={`h-5 w-5 text-gray-600 dark:text-gray-300 ${operationLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-5 w-5 ${operationLoading ? 'animate-spin' : ''}`} />
               </button>
               <Link
                 href={`/admin/projects/${project._id}/edit`}
-                className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-900"
+                className="p-2 inline-flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-colors"
                 title="ערוך פרויקט"
               >
                 <Edit className="h-5 w-5" />
@@ -357,69 +358,72 @@ export default function ProjectManagement() {
         </div>
       </header>
 
-      <main className="container mx-auto p-4 space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm p-4">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{project.name}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{project.description}</p>
+      <main className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{project.name}</h2>
+          <p className="text-base text-gray-600 dark:text-gray-300 mt-2">{project.description}</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">משימות ({tasks.length})</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="p-4 sm:p-5 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">משימות ({tasks.length})</h2>
             <Link
               href={`/admin/tasks/new?projectId=${project._id}`}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold shadow-sm transition-all hover:scale-105"
             >
               <Plus className="h-4 w-4" />
               הוסף משימה
             </Link>
           </div>
 
-          <div className="p-4">
+          <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
             {tasks.length === 0 ? (
-              <div className="text-center py-10">
+              <div className="text-center py-16">
+                 <FileText className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">לא נוצרו משימות עבור פרויקט זה.</p>
               </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-gray-100 dark:divide-gray-700/50">
                 {tasks
                   .sort((a, b) => a.priority - b.priority || a.title.localeCompare(b.title))
                   .map((task) => (
-                  <li key={task._id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <Link href={`/admin/tasks/${task._id}`} className="block">
-                        <p className="font-semibold text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">{task.title}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{task.subtitle || 'אין תת-כותרת'}</p>
-                      </Link>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className={`font-bold ${getPriorityColor(task.priority)}`}>
-                          {`עדיפות ${getPriorityLabel(task.priority)}`}
-                        </span>
-                        <span className="font-mono">{formatDatacoDisplay(task.datacoNumber)}</span>
+                  <li key={task._id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/admin/tasks/${task._id}`} className="block">
+                          <p className="font-semibold text-gray-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate">{task.title}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{task.subtitle || 'אין תת-כותרת'}</p>
+                        </Link>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          <span className={`font-bold ${getPriorityColor(task.priority)}`}>
+                            {`עדיפות ${getPriorityLabel(task.priority)}`}
+                          </span>
+                          <span className="font-mono text-xs">{formatDatacoDisplay(task.datacoNumber)}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      <button
-                        onClick={() => handleToggleVisibility(task._id, task.isVisible)}
-                        className="p-2 text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
-                        title={task.isVisible ? 'הסתר' : 'הצג'}
-                      >
-                        {task.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-yellow-500"/>}
-                      </button>
-                      <Link
-                        href={`/admin/tasks/${task._id}/edit`}
-                        className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full inline-flex items-center"
-                        title="ערוך משימה"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => setDeleteConfirm(task._id)}
-                        className="p-2 text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
-                        title="מחק משימה"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggleVisibility(task._id, task.isVisible)}
+                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                          title={task.isVisible ? 'הסתר' : 'הצג'}
+                        >
+                          {task.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-yellow-500"/>}
+                        </button>
+                        <Link
+                          href={`/admin/tasks/${task._id}/edit`}
+                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                          title="ערוך משימה"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => setDeleteConfirm(task._id)}
+                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                          title="מחק משימה"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
@@ -431,7 +435,7 @@ export default function ProjectManagement() {
 
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" dir="rtl">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-lg font-bold">האם אתה בטוח?</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
               פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.
@@ -439,16 +443,20 @@ export default function ProjectManagement() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
               >
                 ביטול
               </button>
               <button
                 onClick={() => handleDeleteTask(deleteConfirm)}
                 disabled={operationLoading}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
               >
-                {operationLoading ? 'מוחק...' : 'אשר מחיקה'}
+                {operationLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin"/>
+                ) : (
+                  'אשר מחיקה'
+                )}
               </button>
             </div>
           </div>

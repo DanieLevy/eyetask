@@ -12,6 +12,7 @@ import DeepLinkHandler from "@/components/DeepLinkHandler";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
 import { GlobalLoadingIndicator, LoadingStyles } from "@/components/LoadingSystem";
+import { Toaster } from "@/components/ui/sonner";
 
 
 // Using system fonts to avoid network issues during build
@@ -307,7 +308,7 @@ export default function RootLayout({
               <AdminClientLayout>
                 <RefreshProvider>
                   <GlobalPullToRefresh>
-                    <div className="flex flex-col min-h-screen min-h-[100dvh] bg-background">
+                    <div className="flex flex-col min-h-[100dvh] bg-background">
                       <Header />
                       <main className="flex-1 overflow-auto bg-background">
                         {children}
@@ -320,6 +321,7 @@ export default function RootLayout({
             </DeepLinkHandler>
           </NavigationLoadingProvider>
         </LoadingProvider>
+        <Toaster richColors position="bottom-right" />
       </body>
     </html>
   );

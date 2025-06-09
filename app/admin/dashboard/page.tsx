@@ -45,6 +45,7 @@ import {
   X
 } from 'lucide-react';
 import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
+import { toast } from 'sonner';
 
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
@@ -141,11 +142,11 @@ export default function AdminDashboard() {
       if (data.success) {
         await fetchCacheStatus();
         // Show success notification
-        alert(type === 'full' ? 'מטמון נוקה בהצלחה!' : 'עדכון רך בוצע בהצלחה!');
+        toast.success(type === 'full' ? 'מטמון נוקה בהצלחה!' : 'עדכון רך בוצע בהצלחה!');
       }
     } catch (error) {
       console.error('Cache operation failed:', error);
-      alert('שגיאה בפעולת מטמון');
+      toast.error('שגיאה בפעולת מטמון');
     } finally {
       setCacheLoading(false);
     }

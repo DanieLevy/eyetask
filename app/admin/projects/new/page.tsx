@@ -10,6 +10,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import ImageUpload from '@/components/ImageUpload';
+import { toast } from 'sonner';
 
 interface NewProjectData {
   name: string;
@@ -46,11 +47,11 @@ export default function NewProjectPage() {
       if (result.success) {
         router.push('/admin/projects');
       } else {
-        alert('Failed to create project: ' + (result.error || 'Unknown error'));
+        toast.error('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Error creating project');
+      toast.error('Error creating project');
     } finally {
       setOperationLoading(false);
     }

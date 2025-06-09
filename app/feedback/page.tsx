@@ -9,6 +9,7 @@ import {
   FeedbackIssueType,
   CreateFeedbackRequest 
 } from '@/lib/types/feedback';
+import { toast } from 'sonner';
 
 interface Subtask {
   id: string;
@@ -255,11 +256,11 @@ function FeedbackPageCore() {
           isUrgent: false
         });
       } else {
-        throw new Error(result.error || 'Failed to submit feedback');
+        toast.error('שגיאה בשליחת הפניה. אנא נסה שוב.');
       }
     } catch (error) {
-      console.error('Error submitting feedback:', error);
-      alert('שגיאה בשליחת הפניה. אנא נסה שוב.');
+      console.error('Submission error:', error);
+      toast.error('שגיאה בשליחת הפניה. אנא נסה שוב.');
     } finally {
       setIsLoading(false);
     }

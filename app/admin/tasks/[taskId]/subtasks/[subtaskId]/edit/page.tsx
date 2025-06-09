@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { capitalizeEnglishArray } from '@/lib/utils';
 import { MultipleImageUpload } from '@/components/ImageUpload';
+import { toast } from 'sonner';
 
 interface Task {
   id: string;
@@ -88,16 +89,16 @@ export default function EditSubtaskPage() {
           setSubtask(subtaskData);
           setEditSubtaskData(subtaskData);
         } else {
-          alert('תת-משימה לא נמצאה');
+          toast.error('תת-משימה לא נמצאה');
           router.push(`/admin/tasks/${taskId}`);
         }
       } else {
-        alert('שגיאה בטעינת התת-משימה');
+        toast.error('שגיאה בטעינת התת-משימה');
         router.push(`/admin/tasks/${taskId}`);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('שגיאה בטעינת הנתונים');
+      toast.error('שגיאה בטעינת הנתונים');
       router.push(`/admin/tasks/${taskId}`);
     } finally {
       setLoading(false);
@@ -125,11 +126,11 @@ export default function EditSubtaskPage() {
       if (result.success) {
         router.push(`/admin/tasks/${taskId}`);
       } else {
-        alert('Failed to update subtask: ' + (result.error || 'Unknown error'));
+        toast.error('Failed to update subtask: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error updating subtask:', error);
-      alert('Error updating subtask');
+      toast.error('Error updating subtask');
     } finally {
       setSubmitting(false);
     }
