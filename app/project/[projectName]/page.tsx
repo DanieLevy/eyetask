@@ -88,7 +88,7 @@ export default function ProjectPage() {
   
   // Helper to identify base64 images
   const isBase64Image = (url: string): boolean => {
-    return url && url.startsWith('data:');
+    return !!url && url.startsWith('data:');
   };
 
   // Use optimized data fetching
