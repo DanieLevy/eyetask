@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
-import { useRouter } from 'next/navigation';
 
 interface DailyUpdate {
   _id?: string;  // Backend might use _id (MongoDB style)
@@ -39,8 +38,6 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
   const { status } = useOfflineStatus();
-  const { isOnline } = status;
-  const router = useRouter();
 
   // Load hidden update IDs from localStorage
   useEffect(() => {
@@ -79,7 +76,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       if (updatesData?.success) {
         // Filter out locally hidden updates
         const allUpdates = updatesData.updates || [];
-        const filteredUpdates = allUpdates.filter(update => {
+        const filteredUpdates = allUpdates.filter((update: DailyUpdate) => {
           const updateId = update._id || update.id;
           return updateId && !hiddenUpdateIds.includes(updateId);
         });
@@ -110,7 +107,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     } finally {
       setLoading(false);
     }
-  }, [hiddenUpdateIds]);
+  }, [hiddenUpdateIds, updates.length]);
 
   useEffect(() => {
     fetchData();
