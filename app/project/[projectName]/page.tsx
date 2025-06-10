@@ -723,13 +723,13 @@ export default function ProjectPage() {
                                 </span>
                               )}
                                 {/* Day time indicators - simplified on mobile */}
-                              {task.dayTime && task.dayTime.length > 0 && (
+                                {task.dayTime && task.dayTime.length > 0 && (
                                   <div className="inline-flex items-center gap-0.5 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-purple-200/30 dark:border-purple-800/30 shadow-sm">
                                     {task.dayTime
-                                      .slice(0, 1)
+                                      .slice(0, 3)
                                       .map((dt, index) => {
-                                    const getIconBg = (dayTime: string) => {
-                                      switch (dayTime) {
+                                        const getIconBg = (dayTime: string) => {
+                                          switch (dayTime) {
                                             case "day":
                                               return "bg-yellow-200/50 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-yellow-300/40 dark:border-yellow-700/40";
                                             case "night":
@@ -740,9 +740,9 @@ export default function ProjectPage() {
                                               return "bg-pink-200/50 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 border-pink-300/40 dark:border-pink-700/40";
                                             default:
                                               return "bg-gray-200/50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-gray-300/40 dark:border-gray-600/40";
-                                      }
-                                    };
-                                    return (
+                                          }
+                                        };
+                                        return (
                                           <span
                                             key={index}
                                             className={`inline-flex items-center px-1 py-0.5 rounded text-[10px] border ${getIconBg(
@@ -750,25 +750,25 @@ export default function ProjectPage() {
                                             )}`}
                                             title={getDayTimeLabel(dt)}
                                           >
-                                        {getDayTimeIcon(dt)}
-                                      </span>
-                                    );
-                                  })}
-                                    {task.dayTime.length > 1 && (
+                                            {getDayTimeIcon(dt)}
+                                          </span>
+                                        );
+                                      })}
+                                    {task.dayTime.length > 3 && (
                                       <span
                                         className="text-[10px] text-purple-700 dark:text-purple-300 font-medium ml-1"
                                         title={`${
-                                          task.dayTime.length - 1
+                                          task.dayTime.length - 3
                                         } זמני יום נוספים: ${task.dayTime
-                                          .slice(1)
+                                          .slice(3)
                                           .map(getDayTimeLabel)
                                           .join(", ")}`}
                                       >
-                                        +{task.dayTime.length - 1}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                                        +{task.dayTime.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 {/* Image count indicator moved to same row */}
                                 {!isExpanded &&
                                   task.images &&
