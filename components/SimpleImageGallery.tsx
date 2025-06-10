@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { X, ZoomIn } from 'lucide-react';
+import Image from 'next/image';
 
 interface GalleryImage {
   id: string;
@@ -55,6 +56,11 @@ export default function SimpleImageGallery({
     setExpandedImage(null);
   };
 
+  // Check if URL is a base64 data URL
+  const isBase64Image = (url: string) => {
+    return url.startsWith('data:');
+  };
+
   if (!processedImages.length) {
     return null;
   }
@@ -70,17 +76,34 @@ export default function SimpleImageGallery({
           >
             {/* Use a wrapper div to maintain aspect ratio */}
             <div className="w-full h-full relative">
-              <img
-                src={image.url}
-                alt="Gallery image"
-                className="w-full h-full object-cover"
-                loading="eager"
-                onLoad={() => handleImageLoaded(image.url)}
-                style={{ 
-                  opacity: loadedImages.has(image.url) ? 1 : 0,
-                  transition: 'opacity 0.3s ease-in-out'
-                }}
-              />
+              {/* Use img for base64 images and next/image for regular URLs */}
+              {isBase64Image(image.url) ? (
+                <img
+                  src={image.url}
+                  alt="Gallery image"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  onLoad={() => handleImageLoaded(image.url)}
+                  style={{ 
+                    opacity: loadedImages.has(image.url) ? 1 : 0,
+                    transition: 'opacity 0.3s ease-in-out'
+                  }}
+                />
+              ) : (
+                <Image
+                  src={image.url}
+                  alt="Gallery image"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover"
+                  loading="eager"
+                  onLoad={() => handleImageLoaded(image.url)}
+                  style={{ 
+                    opacity: loadedImages.has(image.url) ? 1 : 0,
+                    transition: 'opacity 0.3s ease-in-out'
+                  }}
+                />
+              )}
               
               {/* Loading indicator */}
               {!loadedImages.has(image.url) && (
@@ -116,7 +139,7 @@ export default function SimpleImageGallery({
         ))}
       </div>
 
-      {/* Image viewer modal */}
+      {/* Image viewer modal - use img here for compatibility with base64 */}
       {expandedImage && (
         <div 
           className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4" 

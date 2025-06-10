@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowRight, 
   Eye, 
@@ -84,6 +85,11 @@ export default function ProjectPage() {
   
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(new Set());
+  
+  // Helper to identify base64 images
+  const isBase64Image = (url: string): boolean => {
+    return url && url.startsWith('data:');
+  };
 
   // Use optimized data fetching
   const { 
@@ -775,12 +781,25 @@ export default function ProjectPage() {
                                                   // Click handling is now done by the ImageDisplay component
                                                 }}
                                               >
-                                                <img 
-                                                  src={subtask.images[0]} 
-                                                  alt="Preview" 
-                                                  className="w-full h-full object-cover"
-                                                  draggable="false"
-                                                />
+                                                {isBase64Image(subtask.images[0]) ? (
+                                                  <img 
+                                                    src={subtask.images[0]} 
+                                                    alt="Preview" 
+                                                    className="w-full h-full object-cover"
+                                                    draggable="false"
+                                                  />
+                                                ) : (
+                                                  <div className="relative w-full h-full">
+                                                    <Image 
+                                                      src={subtask.images[0]} 
+                                                      alt="Preview"
+                                                      fill
+                                                      sizes="32px"
+                                                      className="object-cover"
+                                                      draggable={false}
+                                                    />
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                             <div className="min-w-0">
