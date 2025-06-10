@@ -418,7 +418,7 @@ export default function NewSubtaskPage() {
                         }
                       }}
                       removable={true}
-                    />
+                />
                   </div>
                 )}
               </div>

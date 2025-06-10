@@ -132,7 +132,7 @@ export default function EditSubtaskPage() {
   const handleRemoveExistingImage = (urlToRemove: string) => {
     setExistingImageUrls(prev => prev.filter(url => url !== urlToRemove));
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editSubtaskData) return;
@@ -296,21 +296,21 @@ export default function EditSubtaskPage() {
               </div>
 
               {/* DATACO Number */}
-              <div>
+                <div>
                 <label className="block text-sm font-medium text-foreground mb-1">מספר DATACO</label>
-                <div className="relative">
+                  <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
                     DATACO-
                   </span>
-                  <input
-                    type="text"
-                    value={editSubtaskData.datacoNumber || ''}
-                    onChange={(e) => handleDatacoNumberChange(e.target.value)}
+                    <input
+                      type="text"
+                      value={editSubtaskData.datacoNumber || ''}
+                      onChange={(e) => handleDatacoNumberChange(e.target.value)}
                     className="w-full p-2 pl-16 border border-border rounded-lg bg-background text-foreground"
                     placeholder="12345"
-                  />
-                </div>
-              </div>
+                    />
+                      </div>
+                  </div>
 
               {/* Type and Amount */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -388,7 +388,7 @@ export default function EditSubtaskPage() {
                     <p className="text-sm text-muted-foreground">אין תמונות קיימות.</p>
                   )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">העלה תמונות חדשות</label>
                 <div className="mt-2">
@@ -418,7 +418,7 @@ export default function EditSubtaskPage() {
                         }
                       }}
                       removable={true}
-                    />
+                />
                   </div>
                 )}
               </div>
