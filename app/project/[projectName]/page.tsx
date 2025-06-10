@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import {
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
-  MapPin,
-  Car,
+import { 
+  ArrowRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Calendar, 
+  MapPin, 
+  Car, 
   Zap,
   Clock,
   Target,
@@ -78,7 +78,7 @@ export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
   const projectName = decodeURIComponent(params.projectName as string);
-
+  
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(
     new Set()
@@ -90,10 +90,10 @@ export default function ProjectPage() {
   };
 
   // Use optimized data fetching
-  const {
-    data: projectData,
-    loading,
-    error,
+  const { 
+    data: projectData, 
+    loading, 
+    error, 
     refetch,
   } = useProjectData(projectName);
 
@@ -109,12 +109,12 @@ export default function ProjectPage() {
   }>({
     dayTime: [],
   });
-
+  
   // Sorting state
   const [sortBy, setSortBy] = useState<"priority-asc" | "priority-desc">(
     "priority-asc"
   );
-
+  
   // Dropdown states
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -217,7 +217,7 @@ export default function ProjectPage() {
   // Filter subtasks based on active day time filters
   const getFilteredSubtasks = (taskId: string) => {
     const taskSubtasks = subtasks[taskId] || [];
-
+    
     // If no day time filters are active, show all subtasks
     if (activeFilters.dayTime.length === 0) {
       return taskSubtasks;
@@ -237,7 +237,7 @@ export default function ProjectPage() {
       // Lower number = higher priority, so ascending order
       return a.priority - b.priority || a.title.localeCompare(b.title);
     } else {
-      // Higher number = lower priority, so descending order
+      // Higher number = lower priority, so descending order  
       return b.priority - a.priority || a.title.localeCompare(b.title);
     }
   });
@@ -248,7 +248,7 @@ export default function ProjectPage() {
       const newDayTime = prev.dayTime.includes(dayTime)
         ? prev.dayTime.filter((t) => t !== dayTime)
         : [...prev.dayTime, dayTime];
-
+      
       return {
         ...prev,
         dayTime: newDayTime,
@@ -271,7 +271,7 @@ export default function ProjectPage() {
     (total, taskSubtasks) => total + taskSubtasks.length,
     0
   );
-  const filteredSubtasks = hasActiveFilters
+  const filteredSubtasks = hasActiveFilters 
     ? Object.values(subtasks).reduce((total, taskSubtasks) => {
         const filtered = taskSubtasks.filter((subtask) =>
           activeFilters.dayTime.some((selectedTime) =>
@@ -363,46 +363,46 @@ export default function ProjectPage() {
           </div>
         </div>
       ) : (
-        <div className="min-h-screen bg-background">
-          {/* Page Header */}
-          <div className="border-b border-border/50">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between gap-4">
-                {/* Left Side - Back Button + Project Name */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <button
-                    onClick={() => router.back()}
-                    className="p-1.5 rounded-md hover:bg-accent/50 transition-colors"
-                    aria-label="חזור"
-                  >
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                  <div className="min-w-0">
+    <div className="min-h-screen bg-background">
+      {/* Page Header */}
+      <div className="border-b border-border/50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Side - Back Button + Project Name */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <button
+                onClick={() => router.back()}
+                className="p-1.5 rounded-md hover:bg-accent/50 transition-colors"
+                aria-label="חזור"
+              >
+                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+              <div className="min-w-0">
                     <h1
                       className={`text-xl font-semibold text-foreground truncate ${hebrewHeading.fontClass}`}
                     >
-                      {projectName}
-                    </h1>
-                    {hasActiveFilters && activeFilters.dayTime.length > 0 && (
+                  {projectName}
+                </h1>
+                {hasActiveFilters && activeFilters.dayTime.length > 0 && (
                       <p
                         className={`text-xs text-muted-foreground/60 mt-0.5 ${mixedBody.fontClass}`}
                       >
                         מסונן לפי:{" "}
                         {activeFilters.dayTime.map(getDayTimeLabel).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                  </p>
+                )}
+              </div>
+            </div>
 
-                {/* Right Side - Stats */}
-                {tasks.length > 0 && (
-                  <div className="flex items-center gap-3">
-                    <div className="text-xs">
+            {/* Right Side - Stats */}
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="text-xs">
                       <span
                         className={`font-medium text-foreground ${mixedBody.fontClass}`}
                       >
-                        {hasActiveFilters ? sortedTasks.length : tasks.length}
-                      </span>
+                    {hasActiveFilters ? sortedTasks.length : tasks.length}
+                  </span>
                       <span
                         className={`text-muted-foreground/70 ${mixedBody.fontClass}`}
                       >
@@ -410,19 +410,19 @@ export default function ProjectPage() {
                           ? `/${tasks.length}`
                           : ""}{" "}
                         משימות
-                      </span>
-                    </div>
-                    {totalSubtasks > 0 && (
-                      <>
-                        <div className="w-px h-4 bg-border"></div>
-                        <div className="text-xs">
+                  </span>
+                </div>
+                {totalSubtasks > 0 && (
+                  <>
+                    <div className="w-px h-4 bg-border"></div>
+                    <div className="text-xs">
                           <span
                             className={`font-medium text-foreground ${mixedBody.fontClass}`}
                           >
                             {hasActiveFilters
                               ? filteredSubtasks
                               : totalSubtasks}
-                          </span>
+                      </span>
                           <span
                             className={`text-muted-foreground/70 ${mixedBody.fontClass}`}
                           >
@@ -431,61 +431,61 @@ export default function ProjectPage() {
                               ? `/${totalSubtasks}`
                               : ""}{" "}
                             תת-משימות
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
+            )}
           </div>
+        </div>
+      </div>
 
-          {/* Filter Dropdown Section */}
-          {tasks.length > 0 && (
-            <div className="bg-muted/10 border-b border-border/30">
-              <div className="container mx-auto px-4 py-2">
-                <div className="flex items-center justify-between gap-3">
-                  {/* Filter and Sort Controls */}
-                  <div className="flex items-center gap-3">
-                    {/* Filter Dropdown */}
-                    {availableDayTimes.length > 0 && (
-                      <div className="relative" data-filter-dropdown>
-                        <button
+      {/* Filter Dropdown Section */}
+      {tasks.length > 0 && (
+        <div className="bg-muted/10 border-b border-border/30">
+          <div className="container mx-auto px-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              {/* Filter and Sort Controls */}
+              <div className="flex items-center gap-3">
+                {/* Filter Dropdown */}
+                {availableDayTimes.length > 0 && (
+                  <div className="relative" data-filter-dropdown>
+                  <button
                           onClick={() =>
                             setIsFilterDropdownOpen(!isFilterDropdownOpen)
                           }
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
-                        >
-                          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-xs font-medium">
-                            {hasActiveFilters
-                              ? `סינון (${activeFilters.dayTime.length})`
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
+                  >
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">
+                      {hasActiveFilters 
+                        ? `סינון (${activeFilters.dayTime.length})`
                               : "סנן"}
-                          </span>
+                    </span>
                           <ChevronDown
                             className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
                               isFilterDropdownOpen ? "rotate-180" : ""
                             }`}
                           />
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        {isFilterDropdownOpen && (
-                          <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-64 max-w-[calc(100vw-2rem)]">
-                            <div className="space-y-1">
-                              {availableDayTimes.map((dayTime) => {
+                  </button>
+                  
+                  {/* Dropdown Menu */}
+                  {isFilterDropdownOpen && (
+                    <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-64 max-w-[calc(100vw-2rem)]">
+                      <div className="space-y-1">
+                        {availableDayTimes.map((dayTime) => {
                                 const isActive =
                                   activeFilters.dayTime.includes(dayTime);
                                 const taskCount = tasks.filter((task) =>
                                   task.dayTime.includes(dayTime)
                                 ).length;
-
-                                return (
-                                  <button
-                                    key={dayTime}
-                                    onClick={() => toggleDayTimeFilter(dayTime)}
-                                    className={`
+                          
+                          return (
+                            <button
+                              key={dayTime}
+                              onClick={() => toggleDayTimeFilter(dayTime)}
+                              className={`
                                 w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors
                                 ${
                                   isActive
@@ -493,13 +493,13 @@ export default function ProjectPage() {
                                     : "hover:bg-accent text-foreground"
                                 }
                               `}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-base">
-                                        {getDayTimeIcon(dayTime)}
-                                      </span>
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">
+                                  {getDayTimeIcon(dayTime)}
+                                </span>
                                       <span>{getDayTimeLabel(dayTime)}</span>
-                                    </div>
+                              </div>
                                     <span
                                       className={`
                                 px-2 py-0.5 rounded-full text-xs font-medium
@@ -510,42 +510,42 @@ export default function ProjectPage() {
                                 }
                               `}
                                     >
-                                      {taskCount}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-
-                              {/* Clear All Option */}
-                              {hasActiveFilters && (
-                                <>
-                                  <hr className="my-2 border-border" />
-                                  <button
-                                    onClick={() => {
-                                      clearAllFilters();
-                                      setIsFilterDropdownOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md text-sm transition-colors"
-                                  >
-                                    <X className="h-4 w-4" />
-                                    <span>נקה את כל הסינונים</span>
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
+                                {taskCount}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        
+                        {/* Clear All Option */}
+                        {hasActiveFilters && (
+                          <>
+                            <hr className="my-2 border-border" />
+                            <button
+                              onClick={() => {
+                                clearAllFilters();
+                                setIsFilterDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md text-sm transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                              <span>נקה את כל הסינונים</span>
+                            </button>
+                          </>
                         )}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                    {/* Sort Dropdown */}
-                    <div className="relative" data-sort-dropdown>
-                      <button
+              {/* Sort Dropdown */}
+              <div className="relative" data-sort-dropdown>
+                <button
                         onClick={() =>
                           setIsSortDropdownOpen(!isSortDropdownOpen)
                         }
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
-                      >
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-background border border-border/60 rounded-md hover:bg-accent/50 transition-colors"
+                >
                         <ArrowRight
                           className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
                             sortBy === "priority-asc"
@@ -553,26 +553,26 @@ export default function ProjectPage() {
                               : "-rotate-90"
                           }`}
                         />
-                        <span className="text-xs font-medium">
+                  <span className="text-xs font-medium">
                           {sortBy === "priority-asc" ? "עדיפות ↑" : "עדיפות ↓"}
-                        </span>
+                  </span>
                         <ChevronDown
                           className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
                             isSortDropdownOpen ? "rotate-180" : ""
                           }`}
                         />
-                      </button>
-
-                      {/* Sort Dropdown Menu */}
-                      {isSortDropdownOpen && (
-                        <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-56">
-                          <div className="space-y-1">
-                            <button
-                              onClick={() => {
+                </button>
+                
+                {/* Sort Dropdown Menu */}
+                {isSortDropdownOpen && (
+                  <div className="absolute top-full mt-1 right-0 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-56">
+                    <div className="space-y-1">
+                      <button
+                        onClick={() => {
                                 setSortBy("priority-asc");
-                                setIsSortDropdownOpen(false);
-                              }}
-                              className={`
+                          setIsSortDropdownOpen(false);
+                        }}
+                        className={`
                           w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-right
                           ${
                             sortBy === "priority-asc"
@@ -580,20 +580,20 @@ export default function ProjectPage() {
                               : "hover:bg-accent text-foreground"
                           }
                         `}
-                            >
-                              <ArrowRight className="h-4 w-4 rotate-90" />
-                              <span>עדיפות: גבוהה ראשונה</span>
+                      >
+                        <ArrowRight className="h-4 w-4 rotate-90" />
+                        <span>עדיפות: גבוהה ראשונה</span>
                               <span className="text-xs opacity-70">
                                 (1, 2, 3...)
                               </span>
-                            </button>
-
-                            <button
-                              onClick={() => {
+                      </button>
+                      
+                      <button
+                        onClick={() => {
                                 setSortBy("priority-desc");
-                                setIsSortDropdownOpen(false);
-                              }}
-                              className={`
+                          setIsSortDropdownOpen(false);
+                        }}
+                        className={`
                           w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-right
                           ${
                             sortBy === "priority-desc"
@@ -601,86 +601,86 @@ export default function ProjectPage() {
                               : "hover:bg-accent text-foreground"
                           }
                         `}
-                            >
-                              <ArrowRight className="h-4 w-4 -rotate-90" />
-                              <span>עדיפות: נמוכה ראשונה</span>
+                      >
+                        <ArrowRight className="h-4 w-4 -rotate-90" />
+                        <span>עדיפות: נמוכה ראשונה</span>
                               <span className="text-xs opacity-70">
                                 (10, 9, 8...)
                               </span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      </button>
                     </div>
                   </div>
+                )}
+              </div>
+            </div>
 
-                  {/* Stats */}
-                  {hasActiveFilters && (
-                    <div className="flex items-center text-xs">
+              {/* Stats */}
+              {hasActiveFilters && (
+                <div className="flex items-center text-xs">
                       <span
                         className={`text-muted-foreground/70 ${mixedBody.fontClass}`}
                       >
-                        {sortedTasks.length}/{tasks.length}
-                      </span>
-                    </div>
-                  )}
+                    {sortedTasks.length}/{tasks.length}
+                  </span>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* Main Content */}
-          <main className="container mx-auto px-4 py-8">
-            {tasks.length === 0 ? (
-              <div className="text-center py-12">
-                <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        {tasks.length === 0 ? (
+          <div className="text-center py-12">
+            <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   אין משימות זמינות
                 </h3>
                 <p className="text-muted-foreground">
                   משימות יופיעו כאן כאשר יתווספו על ידי המנהל
                 </p>
-              </div>
-            ) : sortedTasks.length === 0 ? (
-              <div className="text-center py-12">
-                <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          </div>
+        ) : sortedTasks.length === 0 ? (
+          <div className="text-center py-12">
+            <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   אין משימות מתאימות לסינון
                 </h3>
-                <p className="text-muted-foreground mb-4">
-                  נסה לשנות את הסינון או לנקות את כל המסננים
-                </p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearAllFilters}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                    נקה סינון
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
+            <p className="text-muted-foreground mb-4">
+              נסה לשנות את הסינון או לנקות את כל המסננים
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <X className="h-4 w-4" />
+                נקה סינון
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
                 {sortedTasks.map((task) => {
-                  const isExpanded = expandedTasks.has(task._id);
-                  const taskSubtasks = getFilteredSubtasks(task._id);
-
-                  return (
+                const isExpanded = expandedTasks.has(task._id);
+                const taskSubtasks = getFilteredSubtasks(task._id);
+                
+                return (
                     <div
                       key={task._id}
                       className="group bg-card rounded-xl border border-border/40 overflow-hidden shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 hover:border-border/60"
                     >
-                      {/* Task Header - Always Visible (Collapsed View) */}
-                      <button
-                        onClick={() => toggleTaskExpansion(task._id)}
+                    {/* Task Header - Always Visible (Collapsed View) */}
+                    <button
+                      onClick={() => toggleTaskExpansion(task._id)}
                         className="w-full py-4 px-3 sm:p-5 text-right hover:bg-gradient-to-r hover:from-accent/30 hover:to-accent/10 transition-all duration-300 group relative min-h-[5rem]"
-                      >
-                        {/* Subtle accent border on left when hovered */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                        {/* Dataco indicator fixed at top left */}
-                        <span className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10 inline-flex items-center px-1.5 py-0.5 text-[10px] sm:text-xs font-mono bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-sm">
+                    >
+                      {/* Subtle accent border on left when hovered */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      
+                                                {/* Dataco indicator fixed at top left */}
+                        <span className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10 inline-flex items-center px-1.5 py-0.5 text-[10px] sm:text-xs font-mono text-gray-600 dark:text-gray-400">
                           {formatDatacoNumber(task.datacoNumber)}
                         </span>
 
@@ -695,15 +695,15 @@ export default function ProjectPage() {
                                 ) : (
                                   <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                                 )}
-                              </div>
+                            </div>
                             
                               <h3 className="text-base sm:text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
                                 {task.title}
                               </h3>
-                            </div>
-
+                          </div>
+                          
                             {/* Second row: Functional labels with space-between */}
-                            {!isExpanded && (
+                          {!isExpanded && (
                               <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs">
                                 <div
                                   className={`inline-flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-medium transition-all duration-200 shadow-sm ${getPriorityColor(
@@ -715,21 +715,21 @@ export default function ProjectPage() {
                                   <span className="opacity-75 ml-0.5 font-mono text-[8px] sm:text-[9px]">
                                     {task.priority}
                                   </span>
-                                </div>
-                                {taskSubtasks.length > 0 && (
+                              </div>
+                              {taskSubtasks.length > 0 && (
                                   <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-medium border border-blue-200/30 dark:border-blue-800/30 shadow-sm">
                                     <Layers className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
-                                    {taskSubtasks.length} תת-משימות
-                                  </span>
-                                )}
+                                  {taskSubtasks.length} תת-משימות
+                                </span>
+                              )}
                                 {/* Day time indicators - simplified on mobile */}
-                                {task.dayTime && task.dayTime.length > 0 && (
+                              {task.dayTime && task.dayTime.length > 0 && (
                                   <div className="inline-flex items-center gap-0.5 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-purple-200/30 dark:border-purple-800/30 shadow-sm">
                                     {task.dayTime
                                       .slice(0, 1)
                                       .map((dt, index) => {
-                                        const getIconBg = (dayTime: string) => {
-                                          switch (dayTime) {
+                                    const getIconBg = (dayTime: string) => {
+                                      switch (dayTime) {
                                             case "day":
                                               return "bg-yellow-200/50 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-yellow-300/40 dark:border-yellow-700/40";
                                             case "night":
@@ -740,9 +740,9 @@ export default function ProjectPage() {
                                               return "bg-pink-200/50 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300 border-pink-300/40 dark:border-pink-700/40";
                                             default:
                                               return "bg-gray-200/50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 border-gray-300/40 dark:border-gray-600/40";
-                                          }
-                                        };
-                                        return (
+                                      }
+                                    };
+                                    return (
                                           <span
                                             key={index}
                                             className={`inline-flex items-center px-1 py-0.5 rounded text-[10px] border ${getIconBg(
@@ -750,10 +750,10 @@ export default function ProjectPage() {
                                             )}`}
                                             title={getDayTimeLabel(dt)}
                                           >
-                                            {getDayTimeIcon(dt)}
-                                          </span>
-                                        );
-                                      })}
+                                        {getDayTimeIcon(dt)}
+                                      </span>
+                                    );
+                                  })}
                                     {task.dayTime.length > 1 && (
                                       <span
                                         className="text-[10px] text-purple-700 dark:text-purple-300 font-medium ml-1"
@@ -765,10 +765,10 @@ export default function ProjectPage() {
                                           .join(", ")}`}
                                       >
                                         +{task.dayTime.length - 1}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                                 {/* Image count indicator moved to same row */}
                                 {!isExpanded &&
                                   task.images &&
@@ -776,156 +776,156 @@ export default function ProjectPage() {
                                     <div className="inline-flex items-center gap-1 bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-medium border border-gray-200/30 dark:border-gray-700/30 shadow-sm">
                                       <ImageIcon className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                                       {task.images.length} תמונות
-                                    </div>
-                                  )}
-                              </div>
+                            </div>
+                          )}
+                            </div>
                             )}
-                          </div>
                         </div>
-                      </button>
+                      </div>
+                    </button>
 
-                      {/* Task Details - Collapsible */}
-                      {isExpanded && (
-                        <div className="px-6 pb-6 border-t border-border">
-                          <div className="space-y-6 pt-6">
-                            {/* Subtitle when expanded */}
-                            {task.subtitle && (
-                              <div>
+                    {/* Task Details - Collapsible */}
+                    {isExpanded && (
+                      <div className="px-6 pb-6 border-t border-border">
+                        <div className="space-y-6 pt-6">
+                          {/* Subtitle when expanded */}
+                          {task.subtitle && (
+                            <div>
                                 <p className="text-muted-foreground">
                                   {task.subtitle}
                                 </p>
-                              </div>
-                            )}
+                            </div>
+                          )}
 
-                            {/* Task type and basic info when expanded */}
-                            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
+                          {/* Task type and basic info when expanded */}
+                          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
                                 <strong>סוג:</strong>{" "}
                                 {capitalizeEnglishArray(task.type).join(", ")}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
                                 <strong>מיקומים:</strong>{" "}
                                 {capitalizeEnglishArray(task.locations).join(
                                   ", "
                                 )}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Car className="h-3 w-3" />
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Car className="h-3 w-3" />
                                 <strong>רכבי יעד:</strong>{" "}
                                 {capitalizeEnglishArray(task.targetCar).join(
                                   ", "
                                 )}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
                                 <strong>זמני יום:</strong>{" "}
                                 {task.dayTime.map(getDayTimeLabel).join(", ")}
-                              </span>
-                            </div>
+                            </span>
+                          </div>
 
-                            {/* Description */}
-                            <div>
+                          {/* Description */}
+                          <div>
                               <h4 className="font-semibold text-foreground mb-2 text-sm">
                                 תיאור המשימה
                               </h4>
                               <p className="text-muted-foreground text-sm">
                                 {task.description.main}
                               </p>
-                            </div>
+                          </div>
 
-                            {/* Execution Instructions */}
-                            <div>
+                          {/* Execution Instructions */}
+                          <div>
                               <h4 className="font-semibold text-foreground mb-2 text-sm">
                                 הוראות ביצוע
                               </h4>
                               <p className="text-muted-foreground text-sm">
                                 {task.description.howToExecute}
                               </p>
+                          </div>
+
+                          {/* Task Image Display - Updated with new ImageDisplay component */}
+                          {task.images && task.images.length > 0 && (
+                            <div>
+                              <h4 className="font-semibold text-foreground mb-2 text-sm flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3" />
+                                תמונות המשימה ({task.images.length})
+                              </h4>
+                              <SimpleImageGallery images={task.images} />
                             </div>
+                          )}
 
-                            {/* Task Image Display - Updated with new ImageDisplay component */}
-                            {task.images && task.images.length > 0 && (
-                              <div>
-                                <h4 className="font-semibold text-foreground mb-2 text-sm flex items-center gap-1">
-                                  <ImageIcon className="h-3 w-3" />
-                                  תמונות המשימה ({task.images.length})
-                                </h4>
-                                <SimpleImageGallery images={task.images} />
-                              </div>
-                            )}
-
-                            {/* Technical Details */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
+                          {/* Technical Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
                                 <h4 className="font-semibold text-foreground mb-2 text-sm">
                                   פרטים טכניים
                                 </h4>
-                                <div className="space-y-2 text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <Zap className="h-3 w-3 text-muted-foreground" />
+                              <div className="space-y-2 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="h-3 w-3 text-muted-foreground" />
                                     <span>
                                       <strong>LiDAR:</strong>{" "}
                                       {task.lidar ? "כן" : "לא"}
                                     </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-foreground mb-2 text-sm">
-                                  כמות נדרשת
-                                </h4>
-                                <div className="text-xl font-bold text-primary">
-                                  {task.amountNeeded}
                                 </div>
                               </div>
                             </div>
-
-                            {/* Subtasks */}
-                            {taskSubtasks.length > 0 && (
-                              <div className="bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 rounded-xl p-4 border border-border/30 backdrop-blur-sm shadow-md shadow-black/5 dark:shadow-black/15">
-                                <h4 className="font-semibold text-foreground mb-3 text-sm flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                                  תת-משימות ({taskSubtasks.length})
+                            <div>
+                                <h4 className="font-semibold text-foreground mb-2 text-sm">
+                                  כמות נדרשת
                                 </h4>
-                                <div className="space-y-3">
-                                  {taskSubtasks.map((subtask) => {
+                              <div className="text-xl font-bold text-primary">
+                                {task.amountNeeded}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Subtasks */}
+                          {taskSubtasks.length > 0 && (
+                            <div className="bg-gradient-to-r from-muted/20 via-muted/10 to-muted/20 rounded-xl p-4 border border-border/30 backdrop-blur-sm shadow-md shadow-black/5 dark:shadow-black/15">
+                              <h4 className="font-semibold text-foreground mb-3 text-sm flex items-center gap-2">
+                                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                תת-משימות ({taskSubtasks.length})
+                              </h4>
+                              <div className="space-y-3">
+                                {taskSubtasks.map((subtask) => {
                                     const isSubtaskExpanded =
                                       expandedSubtasks.has(subtask._id);
-
-                                    return (
+                                  
+                                  return (
                                       <div
                                         key={subtask._id}
                                         className="bg-background/60 backdrop-blur-sm rounded-lg overflow-hidden border border-border/30 shadow-md shadow-black/5 dark:shadow-black/15 hover:shadow-lg hover:shadow-black/8 dark:hover:shadow-black/25 transition-all duration-200"
                                       >
-                                        {/* Subtask Header - Minimal Info (Collapsed) */}
-                                        <button
+                                      {/* Subtask Header - Minimal Info (Collapsed) */}
+                                      <button
                                           onClick={() =>
                                             toggleSubtaskExpansion(subtask._id)
                                           }
-                                          className="w-full p-3 text-right hover:bg-muted/30 transition-all duration-200 group"
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                              {/* Small preview image for collapsed state */}
+                                        className="w-full p-3 text-right hover:bg-muted/30 transition-all duration-200 group"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-3">
+                                            {/* Small preview image for collapsed state */}
                                               {!isSubtaskExpanded &&
                                                 subtask.images &&
                                                 subtask.images.length > 0 && (
-                                                  <div
-                                                    className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      // Click handling is now done by the ImageDisplay component
-                                                    }}
-                                                  >
+                                              <div 
+                                                className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  // Click handling is now done by the ImageDisplay component
+                                                }}
+                                              >
                                                     {isBase64Image(
                                                       subtask.images[0]
                                                     ) ? (
                                                       <div className="relative w-full h-full">
                                                         <Image
-                                                          src={subtask.images[0]}
-                                                          alt="Preview"
+                                                  src={subtask.images[0]} 
+                                                  alt="Preview" 
                                                           fill
                                                           sizes="32px"
                                                           className="object-cover"
@@ -946,68 +946,68 @@ export default function ProjectPage() {
                                                         />
                                                       </div>
                                                     )}
-                                                  </div>
-                                                )}
-                                              <div className="min-w-0">
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
                                                 <h5 className="font-medium text-foreground text-sm truncate">
                                                   {subtask.title}
                                                 </h5>
-                                                <div className="flex items-center justify-between gap-2 mt-0.5">
-                                                  <span className="text-xs text-primary font-medium">
+                                              <div className="flex items-center justify-between gap-2 mt-0.5">
+                                                <span className="text-xs text-primary font-medium">
                                                     {subtask.amountNeeded}{" "}
                                                     {subtask.type === "events"
                                                       ? "אירועים"
                                                       : "שעות"}
-                                                  </span>
-                                                  <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 bg-background/80 rounded text-[10px]">
+                                                </span>
+                                                <span className="text-xs text-muted-foreground font-mono px-1.5 py-0.5 bg-background/80 rounded text-[10px]">
                                                     {formatDatacoNumber(
                                                       subtask.datacoNumber
                                                     )}
-                                                  </span>
-                                                </div>
-                                              </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              {subtask.images &&
-                                                subtask.images.length > 0 &&
-                                                !isSubtaskExpanded && (
-                                                  <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                                                    {subtask.images.length}{" "}
-                                                    תמונות
-                                                  </span>
-                                                )}
-                                              <div className="group-hover:scale-110 transition-transform duration-200">
-                                                {isSubtaskExpanded ? (
-                                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                                ) : (
-                                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                )}
+                                                </span>
                                               </div>
                                             </div>
                                           </div>
-                                        </button>
+                                          <div className="flex items-center gap-2">
+                                              {subtask.images &&
+                                                subtask.images.length > 0 &&
+                                                !isSubtaskExpanded && (
+                                              <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                                    {subtask.images.length}{" "}
+                                                    תמונות
+                                              </span>
+                                            )}
+                                            <div className="group-hover:scale-110 transition-transform duration-200">
+                                              {isSubtaskExpanded ? (
+                                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                              ) : (
+                                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </button>
 
-                                        {/* Subtask Details - Collapsible */}
-                                        {isSubtaskExpanded && (
-                                          <div className="px-3 pb-3 border-t border-border/20 bg-muted/10">
-                                            <div className="pt-3 space-y-3">
-                                              {/* Subtitle */}
-                                              {subtask.subtitle && (
-                                                <div>
+                                      {/* Subtask Details - Collapsible */}
+                                      {isSubtaskExpanded && (
+                                        <div className="px-3 pb-3 border-t border-border/20 bg-muted/10">
+                                          <div className="pt-3 space-y-3">
+                                            {/* Subtitle */}
+                                            {subtask.subtitle && (
+                                              <div>
                                                   <p className="text-xs text-muted-foreground">
                                                     {subtask.subtitle}
                                                   </p>
-                                                </div>
-                                              )}
-
-                                              {/* Basic Info with Clear Labels */}
-                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                                <div className="space-y-2">
-                                                  <div>
+                                              </div>
+                                            )}
+                                            
+                                            {/* Basic Info with Clear Labels */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                              <div className="space-y-2">
+                                                <div>
                                                     <span className="font-medium text-foreground">
                                                       סוג:{" "}
                                                     </span>
-                                                    <span className="text-muted-foreground">
+                                                  <span className="text-muted-foreground">
                                                       {subtask.type === "events"
                                                         ? "אירועים"
                                                         : "שעות"}{" "}
@@ -1016,45 +1016,45 @@ export default function ProjectPage() {
                                                         subtask.type
                                                       )}
                                                       )
-                                                    </span>
-                                                  </div>
-                                                  <div>
+                                                  </span>
+                                                </div>
+                                                <div>
                                                     <span className="font-medium text-foreground">
                                                       כמות נדרשת:{" "}
                                                     </span>
                                                     <span className="text-primary font-semibold">
                                                       {subtask.amountNeeded}
                                                     </span>
-                                                  </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                  <div>
+                                              </div>
+                                              <div className="space-y-2">
+                                                <div>
                                                     <span className="font-medium text-foreground">
                                                       מזג אוויר:{" "}
                                                     </span>
                                                     <span className="text-muted-foreground">
                                                       {subtask.weather}
                                                     </span>
-                                                  </div>
-                                                  <div>
+                                                </div>
+                                                <div>
                                                     <span className="font-medium text-foreground">
                                                       סצנה:{" "}
                                                     </span>
                                                     <span className="text-muted-foreground">
                                                       {subtask.scene}
                                                     </span>
-                                                  </div>
                                                 </div>
                                               </div>
+                                            </div>
 
-                                              {/* Day Time Display */}
+                                                                        {/* Day Time Display */}
                                               {subtask.dayTime &&
                                                 subtask.dayTime.length > 0 && (
-                                                  <div>
+                              <div>
                                                     <span className="font-medium text-foreground text-xs">
                                                       זמני יום:{" "}
                                                     </span>
-                                                    <div className="inline-flex gap-1 mt-1">
+                                <div className="inline-flex gap-1 mt-1">
                                                       {subtask.dayTime.map(
                                                         (dt, index) => (
                                                           <span
@@ -1065,7 +1065,7 @@ export default function ProjectPage() {
                                                               {getDayTimeIcon(
                                                                 dt
                                                               )}
-                                                            </span>
+                                    </span>
                                                             <span>
                                                               {getDayTimeLabel(
                                                                 dt
@@ -1074,12 +1074,12 @@ export default function ProjectPage() {
                                                           </span>
                                                         )
                                                       )}
-                                                    </div>
-                                                  </div>
-                                                )}
+                                </div>
+                              </div>
+                            )}
 
-                                              {/* Target Cars */}
-                                              <div>
+                                            {/* Target Cars */}
+                                            <div>
                                                 <span className="font-medium text-foreground text-xs">
                                                   רכבי יעד:{" "}
                                                 </span>
@@ -1088,65 +1088,65 @@ export default function ProjectPage() {
                                                     subtask.targetCar
                                                   ).join(", ")}
                                                 </span>
-                                              </div>
+                                            </div>
 
-                                              {/* Labels Section */}
-                                              {subtask.labels.length > 0 && (
-                                                <div>
+                                            {/* Labels Section */}
+                                            {subtask.labels.length > 0 && (
+                                              <div>
                                                   <h6 className="font-medium text-foreground mb-2 text-xs">
                                                     לייבלים
                                                   </h6>
-                                                  <div className="flex flex-wrap gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {subtask.labels.map(
                                                       (label, index) => (
-                                                        <span
-                                                          key={`${subtask._id}-label-${index}-${label}`}
-                                                          className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
-                                                        >
-                                                          {label}
-                                                        </span>
+                                                    <span 
+                                                      key={`${subtask._id}-label-${index}-${label}`}
+                                                      className="px-2 py-1 bg-black text-white text-xs rounded-md font-medium"
+                                                    >
+                                                      {label}
+                                                    </span>
                                                       )
                                                     )}
-                                                  </div>
                                                 </div>
-                                              )}
+                                              </div>
+                                            )}
 
-                                              {/* Image Section - Updated with new ImageDisplay component */}
+                                            {/* Image Section - Updated with new ImageDisplay component */}
                                               {subtask.images &&
                                                 subtask.images.length > 0 && (
-                                                  <div>
-                                                    <h6 className="font-medium text-foreground mb-2 text-xs flex items-center gap-1">
-                                                      <ImageIcon className="h-3 w-3" />
+                                              <div>
+                                                <h6 className="font-medium text-foreground mb-2 text-xs flex items-center gap-1">
+                                                  <ImageIcon className="h-3 w-3" />
                                                       תמונות (
                                                       {subtask.images.length})
-                                                    </h6>
+                                                </h6>
                                                     <SimpleImageGallery
                                                       images={subtask.images}
                                                     />
-                                                  </div>
-                                                )}
-                                            </div>
+                                              </div>
+                                            )}
                                           </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </main>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </main>
 
-          {/* Image viewer is now integrated into ImageDisplay components */}
-        </div>
+      {/* Image viewer is now integrated into ImageDisplay components */}
+    </div>
       )}
     </InlineLoading>
   );
-}
+} 
