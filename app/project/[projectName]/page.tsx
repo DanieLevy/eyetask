@@ -603,19 +603,18 @@ export default function ProjectPage() {
                       {/* Subtle accent border on left when hovered */}
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       
+                      {/* Dataco indicator fixed at top left */}
+                      <span className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-0.5 text-xs font-mono bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-sm">
+                        {formatDatacoNumber(task.datacoNumber)}
+                      </span>
+                      
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0 pr-4">
-                          {/* First row: Title with minimal Dataco indicator */}
-                          <div className="mb-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <h3 className="text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
-                                {task.title}
-                              </h3>
-                              {/* Minimal Dataco indicator */}
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted/40 text-muted-foreground border border-border/20 font-mono flex-shrink-0 mt-0.5">
-                                {formatDatacoNumber(task.datacoNumber)}
-                              </span>
-                            </div>
+                          {/* First row: Title */}
+                          <div className="mb-3 pl-20">
+                            <h3 className="text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
+                              {task.title}
+                            </h3>
                           </div>
                           
                           {/* Second row: Functional labels with more space */}
