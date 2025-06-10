@@ -1,49 +1,44 @@
-import { writeFile, unlink } from 'fs/promises';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'public/uploads');
-
-// Ensure the upload directory exists (this would ideally be done at server startup)
-import fs from 'fs';
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+import { logger } from './logger';
 
 /**
- * Saves an uploaded file to the public uploads directory.
- * @param file The file to save (from FormData).
- * @returns The public URL of the saved file.
+ * Converts a file to a base64 data URL.
+ * @param file The file to convert (from FormData).
+ * @returns The base64 data URL of the file.
  */
 export async function saveFile(file: File): Promise<string> {
-  const fileExtension = path.extname(file.name);
-  const filename = `${uuidv4()}${fileExtension}`;
-  const filePath = path.join(UPLOAD_DIR, filename);
-
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  await writeFile(filePath, buffer);
-
-  // Return the public URL
-  return `/uploads/${filename}`;
+  try {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    
+    // Convert to base64 data URL
+    const base64 = buffer.toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
+    
+    logger.info('Image converted to base64', 'FILE_STORAGE', {
+      fileType: file.type,
+      fileSize: file.size,
+      base64Length: base64.length
+    });
+    
+    return dataUrl;
+  } catch (error) {
+    logger.error('Failed to convert file to base64', 'FILE_STORAGE', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    }, error as Error);
+    throw error;
+  }
 }
 
 /**
- * Deletes a file from the public uploads directory.
- * @param fileUrl The public URL of the file to delete.
+ * Handles file deletion. For base64 URLs, this is a no-op since they're stored in the database.
+ * For legacy file system URLs (if any still exist), this is also a no-op since we're not
+ * using the file system for storage anymore.
+ * @param fileUrl The URL of the file to delete.
  */
 export async function deleteFile(fileUrl: string): Promise<void> {
-  try {
-    const filename = path.basename(fileUrl);
-    const filePath = path.join(UPLOAD_DIR, filename);
-    await unlink(filePath);
-  } catch (error: any) {
-    // It's often safe to ignore "file not found" errors during deletion
-    if (error.code !== 'ENOENT') {
-      console.error(`Failed to delete file at ${fileUrl}:`, error);
-      // Depending on requirements, you might want to throw the error
-      // throw new Error(`Could not delete file: ${fileUrl}`);
-    }
-  }
+  // No-op function since we're only using base64 now
+  // We keep the function to maintain compatibility with existing code
+  return;
 } 

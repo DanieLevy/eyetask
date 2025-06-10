@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       for (const image of images) {
         // Basic validation for the file
         if (image.size === 0) continue;
+        
+        // Use saveFile to convert to base64
         const url = await saveFile(image);
         imageUrls.push(url);
       }

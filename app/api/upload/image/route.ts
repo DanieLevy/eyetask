@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
@@ -73,69 +71,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (removed limit for unlimited upload)
-    // Note: Consider server memory and storage capacity for very large files
-    // Size validation removed to allow unlimited uploads
-    
-    // Skip size validation for unlimited uploads
-    // if (file.size > maxSize) { ... } - removed
-
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Generate unique filename
+    // Generate unique filename (for reference only)
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
-    let publicUrl: string;
-    let filePath: string;
-
-    // Production: Use base64 data URL (embedded in database)
-    // Development: Use local file system
-    if (process.env.NODE_ENV === 'production' || process.env.NETLIFY) {
-      // Convert to base64 data URL for production
-      const base64 = buffer.toString('base64');
-      publicUrl = `data:${file.type};base64,${base64}`;
-      filePath = `base64:${fileName}`;
-      
-      logger.info('Image converted to base64 for production', 'UPLOAD_API', {
-        fileName,
-        fileSize: file.size,
-        base64Length: base64.length
-      });
-    } else {
-      // Local development: Save to file system
-      try {
-        const uploadsDir = join(process.cwd(), 'public', 'uploads', 'subtasks');
-        await mkdir(uploadsDir, { recursive: true });
-        
-        const localFilePath = join(uploadsDir, fileName);
-        await writeFile(localFilePath, buffer);
-        
-        publicUrl = `/uploads/subtasks/${fileName}`;
-        filePath = `subtasks/${fileName}`;
-        
-        logger.info('Image saved to local file system', 'UPLOAD_API', {
-          fileName,
-          localFilePath
-        });
-      } catch (fsError) {
-        logger.error('Local file system error, falling back to base64', 'UPLOAD_API', {}, fsError as Error);
-        
-        // Fallback to base64 even in development if file system fails
-        const base64 = buffer.toString('base64');
-        publicUrl = `data:${file.type};base64,${base64}`;
-        filePath = `base64:${fileName}`;
-      }
-    }
+    // Always convert to base64 data URL
+    const base64 = buffer.toString('base64');
+    const publicUrl = `data:${file.type};base64,${base64}`;
+    const filePath = `base64:${fileName}`;
+    
+    logger.info('Image converted to base64', 'UPLOAD_API', {
+      fileName,
+      fileSize: file.size,
+      base64Length: base64.length
+    });
 
     const executionTime = Date.now() - startTime;
     logger.info('Image upload successful', 'UPLOAD_API', {
       fileName,
       fileSize: file.size,
       fileType: file.type,
-      method: filePath.startsWith('base64:') ? 'base64' : 'filesystem',
+      method: 'base64',
       username: user.username,
       executionTime: `${executionTime}ms`
     });
@@ -148,7 +108,7 @@ export async function POST(request: NextRequest) {
         publicUrl: publicUrl,
         fileSize: file.size,
         fileType: file.type,
-        method: filePath.startsWith('base64:') ? 'base64' : 'filesystem'
+        method: 'base64'
       },
       message: 'Image uploaded successfully'
     });

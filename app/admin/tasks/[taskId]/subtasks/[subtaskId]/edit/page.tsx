@@ -12,42 +12,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Re-using the SimpleImageGallery from the parent page for consistency
-function SimpleImageGallery({ 
-  images, 
-  onRemove,
-  removable = false 
-}: { 
-  images: { id: string, url: string }[], 
-  onRemove?: (id: string) => void,
-  removable?: boolean 
-}) {
-  if (!images || images.length === 0) return null;
-
-  return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mt-2">
-      {images.map(({ id, url }) => (
-        <div key={id} className="relative group aspect-square">
-          <img 
-            src={url} 
-            alt={`Image ${id}`} 
-            className="w-full h-full object-cover rounded-md"
-          />
-          {removable && onRemove && (
-             <button
-                onClick={() => onRemove(id)}
-                className="absolute top-1 right-1 p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100"
-                aria-label="Remove image"
-            >
-                <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+import SimpleImageGallery from '@/components/SimpleImageGallery';
 
 interface Task {
   id: string;
@@ -87,6 +52,7 @@ export default function EditSubtaskPage() {
   const [editSubtaskData, setEditSubtaskData] = useState<Partial<Subtask>>({});
   const [newImages, setNewImages] = useState<File[]>([]);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<Array<{id: string, url: string}>>([]);
 
 
   useEffect(() => {
@@ -130,18 +96,37 @@ export default function EditSubtaskPage() {
     }
   };
   
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     // Simple validation, can be expanded
     if (newImages.length + files.length > 10) {
       toast.error('You can upload a maximum of 10 new images.');
       return;
     }
+    
+    // Convert files to base64 for preview
+    const newPreviews = await Promise.all(
+      files.map(async (file, index) => {
+        return new Promise<{id: string, url: string}>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            resolve({ 
+              id: `${file.name}-${index}`, 
+              url: reader.result as string 
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      })
+    );
+    
     setNewImages(prev => [...prev, ...files]);
+    setNewImagePreviews(prev => [...prev, ...newPreviews]);
   };
 
   const handleRemoveNewImage = (indexToRemove: number) => {
     setNewImages(prev => prev.filter((_, index) => index !== indexToRemove));
+    setNewImagePreviews(prev => prev.filter((_, index) => index !== indexToRemove));
   };
   
   const handleRemoveExistingImage = (urlToRemove: string) => {
@@ -421,14 +406,16 @@ export default function EditSubtaskPage() {
                     />
                 </div>
                 {/* Preview for new images */}
-                {newImages.length > 0 && (
+                {newImagePreviews.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-medium text-foreground">תצוגה מקדימה של תמונות חדשות:</h4>
                     <SimpleImageGallery 
-                      images={newImages.map((file, index) => ({ id: `${file.name}-${index}`, url: URL.createObjectURL(file) }))}
+                      images={newImagePreviews}
                       onRemove={(id) => {
-                        const indexToRemove = newImages.findIndex((file, index) => `${file.name}-${index}` === id);
-                        handleRemoveNewImage(indexToRemove);
+                        const indexToRemove = newImagePreviews.findIndex(preview => preview.id === id);
+                        if (indexToRemove !== -1) {
+                          handleRemoveNewImage(indexToRemove);
+                        }
                       }}
                       removable={true}
                     />

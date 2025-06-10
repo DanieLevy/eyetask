@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,17 +25,12 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     };
 
-    // Here you could store the shared content in database
-    // or process it according to your app's needs
-
-    console.log('Received shared content:', sharedContent);
-
-    // If there's a file, you might want to store it
-    if (file) {
-      // Example: store file temporarily or process it
-      const buffer = await file.arrayBuffer();
-      // Store buffer or process file content...
-    }
+    logger.info('Received shared content', 'SHARE_API', {
+      hasTitle: !!title,
+      hasText: !!text,
+      hasUrl: !!url,
+      hasFile: !!file
+    });
 
     // Redirect to the app with shared content parameters
     const redirectUrl = new URL('/admin/tasks/new', request.url);
@@ -43,12 +39,18 @@ export async function POST(request: NextRequest) {
     if (title) redirectUrl.searchParams.set('title', title);
     if (text) redirectUrl.searchParams.set('text', text);
     if (url) redirectUrl.searchParams.set('shared_url', url);
-    if (file) redirectUrl.searchParams.set('has_file', 'true');
+    if (file) {
+      redirectUrl.searchParams.set('has_file', 'true');
+      redirectUrl.searchParams.set('file_name', file.name);
+      redirectUrl.searchParams.set('file_type', file.type);
+      // Note: We can't pass the file content in a URL parameter
+      // The receiving page will need to handle this limitation
+    }
 
     return NextResponse.redirect(redirectUrl.toString());
     
   } catch (error) {
-    console.error('Error handling shared content:', error);
+    logger.error('Error handling shared content', 'SHARE_API', {}, error as Error);
     
     // Fallback redirect to main app
     const fallbackUrl = new URL('/', request.url);
