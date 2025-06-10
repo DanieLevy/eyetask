@@ -7,14 +7,16 @@ import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useRouter } from 'next/navigation';
 
 interface DailyUpdate {
-  _id: string;
+  _id?: string;  // Backend might use _id
+  id?: string;   // Or id in some responses
   title: string;
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
   isPinned: boolean;
   isActive: boolean;
-  isHidden: boolean;
+  is_hidden?: boolean; // API might use snake_case
+  isHidden?: boolean;  // Or camelCase
   expiresAt: string | null;
 }
 
@@ -28,73 +30,58 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const [fallbackMessage, setFallbackMessage] = useState('ברוכים הבאים ל-Drivers Hub! בדקו כאן עדכונים חשובים והודעות.');
+  const [fallbackMessage, setFallbackMessage] = useState('לא נמצאו עדכונים להצגה');
+  const [error, setError] = useState<string | null>(null);
+  
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
   const { status } = useOfflineStatus();
   const { isOnline } = status;
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetching updates
-      const updatesResponse = await fetch('/api/daily-updates');
+      setLoading(true);
+      setError(null);
       
-      // Fetching settings for fallback message
-      const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
-
-      if (updatesResponse.ok) {
-        const updatesData = await updatesResponse.json();
-        
-        if (updatesData && Array.isArray(updatesData.data)) {
-          const processedUpdates = updatesData.data.map((update: any, index: number) => {
-            
-            const title = update.attributes.title;
-            const content = update.attributes.content;
-            const date = new Date(update.attributes.createdAt).toLocaleDateString('he-IL', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-            
-            return {
-              id: update.id,
-              title,
-              content,
-              date,
-              imageUrl: update.attributes.image?.data?.attributes?.url
-            };
-          });
-          
-          setUpdates(processedUpdates);
-        } else {
-          
+      // Fetch active daily updates
+      const updatesResponse = await fetch('/api/daily-updates', {
+        headers: {
+          'Cache-Control': 'no-cache'
         }
-      } else {
-        
+      });
+      
+      if (!updatesResponse.ok) {
+        throw new Error('Failed to fetch daily updates');
+      }
+      
+      const updatesData = await updatesResponse.json();
+      
+      if (updatesData?.success) {
+        setUpdates(updatesData.updates || []);
       }
 
-      // Handling settings for fallback message
-      if(settingsResponse.ok) {
-        const settingsData = await settingsResponse.json();
+      try {
+        // Fetch fallback message setting
+        const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
         
-        if(settingsData && settingsData.value) {
-          
-          setFallbackMessage(settingsData.value);
-        } else {
-          
-          setFallbackMessage('לא נמצאו עדכונים להצגה');
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          if (settingsData?.value) {
+            setFallbackMessage(settingsData.value);
+          }
         }
-      } else {
-        
-        setFallbackMessage('לא נמצאו עדכונים להצגה');
+      } catch (settingsError) {
+        // If settings fetch fails, keep using the default fallback message
+        console.error('Error fetching fallback message settings:', settingsError);
       }
     } catch (error) {
-      
-      setError('אירעה שגיאה בטעינת העדכונים.');
+      console.error('Error fetching daily updates:', error);
+      // Only set error if we don't have updates - we want to show data if available
+      if (updates.length === 0) {
+        setError('אירעה שגיאה בטעינת העדכונים. נסה שוב מאוחר יותר.');
+      }
     } finally {
-      
       setLoading(false);
     }
   }, []);
@@ -133,8 +120,14 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     };
   }, [updates.length, isPaused]);
 
-  const hideUpdate = async (updateId: string) => {
+  const hideUpdate = async (updateId: string): Promise<void> => {
     try {
+      // Check if updateId is valid
+      if (!updateId || updateId === 'undefined') {
+        console.error('⚠️ Invalid update ID:', updateId);
+        return;
+      }
+      
       const response = await fetch(`/api/daily-updates/${updateId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -146,7 +139,10 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       }
       
       // Remove from current updates and adjust index
-      const newUpdates = updates.filter(update => update._id !== updateId);
+      const newUpdates = updates.filter(update => {
+        const id = update._id || update.id;
+        return id !== updateId;
+      });
       setUpdates(newUpdates);
       
       // Adjust current index if needed
@@ -157,6 +153,53 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       console.error('❌ Error hiding update:', error);
     }
   };
+
+  // Error UI
+  if (error && updates.length === 0) {
+    return (
+      <div className={`relative mb-6 ${className}`}>
+        <div className="rounded-lg border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800/50 p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+            <div>
+              <p className="text-red-800 dark:text-red-200 font-medium">שגיאת מערכת</p>
+              <p className="text-red-700/80 dark:text-red-300/80 text-sm">{error}</p>
+            </div>
+            <button 
+              onClick={fetchData}
+              className="ml-auto bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 rounded-lg px-3 py-1.5 text-sm transition-colors"
+            >
+              נסה שוב
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Loading or no updates
+  if ((loading && updates.length === 0) || (!loading && updates.length === 0)) {
+    return (
+      <div className={`relative mb-6 ${className} ${loading ? 'animate-pulse' : ''}`}>
+        <div className="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30 p-4">
+          <div className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            <div>
+              <p className={`text-slate-800 dark:text-slate-200 ${loading ? 'text-transparent bg-slate-300 dark:bg-slate-700 rounded animate-pulse' : ''}`}>
+                {loading ? 'טוען עדכונים...' : fallbackMessage}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Everything after this point means we have updates
+  const currentUpdate = updates[currentIndex];
+
+  // Guard clause for safety
+  if (!currentUpdate) return null;
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -263,21 +306,8 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     }, 150);
   };
 
-  if (loading) {
-    return (
-      <div className={`${className}`}>
-        <div className="flex items-center justify-center py-4">
-          <div className="relative">
-            <div className="w-4 h-4 border-2 border-slate-200 dark:border-slate-700 border-t-slate-600 dark:border-t-slate-300 rounded-full animate-spin"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Determine what to display
   const hasUpdates = updates.length > 0;
-  const currentUpdate = hasUpdates ? updates[currentIndex] : null;
   const colors = currentUpdate ? getTypeColors(currentUpdate.type) : getTypeColors('info');
   
   // Debug logging
@@ -287,7 +317,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     updatesCount: updates.length,
     currentIndex,
     currentUpdate: currentUpdate ? { 
-      _id: currentUpdate._id, 
+      id: currentUpdate._id || currentUpdate.id, 
       title: currentUpdate.title,
       content: currentUpdate.content?.substring(0, 50) + '...' 
     } : null,
@@ -361,15 +391,21 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                                        hideUpdate(currentUpdate._id);
+                // Use either _id or id field, whichever is available
+                const updateId = currentUpdate._id || currentUpdate.id;
+                if (updateId) {
+                  hideUpdate(updateId);
+                } else {
+                  console.error('⚠️ No valid ID found for update:', currentUpdate);
+                }
               }}
-              className={`absolute top-2 left-2 w-6 h-6 rounded-full transition-all duration-200 ease-in-out z-20 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-current/50 touch-manipulation ${
-                currentUpdate.type === 'warning' ? 'hover:bg-yellow-200/70 dark:hover:bg-yellow-700/50 text-yellow-700 dark:text-yellow-300' :
-                currentUpdate.type === 'success' ? 'hover:bg-green-200/70 dark:hover:bg-green-700/50 text-green-700 dark:text-green-300' :
-                currentUpdate.type === 'error' ? 'hover:bg-red-200/70 dark:hover:bg-red-700/50 text-red-700 dark:text-red-300' :
-                currentUpdate.type === 'announcement' ? 'hover:bg-blue-200/70 dark:hover:bg-blue-700/50 text-blue-700 dark:text-blue-300' :
-                'hover:bg-slate-200/70 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
-              } bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-current/20`}
+              className={`absolute top-2 left-2 w-6 h-6 transition-all duration-200 ease-in-out z-20 flex items-center justify-center hover:scale-105 focus:scale-105 focus:outline-none touch-manipulation ${
+                currentUpdate.type === 'warning' ? 'text-yellow-700 dark:text-yellow-300' :
+                currentUpdate.type === 'success' ? 'text-green-700 dark:text-green-300' :
+                currentUpdate.type === 'error' ? 'text-red-700 dark:text-red-300' :
+                currentUpdate.type === 'announcement' ? 'text-blue-700 dark:text-blue-300' :
+                'text-slate-700 dark:text-slate-300'
+              }`}
               title="הסתר עדכון זה"
               type="button"
             >

@@ -97,10 +97,21 @@ export default function EditDailyUpdatePage() {
     setSubmitting(true);
 
     try {
+      // Convert form field names to match API expectations
+      const apiData = {
+        title: form.title,
+        content: form.content,
+        type: form.type,
+        priority: form.priority,
+        durationType: form.durationType,
+        durationValue: form.durationValue,
+        isPinned: form.isPinned
+      };
+
       const response = await fetch(`/api/daily-updates/${updateId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(apiData)
       });
       
       if (!response.ok) {

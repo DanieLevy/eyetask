@@ -9,8 +9,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    
+    // Check if ID is valid
+    if (!id || id === 'undefined') {
+      console.error('❌ Invalid daily update ID:', id);
+      return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
+    }
 
-    // Get daily update by ID (we need to implement this function)
+    // Get daily update by ID
     const dailyUpdateResult = await db.getDailyUpdateById(id);
 
     if (!dailyUpdateResult) {
@@ -24,15 +30,15 @@ export async function GET(
       content: dailyUpdateResult.content,
       type: dailyUpdateResult.type,
       priority: dailyUpdateResult.priority,
-      durationType: dailyUpdateResult.durationType,
-      durationValue: dailyUpdateResult.durationValue,
+      duration_type: dailyUpdateResult.durationType,
+      duration_value: dailyUpdateResult.durationValue,
       expiresAt: dailyUpdateResult.expiresAt?.toISOString(),
-      isActive: dailyUpdateResult.isActive,
-      isPinned: dailyUpdateResult.isPinned,
+      is_active: dailyUpdateResult.isActive,
+      is_pinned: dailyUpdateResult.isPinned,
       targetAudience: dailyUpdateResult.targetAudience,
       createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
-      createdAt: dailyUpdateResult.createdAt.toISOString(),
-      updatedAt: dailyUpdateResult.updatedAt.toISOString()
+      created_at: dailyUpdateResult.createdAt.toISOString(),
+      updated_at: dailyUpdateResult.updatedAt.toISOString()
     };
 
     return NextResponse.json({ 
@@ -51,6 +57,13 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    
+    // Check if ID is valid
+    if (!id || id === 'undefined') {
+      console.error('❌ Invalid daily update ID:', id);
+      return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
+    }
+    
     const body = await request.json();
     
     const { 
@@ -125,16 +138,16 @@ export async function PUT(
       content: dailyUpdateResult.content,
       type: dailyUpdateResult.type,
       priority: dailyUpdateResult.priority,
-      durationType: dailyUpdateResult.durationType,
-      durationValue: dailyUpdateResult.durationValue,
+      duration_type: dailyUpdateResult.durationType,
+      duration_value: dailyUpdateResult.durationValue,
       expiresAt: dailyUpdateResult.expiresAt?.toISOString(),
-      isActive: dailyUpdateResult.isActive,
-      isPinned: dailyUpdateResult.isPinned,
-      isHidden: dailyUpdateResult.isHidden || false,
+      is_active: dailyUpdateResult.isActive,
+      is_pinned: dailyUpdateResult.isPinned,
+      is_hidden: dailyUpdateResult.isHidden || false,
       targetAudience: dailyUpdateResult.targetAudience,
       createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
-      createdAt: dailyUpdateResult.createdAt.toISOString(),
-      updatedAt: dailyUpdateResult.updatedAt.toISOString()
+      created_at: dailyUpdateResult.createdAt.toISOString(),
+      updated_at: dailyUpdateResult.updatedAt.toISOString()
     };
 
     console.log('✅ Daily update updated:', id);
@@ -158,6 +171,18 @@ export async function DELETE(
     requireAdmin(user);
 
     const { id } = await params;
+    
+    // Check if ID is valid
+    if (!id || id === 'undefined') {
+      console.error('❌ Invalid daily update ID:', id);
+      return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
+    }
+    
+    // Check if ID is valid
+    if (!id || id === 'undefined') {
+      console.error('❌ Invalid daily update ID:', id);
+      return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
+    }
 
     // Delete the daily update
     const deleted = await db.deleteDailyUpdate(id);

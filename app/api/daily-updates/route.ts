@@ -21,20 +21,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       updates: updates.map(update => ({
-        _id: update._id?.toString(),
+        id: update._id?.toString(),
         title: update.title,
         content: update.content,
         type: update.type,
         priority: update.priority,
-        durationType: update.durationType,
-        durationValue: update.durationValue,
+        duration_type: update.durationType,
+        duration_value: update.durationValue,
         expiresAt: update.expiresAt?.toISOString(),
-        isActive: update.isActive,
-        isPinned: update.isPinned,
-        isHidden: update.isHidden || false,
+        is_active: update.isActive,
+        is_pinned: update.isPinned,
+        is_hidden: update.isHidden || false,
         targetAudience: update.targetAudience,
-        createdAt: update.createdAt.toISOString(),
-        updatedAt: update.updatedAt.toISOString()
+        created_at: update.createdAt.toISOString(),
+        updated_at: update.updatedAt.toISOString()
       })),
       count: updates.length
     });

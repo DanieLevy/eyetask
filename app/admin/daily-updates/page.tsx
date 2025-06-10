@@ -9,7 +9,8 @@ import {
   Trash2, 
   Pin, 
   PinOff,
-  ArrowRight
+  ArrowRight,
+  Settings
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { toast } from 'sonner';
@@ -34,9 +35,13 @@ export default function DailyUpdatesPage() {
   
   const [updates, setUpdates] = useState<DailyUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fallbackMessage, setFallbackMessage] = useState('לא נמצאו עדכונים להצגה');
+  const [isEditingFallback, setIsEditingFallback] = useState(false);
+  const [isSavingFallback, setIsSavingFallback] = useState(false);
 
   useEffect(() => {
     fetchUpdates();
+    fetchFallbackMessage();
   }, []);
 
   const fetchUpdates = async () => {
@@ -51,6 +56,43 @@ export default function DailyUpdatesPage() {
       console.error('Error fetching updates:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFallbackMessage = async () => {
+    try {
+      const response = await fetch('/api/settings/main-page-carousel-fallback-message');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.value) {
+          setFallbackMessage(result.value);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching fallback message:', error);
+    }
+  };
+
+  const handleSaveFallbackMessage = async () => {
+    try {
+      setIsSavingFallback(true);
+      const response = await fetch('/api/settings/main-page-carousel-fallback-message', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: fallbackMessage })
+      });
+      
+      if (response.ok) {
+        setIsEditingFallback(false);
+        toast.success('הודעת ברירת מחדל נשמרה בהצלחה');
+      } else {
+        toast.error('שגיאה בשמירת הודעת ברירת מחדל');
+      }
+    } catch (error) {
+      console.error('Error saving fallback message:', error);
+      toast.error('שגיאה בשמירת הודעת ברירת מחדל');
+    } finally {
+      setIsSavingFallback(false);
     }
   };
 
@@ -78,7 +120,7 @@ export default function DailyUpdatesPage() {
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_pinned: !currentPinned })
+        body: JSON.stringify({ isPinned: !currentPinned })
       });
       
       if (response.ok) {
@@ -179,6 +221,56 @@ export default function DailyUpdatesPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Fallback Message Settings */}
+          <div className="bg-card rounded-lg border border-border mb-8">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <h3 className={`text-sm font-medium ${hebrewHeading.fontClass}`}>הודעת ברירת מחדל</h3>
+              </div>
+              {!isEditingFallback ? (
+                <button
+                  onClick={() => setIsEditingFallback(true)}
+                  className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md"
+                >
+                  ערוך
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveFallbackMessage}
+                    disabled={isSavingFallback}
+                    className="text-xs px-2 py-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
+                  >
+                    {isSavingFallback ? 'שומר...' : 'שמור'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditingFallback(false)}
+                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md"
+                  >
+                    בטל
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="p-4">
+              <p className="text-sm text-muted-foreground mb-2">הודעה שתוצג כאשר אין עדכונים זמינים</p>
+              {isEditingFallback ? (
+                <textarea
+                  value={fallbackMessage}
+                  onChange={(e) => setFallbackMessage(e.target.value)}
+                  className="w-full border border-input rounded-md p-2 h-24"
+                  placeholder="הזן הודעת ברירת מחדל"
+                  dir="rtl"
+                />
+              ) : (
+                <div className="bg-muted/30 p-3 rounded-md border border-border">
+                  <p className="text-sm" dir="rtl">{fallbackMessage}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
           {updates.length === 0 ? (
             <div className="text-center py-12">
               <Megaphone className="h-16 w-16 text-muted-foreground mx-auto mb-4" />

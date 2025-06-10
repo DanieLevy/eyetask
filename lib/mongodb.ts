@@ -117,6 +117,9 @@ export { ObjectId };
 // Helper function to convert string ID to ObjectId
 export function toObjectId(id: string): ObjectId {
   try {
+    if (!id || id === 'undefined') {
+      throw new Error(`Invalid ObjectId format: ${id}`);
+    }
     return new ObjectId(id);
   } catch (error) {
     throw new Error(`Invalid ObjectId format: ${id}`);

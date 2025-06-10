@@ -6,13 +6,24 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
       },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/appspecific/com.chrome.devtools.json',
+        destination: '/api/devtools-response',
+      },
+    ];
   },
 };
 
