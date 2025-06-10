@@ -7,14 +7,16 @@ import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { useRouter } from 'next/navigation';
 
 interface DailyUpdate {
-  _id?: string;  // Backend might use _id
-  id?: string;   // Or id in some responses
+  _id?: string;  // Backend might use _id (MongoDB style)
+  id?: string;   // Or id in some responses (REST API style)
   title: string;
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
   priority: number;
-  isPinned: boolean;
-  isActive: boolean;
+  isPinned?: boolean; // camelCase
+  is_pinned?: boolean; // snake_case
+  isActive?: boolean; // camelCase
+  is_active?: boolean; // snake_case
   is_hidden?: boolean; // API might use snake_case
   isHidden?: boolean;  // Or camelCase
   expiresAt: string | null;
@@ -32,12 +34,29 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const [isPaused, setIsPaused] = useState(false);
   const [fallbackMessage, setFallbackMessage] = useState('לא נמצאו עדכונים להצגה');
   const [error, setError] = useState<string | null>(null);
+  const [hiddenUpdateIds, setHiddenUpdateIds] = useState<string[]>([]);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
   const { status } = useOfflineStatus();
   const { isOnline } = status;
   const router = useRouter();
+
+  // Load hidden update IDs from localStorage
+  useEffect(() => {
+    const loadHiddenUpdates = () => {
+      try {
+        const storedIds = localStorage.getItem('eyetask_hidden_updates');
+        if (storedIds) {
+          setHiddenUpdateIds(JSON.parse(storedIds));
+        }
+      } catch (err) {
+        console.error('Error loading hidden updates from localStorage:', err);
+      }
+    };
+    
+    loadHiddenUpdates();
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -58,7 +77,14 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       const updatesData = await updatesResponse.json();
       
       if (updatesData?.success) {
-        setUpdates(updatesData.updates || []);
+        // Filter out locally hidden updates
+        const allUpdates = updatesData.updates || [];
+        const filteredUpdates = allUpdates.filter(update => {
+          const updateId = update._id || update.id;
+          return updateId && !hiddenUpdateIds.includes(updateId);
+        });
+        
+        setUpdates(filteredUpdates);
       }
 
       try {
@@ -84,7 +110,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [hiddenUpdateIds]);
 
   useEffect(() => {
     fetchData();
@@ -128,14 +154,15 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         return;
       }
       
-      const response = await fetch(`/api/daily-updates/${updateId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isHidden: true })
-      });
+      // Store the hidden update ID in localStorage
+      const newHiddenIds = [...hiddenUpdateIds, updateId];
+      setHiddenUpdateIds(newHiddenIds);
       
-      if (!response.ok) {
-        throw new Error('Failed to hide update');
+      // Save to localStorage
+      try {
+        localStorage.setItem('eyetask_hidden_updates', JSON.stringify(newHiddenIds));
+      } catch (err) {
+        console.error('Error saving hidden updates to localStorage:', err);
       }
       
       // Remove from current updates and adjust index
@@ -440,7 +467,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
                       `}>
                         {currentUpdate.title}
                       </h3>
-                      {currentUpdate.isPinned && (
+                      {(currentUpdate.isPinned || currentUpdate.is_pinned) && (
                         <Pin className="h-3 w-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                       )}
                     </div>
