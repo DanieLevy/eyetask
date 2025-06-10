@@ -240,6 +240,17 @@ export class DatabaseService {
     }
   }
 
+  async getTaskByDatacoNumber(datacoNumber: string): Promise<Task | null> {
+    try {
+      const { tasks } = await this.getCollections();
+      const result = await tasks.findOne({ datacoNumber });
+      return result;
+    } catch (error) {
+      handleMongoError(error, 'getTaskByDatacoNumber');
+      return null;
+    }
+  }
+
   async createTask(task: Omit<Task, '_id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       const { tasks } = await this.getCollections();
@@ -300,6 +311,17 @@ export class DatabaseService {
       return result;
     } catch (error) {
       handleMongoError(error, 'getSubtasksByTask');
+      return [];
+    }
+  }
+
+  async getSubtasksByDatacoNumber(datacoNumber: string): Promise<Subtask[]> {
+    try {
+      const { subtasks } = await this.getCollections();
+      const result = await subtasks.find({ datacoNumber }).toArray();
+      return result;
+    } catch (error) {
+      handleMongoError(error, 'getSubtasksByDatacoNumber');
       return [];
     }
   }

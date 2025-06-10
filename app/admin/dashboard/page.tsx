@@ -42,7 +42,8 @@ import {
   FolderOpen,
   MessageCircle,
   Menu,
-  X
+  X,
+  Upload
 } from 'lucide-react';
 import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
 import { toast } from 'sonner';
@@ -453,6 +454,24 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-xs text-green-700 truncate">
                     הוסף משימה לפרויקט
+                  </p>
+                </div>
+              </div>
+            </Link>
+            
+            {/* Bulk Import */}
+            <Link href="/admin/tasks/bulk-import" 
+              className="group p-4 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200 active:scale-95">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
+                  <Upload className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-amber-900 text-sm">
+                    ייבוא המוני
+                  </h3>
+                  <p className="text-xs text-amber-700 truncate">
+                    ייבא תת-משימות מ-JIRA
                   </p>
                 </div>
               </div>
