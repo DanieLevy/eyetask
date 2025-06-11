@@ -179,15 +179,6 @@ function HomePageCore() {
           </div>
         )}
 
-        {/* Stale data indicator */}
-        {isStale && projects.length > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg p-3 text-blue-800 dark:text-blue-200">
-            <p className="text-sm">
-              🔄 מעדכן נתונים ברקע...
-            </p>
-          </div>
-        )}
-
         {/* Daily Updates Section */}
         <DailyUpdatesCarousel className="mb-8" />
 
