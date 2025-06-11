@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Download, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Download } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useImageZoom } from '@/hooks/useImageZoom';
 
@@ -77,10 +77,18 @@ export default function ImprovedImageViewer({
           onClose();
           break;
         case 'ArrowLeft':
-          isRTL ? navigateNext() : navigatePrev();
+          if (isRTL) {
+            navigateNext();
+          } else {
+            navigatePrev();
+          }
           break;
         case 'ArrowRight':
-          isRTL ? navigatePrev() : navigateNext();
+          if (isRTL) {
+            navigatePrev();
+          } else {
+            navigateNext();
+          }
           break;
         case '+':
           handleZoomIn();
@@ -96,7 +104,7 @@ export default function ImprovedImageViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeIndex, images.length, onClose, isRTL, handleZoomIn, handleZoomOut, handleReset]);
+  }, [isOpen, activeIndex, images.length, onClose, isRTL, handleZoomIn, handleZoomOut, handleReset, navigateNext, navigatePrev]);
 
   // Auto-hide controls after inactivity
   useEffect(() => {
@@ -136,18 +144,6 @@ export default function ImprovedImageViewer({
   };
 
   // Navigation
-  const navigatePrev = useCallback(() => {
-    if (activeIndex > 0) {
-      navigateToImage(activeIndex - 1);
-    }
-  }, [activeIndex]);
-
-  const navigateNext = useCallback(() => {
-    if (activeIndex < images.length - 1) {
-      navigateToImage(activeIndex + 1);
-    }
-  }, [activeIndex, images.length]);
-
   const navigateToImage = useCallback((index: number) => {
     if (index < 0 || index >= images.length) return;
     
@@ -157,6 +153,18 @@ export default function ImprovedImageViewer({
       swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
     }
   }, [images.length, isRTL, handleReset]);
+
+  const navigatePrev = useCallback(() => {
+    if (activeIndex > 0) {
+      navigateToImage(activeIndex - 1);
+    }
+  }, [activeIndex, navigateToImage]);
+
+  const navigateNext = useCallback(() => {
+    if (activeIndex < images.length - 1) {
+      navigateToImage(activeIndex + 1);
+    }
+  }, [activeIndex, images.length, navigateToImage]);
 
   // Improved touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -387,7 +395,11 @@ export default function ImprovedImageViewer({
             className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 hover:bg-black/70 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '')}`}
             onClick={(e) => { 
               e.stopPropagation(); // Prevent closing when clicking nav buttons
-              isRTL ? navigateNext() : navigatePrev();
+              if (isRTL) {
+                navigateNext();
+              } else {
+                navigatePrev();
+              }
             }}
             disabled={isRTL ? activeIndex === images.length - 1 : activeIndex === 0}
             aria-label={isRTL ? "Next image" : "Previous image"}
@@ -401,7 +413,11 @@ export default function ImprovedImageViewer({
             className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 hover:bg-black/70 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '')}`}
             onClick={(e) => { 
               e.stopPropagation(); // Prevent closing when clicking nav buttons
-              isRTL ? navigatePrev() : navigateNext();
+              if (isRTL) {
+                navigatePrev();
+              } else {
+                navigateNext();
+              }
             }}
             disabled={isRTL ? activeIndex === 0 : activeIndex === images.length - 1}
             aria-label={isRTL ? "Previous image" : "Next image"}

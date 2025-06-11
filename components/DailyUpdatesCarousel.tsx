@@ -322,10 +322,10 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
               hideUpdate(updateId);
             }
           }}
-          className="absolute top-1 left-1 z-10 flex items-center justify-center"
+          className="absolute top-1 left-1 z-10 flex items-center justify-center bg-transparent p-1 rounded-full"
           title="הסתר עדכון זה"
         >
-          <X className="h-3 w-3 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200" />
+          <X className="h-3 w-3 text-black dark:text-white hover:opacity-80" />
         </button>
 
         {/* Content */}
