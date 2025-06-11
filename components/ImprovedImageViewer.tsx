@@ -331,15 +331,6 @@ export default function ImprovedImageViewer({
         background: 'linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 100%)'
       }}
     >
-      {/* Explicit close button at bottom left */}
-      <button 
-        className="absolute bottom-4 left-4 z-50 p-3 bg-black/70 hover:bg-black/90 text-white rounded-full transition-all duration-300 flex items-center gap-2"
-        onClick={onClose}
-        aria-label="Close viewer"
-      >
-        <X className="w-5 h-5" />
-        <span className="text-sm font-medium">Close</span>
-      </button>
 
       {/* Zoom controls */}
       <div 
