@@ -22,7 +22,8 @@ import {
   Download,
   Filter,
   Search,
-  ChevronRight
+  ChevronRight,
+  Info
 } from 'lucide-react';
 
 // Temporary inline hooks to bypass import issue
@@ -216,6 +217,26 @@ export default function AnalyticsPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">טוען נתוני אנליטיקה...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className={`text-xl font-bold mb-2 ${hebrewHeading.fontClass}`}>שגיאה בטעינת הנתונים</h2>
+          <p className="text-muted-foreground mb-6">לא הצלחנו להביא את נתוני האנליטיקה. ייתכן שיש בעיה בשרת.</p>
+          <button
+            onClick={() => fetchAnalyticsData()}
+            className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            disabled={refreshing}
+          >
+            <RefreshCw className={`ml-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>נסה שוב</span>
+          </button>
         </div>
       </div>
     );
@@ -438,8 +459,8 @@ export default function AnalyticsPage() {
               <div className="bg-card rounded-lg border border-border overflow-hidden">
                 <div className="p-6">
                   <div className="space-y-4">
-                    {analyticsData.tasksByProject.map((project, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                    {analyticsData.tasksByProject?.slice(0, 5).map((project) => (
+                      <div key={project.projectName} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-semibold text-foreground">{project.projectName}</h4>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
@@ -473,10 +494,10 @@ export default function AnalyticsPage() {
               <div className="bg-card rounded-lg border border-border overflow-hidden">
                 <div className="p-6">
                   <div className="space-y-3">
-                    {analyticsData.mostViewedTasks.slice(0, 10).map((task, index) => (
+                    {analyticsData.mostViewedTasks?.slice(0, 5).map((task) => (
                       <div key={task.taskId} className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-lg transition-colors">
                         <div className="flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                          {index + 1}
+                          {task.views}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-medium text-foreground">{task.taskTitle}</h4>
@@ -484,7 +505,6 @@ export default function AnalyticsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Eye className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold">{task.views}</span>
                         </div>
                       </div>
                     ))}
@@ -527,93 +547,55 @@ export default function AnalyticsPage() {
             </section>
 
             {/* Last Actions - Real Activity Log */}
-            {analyticsData.lastActions && analyticsData.lastActions.length > 0 && (
+            {analyticsData.lastActions && analyticsData.lastActions.length > 0 ? (
               <section>
                 <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
                   פעולות אחרונות (רישום פעילות)
                 </h2>
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                   <div className="p-6">
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {analyticsData.lastActions.map((action, index) => {
+                    <div className="space-y-4">
+                      {analyticsData.lastActions.slice(0, 10).map((action) => {
                         const getSeverityIcon = (severity: string) => {
                           switch (severity) {
-                            case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
-                            case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-                            case 'error': return <AlertTriangle className="h-4 w-4 text-red-500" />;
-                            default: return <Activity className="h-4 w-4 text-blue-500" />;
+                            case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
+                            case 'warning': return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+                            case 'error': return <AlertTriangle className="h-5 w-5 text-red-500" />;
+                            default: return <Info className="h-5 w-5 text-blue-500" />;
                           }
                         };
 
                         const getCategoryIcon = (category: string) => {
                           switch (category) {
-                            case 'task': return <Target className="h-4 w-4 text-blue-500" />;
-                            case 'subtask': return <CheckCircle className="h-4 w-4 text-purple-500" />;
-                            case 'project': return <BarChart3 className="h-4 w-4 text-green-500" />;
-                            case 'auth': return <Users className="h-4 w-4 text-indigo-500" />;
-                            case 'system': return <Zap className="h-4 w-4 text-orange-500" />;
-                            case 'daily_update': return <MessageSquare className="h-4 w-4 text-cyan-500" />;
-                            default: return <Activity className="h-4 w-4 text-gray-500" />;
+                            case 'task': return <Target className="h-4 w-4 text-muted-foreground" />;
+                            case 'project': return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
+                            case 'user': return <Users className="h-4 w-4 text-muted-foreground" />;
+                            case 'system': return <Zap className="h-4 w-4 text-muted-foreground" />;
+                            default: return <Activity className="h-4 w-4 text-muted-foreground" />;
                           }
                         };
 
                         const formatDateTime = (timestamp: Date) => {
                           const date = new Date(timestamp);
-                          const now = new Date();
-                          const diffMs = now.getTime() - date.getTime();
-                          const diffMins = Math.floor(diffMs / (1000 * 60));
-                          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-                          if (diffMins < 1) return 'עכשיו';
-                          if (diffMins < 60) return `לפני ${diffMins} דקות`;
-                          if (diffHours < 24) return `לפני ${diffHours} שעות`;
-                          if (diffDays < 7) return `לפני ${diffDays} ימים`;
-                          
-                          return date.toLocaleDateString('he-IL', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          });
+                          return `${date.toLocaleDateString('he-IL')} ${date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
                         };
 
                         return (
-                          <div key={action.id} className="flex items-start gap-3 p-3 hover:bg-muted/50 rounded-lg transition-colors">
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                          <div key={action.id} className="flex items-start gap-3 p-3 rounded-lg bg-background hover:bg-accent transition-colors">
+                            <div className="flex-shrink-0 mt-1">
                               {getSeverityIcon(action.severity)}
-                              {getCategoryIcon(action.category)}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <p className="font-medium text-foreground leading-5">
-                                    {action.action}
-                                  </p>
-                                  {action.target && (
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                      {action.target.title}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {formatDateTime(action.timestamp)}
-                                    </span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                      action.userType === 'admin' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
-                                      action.userType === 'system' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
-                                      'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                    }`}>
-                                      {action.userType === 'admin' ? 'מנהל' : action.userType === 'system' ? 'מערכת' : 'משתמש'}
-                                    </span>
-                                    {action.metadata?.device && (
-                                      <span className="text-xs opacity-75">
-                                        {action.metadata.device}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                            <div className="flex-grow">
+                              <p className="text-sm text-foreground">{action.action}</p>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                <span className="flex items-center gap-1">
+                                  {getCategoryIcon(action.category)}
+                                  {action.category}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  {formatDateTime(action.timestamp)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -652,7 +634,7 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
               </section>
-            )}
+            ) : null}
 
             {/* Activity Stats Summary */}
             {analyticsData.activityStats && (
@@ -665,7 +647,7 @@ export default function AnalyticsPage() {
                   <div className="bg-card rounded-lg border border-border p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-4">פעולות לפי קטגוריה</h3>
                     <div className="space-y-3">
-                      {Object.entries(analyticsData.activityStats.actionsByCategory).map(([category, count]) => {
+                      {Object.entries(analyticsData.activityStats.actionsByCategory || {}).map(([category, count]) => {
                         const categoryNames: Record<string, string> = {
                           task: 'משימות',
                           subtask: 'תת-משימות', 
@@ -691,15 +673,14 @@ export default function AnalyticsPage() {
                   <div className="bg-card rounded-lg border border-border p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-4">משתמשים פעילים</h3>
                     <div className="space-y-3">
-                      {analyticsData.activityStats.topUsers.slice(0, 5).map((user, index) => (
+                      {analyticsData.activityStats.topUsers.slice(0, 5).map((user) => (
                         <div key={user.userId} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
-                              {index + 1}
+                              {user.actionCount}
                             </div>
                             <span>{user.username || `משתמש ${user.userId.slice(-6)}`}</span>
                           </div>
-                          <span className="font-semibold">{user.actionCount} פעולות</span>
                         </div>
                       ))}
                     </div>
