@@ -263,7 +263,8 @@
   
   /* Ensure theme colors are properly applied on iOS */
   .dark,
-  html[data-theme="dark"] {
+  html[data-theme="dark"],
+  .ios-dark-mode {
     /* Force iOS to recognize dark theme */
     color-scheme: dark !important;
     background-color: hsl(var(--background)) !important;
@@ -271,7 +272,7 @@
   }
   
   .light,
-  html[data-theme="light"] {
+  html[data-theme="light"]:not(.ios-dark-mode) {
     /* Force iOS to recognize light theme */
     color-scheme: light !important;
     background-color: hsl(var(--background)) !important;

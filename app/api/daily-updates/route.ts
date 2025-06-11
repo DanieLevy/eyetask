@@ -3,6 +3,10 @@ import { db } from '@/lib/database';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { toObjectId } from '@/lib/mongodb';
+import { cache } from '@/lib/cache';
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for daily updates
+const CACHE_NAMESPACE = 'daily_updates';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,8 +14,59 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const includeHidden = url.searchParams.get('includeHidden') === 'true';
     
+    // Generate cache key based on whether hidden items are included
+    const cacheKey = `daily_updates_${includeHidden ? 'admin' : 'public'}`;
+    
+    // Try to get from cache first
+    const cachedUpdates = cache.get<{ updates: any[], count: number }>(cacheKey, {
+      namespace: CACHE_NAMESPACE,
+      ttl: CACHE_TTL
+    });
+    
+    if (cachedUpdates) {
+      logger.debug('Daily updates served from cache', 'DAILY_UPDATES_API', { 
+        count: cachedUpdates.count, 
+        includeHidden,
+        cached: true
+      });
+      
+      return NextResponse.json({ 
+        success: true, 
+        updates: cachedUpdates.updates,
+        count: cachedUpdates.count,
+        cached: true
+      });
+    }
+    
     // Fetch active daily updates from MongoDB
     const updates = await db.getActiveDailyUpdates(includeHidden);
+    
+    // Transform updates for API response
+    const transformedUpdates = updates.map(update => ({
+      id: update._id?.toString(),
+      title: update.title,
+      content: update.content,
+      type: update.type,
+      priority: update.priority,
+      duration_type: update.durationType,
+      duration_value: update.durationValue,
+      expiresAt: update.expiresAt?.toISOString(),
+      is_active: update.isActive,
+      is_pinned: update.isPinned,
+      is_hidden: update.isHidden || false,
+      targetAudience: update.targetAudience,
+      created_at: update.createdAt.toISOString(),
+      updated_at: update.updatedAt.toISOString()
+    }));
+    
+    // Cache the result
+    cache.set(cacheKey, { 
+      updates: transformedUpdates, 
+      count: updates.length 
+    }, {
+      namespace: CACHE_NAMESPACE,
+      ttl: CACHE_TTL
+    });
 
     logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { 
       count: updates.length, 
@@ -20,22 +75,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      updates: updates.map(update => ({
-        id: update._id?.toString(),
-        title: update.title,
-        content: update.content,
-        type: update.type,
-        priority: update.priority,
-        duration_type: update.durationType,
-        duration_value: update.durationValue,
-        expiresAt: update.expiresAt?.toISOString(),
-        is_active: update.isActive,
-        is_pinned: update.isPinned,
-        is_hidden: update.isHidden || false,
-        targetAudience: update.targetAudience,
-        created_at: update.createdAt.toISOString(),
-        updated_at: update.updatedAt.toISOString()
-      })),
+      updates: transformedUpdates,
       count: updates.length
     });
   } catch (error) {
@@ -57,21 +97,27 @@ export async function POST(request: NextRequest) {
       content, 
       type = 'info',
       priority = 5,
-      durationType = 'hours',
-      durationValue = 24,
+      durationType = 'days',
+      durationValue = 7,
       isPinned = false,
-      targetAudience = [],
-      isHidden = false
+      isHidden = false,
+      targetAudience = ['all']
     } = body;
 
     // Validate required fields
-    if (!title || !content) {
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return NextResponse.json({ 
-        error: 'Title and content are required' 
+        error: 'Title is required' 
       }, { status: 400 });
     }
 
-    // Validate types
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return NextResponse.json({ 
+        error: 'Content is required' 
+      }, { status: 400 });
+    }
+
+    // Validate type
     const validTypes = ['info', 'warning', 'success', 'error', 'announcement'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ 
@@ -79,6 +125,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate priority
+    if (priority < 1 || priority > 10) {
+      return NextResponse.json({ 
+        error: 'Priority must be between 1 and 10' 
+      }, { status: 400 });
+    }
+
+    // Validate duration type
     const validDurationTypes = ['hours', 'days', 'permanent'];
     if (!validDurationTypes.includes(durationType)) {
       return NextResponse.json({ 
@@ -86,18 +140,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (priority < 1 || priority > 10) {
-      return NextResponse.json({ 
-        error: 'Priority must be between 1 and 10' 
-      }, { status: 400 });
-    }
-
-    // Calculate expiration date
-    let expiresAt: Date | undefined;
-    if (durationType !== 'permanent') {
-      const now = new Date();
-      const duration = durationType === 'hours' ? durationValue * 60 * 60 * 1000 : durationValue * 24 * 60 * 60 * 1000;
-      expiresAt = new Date(now.getTime() + duration);
+    // Calculate expiresAt date
+    let expiresAt = null;
+    if (durationType !== 'permanent' && durationValue) {
+      expiresAt = new Date();
+      if (durationType === 'hours') {
+        expiresAt.setHours(expiresAt.getHours() + durationValue);
+      } else if (durationType === 'days') {
+        expiresAt.setDate(expiresAt.getDate() + durationValue);
+      }
     }
 
     // Create new daily update in MongoDB
@@ -115,6 +166,10 @@ export async function POST(request: NextRequest) {
       isHidden,
       createdBy: user ? toObjectId(user.id) : undefined
     });
+
+    // Invalidate both caches (admin and public)
+    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
+    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
 
     logger.info('Daily update created successfully', 'DAILY_UPDATES_API', { 
       updateId, 

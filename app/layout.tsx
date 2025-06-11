@@ -47,6 +47,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({
@@ -70,10 +71,7 @@ export default function RootLayout({
         <meta name="supported-color-schemes" content="light dark" />
         <meta name="color-scheme" content="light dark" />
         
-        {/* Theme color meta tag removed to avoid console warnings */}
-        
-        {/* Prevent iOS zoom on input focus */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        {/* Removed viewport meta tag to use Next.js viewport config */}
         
         {/* Theme initialization script to prevent FOUC */}
         <script
@@ -190,24 +188,22 @@ export default function RootLayout({
                         });
                       }
                       
-                      // Phase 5: Skip meta theme-color to avoid console warnings
+                      // Phase 5: Skip meta theme-color and viewport manipulation to avoid console warnings
                       
-                      // iOS-specific: Force viewport update with error handling
+                      // iOS-specific: Other iOS-specific optimizations
                       if (isIOS) {
                         try {
-                          var viewport = document.querySelector('meta[name="viewport"]');
-                          if (viewport) {
-                            var content = viewport.getAttribute('content');
-                            if (content) {
-                              var tempContent = content + ', theme-color=' + (resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
-                              viewport.setAttribute('content', tempContent);
-                              setTimeout(function() {
-                                viewport.setAttribute('content', content);
-                              }, 100);
-                            }
+                          // Apply iOS-specific styles directly to root
+                          root.style.setProperty('--ios-theme-timestamp', Date.now().toString());
+                          
+                          // Force iOS to recognize color scheme
+                          if (resolvedTheme === 'dark') {
+                            document.body.classList.add('ios-dark-mode');
+                          } else {
+                            document.body.classList.remove('ios-dark-mode');
                           }
-                        } catch (viewportError) {
-                          console.warn('iOS viewport update error:', viewportError);
+                        } catch (iosError) {
+                          console.warn('iOS optimization error:', iosError);
                         }
                       }
                     } catch (applyError) {

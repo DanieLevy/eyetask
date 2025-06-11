@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { fromObjectId } from '@/lib/mongodb';
 import { auth, requireAdmin } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { cache } from '@/lib/cache';
+
+const CACHE_NAMESPACE = 'daily_updates';
 
 export async function GET(
   request: NextRequest,
@@ -12,7 +16,7 @@ export async function GET(
     
     // Check if ID is valid
     if (!id || id === 'undefined') {
-      console.error('❌ Invalid daily update ID:', id);
+      logger.error('Invalid daily update ID', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
     }
 
@@ -20,6 +24,7 @@ export async function GET(
     const dailyUpdateResult = await db.getDailyUpdateById(id);
 
     if (!dailyUpdateResult) {
+      logger.warn('Daily update not found', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Daily update not found' }, { status: 404 });
     }
 
@@ -41,12 +46,13 @@ export async function GET(
       updated_at: dailyUpdateResult.updatedAt.toISOString()
     };
 
+    logger.info('Daily update fetched', 'DAILY_UPDATES_API', { id });
     return NextResponse.json({ 
       success: true, 
       update 
     });
   } catch (error) {
-    console.error('❌ Unexpected error in daily update GET:', error);
+    logger.error('Unexpected error in daily update GET', 'DAILY_UPDATES_API', undefined, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -60,7 +66,7 @@ export async function PUT(
     
     // Check if ID is valid
     if (!id || id === 'undefined') {
-      console.error('❌ Invalid daily update ID:', id);
+      logger.error('Invalid daily update ID', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
     }
     
@@ -122,12 +128,18 @@ export async function PUT(
     const updated = await db.updateDailyUpdate(id, updateData);
 
     if (!updated) {
+      logger.error('Failed to update daily update', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Failed to update daily update' }, { status: 500 });
     }
+
+    // Invalidate caches to ensure consistency
+    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
+    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
 
     // Get the updated daily update
     const dailyUpdateResult = await db.getDailyUpdateById(id);
     if (!dailyUpdateResult) {
+      logger.error('Daily update not found after update', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Daily update not found after update' }, { status: 404 });
     }
 
@@ -150,13 +162,13 @@ export async function PUT(
       updated_at: dailyUpdateResult.updatedAt.toISOString()
     };
 
-    console.log('✅ Daily update updated:', id);
+    logger.info('Daily update updated', 'DAILY_UPDATES_API', { id });
     return NextResponse.json({ 
       success: true, 
       update
     });
   } catch (error) {
-    console.error('❌ Unexpected error in daily update PUT:', error);
+    logger.error('Unexpected error in daily update PUT', 'DAILY_UPDATES_API', undefined, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -174,13 +186,7 @@ export async function DELETE(
     
     // Check if ID is valid
     if (!id || id === 'undefined') {
-      console.error('❌ Invalid daily update ID:', id);
-      return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
-    }
-    
-    // Check if ID is valid
-    if (!id || id === 'undefined') {
-      console.error('❌ Invalid daily update ID:', id);
+      logger.error('Invalid daily update ID', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
     }
 
@@ -188,10 +194,15 @@ export async function DELETE(
     const deleted = await db.deleteDailyUpdate(id);
 
     if (!deleted) {
+      logger.warn('Daily update not found or failed to delete', 'DAILY_UPDATES_API', { id });
       return NextResponse.json({ error: 'Daily update not found or failed to delete' }, { status: 404 });
     }
 
-    console.log('✅ Daily update deleted:', id);
+    // Invalidate caches to ensure consistency
+    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
+    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
+
+    logger.info('Daily update deleted', 'DAILY_UPDATES_API', { id, userId: user?.id });
     return NextResponse.json({ 
       success: true, 
       message: 'Daily update deleted successfully'
@@ -204,7 +215,7 @@ export async function DELETE(
       }, { status: 401 });
     }
 
-    console.error('❌ Unexpected error in daily update DELETE:', error);
+    logger.error('Unexpected error in daily update DELETE', 'DAILY_UPDATES_API', undefined, error as Error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

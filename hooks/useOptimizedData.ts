@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { cachedFetch, cacheManager } from '@/lib/cache';
+import { fetchWithCache, cache, invalidateCache } from '@/lib/cache';
 import { logger } from '@/lib/logger';
 
 interface UseOptimizedDataOptions {
@@ -78,11 +78,9 @@ export function useOptimizedData<T>(
       const timestamp = Date.now();
       const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
       
-      const result = await cachedFetch<T>(fetchUrl, {
+      const result = await fetchWithCache<T>(fetchUrl, {
         ttl: cacheTime,
-        version: '1',
-        background: backgroundRefetch,
-        staleWhileRevalidate: true,
+        namespace: 'client_cache',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache'
@@ -118,9 +116,9 @@ export function useOptimizedData<T>(
 
   const refetch = useCallback(async () => {
     // Invalidate cache and refetch
-    cacheManager.invalidate(url);
+    invalidateCache(url, { namespace: 'client_cache' });
     await fetchData(true);
-  }, [url]); // Remove fetchData dependency to prevent infinite loop
+  }, [url, fetchData]);
 
   // Initial fetch on mount
   useEffect(() => {
@@ -151,11 +149,9 @@ export function useOptimizedData<T>(
             const timestamp = Date.now();
             const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
             
-            const result = await cachedFetch<T>(fetchUrl, {
+            const result = await fetchWithCache<T>(fetchUrl, {
               ttl: cacheTime,
-              version: '1',
-              background: backgroundRefetch,
-              staleWhileRevalidate: true,
+              namespace: 'client_cache',
               headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache'
@@ -205,11 +201,9 @@ export function useOptimizedData<T>(
             const timestamp = Date.now();
             const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${timestamp}`;
             
-            const result = await cachedFetch<T>(fetchUrl, {
+            const result = await fetchWithCache<T>(fetchUrl, {
               ttl: cacheTime,
-              version: '1',
-              background: backgroundRefetch,
-              staleWhileRevalidate: true,
+              namespace: 'client_cache',
               headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache'
@@ -369,9 +363,9 @@ export function useProjectData(projectName: string, enabled = true) {
 export function useDataPreloader() {
   const preloadHomepage = useCallback(async () => {
     try {
-      await cachedFetch('/api/homepage-data', {
+      await fetchWithCache('/api/homepage-data', {
         ttl: 3 * 60 * 1000,
-        version: '1',
+        namespace: 'client_cache',
         background: true
       });
       logger.info('Homepage data preloaded', 'DATA_PRELOADER');
@@ -382,9 +376,9 @@ export function useDataPreloader() {
 
   const preloadProject = useCallback(async (projectName: string) => {
     try {
-      await cachedFetch(`/api/project-data/${encodeURIComponent(projectName)}`, {
+      await fetchWithCache(`/api/project-data/${encodeURIComponent(projectName)}`, {
         ttl: 5 * 60 * 1000,
-        version: '1',
+        namespace: 'client_cache',
         background: true
       });
       logger.info('Project data preloaded', 'DATA_PRELOADER', { projectName });

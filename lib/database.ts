@@ -2,6 +2,8 @@ import { connectToDatabase } from './mongodb';
 import { toObjectId, fromObjectId, handleMongoError } from './mongodb';
 import { logger } from './logger';
 import { ObjectId } from 'mongodb';
+import { PerformanceTracker } from './enhanced-logging';
+import { cache } from './cache';
 
 // Types for our collections
 export interface Project {
@@ -221,10 +223,35 @@ export class DatabaseService {
   async getTaskById(id: string): Promise<Task | null> {
     try {
       const { tasks } = await this.getCollections();
-      const result = await tasks.findOne({ _id: toObjectId(id) });
-      return result;
+      const objectId = toObjectId(id);
+      
+      // Use caching for task data
+      const cacheKey = `task_${id}_v1`;
+      const cachedTask = cache.get<Task>(cacheKey, { 
+        namespace: 'task_data',
+        ttl: 5 * 60 * 1000 // 5 minutes cache for task data
+      });
+      
+      if (cachedTask) {
+        return cachedTask;
+      }
+      
+      const task = await tasks.findOne({ _id: objectId });
+      
+      if (task) {
+        // Cache the task data
+        cache.set(cacheKey, task, { 
+          namespace: 'task_data',
+          ttl: 5 * 60 * 1000 
+        });
+      }
+      
+      return task as Task | null;
     } catch (error) {
-      handleMongoError(error, 'getTaskById');
+      logger.error(`Failed to get task: ${id}`, 'DB_TASK', {
+        error: (error as Error).message,
+        taskId: id
+      });
       return null;
     }
   }
@@ -475,6 +502,92 @@ export class DatabaseService {
     }
   }
 
+  // Log a visit to the site and track daily statistics
+  async logVisit(dateStr: string): Promise<{ isUniqueVisitor: boolean; totalVisits: number }> {
+    try {
+      const { analytics } = await this.getCollections();
+      
+      // First, increment total visits
+      const updateResult = await analytics.updateOne(
+        {},
+        { 
+          $inc: {
+            totalVisits: 1,
+            [`dailyStats.${dateStr}`]: 1 // Store just the count as a number, not an object
+          },
+          $set: {
+            lastUpdated: new Date()
+          }
+        },
+        { upsert: true }
+      );
+      
+      // Get the updated analytics data
+      const analyticsData = await analytics.findOne({});
+      
+      if (!analyticsData) {
+        return { isUniqueVisitor: true, totalVisits: 1 };
+      }
+      
+      // For simplicity, we'll just increment unique visitors for each day
+      // In a real app, you would track unique IPs or use a more sophisticated method
+      const isUniqueVisitor = true;
+      
+      if (isUniqueVisitor) {
+        await analytics.updateOne(
+          {},
+          { 
+            $inc: {
+              uniqueVisitors: 1
+            }
+          }
+        );
+      }
+      
+      return { 
+        isUniqueVisitor, 
+        totalVisits: analyticsData.totalVisits 
+      };
+    } catch (error) {
+      handleMongoError(error, 'logVisit');
+      return { isUniqueVisitor: false, totalVisits: 0 };
+    }
+  }
+
+  // Log activity for tracking user actions
+  async logActivity(activityData: {
+    category: string;
+    action: string;
+    severity: 'info' | 'warning' | 'error' | 'success';
+    details?: Record<string, any>;
+    userId?: string;
+    userType?: 'admin' | 'user' | 'system';
+    target?: {
+      id: string;
+      type: string;
+      title?: string;
+    };
+  }): Promise<boolean> {
+    try {
+      const { activities } = await this.getCollections();
+      
+      const activity = {
+        ...activityData,
+        timestamp: new Date(),
+        userType: activityData.userType || 'system',
+        isVisible: true,
+        metadata: {}
+      };
+      
+      const result = await activities.insertOne(activity);
+      
+      return result.acknowledged;
+    } catch (error) {
+      handleMongoError(error, 'logActivity');
+      return false;
+    }
+  }
+
   // Daily Updates operations
   async getActiveDailyUpdates(includeHidden = false): Promise<DailyUpdate[]> {
     try {
@@ -634,166 +747,208 @@ export class DatabaseService {
     }
   }
 
-  // Optimized method to get all homepage data in a single aggregation query
+  /**
+   * Optimized method to get all homepage data in a single aggregation query
+   * with caching to improve performance
+   */
   async getHomepageData(): Promise<{
     projects: Project[];
     tasks: Task[];
   }> {
+    // Try to get from cache first
+    const cacheKey = 'homepage_data_v2'; // Versioned cache key
+    const cachedData = cache.get<{ projects: Project[]; tasks: Task[] }>(cacheKey, { 
+      namespace: 'api_data',
+      // Cache for 2 minutes - this is a good balance for homepage data
+      // which doesn't change very frequently but should be reasonably fresh
+      ttl: 2 * 60 * 1000 
+    });
+    
+    if (cachedData) {
+      logger.debug('Homepage data served from cache', 'DB_HOMEPAGE_DATA', {
+        projectCount: cachedData.projects.length,
+        taskCount: cachedData.tasks.length
+      });
+      return cachedData;
+    }
+    
     try {
+      const startTime = performance.now();
+      const tracker = new PerformanceTracker('HOMEPAGE_DATA_QUERY', 'getHomepageData');
+      logger.debug('Starting homepage data aggregation', 'DB_HOMEPAGE_DATA');
+      
       const { projects, tasks } = await this.getCollections();
       
-      // Use aggregation to get projects with their task counts and stats
-      const pipeline = [
-        {
-          $lookup: {
-            from: 'tasks',
-            let: { projectId: '$_id' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ['$projectId', '$$projectId'] },
-                  isVisible: true
-                }
-              }
-            ],
-            as: 'tasks'
-          }
-        },
-        {
-          $addFields: {
-            taskCount: { $size: '$tasks' },
-            highPriorityCount: {
-              $size: {
-                $filter: {
-                  input: '$tasks',
-                  cond: {
-                    $and: [
-                      { $gte: ['$$this.priority', 1] },
-                      { $lte: ['$$this.priority', 3] }
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        {
-          $project: {
-            tasks: 0 // Remove tasks array to save memory, we only need counts
-          }
-        },
-        {
-          $sort: { createdAt: -1 }
-        }
-      ];
-
-      // Get projects with aggregated task stats and all visible tasks separately
-      const [projectsWithStats, visibleTasks] = await Promise.all([
-        projects.aggregate(pipeline).toArray(),
-        tasks.find({ isVisible: true }).sort({ priority: 1, createdAt: -1 }).toArray()
-      ]);
+      // Start both queries in parallel
+      logger.debug('Starting parallel queries for homepage data', 'DB_HOMEPAGE_DATA');
       
-      return {
-        projects: projectsWithStats as Project[],
-        tasks: visibleTasks as Task[]
+      // Create a lean aggregation for projects 
+      // Only retrieve essential fields needed for the homepage
+      const projectsQuery = projects.find(
+        {}, // No filter, get all projects
+        { 
+          projection: { 
+            name: 1, 
+            description: 1,
+            createdAt: 1
+          } 
+        }
+      ).sort({ name: 1 }).toArray();
+      
+      // Create a lean aggregation for tasks
+      // Only get visible tasks with minimal fields needed for the homepage
+      const tasksQuery = tasks.find(
+        { isVisible: true },
+        { 
+          projection: { 
+            title: 1,
+            subtitle: 1,
+            datacoNumber: 1,
+            projectId: 1,
+            type: 1,
+            locations: 1,
+            targetCar: 1,
+            dayTime: 1,
+            priority: 1,
+            isVisible: 1
+            // Don't include description and images fields to reduce size
+          } 
+        }
+      ).sort({ priority: -1 }).toArray();
+      
+      // Run both queries in parallel
+      const [projectsData, tasksData] = await Promise.all([projectsQuery, tasksQuery]);
+      
+      const result = {
+        projects: projectsData as Project[],
+        tasks: tasksData as Task[]
       };
+      
+      const endTime = performance.now();
+      const processingTime = endTime - startTime;
+      
+      // Store in cache
+      cache.set(cacheKey, result, { 
+        namespace: 'api_data',
+        ttl: 2 * 60 * 1000  // 2 minutes
+      });
+      
+      logger.debug('Homepage data aggregation completed', 'DB_HOMEPAGE_DATA', {
+        projectCount: result.projects.length,
+        taskCount: result.tasks.length,
+        aggregationTime: `${processingTime.toFixed(2)}ms`,
+        totalTime: `${processingTime.toFixed(2)}ms`,
+        projectsDataSize: JSON.stringify(result.projects).length,
+        tasksDataSize: JSON.stringify(result.tasks).length
+      });
+      
+      tracker.finish({
+        resultSize: `${(JSON.stringify(result).length / 1024).toFixed(2)} KB`,
+        success: true
+      });
+      
+      return result;
     } catch (error) {
-      handleMongoError(error, 'getHomepageData');
-      return { projects: [], tasks: [] };
+      logger.error('Failed to get homepage data', 'DB_HOMEPAGE_DATA', { error: (error as Error).message });
+      throw error;
     }
   }
 
-  // Optimized method to get all project page data in a single aggregation query
+  /**
+   * Optimized method to get project page data with caching
+   */
   async getProjectPageData(projectName: string): Promise<{
-    project: Project | null;
+    project: Project;
     tasks: Task[];
-    subtasks: Record<string, any[]>;
   }> {
+    // Normalize project name to handle URL encoding issues
+    const normalizedProjectName = decodeURIComponent(projectName);
+    
+    // Try to get from cache first
+    const cacheKey = `project_data_${normalizedProjectName}_v2`;
+    const cachedData = cache.get<{ project: Project; tasks: Task[] }>(cacheKey, { 
+      namespace: 'api_data',
+      ttl: 2 * 60 * 1000 // 2 minutes cache
+    });
+    
+    if (cachedData) {
+      logger.debug('Project data served from cache', 'DB_PROJECT_DATA', {
+        projectName: normalizedProjectName,
+        taskCount: cachedData.tasks.length
+      });
+      return cachedData;
+    }
+    
     try {
-      const { projects, tasks, subtasks } = await this.getCollections();
+      const startTime = performance.now();
+      const tracker = new PerformanceTracker('PROJECT_DATA_QUERY', 'getProjectPageData');
+      logger.debug(`Starting project data query for: ${normalizedProjectName}`, 'DB_PROJECT_DATA');
       
-      // First find the project by name
-      const project = await projects.findOne({ name: projectName });
+      const { projects, tasks } = await this.getCollections();
+      
+      // First get the project
+      const project = await projects.findOne({ name: normalizedProjectName });
       
       if (!project) {
-        return { project: null, tasks: [], subtasks: {} };
+        throw new Error(`Project not found: ${normalizedProjectName}`);
       }
       
-      // Convert project._id to ObjectId for proper matching
-      const projectObjectId = toObjectId(project._id!.toString());
-      
-      // Use aggregation to get tasks with their subtasks in a single query
-      const pipeline = [
-        {
-          $match: {
-            projectId: projectObjectId,
-            isVisible: true
-          }
+      // Then get tasks for this project with optimized projection
+      const projectTasks = await tasks.find(
+        { 
+          projectId: project._id,
+          isVisible: true 
         },
         {
-          $lookup: {
-            from: 'subtasks',
-            let: { taskId: '$_id' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ['$taskId', '$$taskId'] }
-                }
-              },
-              {
-                $sort: { createdAt: -1 }
-              }
-            ],
-            as: 'taskSubtasks'
+          projection: {
+            title: 1,
+            subtitle: 1,
+            datacoNumber: 1,
+            projectId: 1,
+            type: 1,
+            locations: 1,
+            targetCar: 1,
+            dayTime: 1,
+            priority: 1,
+            isVisible: 1
+            // Don't include description and images to reduce data size
           }
-        },
-        {
-          $sort: { priority: 1, createdAt: -1 }
         }
-      ];
+      ).sort({ priority: -1 }).toArray();
       
-      const tasksWithSubtasks = await tasks.aggregate(pipeline).toArray();
-      
-      // Separate tasks and subtasks
-      const projectTasks: Task[] = [];
-      const subtasksMap: Record<string, any[]> = {};
-      
-      for (const taskData of tasksWithSubtasks) {
-        const { taskSubtasks, ...task } = taskData;
-        
-        // Ensure proper ID conversion for client-side usage
-        const taskWithId = {
-          ...task,
-          _id: task._id.toString(),
-          projectId: task.projectId.toString()
-        };
-        
-        projectTasks.push(taskWithId as any);
-        
-        // Process subtasks with proper ID conversion
-        const processedSubtasks = (taskSubtasks || []).map((subtask: any) => ({
-          ...subtask,
-          _id: subtask._id.toString(),
-          taskId: subtask.taskId.toString()
-        }));
-        
-        subtasksMap[task._id.toString()] = processedSubtasks;
-      }
-      
-      // Also ensure project has proper ID
-      const projectWithId = {
-        ...project,
-        _id: project._id!.toString()
+      const result = {
+        project: project as Project,
+        tasks: projectTasks as Task[]
       };
       
-      return {
-        project: projectWithId as any,
-        tasks: projectTasks,
-        subtasks: subtasksMap
-      };
+      const endTime = performance.now();
+      const processingTime = endTime - startTime;
+      
+      // Store in cache
+      cache.set(cacheKey, result, { 
+        namespace: 'api_data',
+        ttl: 2 * 60 * 1000 // 2 minutes cache
+      });
+      
+      logger.debug(`Project data query completed for: ${normalizedProjectName}`, 'DB_PROJECT_DATA', {
+        projectName: normalizedProjectName,
+        taskCount: result.tasks.length,
+        queryTime: `${processingTime.toFixed(2)}ms`,
+        dataSize: JSON.stringify(result).length
+      });
+      
+      tracker.finish({
+        resultSize: `${(JSON.stringify(result).length / 1024).toFixed(2)} KB`,
+        success: true
+      });
+      
+      return result;
     } catch (error) {
-      handleMongoError(error, 'getProjectPageData');
-      return { project: null, tasks: [], subtasks: {} };
+      logger.error(`Failed to get project data for: ${normalizedProjectName}`, 'DB_PROJECT_DATA', { 
+        error: (error as Error).message,
+        projectName: normalizedProjectName
+      });
+      throw error;
     }
   }
 
@@ -838,6 +993,40 @@ export class DatabaseService {
       handleMongoError(error, 'getProjectStats');
       return {};
     }
+  }
+
+  /**
+   * Invalidate cache when data changes
+   */
+  invalidateHomepageCache(): void {
+    cache.delete('homepage_data_v2', { namespace: 'api_data' });
+    logger.debug('Homepage data cache invalidated', 'CACHE_INVALIDATION');
+  }
+  
+  /**
+   * Invalidate project cache when project data changes
+   */
+  invalidateProjectCache(projectName: string): void {
+    const normalizedProjectName = decodeURIComponent(projectName);
+    cache.delete(`project_data_${normalizedProjectName}_v2`, { namespace: 'api_data' });
+    logger.debug(`Project data cache invalidated for: ${normalizedProjectName}`, 'CACHE_INVALIDATION');
+  }
+  
+  /**
+   * Invalidate task cache when task data changes
+   */
+  invalidateTaskCache(taskId: string): void {
+    cache.delete(`task_${taskId}_v1`, { namespace: 'task_data' });
+    logger.debug(`Task data cache invalidated for: ${taskId}`, 'CACHE_INVALIDATION');
+  }
+  
+  /**
+   * Clear all API data caches
+   */
+  clearAllCaches(): void {
+    cache.clear('api_data');
+    cache.clear('task_data');
+    logger.info('All API data caches cleared', 'CACHE_CLEAR');
   }
 }
 

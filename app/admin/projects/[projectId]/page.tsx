@@ -161,10 +161,9 @@ export default function ProjectManagement() {
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       };
 
-      const [projectRes, tasksRes, subtasksRes] = await Promise.all([
+      const [projectRes, tasksRes] = await Promise.all([
         fetch(`/api/projects/${projectId}?_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json()),
-        fetch(`/api/tasks?projectId=${projectId}&_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json()),
-        fetch(`/api/subtasks?_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json())
+        fetch(`/api/tasks?projectId=${projectId}&_t=${timestamp}`, { headers: commonHeaders }).then(res => res.json())
       ]);
 
       if (projectRes.success) {
@@ -178,10 +177,20 @@ export default function ProjectManagement() {
 
       if (tasksRes.success) {
         setTasks(tasksRes.tasks);
-      }
-      
-      if (subtasksRes.success) {
-        setSubtasks(subtasksRes.subtasks || []);
+        
+        // Fetch subtasks for each task
+        if (tasksRes.tasks && tasksRes.tasks.length > 0) {
+          const subtasksPromises = tasksRes.tasks.map(task => 
+            fetch(`/api/subtasks?taskId=${task._id}&_t=${timestamp}`, { headers: commonHeaders })
+              .then(res => res.json())
+          );
+          
+          const subtasksResults = await Promise.all(subtasksPromises);
+          const allSubtasks = subtasksResults.flatMap(result => result.success ? result.subtasks : []);
+          setSubtasks(allSubtasks || []);
+        } else {
+          setSubtasks([]);
+        }
       }
 
       if(isManualRefresh){

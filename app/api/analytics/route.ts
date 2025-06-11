@@ -3,10 +3,31 @@ import { db, type Subtask } from '@/lib/database';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { activityLogger, type ActivityEvent } from '@/lib/activityLogger';
+import { cache } from '@/lib/cache';
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for analytics data
+const CACHE_NAMESPACE = 'analytics';
 
 // GET /api/analytics - Advanced analytics data for admin
 export async function GET(request: NextRequest) {
   try {
+    // Try to get from cache first
+    const cacheKey = 'analytics_summary';
+    const cachedData = cache.get<any>(cacheKey, {
+      namespace: CACHE_NAMESPACE,
+      ttl: CACHE_TTL
+    });
+    
+    if (cachedData) {
+      logger.debug('Analytics data served from cache', 'ANALYTICS_API');
+      
+      return NextResponse.json({ 
+        success: true, 
+        ...cachedData,
+        cached: true
+      });
+    }
+    
     // Check authentication and admin status
     const user = auth.extractUserFromRequest(request);
     requireAdmin(user);
@@ -222,6 +243,12 @@ export async function GET(request: NextRequest) {
       }))
     };
 
+    // Cache the result
+    cache.set(cacheKey, analyticsData, {
+      namespace: CACHE_NAMESPACE,
+      ttl: CACHE_TTL
+    });
+
     logger.info('Analytics data fetched successfully', 'ANALYTICS_API', { 
       totalTasks, 
       totalProjects, 
@@ -257,71 +284,42 @@ export async function GET(request: NextRequest) {
 // POST /api/analytics - Log a visit (public endpoint)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { date, isUniqueVisitor, page } = body;
+    const requestData = await request.json();
+    const { category = 'visit', action = 'page_view', data = {} } = requestData;
     
-    // Get current analytics from MongoDB
-    const current = await db.getAnalytics();
+    // Get today's date
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
     
-    // Calculate new values
-    const newTotalVisits = (current?.totalVisits || 0) + 1;
-    const newUniqueVisitors = isUniqueVisitor ? (current?.uniqueVisitors || 0) + 1 : (current?.uniqueVisitors || 0);
+    // Log visitor activity 
+    const result = await db.logVisit(dateStr);
     
-    // Update daily stats
-    const today = date || new Date().toISOString().split('T')[0];
-    const dailyStats = current?.dailyStats || {};
-    const newTodayStats = (dailyStats[today] || 0) + 1;
-
-    // Update page views
-    const pageViews = current?.pageViews || { admin: 0, tasks: {}, homepage: 0, projects: {} };
-    if (page) {
-      if (page === 'admin') {
-        pageViews.admin = (pageViews.admin || 0) + 1;
-      } else if (page === 'homepage') {
-        pageViews.homepage = (pageViews.homepage || 0) + 1;
-      } else if (page.startsWith('task-')) {
-        const taskId = page.replace('task-', '');
-        pageViews.tasks = pageViews.tasks || {};
-        pageViews.tasks[taskId] = (pageViews.tasks[taskId] || 0) + 1;
-      } else if (page.startsWith('project-')) {
-        const projectId = page.replace('project-', '');
-        pageViews.projects = pageViews.projects || {};
-        pageViews.projects[projectId] = (pageViews.projects[projectId] || 0) + 1;
+    // Also log the activity for detailed tracking
+    await db.logActivity({
+      category: 'system',
+      action: 'רישום ביקור באתר',
+      severity: 'info',
+      details: {
+        category,
+        action,
+        ...data
       }
-    }
-
-    // Update analytics in MongoDB
-    await db.updateAnalytics({
-      totalVisits: newTotalVisits,
-      uniqueVisitors: newUniqueVisitors,
-      dailyStats: {
-        ...dailyStats,
-        [today]: newTodayStats
-      },
-      pageViews
     });
 
-    // Log as system activity
-    await activityLogger.logSystemActivity(
-      'רישום ביקור באתר',
-      { 
-        page,
-        isUniqueVisitor,
-        totalVisits: newTotalVisits 
-      }
-    );
-
-    logger.info('Analytics visit logged', 'ANALYTICS_API', { 
-      date: today, 
-      isUniqueVisitor, 
-      page,
-      totalVisits: newTotalVisits 
+    // Invalidate the analytics cache
+    cache.delete('analytics_summary', { namespace: CACHE_NAMESPACE });
+    
+    logger.info('Analytics visit logged', 'ANALYTICS_API', {
+      date: dateStr,
+      isUniqueVisitor: result.isUniqueVisitor,
+      totalVisits: result.totalVisits
     });
-
-    return NextResponse.json({
+    
+    return NextResponse.json({ 
       success: true,
-      totalVisits: newTotalVisits,
-      uniqueVisitors: newUniqueVisitors
+      date: dateStr,
+      isUniqueVisitor: result.isUniqueVisitor,
+      totalVisits: result.totalVisits
     });
   } catch (error) {
     logger.error('Analytics POST error', 'ANALYTICS_API', undefined, error as Error);

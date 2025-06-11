@@ -1,231 +1,328 @@
 import { logger } from './logger';
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  expiresAt: number;
-  version: string;
+export interface CacheOptions {
+  ttl?: number;
+  namespace?: string;
 }
 
-interface CacheOptions {
-  ttl?: number; // Time to live in milliseconds
-  version?: string; // Cache version for invalidation
-  background?: boolean; // Allow background refresh
-  staleWhileRevalidate?: boolean; // Return stale data while fetching fresh
+interface CacheItem<T> {
+  value: T;
+  expiry?: number;
+  namespace?: string;
+  createdAt: number;
 }
 
-class CacheManager {
-  private memoryCache = new Map<string, CacheEntry<any>>();
-  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
-  private readonly STALE_TIME = 2 * 60 * 1000; // 2 minutes
+/**
+ * Simple in-memory cache with TTL support
+ */
+class MemoryCache {
+  private cache: Map<string, CacheItem<any>> = new Map();
+  private lastCleanup: number = Date.now();
+  private readonly cleanupInterval: number = 60 * 1000; // Cleanup every minute
+  private hitCount: number = 0;
+  private missCount: number = 0;
+  private namespaces: Set<string> = new Set();
 
   constructor() {
-    // Clean up expired entries every minute
-    setInterval(() => this.cleanup(), 60 * 1000);
+    // Periodically clean up expired cache items
+    if (typeof setInterval !== 'undefined') {
+      setInterval(() => this.cleanup(), this.cleanupInterval);
+    }
   }
 
-  private generateKey(url: string, params?: Record<string, any>): string {
-    const paramString = params ? JSON.stringify(params) : '';
-    return `cache_${btoa(url + paramString)}`;
+  /**
+   * Generate a unique cache key
+   */
+  private generateKey(key: string, options?: CacheOptions): string {
+    const namespace = options?.namespace ? `${options.namespace}:` : '';
+    return `${namespace}${key}`;
   }
 
-  private isExpired(entry: CacheEntry<any>): boolean {
-    return Date.now() > entry.expiresAt;
+  /**
+   * Get a value from the cache
+   */
+  get<T>(key: string, options?: CacheOptions): T | undefined {
+    const cacheKey = this.generateKey(key, options);
+    const item = this.cache.get(cacheKey);
+
+    // Check if item exists and is not expired
+    if (item) {
+      if (item.expiry && item.expiry < Date.now()) {
+        // Item is expired, delete it
+        this.cache.delete(cacheKey);
+        this.missCount++;
+        logger.debug(`Cache expired: ${cacheKey}`, 'CACHE');
+        return undefined;
+      }
+
+      this.hitCount++;
+      logger.debug(`Cache hit: ${cacheKey}`, 'CACHE', {
+        hitRatio: this.getHitRatio(),
+        ttl: item.expiry ? Math.round((item.expiry - Date.now()) / 1000) + 's remaining' : 'indefinite'
+      });
+      
+      return item.value as T;
+    }
+
+    this.missCount++;
+    logger.debug(`Cache miss: ${cacheKey}`, 'CACHE', {
+      hitRatio: this.getHitRatio()
+    });
+    return undefined;
   }
 
-  private isStale(entry: CacheEntry<any>): boolean {
-    return Date.now() > (entry.timestamp + this.STALE_TIME);
+  /**
+   * Set a value in the cache with optional TTL
+   */
+  set<T>(key: string, value: T, options?: CacheOptions): void {
+    const cacheKey = this.generateKey(key, options);
+    const namespace = options?.namespace;
+    
+    // Store the namespace if provided
+    if (namespace) {
+      this.namespaces.add(namespace);
+    }
+    
+    let expiry: number | undefined;
+    
+    if (options?.ttl) {
+      expiry = Date.now() + options.ttl;
+    }
+    
+    this.cache.set(cacheKey, {
+      value,
+      expiry,
+      namespace,
+      createdAt: Date.now()
+    });
+    
+    logger.debug(`Cache set: ${cacheKey}`, 'CACHE', {
+      ttl: options?.ttl ? `${Math.round(options.ttl / 1000)}s` : 'indefinite',
+      namespace: options?.namespace
+    });
   }
 
-  async get<T>(
+  /**
+   * Delete a value from the cache
+   */
+  delete(key: string, options?: CacheOptions): boolean {
+    const cacheKey = this.generateKey(key, options);
+    const result = this.cache.delete(cacheKey);
+    
+    if (result) {
+      logger.debug(`Cache deleted: ${cacheKey}`, 'CACHE');
+    }
+    
+    return result;
+  }
+
+  /**
+   * Clear all values from the cache, or those in a namespace
+   * Returns the number of entries cleared
+   */
+  clear(namespace?: string): number {
+    if (!namespace) {
+      const count = this.cache.size;
+      this.cache.clear();
+      logger.info(`Cache cleared (${count} entries)`, 'CACHE');
+      return count;
+    }
+    
+    // Clear only the namespace
+    let count = 0;
+    const nsPrefix = `${namespace}:`;
+    
+    // Collect keys to delete to avoid modifying during iteration
+    const keysToDelete: string[] = [];
+    
+    this.cache.forEach((item, key) => {
+      if (key.startsWith(nsPrefix) || item.namespace === namespace) {
+        keysToDelete.push(key);
+      }
+    });
+    
+    // Delete the collected keys
+    keysToDelete.forEach(key => {
+      this.cache.delete(key);
+      count++;
+    });
+    
+    // Remove namespace from tracking if all entries removed
+    if (count > 0 && this.namespaces.has(namespace)) {
+      let hasMoreItems = false;
+      this.cache.forEach(item => {
+        if (item.namespace === namespace) {
+          hasMoreItems = true;
+        }
+      });
+      
+      if (!hasMoreItems) {
+        this.namespaces.delete(namespace);
+      }
+    }
+    
+    logger.info(`Cache namespace cleared: ${namespace} (${count} entries)`, 'CACHE');
+    return count;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getStats(): Record<string, any> {
+    const namespaces: Record<string, number> = {};
+    const age: Record<string, number> = {};
+    
+    // Count items per namespace and age distribution
+    this.cache.forEach((item, key) => {
+      const ns = item.namespace || 'default';
+      namespaces[ns] = (namespaces[ns] || 0) + 1;
+      
+      const itemAge = Math.round((Date.now() - item.createdAt) / 1000);
+      if (itemAge < 60) { // < 1 minute
+        age['< 1min'] = (age['< 1min'] || 0) + 1;
+      } else if (itemAge < 300) { // < 5 minutes
+        age['< 5min'] = (age['< 5min'] || 0) + 1;
+      } else if (itemAge < 3600) { // < 1 hour
+        age['< 1hr'] = (age['< 1hr'] || 0) + 1;
+      } else {
+        age['> 1hr'] = (age['> 1hr'] || 0) + 1;
+      }
+    });
+    
+    return {
+      size: this.cache.size,
+      hitCount: this.hitCount,
+      missCount: this.missCount,
+      hitRatio: this.getHitRatio(true),
+      namespaces,
+      ageDistribution: age
+    };
+  }
+  
+  /**
+   * Get a list of all namespaces in the cache
+   */
+  getNamespaces(): string[] {
+    return Array.from(this.namespaces);
+  }
+
+  /**
+   * Calculate the cache hit ratio
+   */
+  private getHitRatio(asNumber = false): string | number {
+    const total = this.hitCount + this.missCount;
+    if (total === 0) return asNumber ? 0 : '0%';
+    const ratio = this.hitCount / total;
+    return asNumber ? ratio : `${(ratio * 100).toFixed(2)}%`;
+  }
+
+  /**
+   * Clean up expired cache items
+   */
+  private cleanup(): void {
+    const now = Date.now();
+    let count = 0;
+    
+    this.cache.forEach((item, key) => {
+      if (item.expiry && item.expiry < now) {
+        this.cache.delete(key);
+        count++;
+      }
+    });
+    
+    if (count > 0) {
+      logger.debug(`Cache cleanup: removed ${count} expired items`, 'CACHE');
+    }
+    
+    this.lastCleanup = now;
+  }
+
+  /**
+   * Get or set a value from/to the cache with automatic fetching on miss
+   */
+  async getOrSet<T>(
     key: string, 
-    fetcher: () => Promise<T>, 
-    options: CacheOptions = {}
+    fetchFn: () => Promise<T>, 
+    options?: CacheOptions
   ): Promise<T> {
-    const {
-      ttl = this.DEFAULT_TTL,
-      version = '1',
-      background = false,
-      staleWhileRevalidate = true
-    } = options;
-
-    const cacheKey = this.generateKey(key, { version });
-    const cached = this.memoryCache.get(cacheKey);
-
-    // If we have valid cached data, return it
-    if (cached && !this.isExpired(cached) && cached.version === version) {
-      // If data is stale but not expired, maybe refresh in background
-      if (staleWhileRevalidate && this.isStale(cached) && background) {
-        this.refreshInBackground(cacheKey, fetcher, { ttl, version });
-      }
-      return cached.data;
+    // Try to get from cache first
+    const cachedValue = this.get<T>(key, options);
+    if (cachedValue !== undefined) {
+      return cachedValue;
     }
 
-    // If we have stale data and staleWhileRevalidate is enabled, return stale data
-    // while fetching fresh data
-    if (cached && staleWhileRevalidate && cached.version === version) {
-      this.refreshInBackground(cacheKey, fetcher, { ttl, version });
-      return cached.data;
-    }
-
-    // Fetch fresh data
+    // Cache miss, fetch the data
     try {
-      const data = await fetcher();
-      const entry: CacheEntry<T> = {
-        data,
-        timestamp: Date.now(),
-        expiresAt: Date.now() + ttl,
-        version
-      };
-      
-      this.memoryCache.set(cacheKey, entry);
-      
-      // Also cache in browser cache if possible
-      if (typeof window !== 'undefined' && 'caches' in window) {
-        this.cacheToBrowser(key, data, ttl);
-      }
-      
-      return data;
+      const value = await fetchFn();
+      this.set(key, value, options);
+      return value;
     } catch (error) {
-      // If fetch fails and we have stale data, return stale data
-      if (cached && cached.version === version) {
-        logger.warn('Cache fetch failed, returning stale data', 'CACHE_MANAGER', { key });
-        return cached.data;
-      }
+      logger.error(`Cache fetch error for key: ${key}`, 'CACHE', { error: (error as Error).message });
       throw error;
     }
   }
-
-  private async refreshInBackground<T>(
-    cacheKey: string, 
-    fetcher: () => Promise<T>, 
-    options: { ttl: number; version: string }
-  ): Promise<void> {
-    try {
-      const data = await fetcher();
-      const entry: CacheEntry<T> = {
-        data,
-        timestamp: Date.now(),
-        expiresAt: Date.now() + options.ttl,
-        version: options.version
-      };
-      
-      this.memoryCache.set(cacheKey, entry);
-      logger.info('Background cache refresh successful', 'CACHE_MANAGER', { key: cacheKey });
-    } catch (error) {
-      logger.error('Background cache refresh failed', 'CACHE_MANAGER', { key: cacheKey }, error as Error);
-    }
-  }
-
-  private async cacheToBrowser(key: string, data: any, ttl: number): Promise<void> {
-    try {
-      const cache = await caches.open('eyetask-api-v4');
-      const response = new Response(JSON.stringify({
-        data,
-        timestamp: Date.now(),
-        expiresAt: Date.now() + ttl
-      }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': `max-age=${Math.floor(ttl / 1000)}`
-        }
-      });
-      
-      await cache.put(key, response);
-    } catch (error) {
-      logger.error('Failed to cache to browser', 'CACHE_MANAGER', { key }, error as Error);
-    }
-  }
-
-  invalidate(key: string): void {
-    const cacheKey = this.generateKey(key);
-    this.memoryCache.delete(cacheKey);
-    
-    // Also invalidate browser cache
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      caches.open('eyetask-api-v4').then(cache => {
-        cache.delete(key);
-      });
-    }
-  }
-
-  invalidatePattern(pattern: string): void {
-    const regex = new RegExp(pattern);
-    for (const key of this.memoryCache.keys()) {
-      if (regex.test(key)) {
-        this.memoryCache.delete(key);
-      }
-    }
-  }
-
-  clear(): void {
-    this.memoryCache.clear();
-    
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      caches.delete('eyetask-api-v4');
-    }
-  }
-
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.memoryCache.entries()) {
-      if (now > entry.expiresAt) {
-        this.memoryCache.delete(key);
-      }
-    }
-  }
-
-  // Get cache stats
-  getStats(): { size: number; keys: string[] } {
-    return {
-      size: this.memoryCache.size,
-      keys: Array.from(this.memoryCache.keys())
-    };
-  }
 }
 
-// Create singleton instance
-export const cacheManager = new CacheManager();
+// Create a singleton instance
+export const cache = new MemoryCache();
 
-// Utility functions for common cache operations
-export async function cachedFetch<T>(
-  url: string, 
+/**
+ * Fetch data from an API with caching
+ */
+export async function fetchWithCache<T>(
+  url: string,
   options: RequestInit & CacheOptions = {}
 ): Promise<T> {
-  const { ttl, version, background, staleWhileRevalidate, ...fetchOptions } = options;
+  const { ttl, namespace, ...fetchOptions } = options;
   
-  return cacheManager.get(
+  return cache.getOrSet<T>(
     url,
     async () => {
-      const response = await fetch(url, {
-        ...fetchOptions,
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          ...fetchOptions.headers
-        }
-      });
-      
+      const response = await fetch(url, fetchOptions);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP error ${response.status}`);
       }
-      
-      return response.json();
+      return await response.json();
     },
-    { ttl, version, background, staleWhileRevalidate }
+    { ttl, namespace }
   );
 }
 
-// Pre-warm cache with data
-export function preWarmCache<T>(key: string, data: T, options: CacheOptions = {}): void {
-  const { ttl = 5 * 60 * 1000, version = '1' } = options;
-  const cacheKey = cacheManager['generateKey'](key, { version });
-  const entry: CacheEntry<T> = {
-    data,
-    timestamp: Date.now(),
-    expiresAt: Date.now() + ttl,
-    version
-  };
-  
-  cacheManager['memoryCache'].set(cacheKey, entry);
-} 
+/**
+ * Preload data into cache
+ */
+export async function preloadCache<T>(
+  key: string,
+  fetchFn: () => Promise<T>,
+  options?: CacheOptions
+): Promise<void> {
+  try {
+    const value = await fetchFn();
+    cache.set(key, value, options);
+    logger.info(`Cache preloaded: ${key}`, 'CACHE', { namespace: options?.namespace });
+  } catch (error) {
+    logger.error(`Cache preload error for key: ${key}`, 'CACHE', { error: (error as Error).message });
+  }
+}
+
+/**
+ * Invalidate a cache entry
+ */
+export function invalidateCache(key: string, options?: CacheOptions): void {
+  cache.delete(key, options);
+}
+
+/**
+ * Get cache statistics
+ */
+export function getCacheStats() {
+  return cache.getStats();
+}
+
+export default {
+  cache,
+  fetchWithCache,
+  preloadCache,
+  invalidateCache,
+  getCacheStats
+}; 

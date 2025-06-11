@@ -106,39 +106,33 @@ export default function ThemeToggle() {
           }
           
           requestAnimationFrame(() => {
-            // Second RAF: Update meta theme-color with proper error handling
+            // Second RAF: Instead of theme-color, use better iOS-compatible methods
             try {
-              const metaThemeColor = document.querySelector('meta[name="theme-color"]:not([media])');
-              if (metaThemeColor) {
-                metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
-              } else {
-                // Create theme-color meta tag if it doesn't exist
-                const newMetaThemeColor = document.createElement('meta');
-                newMetaThemeColor.name = 'theme-color';
-                newMetaThemeColor.content = resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff';
-                document.head.appendChild(newMetaThemeColor);
-              }
+              // Set color-scheme property directly on root and body
+              document.documentElement.style.setProperty('color-scheme', resolvedTheme);
+              document.body.style.setProperty('color-scheme', resolvedTheme);
+              
+              // Force iOS to recognize the theme change through additional properties
+              document.documentElement.style.setProperty('--ios-theme-timestamp', Date.now().toString());
             } catch (error) {
-              // Meta theme-color update error ignored
+              // Color scheme update error ignored
             }
             
-            // iOS-specific: Force viewport update with error handling
+            // iOS-specific: Better theme transition for iOS
             if (isIOS()) {
               try {
-                const viewport = document.querySelector('meta[name="viewport"]');
-                if (viewport) {
-                  const content = viewport.getAttribute('content');
-                  if (content) {
-                    const tempContent = content + ', theme-color=' + (resolvedTheme === 'dark' ? '#0a0a0a' : '#ffffff');
-                    viewport.setAttribute('content', tempContent);
-                    setTimeout(() => {
-                      viewport.setAttribute('content', content);
-                    }, 100);
-                  }
+                // Apply iOS-specific class
+                if (resolvedTheme === 'dark') {
+                  document.body.classList.add('ios-dark-mode');
+                } else {
+                  document.body.classList.remove('ios-dark-mode');
                 }
-                              } catch (error) {
-                  // iOS viewport update error ignored
-                }
+                
+                // Force iOS style recalculation
+                document.body.style.setProperty('--ios-forced-theme', resolvedTheme);
+              } catch (error) {
+                // iOS optimization error ignored
+              }
             }
             
             requestAnimationFrame(() => {

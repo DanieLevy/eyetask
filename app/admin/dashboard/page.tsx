@@ -548,6 +548,24 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </Link>
+
+            {/* Performance Monitoring */}
+            <Link href="/admin/performance-monitoring" 
+              className="group p-4 rounded-lg bg-cyan-50 hover:bg-cyan-100 transition-all border border-cyan-200 active:scale-95">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-cyan-500 rounded-lg flex-shrink-0">
+                  <Cpu className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-cyan-900 text-sm">
+                    ניטור ביצועים
+                  </h3>
+                  <p className="text-xs text-cyan-700 truncate">
+                    זיכרון וחיבורי מסד נתונים
+                  </p>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
 

@@ -1,120 +1,128 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseService } from '@/lib/database';
-import { connectToDatabase } from '@/lib/mongodb';
+import { connectToDatabase, getConnectionStatus } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
-import { connectionMonitor } from '@/lib/services/connectionMonitor';
+import { monitoringService } from '@/lib/services/monitoringService';
+import { analyzeArrayBuffers, monitorMemory } from '@/lib/memory-monitor';
 
 const db = new DatabaseService();
 
-// Start connection monitoring on first API call to health endpoint
+// Start monitoring on first API call to health endpoint
 // This ensures monitoring is active in production
 let monitoringStarted = false;
 
-// GET /api/health - Health check endpoint
-export async function GET(req: NextRequest) {
-  const startTime = Date.now();
+// Helper function to format uptime
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / (3600 * 24));
+  const hours = Math.floor((seconds % (3600 * 24)) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
   
+  let formatted = '';
+  if (days > 0) formatted += `${days}d `;
+  if (hours > 0) formatted += `${hours}h `;
+  if (minutes > 0) formatted += `${minutes}m `;
+  formatted += `${remainingSeconds}s`;
+  
+  return formatted;
+}
+
+/**
+ * API endpoint to check system health
+ * This endpoint provides metrics about the system's health
+ * GET /api/health
+ */
+export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    // Start connection monitoring if not already started
+    const startTime = Date.now();
+    
+    // Start monitoring if not already started
     if (!monitoringStarted) {
-      connectionMonitor.startMonitoring();
+      monitoringService.init();
       monitoringStarted = true;
-      logger.info('MongoDB connection monitoring activated', 'HEALTH_CHECK');
     }
     
     // Test MongoDB database connectivity
     const { client, db } = await connectToDatabase();
     const databaseConnected = !!client && !!db;
     
-    // Check MongoDB connection pool status if connected
-    let connectionStats = null;
-    if (databaseConnected && client && db) {
-      try {
-        const admin = db.admin();
-        const status = await admin.serverStatus();
-        
-        if (status.connections) {
-          const currentConnections = status.connections.current;
-          const availableConnections = status.connections.available;
-          const totalConnections = currentConnections + availableConnections;
-          const connectionPercent = (currentConnections / totalConnections * 100).toFixed(1);
-          
-          connectionStats = {
-            current: currentConnections,
-            available: availableConnections,
-            total: totalConnections,
-            percentUsed: `${connectionPercent}%`,
-            status: parseFloat(connectionPercent) > 80 ? 'WARNING' : 'OK'
-          };
-        }
-      } catch (statsError) {
-        logger.error('Failed to check MongoDB connection stats', 'HEALTH_CHECK', {
-          error: (statsError as Error).message
-        });
-      }
-    }
+    // Take a memory snapshot
+    const memorySnapshot = monitorMemory(true);
+    
+    // Get current connection status
+    const connectionStatus = getConnectionStatus();
+    
+    // Get detailed health information from monitoring service
+    const systemHealth = await monitoringService.getSystemHealth();
+    
+    // Analyze array buffers specifically (useful for identifying memory issues)
+    const arrayBuffersAnalysis = analyzeArrayBuffers();
 
-    // Basic system health metrics
-    const uptime = process.uptime();
-    const memoryUsage = process.memoryUsage();
-    
-    // Format memory values to MB
-    const formatMemory = (bytes: number) => (bytes / 1024 / 1024).toFixed(2) + ' MB';
-    
+    // Build a comprehensive health response
     const health = {
-      status: databaseConnected ? 'OK' : 'ERROR',
+      status: databaseConnected ? systemHealth.status : 'ERROR',
       timestamp: new Date().toISOString(),
       uptime: {
-        seconds: uptime,
-        formatted: formatUptime(uptime)
+        seconds: process.uptime(),
+        formatted: formatUptime(process.uptime())
       },
       memory: {
-        rss: formatMemory(memoryUsage.rss),
-        heapTotal: formatMemory(memoryUsage.heapTotal),
-        heapUsed: formatMemory(memoryUsage.heapUsed),
-        external: formatMemory(memoryUsage.external)
+        ...systemHealth.memory,
+        arrayBuffersAnalysis: arrayBuffersAnalysis.analysis,
+        arrayBuffersRisk: arrayBuffersAnalysis.risk
       },
       database: {
         connected: databaseConnected,
         connectionType: 'MongoDB Atlas',
-        connectionPool: connectionStats
+        connectionPool: {
+          ...systemHealth.connections,
+          // Include connection tracking data for better diagnostics
+          isEstimated: systemHealth.connections?.isEstimated || false,
+          requestsServed: connectionStatus.requestsServed || 0,
+          connectionAge: connectionStatus.connectionAge ? 
+            `${Math.floor(connectionStatus.connectionAge / 1000)}s` : 'unknown',
+          pendingOperations: connectionStatus.pendingOperations || 0
+        }
+      },
+      monitoring: {
+        capabilities: systemHealth.capabilities || {},
+        lastSnapshot: new Date().toISOString()
       },
       responseTime: `${Date.now() - startTime}ms`
     };
-    
-    logger.info('Health check completed', 'HEALTH_CHECK', { 
-      status: health.status,
-      databaseConnected
-    });
-    
-    return NextResponse.json(health);
-  } catch (error) {
-    logger.error('Health check failed', 'HEALTH_CHECK', {
-      error: (error as Error).message
-    });
-    
-    return NextResponse.json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      error: (error as Error).message,
-      type: 'MongoDB',
-      responseTime: `${Date.now() - startTime}ms`
-    }, { status: 500 });
-  }
-}
 
-// Helper function to format uptime
-function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  
-  const parts = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  parts.push(`${remainingSeconds}s`);
-  
-  return parts.join(' ');
+    // Log health check completion
+    logger.info('Health check completed', 'HEALTH_CHECK', {
+      status: health.status,
+      databaseConnected,
+      memoryRisk: memorySnapshot ? `${Math.floor(memorySnapshot.rss)}` : 'unknown'
+    });
+
+    // Return the health data
+    return NextResponse.json(health, {
+      headers: {
+        // Set cache control headers to prevent browser caching
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+  } catch (error) {
+    // Log the error
+    logger.error('Health check failed', 'HEALTH_CHECK', undefined, error as Error);
+    
+    // Return error response
+    return NextResponse.json(
+      {
+        status: 'ERROR',
+        timestamp: new Date().toISOString(),
+        error: (error as Error).message,
+        uptime: {
+          seconds: process.uptime(),
+          formatted: formatUptime(process.uptime())
+        }
+      },
+      { status: 500 }
+    );
+  }
 } 
