@@ -286,22 +286,6 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
 
   return (
     <div className={`${className} relative`}>
-      {/* Progress bar for multiple updates */}
-      {updates.length > 1 && (
-        <div className="flex h-0.5 mb-1 w-full overflow-hidden" dir="rtl">
-          {updates.map((_, index) => (
-            <div key={index} className="relative flex-1 bg-slate-300 dark:bg-slate-600 overflow-hidden">
-              {index === currentIndex && (
-                <div 
-                  className={`absolute top-0 right-0 h-full ${colors.accent} transition-all duration-100 ease-linear`}
-                  style={{ width: `${progressPercent}%` }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Main Card */}
       <div 
         className={`
@@ -312,6 +296,22 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
           ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
         `}
       >
+        {/* Progress bar for multiple updates */}
+        {updates.length > 1 && (
+          <div className="flex h-0.5 w-full overflow-hidden absolute top-0 left-0 right-0" dir="rtl">
+            {updates.map((_, index) => (
+              <div key={index} className="relative flex-1 bg-slate-300/40 dark:bg-slate-600/40 overflow-hidden">
+                {index === currentIndex && (
+                  <div 
+                    className={`absolute top-0 right-0 h-full ${colors.accent} transition-all duration-100 ease-linear`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Close Button */}
         <button
           onClick={(e) => {
