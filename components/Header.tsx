@@ -5,14 +5,27 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, LogOut, Home, Settings, BarChart3, MessageCircle } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
 import HeaderDebugIcon from '@/components/HeaderDebugIcon';
+
+interface UserData {
+  username: string;
+  id: string;
+}
+
+// Define global window properties
+declare global {
+  interface Window {
+    __eyetask_user?: UserData | null;
+    __eyetask_isAdmin?: boolean;
+  }
+}
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{username: string; id: string} | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   
@@ -23,6 +36,22 @@ export default function Header() {
   // Prevent hydration mismatch by only showing dynamic content after mount
   useEffect(() => {
     setMounted(true);
+    
+    // Initialize the screen size detection
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 380);
+    };
+    
+    // Check on mount
+    checkScreenSize();
+    
+    // Add listener for resize events
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
   }, []);
 
   // Close menu when clicking outside
@@ -47,7 +76,7 @@ export default function Header() {
 
     const updateUserContext = () => {
       if (typeof window !== 'undefined') {
-        const globalUser = (window as any).__eyetask_user;
+        const globalUser = window.__eyetask_user;
         setUser(globalUser || null);
       }
     };
@@ -85,33 +114,31 @@ export default function Header() {
     localStorage.removeItem('adminUser');
     setUser(null);
     if (typeof window !== 'undefined') {
-      (window as any).__eyetask_user = null;
-      (window as any).__eyetask_isAdmin = false;
+      window.__eyetask_user = null;
+      window.__eyetask_isAdmin = false;
     }
     router.push('/admin');
     setMenuOpen(false);
   };
 
   // Determine current page context - use consistent logic
-  const isAdminPage = pathname.startsWith('/admin') && pathname !== '/admin';
   const isAdminLoginPage = pathname === '/admin';
   const isHomePage = pathname === '/';
   
   // Only show dynamic content after mount to prevent hydration mismatch
-  const showAdminActions = mounted && isAdminPage && user;
   const showLogout = mounted && user;
   const showAdminDashboard = mounted && user && !isAdminLoginPage;
   
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border">
-      <div className="container mx-auto px-4 py-2">
+      <div className="container mx-auto px-2 sm:px-4 py-1 sm:py-2">
         <div className="flex items-center justify-between relative">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="h-6 w-auto">
+          <Link href="/" className="flex items-center gap-1 sm:gap-2 hover:opacity-80 transition-opacity">
+            <div className={`h-5 sm:h-6 w-auto ${isSmallScreen ? 'scale-75' : ''}`}>
               <svg
                 viewBox="0 0 407 68"
-                className="h-6 w-auto"
+                className="h-full w-auto"
                 style={{ fill: 'currentColor' }}
               >
                 <g>
@@ -154,19 +181,23 @@ export default function Header() {
           </Link>
 
           {/* Center - App Name */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 w-1/3 min-w-[100px]">
-            <h1 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass} text-center whitespace-nowrap overflow-hidden text-ellipsis`}>
+          <div className={`absolute left-1/2 transform -translate-x-1/2 ${isSmallScreen ? 'w-1/4 min-w-[60px]' : 'w-1/3 min-w-[100px]'}`}>
+            <h1 className={`text-sm sm:text-lg font-semibold text-foreground ${hebrewHeading.fontClass} text-center whitespace-nowrap overflow-hidden text-ellipsis`}>
               Driver Tasks
             </h1>
           </div>
 
           {/* Actions - Debug Icon, Theme Toggle and Mobile Menu Button */}
-          <div className="flex items-center gap-1 relative z-10">
+          <div className="flex items-center gap-0.5 sm:gap-1 relative z-10">
             {/* Debug Report Icon */}
-            <HeaderDebugIcon />
+            <div className={isSmallScreen ? "scale-75" : ""}>
+              <HeaderDebugIcon />
+            </div>
             
             {/* Theme Toggle - Available for all users */}
-            <ThemeToggle />
+            <div className={isSmallScreen ? "scale-75" : ""}>
+              <ThemeToggle />
+            </div>
             
             {/* Mobile Menu Button */}
             <button
@@ -175,26 +206,26 @@ export default function Header() {
                 e.stopPropagation();
                 setMenuOpen(!menuOpen);
               }}
-              className="p-2 rounded-lg hover:bg-accent transition-colors touch-manipulation"
+              className={`${isSmallScreen ? 'p-1.5' : 'p-2'} rounded-lg hover:bg-accent transition-colors touch-manipulation`}
               aria-label="תפריט"
               type="button"
             >
-              <Menu className="h-5 w-5 pointer-events-none" />
+              <Menu className={`${isSmallScreen ? 'h-4 w-4' : 'h-5 w-5'} pointer-events-none`} />
             </button>
           </div>
         </div>
 
         {/* Mobile Menu - Only show after mount to prevent hydration mismatch */}
         {mounted && menuOpen && (
-          <div className="md:hidden mt-3 p-3 bg-card rounded-lg border border-border relative z-40 shadow-lg">
-            <nav className="space-y-2">
+          <div className="md:hidden mt-2 sm:mt-3 p-2 sm:p-3 bg-card rounded-lg border border-border relative z-40 shadow-lg">
+            <nav className="space-y-1 sm:space-y-2 text-sm sm:text-base">
               {!isHomePage && (
                 <Link 
                   href="/" 
-                  className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                  className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
                   onClick={() => setMenuOpen(false)}
                 >
-                  <Home className="h-4 w-4" />
+                  <Home className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                   עמוד הבית
                 </Link>
               )}
@@ -204,18 +235,18 @@ export default function Header() {
                 <>
                   <Link 
                     href="/admin/dashboard" 
-                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                     פאנל ניהול משימות
                   </Link>
                   <Link 
                     href="/admin/feedback" 
-                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <MessageCircle className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                     ניהול פניות ודיווחים
                   </Link>
                 </>
@@ -225,19 +256,19 @@ export default function Header() {
               {showLogout ? (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 w-full p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
+                  className="flex items-center gap-2 w-full p-1.5 sm:p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                   יציאה מהמערכת
                 </button>
               ) : (
                 !isAdminLoginPage && (
                   <Link 
                     href="/admin" 
-                    className="flex items-center gap-2 p-2 rounded hover:bg-accent transition-colors"
+                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <Settings className="h-4 w-4" />
+                    <Settings className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                     פאנל ניהול משימות
                   </Link>
                 )

@@ -53,6 +53,29 @@ export default function ImprovedImageViewer({
     }
   });
 
+  // Navigation functions - moved up before they are used in useEffect
+  const navigateToImage = useCallback((index: number) => {
+    if (index < 0 || index >= images.length) return;
+    
+    setActiveIndex(index);
+    handleReset();
+    if (swiperRef.current) {
+      swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
+    }
+  }, [images.length, isRTL, handleReset]);
+
+  const navigatePrev = useCallback(() => {
+    if (activeIndex > 0) {
+      navigateToImage(activeIndex - 1);
+    }
+  }, [activeIndex, navigateToImage]);
+
+  const navigateNext = useCallback(() => {
+    if (activeIndex < images.length - 1) {
+      navigateToImage(activeIndex + 1);
+    }
+  }, [activeIndex, images.length, navigateToImage]);
+
   // Create portal for better stacking context
   useEffect(() => {
     setPortalElement(document.body);
@@ -142,29 +165,6 @@ export default function ImprovedImageViewer({
       onClose();
     }
   };
-
-  // Navigation
-  const navigateToImage = useCallback((index: number) => {
-    if (index < 0 || index >= images.length) return;
-    
-    setActiveIndex(index);
-    handleReset();
-    if (swiperRef.current) {
-      swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
-    }
-  }, [images.length, isRTL, handleReset]);
-
-  const navigatePrev = useCallback(() => {
-    if (activeIndex > 0) {
-      navigateToImage(activeIndex - 1);
-    }
-  }, [activeIndex, navigateToImage]);
-
-  const navigateNext = useCallback(() => {
-    if (activeIndex < images.length - 1) {
-      navigateToImage(activeIndex + 1);
-    }
-  }, [activeIndex, images.length, navigateToImage]);
 
   // Improved touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -264,7 +264,9 @@ export default function ImprovedImageViewer({
           navigateToImage(activeIndex + 1);
         } else {
           // Reset to current image if at edge
-          swiperRef.current.style.transform = `translateX(${activeIndex * 100}%)`;
+          if (swiperRef.current) {
+            swiperRef.current.style.transform = `translateX(${activeIndex * 100}%)`;
+          }
         }
       } else {
         if (diff > 0 && activeIndex > 0) {
@@ -273,12 +275,16 @@ export default function ImprovedImageViewer({
           navigateToImage(activeIndex + 1);
         } else {
           // Reset to current image if at edge
-          swiperRef.current.style.transform = `translateX(${-activeIndex * 100}%)`;
+          if (swiperRef.current) {
+            swiperRef.current.style.transform = `translateX(${-activeIndex * 100}%)`;
+          }
         }
       }
     } else {
       // Not enough swipe, reset to current image
-      swiperRef.current.style.transform = `translateX(${isRTL ? activeIndex * 100 : -activeIndex * 100}%)`;
+      if (swiperRef.current) {
+        swiperRef.current.style.transform = `translateX(${isRTL ? activeIndex * 100 : -activeIndex * 100}%)`;
+      }
     }
   };
 
