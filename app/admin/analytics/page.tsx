@@ -520,7 +520,7 @@ export default function AnalyticsPage() {
               </h2>
               <div className="bg-card rounded-lg border border-border p-6">
                 <div className="space-y-4">
-                  {analyticsData.recentActivity.slice(0, 7).map((day, index) => (
+                  {analyticsData.recentActivity?.slice(0, 7).map((day: {date: string; visits: number; tasksCreated: number; subtasksCreated: number}, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                       <div className="flex items-center gap-3">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -555,7 +555,7 @@ export default function AnalyticsPage() {
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                   <div className="p-6">
                     <div className="space-y-4">
-                      {analyticsData.lastActions.slice(0, 10).map((action) => {
+                      {analyticsData.lastActions?.slice(0, 10).map((action) => {
                         const getSeverityIcon = (severity: string) => {
                           switch (severity) {
                             case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -603,28 +603,28 @@ export default function AnalyticsPage() {
                       })}
                     </div>
                     
-                    {analyticsData.activityStats && analyticsData.activityStats.totalActions > 0 && (
+                    {analyticsData.activityStats && analyticsData.activityStats?.totalActions > 0 && (
                       <div className="mt-4 pt-4 border-t border-border">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="text-center">
-                            <div className="font-semibold text-foreground">{analyticsData.activityStats.totalActions}</div>
+                            <div className="font-semibold text-foreground">{analyticsData.activityStats?.totalActions}</div>
                             <div className="text-muted-foreground">סה״כ פעולות</div>
                           </div>
                           <div className="text-center">
                             <div className="font-semibold text-foreground">
-                              {Object.keys(analyticsData.activityStats.actionsByCategory).length}
+                              {Object.keys(analyticsData.activityStats?.actionsByCategory || {}).length}
                             </div>
                             <div className="text-muted-foreground">קטגוריות</div>
                           </div>
                           <div className="text-center">
                             <div className="font-semibold text-foreground">
-                              {analyticsData.activityStats.topUsers.length}
+                              {analyticsData.activityStats?.topUsers?.length}
                             </div>
                             <div className="text-muted-foreground">משתמשים פעילים</div>
                           </div>
                           <div className="text-center">
                             <div className="font-semibold text-foreground">
-                              {Math.round(analyticsData.activityStats.totalActions / Math.max(1, Object.keys(analyticsData.activityStats.actionsByCategory).length))}
+                              {Math.round(analyticsData.activityStats?.totalActions / Math.max(1, Object.keys(analyticsData.activityStats?.actionsByCategory || {}).length))}
                             </div>
                             <div className="text-muted-foreground">ממוצע פעולות</div>
                           </div>
@@ -647,7 +647,7 @@ export default function AnalyticsPage() {
                   <div className="bg-card rounded-lg border border-border p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-4">פעולות לפי קטגוריה</h3>
                     <div className="space-y-3">
-                      {Object.entries(analyticsData.activityStats.actionsByCategory || {}).map(([category, count]) => {
+                      {Object.entries(analyticsData.activityStats?.actionsByCategory || {}).map(([category, count]) => {
                         const categoryNames: Record<string, string> = {
                           task: 'משימות',
                           subtask: 'תת-משימות', 
@@ -673,13 +673,13 @@ export default function AnalyticsPage() {
                   <div className="bg-card rounded-lg border border-border p-6">
                     <h3 className="text-lg font-semibold text-foreground mb-4">משתמשים פעילים</h3>
                     <div className="space-y-3">
-                      {analyticsData.activityStats.topUsers.slice(0, 5).map((user) => (
+                      {analyticsData.activityStats?.topUsers?.slice(0, 5).map((user) => (
                         <div key={user.userId} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
                               {user.actionCount}
                             </div>
-                            <span>{user.username || `משתמש ${user.userId.slice(-6)}`}</span>
+                            <span>{user.username || `משתמש ${user.userId ? user.userId.slice(-6) : 'unknown'}`}</span>
                           </div>
                         </div>
                       ))}
