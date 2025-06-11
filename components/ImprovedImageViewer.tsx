@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Download, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useImageZoom } from '@/hooks/useImageZoom';
+import Image from 'next/image';
 
 interface ImprovedImageViewerProps {
   images: string[];
@@ -24,13 +25,16 @@ export default function ImprovedImageViewer({
   const [portalElement, setPortalElement] = useState<HTMLElement | null>(null);
   const [showControls, setShowControls] = useState(true);
   const [isSwipeable, setIsSwipeable] = useState(true);
+  const [isTouching, setIsTouching] = useState(false);
   
   const backgroundRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const swiperRef = useRef<HTMLDivElement>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
   const currentTranslateX = useRef<number>(0);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasMoved = useRef<boolean>(false);
 
   // Use the image zoom hook
   const { 
@@ -64,6 +68,29 @@ export default function ImprovedImageViewer({
     };
   }, [isOpen]);
 
+  // Navigation functions - wrapped in useCallback
+  const navigateToImage = useCallback((index: number) => {
+    if (index < 0 || index >= images.length) return;
+    
+    setActiveIndex(index);
+    handleReset();
+    if (swiperRef.current) {
+      swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
+    }
+  }, [images.length, isRTL, handleReset]);
+
+  const navigatePrev = useCallback(() => {
+    if (activeIndex > 0) {
+      navigateToImage(activeIndex - 1);
+    }
+  }, [activeIndex, navigateToImage]);
+
+  const navigateNext = useCallback(() => {
+    if (activeIndex < images.length - 1) {
+      navigateToImage(activeIndex + 1);
+    }
+  }, [activeIndex, images.length, navigateToImage]);
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,10 +101,18 @@ export default function ImprovedImageViewer({
           onClose();
           break;
         case 'ArrowLeft':
-          isRTL ? navigateNext() : navigatePrev();
+          if (isRTL) {
+            navigateNext();
+          } else {
+            navigatePrev();
+          }
           break;
         case 'ArrowRight':
-          isRTL ? navigatePrev() : navigateNext();
+          if (isRTL) {
+            navigatePrev();
+          } else {
+            navigateNext();
+          }
           break;
         case '+':
           handleZoomIn();
@@ -93,7 +128,7 @@ export default function ImprovedImageViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeIndex, images.length, onClose, isRTL, handleZoomIn, handleZoomOut, handleReset]);
+  }, [isOpen, onClose, isRTL, handleZoomIn, handleZoomOut, handleReset, navigateNext, navigatePrev]);
 
   // Auto-hide controls after inactivity
   useEffect(() => {
@@ -123,93 +158,99 @@ export default function ImprovedImageViewer({
     };
   }, [isOpen]);
 
-  // Critical handler for closing when clicking on the background
+  // Improved background click handler
   const handleBackgroundClick = (e: React.MouseEvent) => {
-    // Only close if the background itself was clicked (not any children)
+    // Don't close if currently touching (mobile)
+    if (isTouching) return;
+    
+    // Only close if clicking directly on the background
     if (e.target === backgroundRef.current) {
       console.log('Background clicked, closing viewer');
       onClose();
     }
   };
 
-  // Navigation
-  const navigatePrev = () => {
-    if (activeIndex > 0) {
-      navigateToImage(activeIndex - 1);
-    }
-  };
-
-  const navigateNext = () => {
-    if (activeIndex < images.length - 1) {
-      navigateToImage(activeIndex + 1);
-    }
-  };
-
-  const navigateToImage = (index: number) => {
-    if (index < 0 || index >= images.length) return;
-    
-    setActiveIndex(index);
-    handleReset();
-    if (swiperRef.current) {
-      swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
-    }
-  };
-
-  // Handle swipe navigation
+  // Improved touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    setIsTouching(true);
+    hasMoved.current = false;
+    
     // Skip if zoomed in - useImageZoom will handle touch events when zoomed
     if (zoom > 1) return;
     
     if (!isSwipeable || !swiperRef.current) return;
     
-    touchStartX.current = e.touches[0].clientX;
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
     currentTranslateX.current = isRTL ? activeIndex * 100 : -activeIndex * 100;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isTouching) return;
+    
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX.current);
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
+    
+    // Determine if this is a horizontal swipe (for navigation) or vertical (for scrolling/zooming)
+    if (deltaX > 10 || deltaY > 10) {
+      hasMoved.current = true;
+    }
+    
     // Skip if zoomed in - useImageZoom will handle touch events when zoomed
     if (zoom > 1) return;
     
     if (!isSwipeable || !swiperRef.current) return;
     
-    const currentX = e.touches[0].clientX;
-    const diff = currentX - touchStartX.current;
-    const percentMove = (diff / window.innerWidth) * 100;
-    
-    // Limit overscroll
-    const maxTranslate = 0;
-    const minTranslate = isRTL ? (images.length - 1) * 100 : -((images.length - 1) * 100);
-    let newTranslate = currentTranslateX.current + (isRTL ? -percentMove : percentMove);
-    
-    // Add resistance at edges
-    if (isRTL) {
-      if (newTranslate < 0) {
-        newTranslate = newTranslate * 0.3;
-      } else if (newTranslate > minTranslate) {
-        newTranslate = minTranslate + (newTranslate - minTranslate) * 0.3;
+    // Only handle horizontal swipes for navigation
+    if (deltaX > deltaY && deltaX > 10) {
+      e.preventDefault(); // Prevent scrolling during horizontal swipe
+      
+      const diff = touch.clientX - touchStartX.current;
+      const percentMove = (diff / window.innerWidth) * 100;
+      
+      // Limit overscroll
+      const maxTranslate = 0;
+      const minTranslate = isRTL ? (images.length - 1) * 100 : -((images.length - 1) * 100);
+      let newTranslate = currentTranslateX.current + (isRTL ? -percentMove : percentMove);
+      
+      // Add resistance at edges
+      if (isRTL) {
+        if (newTranslate < 0) {
+          newTranslate = newTranslate * 0.3;
+        } else if (newTranslate > minTranslate) {
+          newTranslate = minTranslate + (newTranslate - minTranslate) * 0.3;
+        }
+      } else {
+        if (newTranslate > maxTranslate) {
+          newTranslate = maxTranslate + (newTranslate - maxTranslate) * 0.3;
+        } else if (newTranslate < minTranslate) {
+          newTranslate = minTranslate + (newTranslate - minTranslate) * 0.3;
+        }
       }
-    } else {
-      if (newTranslate > maxTranslate) {
-        newTranslate = maxTranslate + (newTranslate - maxTranslate) * 0.3;
-      } else if (newTranslate < minTranslate) {
-        newTranslate = minTranslate + (newTranslate - minTranslate) * 0.3;
-      }
+      
+      swiperRef.current.style.transform = `translateX(${newTranslate}%)`;
     }
-    
-    swiperRef.current.style.transform = `translateX(${newTranslate}%)`;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    // Reset touch state after a delay to prevent immediate click events
+    setTimeout(() => {
+      setIsTouching(false);
+    }, 100);
+    
     // Skip if zoomed in - useImageZoom will handle touch events when zoomed
     if (zoom > 1) return;
     
     if (!isSwipeable || !swiperRef.current) return;
     
-    const currentX = e.changedTouches[0].clientX;
-    const diff = currentX - touchStartX.current;
+    const touch = e.changedTouches[0];
+    const diff = touch.clientX - touchStartX.current;
+    const deltaY = Math.abs(touch.clientY - touchStartY.current);
     
-    // If swipe is significant enough (20% of screen width), navigate
-    if (Math.abs(diff) > window.innerWidth * 0.2) {
+    // Only process horizontal swipes
+    if (Math.abs(diff) > deltaY && Math.abs(diff) > window.innerWidth * 0.2) {
       if (isRTL) {
         if (diff < 0 && activeIndex > 0) {
           navigateToImage(activeIndex - 1);
@@ -256,7 +297,21 @@ export default function ImprovedImageViewer({
           a.download = `image-${activeIndex + 1}.jpg`;
           a.click();
           window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+          console.error('Failed to download image:', error);
         });
+    }
+  };
+
+  // Handle clicks on the image container area (outside the image)
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // Don't close if currently touching (mobile)
+    if (isTouching) return;
+    
+    // Close if clicking in the container but not on the image itself
+    if (e.target === imageContainerRef.current) {
+      onClose();
     }
   };
 
@@ -291,7 +346,7 @@ export default function ImprovedImageViewer({
         onClick={e => e.stopPropagation()} // Prevent closing when clicking controls
       >
         <button 
-          className="p-2 text-white hover:bg-white/20 rounded-full"
+          className="p-2 text-white hover:bg-white/20 rounded-full disabled:opacity-50"
           onClick={handleZoomOut}
           disabled={zoom <= 1}
           aria-label="Zoom out"
@@ -308,7 +363,7 @@ export default function ImprovedImageViewer({
         </button>
         
         <button 
-          className="p-2 text-white hover:bg-white/20 rounded-full"
+          className="p-2 text-white hover:bg-white/20 rounded-full disabled:opacity-50"
           onClick={handleZoomIn}
           disabled={zoom >= 5}
           aria-label="Zoom in"
@@ -337,10 +392,14 @@ export default function ImprovedImageViewer({
       {images.length > 1 && isSwipeable && (
         <>
           <button 
-            className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '')}`}
+            className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 hover:bg-black/70 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '')}`}
             onClick={(e) => { 
               e.stopPropagation(); // Prevent closing when clicking nav buttons
-              isRTL ? navigateNext() : navigatePrev();
+              if (isRTL) {
+                navigateNext();
+              } else {
+                navigatePrev();
+              }
             }}
             disabled={isRTL ? activeIndex === images.length - 1 : activeIndex === 0}
             aria-label={isRTL ? "Next image" : "Previous image"}
@@ -351,10 +410,14 @@ export default function ImprovedImageViewer({
           </button>
           
           <button 
-            className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '')}`}
+            className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 hover:bg-black/70 ${showControls ? 'opacity-100' : 'opacity-0'} ${isRTL ? (activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : '') : (activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : '')}`}
             onClick={(e) => { 
               e.stopPropagation(); // Prevent closing when clicking nav buttons
-              isRTL ? navigatePrev() : navigateNext();
+              if (isRTL) {
+                navigatePrev();
+              } else {
+                navigateNext();
+              }
             }}
             disabled={isRTL ? activeIndex === 0 : activeIndex === images.length - 1}
             aria-label={isRTL ? "Previous image" : "Next image"}
@@ -366,11 +429,11 @@ export default function ImprovedImageViewer({
         </>
       )}
 
-      {/* Main content container - connect to the useImageZoom hook's containerRef */}
+      {/* Main content container - this now allows background clicks */}
       <div 
         ref={containerRef}
         className="relative w-full h-full overflow-hidden"
-        onClick={e => e.stopPropagation()} // This stops the click from reaching the background
+        // Remove onClick here to allow clicks to bubble up to background
       >
         <div 
           ref={swiperRef}
@@ -386,7 +449,9 @@ export default function ImprovedImageViewer({
           {images.map((src, index) => (
             <div 
               key={index} 
+              ref={index === activeIndex ? imageContainerRef : null}
               className="min-w-full h-full flex items-center justify-center p-4"
+              onClick={handleContainerClick} // Handle clicks on the container (padding area)
             >
               <div 
                 className="relative max-w-full max-h-full overflow-hidden"
@@ -395,7 +460,7 @@ export default function ImprovedImageViewer({
                   transition: zoom > 1 ? 'none' : 'transform 0.3s ease-out'
                 }}
               >
-                <img 
+                <Image 
                   ref={index === activeIndex ? imageRef : null}
                   src={src} 
                   alt={`Image ${index + 1}`}
@@ -405,7 +470,8 @@ export default function ImprovedImageViewer({
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
                   }}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent container click when clicking on image
                     // Toggle zoom on click
                     if (zoom > 1) {
                       handleReset();
@@ -414,6 +480,10 @@ export default function ImprovedImageViewer({
                     }
                   }}
                   draggable={false} // Prevent unwanted drag behavior
+                  fill
+                  sizes="(max-width: 768px) 100vw, 90vw"
+                  priority={index === activeIndex}
+                  unoptimized={src.startsWith('data:')} // For base64 images
                 />
               </div>
             </div>

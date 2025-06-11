@@ -158,7 +158,7 @@ export default function SimpleImageGallery({
           initialIndex={activeIndex}
           isOpen={true}
           onClose={handleCloseViewer}
-        />
+            />
       )}
     </>
   );
