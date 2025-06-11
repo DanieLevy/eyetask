@@ -365,8 +365,7 @@ export function useDataPreloader() {
     try {
       await fetchWithCache('/api/homepage-data', {
         ttl: 3 * 60 * 1000,
-        namespace: 'client_cache',
-        background: true
+        namespace: 'client_cache'
       });
       logger.info('Homepage data preloaded', 'DATA_PRELOADER');
     } catch (error) {
@@ -378,8 +377,7 @@ export function useDataPreloader() {
     try {
       await fetchWithCache(`/api/project-data/${encodeURIComponent(projectName)}`, {
         ttl: 5 * 60 * 1000,
-        namespace: 'client_cache',
-        background: true
+        namespace: 'client_cache'
       });
       logger.info('Project data preloaded', 'DATA_PRELOADER', { projectName });
     } catch (error) {

@@ -180,7 +180,7 @@ export default function ProjectManagement() {
         
         // Fetch subtasks for each task
         if (tasksRes.tasks && tasksRes.tasks.length > 0) {
-          const subtasksPromises = tasksRes.tasks.map(task => 
+          const subtasksPromises = tasksRes.tasks.map((task: Task) =>
             fetch(`/api/subtasks?taskId=${task._id}&_t=${timestamp}`, { headers: commonHeaders })
               .then(res => res.json())
           );

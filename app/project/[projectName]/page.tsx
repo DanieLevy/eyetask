@@ -855,7 +855,7 @@ export default function ProjectPage() {
                                 תיאור המשימה
                               </h4>
                               <p className="text-muted-foreground text-sm">
-                                {task.description.main}
+                                {task.description?.main || "אין תיאור זמין"}
                               </p>
                           </div>
 
@@ -865,7 +865,7 @@ export default function ProjectPage() {
                                 הוראות ביצוע
                               </h4>
                               <p className="text-muted-foreground text-sm">
-                                {task.description.howToExecute}
+                                {task.description?.howToExecute || "אין הוראות זמינות"}
                               </p>
                           </div>
 

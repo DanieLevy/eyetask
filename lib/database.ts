@@ -860,13 +860,20 @@ export class DatabaseService {
   async getProjectPageData(projectName: string): Promise<{
     project: Project;
     tasks: Task[];
+    subtasks: Record<string, Subtask[]>;
+    success: boolean;
   }> {
     // Normalize project name to handle URL encoding issues
     const normalizedProjectName = decodeURIComponent(projectName);
     
     // Try to get from cache first
     const cacheKey = `project_data_${normalizedProjectName}_v2`;
-    const cachedData = cache.get<{ project: Project; tasks: Task[] }>(cacheKey, { 
+    const cachedData = cache.get<{ 
+      project: Project; 
+      tasks: Task[]; 
+      subtasks: Record<string, Subtask[]>;
+      success: boolean;
+    }>(cacheKey, { 
       namespace: 'api_data',
       ttl: 2 * 60 * 1000 // 2 minutes cache
     });
@@ -884,7 +891,7 @@ export class DatabaseService {
       const tracker = new PerformanceTracker('PROJECT_DATA_QUERY', 'getProjectPageData');
       logger.debug(`Starting project data query for: ${normalizedProjectName}`, 'DB_PROJECT_DATA');
       
-      const { projects, tasks } = await this.getCollections();
+      const { projects, tasks, subtasks } = await this.getCollections();
       
       // First get the project
       const project = await projects.findOne({ name: normalizedProjectName });
@@ -910,15 +917,39 @@ export class DatabaseService {
             targetCar: 1,
             dayTime: 1,
             priority: 1,
-            isVisible: 1
-            // Don't include description and images to reduce data size
+            isVisible: 1,
+            description: 1,
+            images: 1,
+            amountNeeded: 1,
+            lidar: 1
+            // Include description and images so they're available when tasks are expanded
           }
         }
       ).sort({ priority: -1 }).toArray();
       
+      // Get all task IDs
+      const taskIds = projectTasks.map(task => task._id);
+      
+      // Fetch subtasks for all tasks in this project in a single query
+      const allSubtasks = await subtasks.find(
+        { taskId: { $in: taskIds } }
+      ).toArray();
+      
+      // Organize subtasks by task ID
+      const subtasksByTaskId: Record<string, Subtask[]> = {};
+      for (const subtask of allSubtasks) {
+        const taskId = subtask.taskId.toString();
+        if (!subtasksByTaskId[taskId]) {
+          subtasksByTaskId[taskId] = [];
+        }
+        subtasksByTaskId[taskId].push(subtask);
+      }
+      
       const result = {
         project: project as Project,
-        tasks: projectTasks as Task[]
+        tasks: projectTasks as Task[],
+        subtasks: subtasksByTaskId,
+        success: true
       };
       
       const endTime = performance.now();
@@ -933,6 +964,7 @@ export class DatabaseService {
       logger.debug(`Project data query completed for: ${normalizedProjectName}`, 'DB_PROJECT_DATA', {
         projectName: normalizedProjectName,
         taskCount: result.tasks.length,
+        subtaskCount: allSubtasks.length,
         queryTime: `${processingTime.toFixed(2)}ms`,
         dataSize: JSON.stringify(result).length
       });

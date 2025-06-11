@@ -1,6 +1,6 @@
 # 🚗 Driver Tasks - Professional Task Management System
 
-A modern, robust web application for managing automotive data collection tasks with comprehensive admin dashboard and real-time analytics.
+A modern, robust web application for managing automotive data collection tasks with comprehensive admin dashboard, real-time analytics, and performance monitoring.
 
 ## ✨ Key Features
 
@@ -12,15 +12,17 @@ A modern, robust web application for managing automotive data collection tasks w
 - **🔐 Secure Authentication** - JWT-based admin authentication
 - **📸 Multi-Image Upload** - Support for multiple images per task
 - **🏗️ Project Organization** - Hierarchical project and subtask structure
+- **📈 Performance Monitoring** - Advanced memory and MongoDB connection monitoring
 
 ## 🛠️ Technology Stack
 
 - **Frontend:** Next.js 15, React 19, TypeScript
-- **Database:** MongoDB with optimized schema
+- **Database:** MongoDB with optimized connection pooling
 - **Styling:** Tailwind CSS with Hebrew RTL support
 - **Authentication:** JWT with secure session management
 - **UI Components:** Radix UI primitives
 - **Analytics:** Real-time activity logging and metrics
+- **Monitoring:** Advanced memory and database connection tracking
 
 ## 🚀 Quick Start
 
@@ -37,12 +39,7 @@ A modern, robust web application for managing automotive data collection tasks w
    # Edit .env.local with your MongoDB URI and secrets
    ```
 
-3. **Database Setup**
-   ```bash
-   npm run setup-mongodb
-   ```
-
-4. **Start Development**
+3. **Start Development**
    ```bash
    npm run dev
    ```
@@ -52,26 +49,28 @@ A modern, robust web application for managing automotive data collection tasks w
 ```
 driver-tasks/
 ├── app/                    # Next.js 15 app directory
-│   ├── api/               # API routes (tasks, projects, feedback, analytics)
-│   ├── admin/             # Admin dashboard pages
-│   ├── feedback/          # Public feedback system
-│   └── project/           # Project detail pages
-├── components/            # Reusable React components
-│   ├── admin/             # Admin-specific components
-│   └── icons/             # Icon components
-├── lib/                   # Core utilities and services
-│   ├── services/          # Business logic services
-│   ├── types/             # TypeScript type definitions
-│   └── mongodb.ts         # Database connection
-├── docs/                  # Comprehensive documentation
-│   ├── changelogs/        # Feature updates and changes
-│   ├── deployment/        # Deployment guides
-│   ├── features/          # Feature specifications
-│   └── technical/         # Technical documentation
-├── scripts/               # Utility scripts
-│   ├── migrations/        # Database migration scripts
-│   └── seed-activities.js # Sample data generation
-└── public/               # Static assets and PWA files
+│   ├── api/                # API routes (tasks, projects, feedback, analytics)
+│   │   └── health/         # Performance monitoring endpoints
+│   ├── admin/              # Admin dashboard pages
+│   │   └── performance-monitoring/ # Performance monitoring UI
+│   ├── feedback/           # Public feedback system
+│   └── project/            # Project detail pages
+├── components/             # Reusable React components
+│   ├── admin/              # Admin-specific components
+│   └── ui/                 # UI components from shadcn/ui
+├── lib/                    # Core utilities and services
+│   ├── services/           # Business logic services
+│   │   ├── connectionMonitor.ts # MongoDB connection monitoring
+│   │   └── monitoringService.ts # Centralized monitoring
+│   ├── memory-monitor.ts   # Memory usage monitoring and optimization
+│   ├── enhanced-logging.ts # Advanced logging system
+│   └── mongodb.ts          # Database connection with pooling
+├── docs/                   # Comprehensive documentation
+│   ├── changelogs/         # Feature updates and changes
+│   ├── deployment/         # Deployment guides
+│   ├── features/           # Feature specifications
+│   └── technical/          # Technical documentation
+└── public/                # Static assets and PWA files
 ```
 
 ## 🔧 Environment Variables
@@ -107,21 +106,23 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 - `GET /api/tasks` - List tasks with filtering
 - `POST /api/tasks` - Create new task
 - `GET /api/analytics` - System analytics and metrics
-- `GET /api/feedback` - Manage feedback tickets
+- `GET /api/health` - Performance and system health monitoring
+- `POST /api/health/gc` - Trigger memory cleanup and garbage collection
 
 ## 🔐 Admin Access
 
 1. **Initial Setup:** Visit `/admin/setup` (first-time only)
 2. **Login:** Access admin dashboard at `/admin/login`
 3. **Dashboard:** Comprehensive admin interface at `/admin/dashboard`
+4. **Monitoring:** System performance monitoring at `/admin/performance-monitoring`
 
 ## 🌟 Recent Major Features
 
+- **✅ Performance Monitoring** - Real-time monitoring of memory and MongoDB connections
 - **✅ Feedback System** - Complete public feedback with admin management
 - **✅ Real Analytics** - Replaced mock data with real-time analytics
 - **✅ Debug Icon** - Context-aware bug reporting from any page
 - **✅ Activity Logging** - Comprehensive audit trail for all actions
-- **✅ Multi-Image Support** - Upload multiple images per task
 
 ## 🚀 Deployment
 
@@ -135,12 +136,6 @@ npm run build
 ```bash
 npm run build
 # Uses included netlify.toml configuration
-```
-
-### Docker
-```bash
-docker build -t driver-tasks .
-docker run -p 3000:3000 driver-tasks
 ```
 
 ## 🤝 Contributing

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     
     // Start monitoring if not already started
     if (!monitoringStarted) {
-      monitoringService.init();
+      monitoringService.initialize();
       monitoringStarted = true;
     }
     
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     
     // Analyze array buffers specifically (useful for identifying memory issues)
     const arrayBuffersAnalysis = analyzeArrayBuffers();
-
+    
     // Build a comprehensive health response
     const health = {
       status: databaseConnected ? systemHealth.status : 'ERROR',
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: health.status,
       databaseConnected,
       memoryRisk: memorySnapshot ? `${Math.floor(memorySnapshot.rss)}` : 'unknown'
-    });
+      });
 
     // Return the health data
     return NextResponse.json(health, {

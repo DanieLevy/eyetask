@@ -1,54 +1,70 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Toaster } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import AdminClientLayout from "@/components/AdminClientLayout";
-import { RefreshProvider } from "@/hooks/usePageRefresh";
-import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
-import CSSFailsafe from "@/components/CSSFailsafe";
-import OfflineBanner from "@/components/OfflineBanner";
 import SmartAppBanner from "@/components/SmartAppBanner";
-import DeepLinkHandler from "@/components/DeepLinkHandler";
+import OfflineBanner from "@/components/OfflineBanner";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
-import { GlobalLoadingIndicator, LoadingStyles } from "@/components/LoadingSystem";
-import { Toaster } from "@/components/ui/sonner";
-
-
-// Using system fonts to avoid network issues during build
-const systemSans = {
-  variable: "--font-geist-sans",
-  className: "font-sans",
-};
-
-const systemMono = {
-  variable: "--font-geist-mono", 
-  className: "font-mono",
-};
+import DeepLinkHandler from "@/components/DeepLinkHandler";
+import AdminClientLayout from "@/components/AdminClientLayout";
+import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
+import CSSFailsafe from "@/components/CSSFailsafe";
+import { RefreshProvider } from "@/hooks/usePageRefresh";
+import Script from "next/script";
+import IOSThemeHandler from "@/components/IOSThemeHandler";
+import { GlobalLoadingIndicator } from "@/components/LoadingSystem";
 
 export const metadata: Metadata = {
-  title: "DC Driver Tasks - Mobileye",
-  description: "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
+  title: "Driver Tasks",
+  description: "Driver Tasks Management System",
   manifest: "/manifest.json",
-  icons: {
-    icon: "/favico-ME-icon-black.svg",
-    shortcut: "/favico-ME-icon-black.svg",
-    apple: "/icons/icon-192x192.png",
-  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "DC Drivers Hub - Mobileye",
+    statusBarStyle: "default",
+    title: "Driver Tasks",
+  },
+  formatDetection: {
+    telephone: true,
   },
 };
 
 export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: "cover"
+  viewportFit: "cover",
 };
+
+// Fix iOS device detection script to avoid hydration mismatch
+const iosDetectionScript = `
+(function() {
+  try {
+    var userAgent = window.navigator.userAgent;
+    var isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    // Store the iOS detection result in localStorage for use after hydration
+    if (isIOS) {
+      localStorage.setItem('isIOSDevice', 'true');
+    } else {
+      localStorage.removeItem('isIOSDevice');
+    }
+    
+    // Don't modify body classes here to avoid hydration mismatch
+    // The body class will be added via useEffect after hydration
+    
+  } catch (e) {
+    console.warn('iOS detection error:', e);
+  }
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -56,245 +72,145 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning>
+    <html lang="he" dir="rtl">
       <head>
-        <link rel="icon" href="/favico-ME-icon-black.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/favico-ME-icon-black.svg" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Driver Tasks" />
+        <link rel="apple-touch-icon" href="/icons/icon-512x512.png" />
+        <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="format-detection" content="telephone=no" />
         
-        {/* iOS-specific optimizations for theme switching */}
-        <meta name="supported-color-schemes" content="light dark" />
-        <meta name="color-scheme" content="light dark" />
+        {/* iOS detection script */}
+        <Script id="ios-detection" strategy="beforeInteractive">
+          {iosDetectionScript}
+        </Script>
         
-        {/* Removed viewport meta tag to use Next.js viewport config */}
-        
-        {/* Theme initialization script to prevent FOUC */}
-        <script
+        {/* Legacy theme script - modified to avoid hydration mismatch */}
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  // iOS-safe localStorage helpers
-                  var getStoredTheme = function() {
-                    try {
-                      return localStorage.getItem('theme');
-                    } catch (error) {
-                      return null;
-                    }
-                  };
-                  
-                  var theme = getStoredTheme() || 'system';
                   var root = document.documentElement;
                   var body = document.body;
+                  var localStorage = window.localStorage;
+                  var userAgent = window.navigator.userAgent;
+                  
+                  // Detect iOS for special handling - but don't add body classes here
+                  var isIOS = /iPad|iPhone|iPod/.test(userAgent) || 
+                              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                  
+                  // Get theme from localStorage
+                  var storedTheme = localStorage.getItem('theme');
                   var resolvedTheme;
                   
-                  if (theme === 'system') {
-                    resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  // Determine theme with fallback to system preference
+                  if (storedTheme === 'light' || storedTheme === 'dark') {
+                    resolvedTheme = storedTheme;
                   } else {
-                    resolvedTheme = theme;
+                    // System preference detection
+                    resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                   }
                   
-                  // Check if iOS
-                  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                  // Apply theme class and color scheme to root
+                  root.classList.remove('light', 'dark');
+                  root.classList.add(resolvedTheme);
+                  root.style.colorScheme = resolvedTheme;
+                  root.setAttribute('data-theme', resolvedTheme);
                   
-                  // Enhanced iOS theme application with error handling
-                  var applyTheme = function() {
+                  // Phase 3: Force CSS custom properties update for iOS
+                  root.style.colorScheme = resolvedTheme;
+                  root.setAttribute('data-theme', resolvedTheme);
+                  
+                  // iOS-specific: Force CSS custom properties update
+                  if (isIOS) {
                     try {
-                      // Phase 1: Remove existing classes and force reflow
-                      root.classList.remove('light', 'dark', 'theme-transition');
-                      
-                      // iOS-specific: Force multiple reflows with error handling
-                      if (isIOS) {
-                        try {
-                          if (root && root.offsetHeight !== undefined) root.offsetHeight;
-                          if (root) root.scrollTop = root.scrollTop; // Force style recalculation
-                          if (body && body.offsetHeight !== undefined) body.offsetHeight;
-                        } catch (reflowError) {
-                          // iOS reflow error ignored
-                        }
-                      }
-                      
-                      // Phase 2: Apply new theme class
-                      root.classList.add(resolvedTheme);
-                      
-                      // Phase 3: Force CSS custom properties update for iOS
-                      root.style.colorScheme = resolvedTheme;
-                      root.setAttribute('data-theme', resolvedTheme);
-                      
-                      // iOS-specific: Force CSS custom properties update
-                      if (isIOS) {
-                        try {
-                          root.style.setProperty('--ios-theme-force', resolvedTheme);
-                          root.style.removeProperty('--ios-theme-force');
-                        } catch (cssError) {
-                          // iOS CSS property error ignored
-                        }
-                      }
-                      
-                      // Phase 4: Enhanced iOS reflow using multiple RAF
-                      if (typeof requestAnimationFrame !== 'undefined') {
-                        requestAnimationFrame(function() {
+                      root.style.setProperty('--ios-theme-force', resolvedTheme);
+                      root.style.removeProperty('--ios-theme-force');
+                    } catch (cssError) {
+                      // iOS CSS property error ignored
+                    }
+                  }
+                  
+                  // Phase 4: Enhanced iOS reflow using multiple RAF
+                  if (typeof requestAnimationFrame !== 'undefined') {
+                    requestAnimationFrame(function() {
+                      try {
+                        root.style.setProperty('color-scheme', resolvedTheme);
+                        if (body) body.style.colorScheme = resolvedTheme;
+                        
+                        // iOS-specific: Force hardware acceleration
+                        if (isIOS) {
                           try {
-                            root.style.setProperty('color-scheme', resolvedTheme);
-                            if (body) body.style.colorScheme = resolvedTheme;
+                            root.style.transform = 'translateZ(0)';
+                            root.style.willChange = 'transform';
                             
-                            // iOS-specific: Force hardware acceleration
-                            if (isIOS) {
+                            requestAnimationFrame(function() {
                               try {
-                                root.style.transform = 'translateZ(0)';
-                                root.style.willChange = 'transform';
+                                root.style.transform = '';
+                                root.style.willChange = 'auto';
                                 
+                                // Final iOS force reflow
                                 requestAnimationFrame(function() {
                                   try {
-                                    root.style.transform = '';
-                                    root.style.willChange = 'auto';
-                                    
-                                    // Final iOS force reflow
-                                    requestAnimationFrame(function() {
+                                    // Force all elements to recalculate styles
+                                    var allElements = document.querySelectorAll('*');
+                                    for (var i = 0; i < Math.min(allElements.length, 50); i++) {
                                       try {
-                                        // Force all elements to recalculate styles
-                                        var allElements = document.querySelectorAll('*');
-                                        for (var i = 0; i < Math.min(allElements.length, 50); i++) {
-                                          try {
-                                            var el = allElements[i];
-                                            if (el && el.offsetHeight !== undefined) {
-                                              el.offsetHeight; // Force style recalculation
-                                            }
-                                          } catch (elementError) {
-                                            // Ignore individual element errors
-                                          }
+                                        var el = allElements[i];
+                                        if (el && el.offsetHeight !== undefined) {
+                                          el.offsetHeight; // Force style recalculation
                                         }
-                                      } catch (finalReflowError) {
-                                        // Final reflow error ignored
+                                      } catch (elementError) {
+                                        // Ignore individual element errors
                                       }
-                                    });
-                                  } catch (cleanupError) {
-                                    // iOS cleanup error ignored
+                                    }
+                                  } catch (finalReflowError) {
+                                    // Final reflow error ignored
                                   }
                                 });
-                              } catch (accelerationError) {
-                                console.warn('iOS hardware acceleration error:', accelerationError);
+                              } catch (cleanupError) {
+                                // iOS cleanup error ignored
                               }
-                            }
-                          } catch (rafError) {
-                            console.warn('RAF error:', rafError);
+                            });
+                          } catch (accelerationError) {
+                            console.warn('iOS hardware acceleration error:', accelerationError);
                           }
-                        });
-                      }
-                      
-                      // Phase 5: Skip meta theme-color and viewport manipulation to avoid console warnings
-                      
-                      // iOS-specific: Other iOS-specific optimizations
-                      if (isIOS) {
-                        try {
-                          // Apply iOS-specific styles directly to root
-                          root.style.setProperty('--ios-theme-timestamp', Date.now().toString());
-                          
-                          // Force iOS to recognize color scheme
-                          if (resolvedTheme === 'dark') {
-                            document.body.classList.add('ios-dark-mode');
-                          } else {
-                            document.body.classList.remove('ios-dark-mode');
-                          }
-                        } catch (iosError) {
-                          console.warn('iOS optimization error:', iosError);
                         }
-                      }
-                    } catch (applyError) {
-                      console.warn('Theme application error:', applyError);
-                    }
-                  };
-                  
-                  // Enhanced iOS-specific theme application with retries
-                  var applyThemeWithRetry = function() {
-                    applyTheme();
-                    
-                    // iOS-specific: Verify theme was applied and retry if needed
-                    if (isIOS) {
-                      setTimeout(function() {
-                        try {
-                          if (!root.classList.contains(resolvedTheme)) {
-                            console.warn('[iOS] Theme application failed, retrying...');
-                            applyTheme();
-                            
-                            // Second retry after longer delay
-                            setTimeout(function() {
-                              try {
-                                if (!root.classList.contains(resolvedTheme)) {
-                                  console.warn('[iOS] Second theme application attempt...');
-                                  root.classList.add(resolvedTheme);
-                                  root.style.colorScheme = resolvedTheme;
-                                }
-                              } catch (retryError) {
-                                console.warn('[iOS] Retry error:', retryError);
-                              }
-                            }, 200);
-                          }
-                        } catch (verifyError) {
-                          console.warn('[iOS] Theme verification error:', verifyError);
-                        }
-                      }, 50);
-                    }
-                  };
-                  
-                  // Apply theme with proper timing
-                  if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', applyThemeWithRetry);
-                  } else {
-                    if (isIOS) {
-                      // iOS needs multiple attempts with different timings
-                      setTimeout(applyThemeWithRetry, 0);
-                      setTimeout(applyTheme, 10);
-                      setTimeout(applyTheme, 50);
-                    } else {
-                      applyThemeWithRetry();
-                    }
-                  }
-                  
-                  // iOS-specific: Listen for orientation changes and reapply theme
-                  if (isIOS && typeof window !== 'undefined') {
-                    window.addEventListener('orientationchange', function() {
-                      setTimeout(applyTheme, 100);
-                    });
-                    
-                    // Listen for visibility changes (iOS Safari tab switching)
-                    document.addEventListener('visibilitychange', function() {
-                      if (!document.hidden && isIOS) {
-                        setTimeout(applyTheme, 50);
+                      } catch (rafError) {
+                        console.warn('RAF error:', rafError);
                       }
                     });
                   }
                   
-                } catch (e) {
-                  console.warn('Theme initialization error:', e);
-                  // Enhanced fallback for iOS
-                  try {
-                    var systemIsDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    var fallbackTheme = systemIsDark ? 'dark' : 'light';
-                    document.documentElement.classList.add(fallbackTheme);
-                    document.documentElement.style.colorScheme = fallbackTheme;
-                    document.documentElement.style.setProperty('color-scheme', fallbackTheme);
-                    document.documentElement.setAttribute('data-theme', fallbackTheme);
-                  } catch (fallbackError) {
-                    console.warn('Fallback theme error:', fallbackError);
+                  // Phase 5: Skip meta theme-color and viewport manipulation to avoid console warnings
+                  
+                  // iOS-specific: Other iOS-specific optimizations
+                  if (isIOS) {
+                    try {
+                      // Apply iOS-specific styles directly to root
+                      root.style.setProperty('--ios-theme-timestamp', Date.now().toString());
+                      
+                      // DON'T add iOS dark mode class here to avoid hydration mismatch
+                      // This will be handled by React useEffect after hydration
+                    } catch (iosError) {
+                      console.warn('iOS optimization error:', iosError);
+                    }
                   }
+                } catch (applyError) {
+                  console.warn('Theme application error:', applyError);
                 }
               })();
             `,
           }}
         />
       </head>
-      <body
-        className={`${systemSans.variable} ${systemMono.variable} antialiased font-sans`}
-      >
+      <body className="antialiased font-sans">
+        <IOSThemeHandler />
         <CSSFailsafe />
-        <LoadingStyles />
         <LoadingProvider>
           <NavigationLoadingProvider>
             <DeepLinkHandler>

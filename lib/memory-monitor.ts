@@ -62,6 +62,11 @@ const WARNING_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 const RECOVERY_COOLDOWN = 15 * 60 * 1000; // 15 minutes
 let lastRecoveryAttempt = 0;
 
+// Declare the custom global property for TypeScript
+declare global {
+  var __appCache: Record<string, Record<string, any>> | undefined;
+}
+
 /**
  * Take a snapshot of current memory usage and analyze for potential issues
  */
@@ -304,7 +309,7 @@ export function attemptMemoryRecovery(): boolean {
     }
     
     // Additional memory-saving measures
-    clearMemoryCaches();
+    clearCaches();
     
     // Take a snapshot after recovery
     setTimeout(() => {
@@ -362,27 +367,32 @@ export function attemptMemoryRecovery(): boolean {
 /**
  * Clear any internal caches that might be holding memory
  */
-function clearMemoryCaches(): void {
+function clearCaches(): void {
+  // Clear module caches to free memory
   try {
-    // Clear module cache (be careful with this)
-    // Object.keys(require.cache).forEach(key => {
-    //   if (key.includes('node_modules')) {
-    //     delete require.cache[key];
-    //   }
-    // });
-    
-    // Clear any application-specific caches
+    // Clear global caches
     if (global.__appCache) {
       logger.info('Clearing application caches', 'MEMORY_RECOVERY');
-      Object.keys(global.__appCache).forEach(key => {
-        global.__appCache[key] = {};
+      const appCache = global.__appCache; // Local reference that TypeScript knows is defined
+      Object.keys(appCache).forEach(key => {
+        appCache[key] = {};
       });
     }
     
-    // You can add more cache-clearing logic here
+    // Clear require cache for dev mode
+    if (process.env.NODE_ENV === 'development') {
+      // This is safe to do in development but not in production
+      logger.info('Clearing module cache in development mode', 'MEMORY_RECOVERY');
+      Object.keys(require.cache).forEach(key => {
+        // Only clear non-essential modules
+        if (!key.includes('node_modules')) {
+          delete require.cache[key];
+        }
+      });
+    }
   } catch (error) {
-    logger.warn('Error clearing memory caches', 'MEMORY_RECOVERY', {
-      error: (error as Error).message
+    logger.error('Error clearing caches', 'MEMORY_RECOVERY', {
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }

@@ -109,7 +109,7 @@ export async function connectToDatabase(): Promise<{
   pendingOperations: number;
 }> {
   // Create a tracker for this operation
-  const tracker = new PerformanceTracker('connectToDatabase');
+  const tracker = new PerformanceTracker('MONGODB_CONNECTION', 'connectToDatabase');
   
   try {
     // If we already have a connection, reuse it
@@ -147,12 +147,11 @@ export async function connectToDatabase(): Promise<{
       
       tracker.finish({ reused: true, requestsServedByThisConnection: cached.requestsServedByThisConnection, pendingOperations: cached.pendingOperations });
       
-      // Return the existing connection
       return {
         client: cached.client,
         db: cached.db,
         isNewConnection: false,
-        connectionCount: cached.connectionCount,
+        connectionCount: cached.connectionCount || 1,
         requestsServedByThisConnection: cached.requestsServedByThisConnection,
         pendingOperations: cached.pendingOperations
       };
@@ -179,7 +178,14 @@ export async function connectToDatabase(): Promise<{
 /**
  * Create a new MongoDB connection
  */
-async function createNewConnection(tracker: PerformanceTracker): Promise<CachedConnection> {
+async function createNewConnection(tracker: PerformanceTracker): Promise<{
+  client: MongoClient | null;
+  db: Db | null;
+  isNewConnection: boolean;
+  connectionCount: number;
+  requestsServedByThisConnection: number;
+  pendingOperations: number;
+}> {
   try {
     const MONGODB_URI = process.env.MONGODB_URI;
     const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
@@ -196,7 +202,7 @@ async function createNewConnection(tracker: PerformanceTracker): Promise<CachedC
     tracker.checkpoint('connection_start');
     
     const client = new MongoClient(MONGODB_URI, CONNECTION_OPTIONS);
-    
+  
     // Time the connection attempt
     const connectStart = Date.now();
     await client.connect();
@@ -206,9 +212,9 @@ async function createNewConnection(tracker: PerformanceTracker): Promise<CachedC
     logger.info(`MongoDB connected in ${connectTime}ms`, 'MONGODB_CONNECTION', {
       connectTime: `${connectTime}ms`
     });
-    
+  
     const db = client.db(MONGODB_DB_NAME);
-    
+
     // Set up connection monitoring
     const clientAdmin = db.admin();
     
@@ -255,9 +261,7 @@ async function createNewConnection(tracker: PerformanceTracker): Promise<CachedC
       });
       
       client.on('connectionPoolCleared', (event) => {
-        logger.warn('MongoDB connection pool cleared', 'MONGODB_CONNECTION', {
-          reason: event.reason
-        });
+        logger.warn('MongoDB connection pool cleared', 'MONGODB_CONNECTION');
       });
     }
 
@@ -297,8 +301,15 @@ async function createNewConnection(tracker: PerformanceTracker): Promise<CachedC
     tracker.checkpoint('setup_complete');
     logger.info('MongoDB connection established successfully', 'MONGODB_CONNECTION');
     tracker.finish({ newConnection: true });
-    
-    return updatedCache;
+
+    return {
+      client,
+      db,
+      isNewConnection: true,
+      connectionCount: updatedCache.connectionCount,
+      requestsServedByThisConnection: updatedCache.requestsServedByThisConnection,
+      pendingOperations: updatedCache.pendingOperations
+    };
   } catch (error) {
     logger.error('MongoDB connection failed', 'MONGODB_CONNECTION', { errorMessage: (error as Error).message });
     tracker.finish({ error: (error as Error).message });
@@ -317,6 +328,11 @@ function setupHeartbeat() {
 
   heartbeatInterval = setInterval(async () => {
     try {
+      // Check if cached is defined
+      if (!cached) {
+        return;
+      }
+      
       // If we have active pending operations, don't interfere
       if (cached.pendingOperations > 0) {
         return;
@@ -362,7 +378,7 @@ async function setupConnectionMonitoring(client: MongoClient, admin: any) {
     if (typeof setInterval !== 'undefined') {
       const monitorInterval = setInterval(async () => {
         try {
-          if (!cached.client) {
+          if (!cached || !cached.client) {
             // Connection closed, clear interval
             clearInterval(monitorInterval);
             return;
@@ -413,7 +429,7 @@ function analyzeSystemState() {
     }
     
     // If connection is being frequently recycled, log warning
-    if (cached.connectionCount > 20) {
+    if (cached && cached.connectionCount > 20) {
       const timeSinceFirstConnection = Date.now() - cached.lastConnectionTime + (cached.connectionCount * 60000);
       const connectionsPerHour = cached.connectionCount / (timeSinceFirstConnection / 1000 / 60 / 60);
       
@@ -468,20 +484,39 @@ export async function getDatabase(): Promise<Db> {
  * Get a collection with caching to avoid repeated lookups
  */
 export async function getCollection<T extends Document = Document>(collectionName: string): Promise<Collection<T>> {
-  const connection = await connectToDatabase();
+  // Get the MongoDB connection
+  const { client, db } = await connectToDatabase();
+  
+  // Make sure we have a valid connection
+  if (!client || !db) {
+    throw new Error(`Failed to connect to MongoDB`);
+  }
+  
+  // Access the cached connection to get collections
+  if (!cached || !cached.collections) {
+    // Initialize collections object if it doesn't exist
+    if (cached) {
+      cached.collections = {};
+    }
+  }
   
   // Check if collection is already cached
-  if (connection.collections[collectionName]) {
-    return connection.collections[collectionName] as Collection<T>;
+  if (cached && cached.collections[collectionName]) {
+    // Use unknown as an intermediate type to avoid TypeScript errors
+    return cached.collections[collectionName] as unknown as Collection<T>;
   }
   
   // Get the collection and cache it
-  const collection = connection.db?.collection<T>(collectionName);
+  const collection = db.collection<T>(collectionName);
   if (!collection) {
     throw new Error(`Could not get collection: ${collectionName}`);
   }
   
-  connection.collections[collectionName] = collection;
+  // Cache the collection for future use
+  if (cached) {
+    cached.collections[collectionName] = collection as unknown as Collection;
+  }
+  
   return collection;
 }
 
@@ -490,18 +525,18 @@ export async function getCollection<T extends Document = Document>(collectionNam
  */
 export async function getCollections(): Promise<DatabaseCollections> {
   const db = await getDatabase();
-  return {
-    projects: db.collection('projects'),
-    tasks: db.collection('tasks'),
-    subtasks: db.collection('subtasks'),
-    appUsers: db.collection('appUsers'),
-    analytics: db.collection('analytics'),
-    dailyUpdates: db.collection('dailyUpdates'),
-    dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
-    activities: db.collection('activities'),
+    return {
+      projects: db.collection('projects'),
+      tasks: db.collection('tasks'),
+      subtasks: db.collection('subtasks'),
+      appUsers: db.collection('appUsers'),
+      analytics: db.collection('analytics'),
+      dailyUpdates: db.collection('dailyUpdates'),
+      dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
+      activities: db.collection('activities'),
     feedbackTickets: db.collection('feedbackTickets')
-  };
-}
+    };
+  }
 
 /**
  * Disconnect from MongoDB
@@ -519,22 +554,22 @@ export async function disconnect(): Promise<void> {
     cached.db = null;
     cached.isConnecting = false;
     cached.collections = {};
-    logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
+      logger.info('MongoDB disconnected', 'MONGODB_CONNECTION');
+    }
   }
-}
 
 /**
  * Test MongoDB connection
  */
 export async function testConnection(): Promise<boolean> {
-  try {
+    try {
     const db = await getDatabase();
-    await db.admin().ping();
-    logger.info('MongoDB connection test successful', 'MONGODB_TEST');
-    return true;
-  } catch (error) {
-    logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
-    return false;
+      await db.admin().ping();
+      logger.info('MongoDB connection test successful', 'MONGODB_TEST');
+      return true;
+    } catch (error) {
+      logger.error('MongoDB connection test failed', 'MONGODB_TEST', undefined, error as Error);
+      return false;
   }
 }
 
@@ -606,7 +641,7 @@ export interface Task {
   isVisible: boolean;
   createdAt: Date;
   updatedAt: Date;
-}
+    }
 
 export interface Subtask {
   _id?: ObjectId;
@@ -634,7 +669,7 @@ export interface AppUser {
   role: 'admin';
   createdAt: Date;
   lastLogin?: Date;
-}
+    }
 
 export interface Analytics {
   _id?: ObjectId;

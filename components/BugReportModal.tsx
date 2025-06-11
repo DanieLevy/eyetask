@@ -1,286 +1,222 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { X, Bug, Send, AlertTriangle } from 'lucide-react';
-import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface PageContext {
+  url: string;
+  pathname: string;
+  title: string;
+  pageType: 'task' | 'project' | 'admin' | 'feedback' | 'home' | 'other';
+  relatedId?: string;
+  relatedTitle?: string;
+  userAgent: string;
+  timestamp: string;
+}
 
 interface BugReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  pageContext?: {
-    url: string;
-    pathname: string;
-    title: string;
-    pageType: 'task' | 'project' | 'admin' | 'feedback' | 'home' | 'other';
-    relatedId?: string;
-    relatedTitle?: string;
-  };
+  pageContext: PageContext;
 }
 
 export default function BugReportModal({ isOpen, onClose, pageContext }: BugReportModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const [description, setDescription] = useState('');
+  const [email, setEmail] = useState('');
+  const [severity, setSeverity] = useState<'low' | 'medium' | 'high'>('medium');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    userName: '',
-    title: '',
-    description: '',
-    isUrgent: false
-  });
-
-  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  // Auto-fill form when pageContext changes
-  useEffect(() => {
-    if (pageContext) {
-      let autoTitle = '';
-      let autoDescription = `דיווח בעיה בעמוד: ${pageContext.url}\n\nתיאור הבעיה:\n`;
-
-      if (pageContext.pageType === 'task' || pageContext.pageType === 'project') {
-        autoTitle = `בעיה ב${pageContext.pageType === 'task' ? 'משימה' : 'פרויקט'}: ${pageContext.relatedTitle || 'לא ידוע'}`;
-      } else if (pageContext.pageType === 'admin') {
-        autoTitle = `בעיה בפאנל ניהול`;
-      } else {
-        autoTitle = `בעיה בעמוד: ${pageContext.title}`;
-      }
-
-      setFormData(prev => ({
-        ...prev,
-        title: autoTitle,
-        description: autoDescription
-      }));
+    
+    // Reset form when reopened
+    if (isOpen) {
+      setDescription('');
+      setSeverity('medium');
+      setIsSubmitting(false);
     }
-  }, [pageContext]);
-
-  // Handle ESC key to close modal
+  }, [isOpen]);
+  
+  // Prevent scrolling on body when modal is open
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
+    if (!mounted) return;
+    
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-
+    
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, mounted]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.userName.trim() || !formData.title.trim() || !formData.description.trim()) {
+    if (!description.trim()) {
+      toast.error('יש למלא תיאור הבעיה');
       return;
     }
-
+    
     setIsSubmitting(true);
-
+    
     try {
+      // Prepare the bug report data
+      const reportData = {
+        description,
+        email: email || undefined,
+        severity,
+        pageContext,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Submit to API endpoint
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userName: formData.userName.trim(),
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          category: getCategory(),
-          issueType: 'bug',
-          isUrgent: formData.isUrgent,
-          relatedTo: getRelatedTo()
+          type: 'bug',
+          subject: `Bug: ${pageContext.title}`,
+          description: JSON.stringify(reportData, null, 2),
+          email: email || undefined,
+          priority: severity === 'high' ? 'urgent' : severity === 'medium' ? 'normal' : 'low',
+          sourceUrl: pageContext.url,
+          metadata: {
+            userAgent: pageContext.userAgent,
+            pageType: pageContext.pageType,
+            relatedId: pageContext.relatedId,
+          }
         }),
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Show success message briefly then close
-        toast.success(`דיווח נשלח בהצלחה! מספר הטיקט: ${result.ticketNumber}`);
-        
-        // Reset form and close modal
-        setFormData({
-          userName: '',
-          title: '',
-          description: '',
-          isUrgent: false
-        });
-        onClose();
-      } else {
-        throw new Error('Failed to submit report');
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit bug report');
       }
+      
+      toast.success('תודה! הדיווח נשלח בהצלחה');
+      onClose();
     } catch (error) {
       console.error('Error submitting bug report:', error);
-      toast.error('שגיאה בשליחת הדיווח. אנא נסה שוב.');
+      toast.error('שגיאה בשליחת הדיווח. נסה שוב מאוחר יותר.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const getCategory = () => {
-    if (!pageContext) return 'general_support';
-    
-    switch (pageContext.pageType) {
-      case 'task': return 'task_related';
-      case 'project': return 'project_related';
-      case 'admin': return 'technical_issue';
-      default: return 'general_support';
-    }
-  };
-
-  const getRelatedTo = () => {
-    if (!pageContext || !pageContext.relatedId) return undefined;
-    
-    return {
-      type: pageContext.pageType === 'task' ? 'task' : 
-            pageContext.pageType === 'project' ? 'project' : undefined,
-      id: pageContext.relatedId,
-      title: pageContext.relatedTitle
-    };
-  };
-
+  
   if (!mounted || !isOpen) return null;
 
-  const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <Bug className="w-5 h-5 text-orange-500" />
-            <h2 className="text-lg font-semibold">דיווח בעיה מהיר</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-accent transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Full Name */}
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-card relative max-w-md w-full rounded-lg shadow-lg p-6 mx-auto">
+        <button 
+          onClick={onClose}
+          className="absolute top-2 right-2 p-1 rounded-full hover:bg-accent"
+          aria-label="סגור"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        
+        <h2 className="text-xl font-bold mb-4 text-right">דיווח על בעיה</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 text-right">
           <div>
-            <label className="block text-sm font-medium mb-1">
-              שם מלא <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.userName}
-              onChange={(e) => setFormData(prev => ({ ...prev, userName: e.target.value }))}
-              className="w-full p-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="הכנס את שמך המלא"
-              required
-              disabled={isSubmitting}
-            />
+            <label className="block mb-1 font-medium">דרגת חומרה:</label>
+            <div className="flex gap-4 justify-end">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="severity"
+                  value="low"
+                  checked={severity === 'low'}
+                  onChange={() => setSeverity('low')}
+                  className="ml-1.5"
+                />
+                <span>נמוכה</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="severity"
+                  value="medium"
+                  checked={severity === 'medium'}
+                  onChange={() => setSeverity('medium')}
+                  className="ml-1.5"
+                />
+                <span>בינונית</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="severity"
+                  value="high"
+                  checked={severity === 'high'}
+                  onChange={() => setSeverity('high')}
+                  className="ml-1.5"
+                />
+                <span>גבוהה</span>
+              </label>
+            </div>
           </div>
-
-          {/* Title */}
+          
           <div>
-            <label className="block text-sm font-medium mb-1">
-              כותרת הבעיה <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full p-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="תיאור קצר של הבעיה"
-              required
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              תיאור הבעיה <span className="text-red-500">*</span>
-            </label>
+            <label htmlFor="bug-description" className="block mb-1 font-medium">תיאור הבעיה:</label>
             <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full p-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-              placeholder="פרט את הבעיה שאתה חווה..."
-              rows={4}
-              required
-              disabled={isSubmitting}
+              id="bug-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2 border rounded-md bg-background min-h-[100px] text-right"
+              placeholder="תאר את הבעיה בפירוט..."
+              dir="rtl"
             />
           </div>
-
-          {/* Urgent checkbox */}
-          <div className="flex items-center gap-2">
+          
+          <div>
+            <label htmlFor="email" className="block mb-1 font-medium">דוא״ל לתשובה (אופציונלי):</label>
             <input
-              type="checkbox"
-              id="urgent"
-              checked={formData.isUrgent}
-              onChange={(e) => setFormData(prev => ({ ...prev, isUrgent: e.target.checked }))}
-              className="rounded border border-border"
-              disabled={isSubmitting}
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-2 border rounded-md bg-background text-right"
+              placeholder="your@email.com"
+              dir="ltr"
             />
-            <label htmlFor="urgent" className="text-sm flex items-center gap-1">
-              <AlertTriangle className="w-4 h-4 text-orange-500" />
-              בעיה דחופה
-            </label>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
+          
+          <div className="border-t pt-4 flex justify-between">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`px-4 py-2 bg-primary text-primary-foreground rounded-md ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/90'
+              }`}
+            >
+              {isSubmitting ? 'שולח...' : 'שלח דיווח'}
+            </button>
+            
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm border border-border rounded-lg hover:bg-accent transition-colors"
-              disabled={isSubmitting}
+              className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
             >
               ביטול
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || !formData.userName.trim() || !formData.title.trim() || !formData.description.trim()}
-              className="flex-1 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  שולח...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  שלח דיווח
-                </>
-              )}
-            </button>
           </div>
         </form>
+        
+        <div className="mt-4 text-xs text-muted-foreground text-right">
+          <p>
+            מידע טכני שיישלח: סוג הדף, כתובת URL, דפדפן, מועד הדיווח.
+            {pageContext.relatedId && ` מזהה קשור: ${pageContext.relatedId}.`}
+          </p>
+        </div>
       </div>
     </div>
   );
-
-  return createPortal(modalContent, document.body);
 } 

@@ -40,23 +40,23 @@ export async function GET(request: NextRequest) {
     
     // Fetch active daily updates from MongoDB
     const updates = await db.getActiveDailyUpdates(includeHidden);
-    
+
     // Transform updates for API response
     const transformedUpdates = updates.map(update => ({
-      id: update._id?.toString(),
-      title: update.title,
-      content: update.content,
-      type: update.type,
-      priority: update.priority,
-      duration_type: update.durationType,
-      duration_value: update.durationValue,
-      expiresAt: update.expiresAt?.toISOString(),
-      is_active: update.isActive,
-      is_pinned: update.isPinned,
-      is_hidden: update.isHidden || false,
-      targetAudience: update.targetAudience,
-      created_at: update.createdAt.toISOString(),
-      updated_at: update.updatedAt.toISOString()
+        id: update._id?.toString(),
+        title: update.title,
+        content: update.content,
+        type: update.type,
+        priority: update.priority,
+        duration_type: update.durationType,
+        duration_value: update.durationValue,
+        expiresAt: update.expiresAt?.toISOString(),
+        is_active: update.isActive,
+        is_pinned: update.isPinned,
+        is_hidden: update.isHidden || false,
+        targetAudience: update.targetAudience,
+        created_at: update.createdAt.toISOString(),
+        updated_at: update.updatedAt.toISOString()
     }));
     
     // Cache the result
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate expiresAt date
-    let expiresAt = null;
+    let expiresAt: Date | undefined = undefined;
     if (durationType !== 'permanent' && durationValue) {
       expiresAt = new Date();
       if (durationType === 'hours') {

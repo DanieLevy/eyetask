@@ -17,14 +17,12 @@ const nextConfig = {
       },
     ],
   },
-  async rewrites() {
-    return [
-      {
-        source: '/.well-known/appspecific/com.chrome.devtools.json',
-        destination: '/api/devtools-response',
-      },
-    ];
+  // Enable server components
+  experimental: {
+    serverActions: {},
   },
+  // External packages for server components
+  serverExternalPackages: [],
 };
 
 module.exports = nextConfig; 

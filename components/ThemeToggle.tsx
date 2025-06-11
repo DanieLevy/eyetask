@@ -118,17 +118,13 @@ export default function ThemeToggle() {
               // Color scheme update error ignored
             }
             
-            // iOS-specific: Better theme transition for iOS
+            // Store the resolved theme for iOS class handling in useEffect
             if (isIOS()) {
               try {
-                // Apply iOS-specific class
-                if (resolvedTheme === 'dark') {
-                  document.body.classList.add('ios-dark-mode');
-                } else {
-                  document.body.classList.remove('ios-dark-mode');
-                }
+                // Save the theme for the useEffect hook to handle
+                localStorage.setItem('ios-theme-state', resolvedTheme);
                 
-                // Force iOS style recalculation
+                // Force iOS style recalculation without adding classes directly
                 document.body.style.setProperty('--ios-forced-theme', resolvedTheme);
               } catch (error) {
                 // iOS optimization error ignored
@@ -166,9 +162,9 @@ export default function ThemeToggle() {
                       htmlElement.style.display = 'none';
                       if (htmlElement.offsetHeight !== undefined) htmlElement.offsetHeight; // Trigger reflow
                       htmlElement.style.display = currentDisplay || '';
-                                      } catch (error) {
-                    // iOS final reflow error ignored
-                  }
+                    } catch (error) {
+                      // iOS final reflow error ignored
+                    }
                   }, 10);
                 } catch (error) {
                   // iOS cleanup error ignored
@@ -250,7 +246,7 @@ export default function ThemeToggle() {
     
     // Apply theme with proper timing
     const initializeTheme = () => {
-    applyTheme(storedTheme);
+      applyTheme(storedTheme);
     };
 
     // iOS-specific: Ensure DOM is fully ready
@@ -280,6 +276,51 @@ export default function ThemeToggle() {
       document.removeEventListener('DOMContentLoaded', initializeTheme);
     };
   }, []);
+
+  // Add a separate useEffect to handle iOS dark mode class
+  // This prevents hydration mismatches by handling it on the client side only
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // Handle iOS-specific class to prevent hydration mismatch
+    if (isIOS()) {
+      const resolvedTheme = getResolvedTheme();
+      
+      // Apply the class after hydration
+      if (resolvedTheme === 'dark') {
+        document.body.classList.add('ios-dark-mode');
+      } else {
+        document.body.classList.remove('ios-dark-mode');
+      }
+      
+      // Also listen for changes to ios-theme-state
+      const checkIOSThemeState = () => {
+        try {
+          const iosTheme = localStorage.getItem('ios-theme-state');
+          if (iosTheme === 'dark') {
+            document.body.classList.add('ios-dark-mode');
+          } else if (iosTheme === 'light') {
+            document.body.classList.remove('ios-dark-mode');
+          }
+        } catch (error) {
+          // Ignore localStorage errors
+        }
+      };
+      
+      // Set up a storage event listener
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'ios-theme-state') {
+          checkIOSThemeState();
+        }
+      };
+      
+      window.addEventListener('storage', handleStorageChange);
+      
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    }
+  }, [mounted]);
 
   // Enhanced toggle with iOS event handling and proper error handling
   const toggleTheme = (e?: React.MouseEvent | React.TouchEvent | Event) => {

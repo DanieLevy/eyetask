@@ -75,8 +75,6 @@ export default function HeaderDebugIcon() {
     };
   };
 
-
-
   const handleReportClick = () => {
     setIsModalOpen(true);
   };

@@ -5,18 +5,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:debug": "node scripts/debug-performance.js",
-    "debug": "cross-env LOG_LEVEL=debug next dev",
     "build": "next build",
     "build:clean": "rimraf .next node_modules .vercel .netlify && npm ci && npm run build",
     "start": "next start",
     "lint": "next lint",
     "clear": "powershell \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 2; if(Test-Path .next){Remove-Item .next -Recurse -Force}; npm cache clean --force; echo 'Project cleared! Run npm run dev to start fresh.'\"",
-    "setup-mongodb": "node scripts/migrations/setup-mongodb-collections.js",
-    "migrate-from-supabase": "node scripts/migrations/supabase-to-mongodb-migration.js",
-    "migrate-to-multiple-images": "node scripts/migrations/migrate-to-multiple-images.js",
-    "generate-jwt-secret": "node scripts/generate-jwt-secret.js",
-    "optimize-db": "node scripts/optimize-database.js"
+    "generate-jwt-secret": "node scripts/generate-jwt-secret.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
