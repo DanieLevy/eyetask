@@ -342,14 +342,6 @@ export default function ImageZoomViewer({
           ))}
         </div>
       </div>
-
-      {/* Touch instructions */}
-      <div 
-        className={`absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black/50 px-3 py-1 rounded-full pointer-events-none transition-opacity duration-300 ${showControls && activeIndex === 0 ? 'opacity-80' : 'opacity-0'}`}
-      >
-        <span className="hidden md:inline">✨ Scroll to zoom • Drag to move</span>
-        <span className="inline md:hidden">✨ Pinch to zoom • Swipe to navigate</span>
-      </div>
     </div>,
     portalElement
   );
