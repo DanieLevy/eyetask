@@ -212,8 +212,13 @@ export default function ImageZoomViewer({
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-black/40 to-black/30 backdrop-blur-xl transition-all duration-300"
       ref={containerRef}
+      style={{
+        backdropFilter: 'blur(16px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 100%)'
+      }}
     >
       {/* Close button */}
       <button 
@@ -325,9 +330,11 @@ export default function ImageZoomViewer({
                   ref={index === activeIndex ? imageRef : null}
                   src={src} 
                   alt={`Image ${index + 1}`}
-                  className="max-h-[90vh] max-w-full object-contain rounded-lg"
+                  className="max-h-[90vh] max-w-full object-contain rounded-lg shadow-2xl"
                   style={{ 
-                    cursor: zoom > 1 ? 'grab' : 'zoom-in'
+                    cursor: zoom > 1 ? 'grab' : 'zoom-in',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
                   }}
                 />
               </div>
