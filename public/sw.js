@@ -83,7 +83,7 @@ self.addEventListener('install', (event) => {
             <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Drivers Hub - מצב אופליין</title>
+              <title>Driver Tasks - מצב אופליין</title>
               <style>
                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
                 .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }

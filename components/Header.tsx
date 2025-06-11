@@ -156,7 +156,7 @@ export default function Header() {
           {/* Center - App Name */}
           <div className="absolute left-1/2 transform -translate-x-1/2">
             <h1 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
-              Drivers Hub
+              Driver Tasks
             </h1>
           </div>
 

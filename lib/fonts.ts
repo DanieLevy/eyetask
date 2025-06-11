@@ -1,4 +1,4 @@
-// Font configuration and utilities for Drivers Hub
+// Font configuration and utilities for Driver Tasks
 export type FontFamily = 'intel' | 'ploni' | 'hebrew' | 'english' | 'mixed';
 export type FontWeight = 'ultralight' | 'light' | 'regular' | 'medium' | 'bold';
 export type Language = 'he' | 'en' | 'mixed';

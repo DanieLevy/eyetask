@@ -139,7 +139,7 @@ function HomePageCore() {
       return 'ברוך הבא לאפליקציה!';
     }
     
-    return 'ברוכים הבאים ל-Drivers Hub';
+    return 'ברוכים הבאים ל-Driver Tasks';
   };
 
   return (

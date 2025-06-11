@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Download, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useImageZoom } from '@/hooks/useImageZoom';
@@ -27,7 +27,6 @@ export default function ImprovedImageViewer({
   const [isTouching, setIsTouching] = useState(false);
   
   const backgroundRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const swiperRef = useRef<HTMLDivElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number>(0);
@@ -129,9 +128,6 @@ export default function ImprovedImageViewer({
 
   // Improved background click handler
   const handleBackgroundClick = (e: React.MouseEvent) => {
-    // Don't close if currently touching (mobile)
-    if (isTouching) return;
-    
     // Only close if clicking directly on the background
     if (e.target === backgroundRef.current) {
       console.log('Background clicked, closing viewer');
@@ -140,19 +136,19 @@ export default function ImprovedImageViewer({
   };
 
   // Navigation
-  const navigatePrev = () => {
+  const navigatePrev = useCallback(() => {
     if (activeIndex > 0) {
       navigateToImage(activeIndex - 1);
     }
-  };
+  }, [activeIndex]);
 
-  const navigateNext = () => {
+  const navigateNext = useCallback(() => {
     if (activeIndex < images.length - 1) {
       navigateToImage(activeIndex + 1);
     }
-  };
+  }, [activeIndex, images.length]);
 
-  const navigateToImage = (index: number) => {
+  const navigateToImage = useCallback((index: number) => {
     if (index < 0 || index >= images.length) return;
     
     setActiveIndex(index);
@@ -160,10 +156,10 @@ export default function ImprovedImageViewer({
     if (swiperRef.current) {
       swiperRef.current.style.transform = `translateX(${isRTL ? index * 100 : -index * 100}%)`;
     }
-  };
+  }, [images.length, isRTL, handleReset]);
 
   // Improved touch handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     setIsTouching(true);
     hasMoved.current = false;
     
@@ -176,9 +172,9 @@ export default function ImprovedImageViewer({
     touchStartX.current = touch.clientX;
     touchStartY.current = touch.clientY;
     currentTranslateX.current = isRTL ? activeIndex * 100 : -activeIndex * 100;
-  };
+  }, [zoom, isSwipeable, isRTL, activeIndex]);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isTouching) return;
     
     const touch = e.touches[0];
@@ -224,10 +220,18 @@ export default function ImprovedImageViewer({
       
       swiperRef.current.style.transform = `translateX(${newTranslate}%)`;
     }
-  };
+  }, [isTouching, zoom, isSwipeable, isRTL, images.length]);
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     const wasMoving = hasMoved.current;
+    
+    // Check if this was a tap (not much movement) and on the background
+    if (!wasMoving && e.target === backgroundRef.current) {
+      // This was a tap directly on the background - close the viewer
+      onClose();
+      setIsTouching(false);
+      return;
+    }
     
     // Reset touch state after a delay to prevent immediate click events
     setTimeout(() => {
@@ -298,11 +302,8 @@ export default function ImprovedImageViewer({
     }
   };
 
-  // Handle clicks on the image container area (outside the image)
+  // Handle container click for touch devices
   const handleContainerClick = (e: React.MouseEvent) => {
-    // Don't close if currently touching (mobile)
-    if (isTouching) return;
-    
     // Close if clicking in the container but not on the image itself
     if (e.target === imageContainerRef.current) {
       onClose();
@@ -317,6 +318,12 @@ export default function ImprovedImageViewer({
       className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-black/40 to-black/30 backdrop-blur-xl transition-all duration-300"
       ref={backgroundRef}
       onClick={handleBackgroundClick}
+      onTouchEnd={(e) => {
+        // If target is the background itself, close the viewer
+        if (e.target === backgroundRef.current) {
+          onClose();
+        }
+      }}
       dir={isRTL ? 'rtl' : 'ltr'}
       style={{
         backdropFilter: 'blur(16px) saturate(180%)',
@@ -419,7 +426,6 @@ export default function ImprovedImageViewer({
       <div 
         ref={containerRef}
         className="relative w-full h-full overflow-hidden"
-        // Remove onClick here to allow clicks to bubble up to background
       >
         <div 
           ref={swiperRef}

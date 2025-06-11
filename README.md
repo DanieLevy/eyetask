@@ -1,4 +1,4 @@
-# 🚗 Drivers Hub - Professional Task Management System
+# 🚗 Driver Tasks - Professional Task Management System
 
 A modern, robust web application for managing automotive data collection tasks with comprehensive admin dashboard and real-time analytics.
 
@@ -27,7 +27,7 @@ A modern, robust web application for managing automotive data collection tasks w
 1. **Clone & Install**
    ```bash
    git clone <repository-url>
-   cd drivers-hub
+   cd driver-tasks
    npm install
    ```
 
@@ -50,7 +50,7 @@ A modern, robust web application for managing automotive data collection tasks w
 ## 📁 Project Structure
 
 ```
-drivers-hub/
+driver-tasks/
 ├── app/                    # Next.js 15 app directory
 │   ├── api/               # API routes (tasks, projects, feedback, analytics)
 │   ├── admin/             # Admin dashboard pages
@@ -79,14 +79,14 @@ drivers-hub/
 ```env
 # MongoDB Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
-MONGODB_DB_NAME=drivershub
+MONGODB_DB_NAME=drivertasks
 
 # Authentication
 NEXTAUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
 
 # App Configuration  
-NEXT_PUBLIC_APP_NAME="Drivers Hub"
+NEXT_PUBLIC_APP_NAME="Driver Tasks"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
@@ -139,8 +139,8 @@ npm run build
 
 ### Docker
 ```bash
-docker build -t drivers-hub .
-docker run -p 3000:3000 drivers-hub
+docker build -t driver-tasks .
+docker run -p 3000:3000 driver-tasks
 ```
 
 ## 🤝 Contributing

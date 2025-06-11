@@ -163,7 +163,7 @@ export default function AdminLoginPage() {
         </form>
         
         <div className="mt-6 text-center text-xs text-muted-foreground">
-                      <p>© 2025 Mobileye - Drivers Hub</p>
+                      <p>© 2025 Mobileye - Driver Tasks</p>
         </div>
       </div>
     </div>

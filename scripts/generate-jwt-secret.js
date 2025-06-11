@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 
-console.log('\n🔐 JWT Secret Generator for Drivers Hub Production Deployment\n');
+console.log('\n🔐 JWT Secret Generator for Driver Tasks Production Deployment\n');
 
 // Generate a secure random string for JWT secret
 const jwtSecret = crypto.randomBytes(64).toString('hex');

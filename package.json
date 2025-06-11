@@ -1,7 +1,7 @@
 {
-  "name": "drivers-hub",
+  "name": "driver-tasks",
   "version": "0.1.0",
-  "description": "Drivers Hub - Driver Task Management Web App for Mobileye",
+  "description": "Driver Tasks - Driver Task Management Web App for Mobileye",
   "private": true,
   "scripts": {
     "dev": "next dev",

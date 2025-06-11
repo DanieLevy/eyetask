@@ -431,8 +431,8 @@ export function useDeepLink() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: title || 'Drivers Hub',
-                      text: text || 'צפה ב-Drivers Hub',
+          title: title || 'Driver Tasks',
+          text: text || 'צפה ב-Driver Tasks',
           url: link
         });
         return true;

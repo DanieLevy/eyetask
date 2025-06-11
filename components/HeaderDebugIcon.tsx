@@ -75,8 +75,6 @@ export default function HeaderDebugIcon() {
     };
   };
 
-
-
   const handleReportClick = () => {
     setIsModalOpen(true);
   };
@@ -87,7 +85,7 @@ export default function HeaderDebugIcon() {
     <>
       <button
         onClick={handleReportClick}
-        className="p-2 rounded-lg hover:bg-accent transition-colors group relative"
+        className="p-2 rounded-lg hover:bg-accent transition-colors group relative flex items-center justify-center"
         title="דיווח בעיה מהיר"
       >
         <Bug className="w-4 h-4 text-orange-500 hover:text-orange-600" />
@@ -106,4 +104,4 @@ export default function HeaderDebugIcon() {
       />
     </>
   );
-} 
+}

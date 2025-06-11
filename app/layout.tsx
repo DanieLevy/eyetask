@@ -27,7 +27,7 @@ const systemMono = {
 };
 
 export const metadata: Metadata = {
-  title: "DC Drivers Hub - Mobileye",
+  title: "DC Driver Tasks - Mobileye",
   description: "אפליקציית ניהול משימות בזמן אמת עבור נהגי Mobileye",
   manifest: "/manifest.json",
   icons: {
