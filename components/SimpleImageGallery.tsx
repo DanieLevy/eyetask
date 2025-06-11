@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { X, ZoomIn } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { X, Maximize } from 'lucide-react';
 import Image from 'next/image';
+import ImageZoomViewer from './ImageZoomViewer';
 
 interface GalleryImage {
   id: string;
@@ -24,8 +25,9 @@ export default function SimpleImageGallery({
   maxHeight = '200px',
   className = ''
 }: SimpleImageGalleryProps) {
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const galleryRef = useRef<HTMLDivElement>(null);
   
   // Handle both array of objects with id/url and array of string URLs
   const processedImages = useMemo(() => {
@@ -40,6 +42,11 @@ export default function SimpleImageGallery({
     });
   }, [images]);
 
+  // Get all image URLs for the zoom viewer
+  const imageUrls = useMemo(() => {
+    return processedImages.map(img => img.url);
+  }, [processedImages]);
+
   const handleImageLoaded = useCallback((url: string) => {
     setLoadedImages(prev => {
       const newSet = new Set(prev);
@@ -48,12 +55,12 @@ export default function SimpleImageGallery({
     });
   }, []);
 
-  const handleImageClick = (url: string) => {
-    setExpandedImage(url);
+  const handleOpenViewer = (index: number) => {
+    setActiveIndex(index);
   };
 
-  const handleCloseExpanded = () => {
-    setExpandedImage(null);
+  const handleCloseViewer = () => {
+    setActiveIndex(null);
   };
 
   // Check if URL is a base64 data URL
@@ -67,8 +74,11 @@ export default function SimpleImageGallery({
 
   return (
     <>
-      <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ${className}`}>
-        {processedImages.map((image) => (
+      <div 
+        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ${className}`}
+        ref={galleryRef}
+      >
+        {processedImages.map((image, index) => (
           <div 
             key={image.id} 
             className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800"
@@ -114,7 +124,7 @@ export default function SimpleImageGallery({
             </div>
             
             {/* Controls overlay */}
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
               {removable && onRemove && (
                 <button
                   onClick={(e) => {
@@ -128,39 +138,24 @@ export default function SimpleImageGallery({
                 </button>
               )}
               <button
-                onClick={() => handleImageClick(image.url)}
-                className="p-2 bg-white/80 text-gray-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Zoom image"
+                onClick={() => handleOpenViewer(index)}
+                className="p-2 bg-white/80 text-gray-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform hover:scale-110"
+                aria-label="View image"
               >
-                <ZoomIn className="w-5 h-5" />
+                <Maximize className="w-4 h-4" />
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Image viewer modal - use img here for compatibility with base64 */}
-      {expandedImage && (
-        <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4" 
-          onClick={handleCloseExpanded}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] w-full overflow-hidden">
-            <button 
-              className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full z-10"
-              onClick={handleCloseExpanded}
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <img 
-              src={expandedImage} 
-              alt="Expanded view" 
-              className="max-h-[90vh] max-w-full object-contain mx-auto rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
+      {/* Advanced Image Zoom Viewer */}
+      <ImageZoomViewer
+        images={imageUrls}
+        initialIndex={activeIndex || 0}
+        isOpen={activeIndex !== null}
+        onClose={handleCloseViewer}
+      />
     </>
   );
 }
