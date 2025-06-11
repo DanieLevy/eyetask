@@ -154,8 +154,8 @@ export default function Header() {
           </Link>
 
           {/* Center - App Name */}
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <h1 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+          <div className="absolute left-1/2 transform -translate-x-1/2 w-1/3 min-w-[100px]">
+            <h1 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass} text-center whitespace-nowrap overflow-hidden text-ellipsis`}>
               Driver Tasks
             </h1>
           </div>
