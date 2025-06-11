@@ -214,28 +214,20 @@ export default function ImageZoomViewer({
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-black/40 to-black/30 backdrop-blur-xl transition-all duration-300"
       ref={containerRef}
+      onClick={onClose}
       style={{
         backdropFilter: 'blur(16px) saturate(180%)',
         WebkitBackdropFilter: 'blur(16px) saturate(180%)',
         background: 'linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.2) 100%)'
       }}
     >
-      {/* Close button */}
-      <button 
-        className={`absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-full transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
-        onClick={onClose}
-        aria-label="Close image viewer"
-      >
-        <X className="w-6 h-6" />
-      </button>
-
       {/* Zoom controls */}
       <div 
         className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 rounded-full p-1 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
       >
         <button 
           className="p-2 text-white hover:bg-white/20 rounded-full"
-          onClick={zoomOut}
+          onClick={(e) => { e.stopPropagation(); zoomOut(); }}
           disabled={zoom <= 1}
           aria-label="Zoom out"
         >
@@ -244,7 +236,7 @@ export default function ImageZoomViewer({
         
         <button 
           className="p-2 text-white hover:bg-white/20 rounded-full"
-          onClick={reset}
+          onClick={(e) => { e.stopPropagation(); reset(); }}
           aria-label="Reset zoom"
         >
           <RotateCcw className="w-5 h-5" />
@@ -252,7 +244,7 @@ export default function ImageZoomViewer({
         
         <button 
           className="p-2 text-white hover:bg-white/20 rounded-full"
-          onClick={zoomIn}
+          onClick={(e) => { e.stopPropagation(); zoomIn(); }}
           disabled={zoom >= 5}
           aria-label="Zoom in"
         >
@@ -261,7 +253,7 @@ export default function ImageZoomViewer({
         
         <button 
           className="p-2 text-white hover:bg-white/20 rounded-full"
-          onClick={downloadImage}
+          onClick={(e) => { e.stopPropagation(); downloadImage(); }}
           aria-label="Download image"
         >
           <Download className="w-5 h-5" />
@@ -271,6 +263,7 @@ export default function ImageZoomViewer({
       {/* Image counter */}
       <div 
         className={`absolute top-4 left-4 z-50 bg-black/50 text-white px-3 py-1 rounded-full text-sm transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        onClick={(e) => e.stopPropagation()}
       >
         {activeIndex + 1} / {images.length}
       </div>
@@ -280,7 +273,7 @@ export default function ImageZoomViewer({
         <>
           <button 
             className={`absolute left-4 top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} ${activeIndex === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
-            onClick={() => navigateToImage(activeIndex - 1)}
+            onClick={(e) => { e.stopPropagation(); navigateToImage(activeIndex - 1); }}
             disabled={activeIndex === 0}
             aria-label="Previous image"
           >
@@ -291,7 +284,7 @@ export default function ImageZoomViewer({
           
           <button 
             className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-3 bg-black/50 text-white rounded-full transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'} ${activeIndex === images.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}`}
-            onClick={() => navigateToImage(activeIndex + 1)}
+            onClick={(e) => { e.stopPropagation(); navigateToImage(activeIndex + 1); }}
             disabled={activeIndex === images.length - 1}
             aria-label="Next image"
           >
@@ -308,6 +301,7 @@ export default function ImageZoomViewer({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={(e) => e.stopPropagation()}
       >
         <div 
           ref={swiperRef}
@@ -318,6 +312,7 @@ export default function ImageZoomViewer({
             <div 
               key={index} 
               className="min-w-full h-full flex items-center justify-center p-4"
+              onClick={(e) => e.stopPropagation()}
             >
               <div 
                 className="relative max-w-full max-h-full overflow-hidden"
@@ -325,6 +320,7 @@ export default function ImageZoomViewer({
                   transform: zoom > 1 ? `scale(${zoom}) translate(${position.x}px, ${position.y}px)` : 'none',
                   transition: zoom > 1 ? 'none' : 'transform 0.3s ease-out'
                 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <img 
                   ref={index === activeIndex ? imageRef : null}
@@ -336,6 +332,7 @@ export default function ImageZoomViewer({
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 />
               </div>
             </div>
