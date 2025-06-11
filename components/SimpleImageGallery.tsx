@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { X, Maximize } from 'lucide-react';
 import Image from 'next/image';
-import ImageZoomViewer from './ImageZoomViewer';
+import ImprovedImageViewer from './ImprovedImageViewer';
 
 interface GalleryImage {
   id: string;
@@ -55,13 +55,15 @@ export default function SimpleImageGallery({
     });
   }, []);
 
-  const handleOpenViewer = (index: number) => {
+  const handleOpenViewer = useCallback((index: number) => {
+    console.log('Opening viewer at index:', index);
     setActiveIndex(index);
-  };
+  }, []);
 
-  const handleCloseViewer = () => {
+  const handleCloseViewer = useCallback(() => {
+    console.log('Closing viewer');
     setActiveIndex(null);
-  };
+  }, []);
 
   // Check if URL is a base64 data URL
   const isBase64Image = (url: string) => {
@@ -81,8 +83,9 @@ export default function SimpleImageGallery({
         {processedImages.map((image, index) => (
           <div 
             key={image.id} 
-            className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800"
+            className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 cursor-pointer"
             style={{ maxHeight }}
+            onClick={() => handleOpenViewer(index)}
           >
             {/* Use a wrapper div to maintain aspect ratio */}
             <div className="w-full h-full relative">
@@ -137,25 +140,26 @@ export default function SimpleImageGallery({
                   <X className="w-4 h-4" />
                 </button>
               )}
-              <button
-                onClick={() => handleOpenViewer(index)}
+              <div
                 className="p-2 bg-white/80 text-gray-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform hover:scale-110"
                 aria-label="View image"
               >
                 <Maximize className="w-4 h-4" />
-              </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Advanced Image Zoom Viewer */}
-      <ImageZoomViewer
-        images={imageUrls}
-        initialIndex={activeIndex || 0}
-        isOpen={activeIndex !== null}
-        onClose={handleCloseViewer}
-      />
+      {/* Use the improved image viewer for better background click handling */}
+      {activeIndex !== null && (
+        <ImprovedImageViewer
+          images={imageUrls}
+          initialIndex={activeIndex}
+          isOpen={true}
+          onClose={handleCloseViewer}
+        />
+      )}
     </>
   );
 }
