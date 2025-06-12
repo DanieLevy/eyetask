@@ -22,13 +22,16 @@ import {
   FileText,
   ImageIcon,
   Loader2,
-  Info
+  Info,
+  EyeOff
 } from 'lucide-react';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { toast } from 'sonner';
 import SimpleImageGallery from '@/components/SimpleImageGallery';
+import { subtaskTypeOptions } from '@/lib/constants';
+import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 
 interface Task {
   _id: string;
@@ -77,6 +80,11 @@ interface Project {
   description?: string;
 }
 
+interface DeleteConfirmationData {
+  type: 'task' | 'subtask';
+  id: string;
+}
+
 const InfoPill: React.FC<{
   icon: React.ElementType;
   label: string;
@@ -102,7 +110,8 @@ export default function TaskManagement() {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'task' | 'subtask'; id: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmationData | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const fetchTaskData = useCallback(async () => {
     const token = localStorage.getItem('adminToken');
@@ -204,6 +213,41 @@ export default function TaskManagement() {
     } finally {
       setIsRefreshing(false);
       setDeleteConfirm(null);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!task) return;
+    
+    setIsRefreshing(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/tasks/${taskId}/visibility`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isVisible: !task.isVisible })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTask(prev => prev ? { ...prev, isVisible: !prev.isVisible } : null);
+          toast.success(`נראות המשימה עודכנה ל${task.isVisible ? 'לא נראית' : 'נראית'}`);
+        } else {
+          toast.error(data.error || 'שגיאה בעדכון נראות המשימה');
+        }
+      } else {
+        toast.error('שגיאה בעדכון נראות המשימה');
+      }
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+      toast.error('אירעה שגיאה בעדכון נראות המשימה');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -288,7 +332,10 @@ export default function TaskManagement() {
                 <Edit className="h-5 w-5" />
               </Link>
               <button
-                onClick={() => setDeleteConfirm({type: 'task', id: task._id})}
+                onClick={() => {
+                  setDeleteConfirm({type: 'task', id: task._id});
+                  setShowDeleteDialog(true);
+                }}
                 className="p-2 inline-flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-colors"
                 title="מחק משימה"
               >
@@ -391,7 +438,10 @@ export default function TaskManagement() {
                           <Edit className="h-4 w-4" />
                         </Link>
                         <button
-                          onClick={() => setDeleteConfirm({type: 'subtask', id: subtask._id})}
+                          onClick={() => {
+                            setDeleteConfirm({type: 'subtask', id: subtask._id});
+                            setShowDeleteDialog(true);
+                          }}
                           className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
                           title="מחק תת-משימה"
                         >
@@ -415,38 +465,21 @@ export default function TaskManagement() {
         </div>
       </main>
       
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" dir="rtl">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-lg font-bold">האם אתה בטוח?</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-              {deleteConfirm.type === 'task' 
-                ? 'פעולה זו תמחק לצמיתות את המשימה ואת כל תת-המשימות המשויכות אליה.'
-                : 'פעולה זו תמחק לצמיתות את תת-המשימה.'
-              }
-            </p>
-            <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-                >
-                  ביטול
-                </button>
-              <button
-                onClick={handleDelete}
-                disabled={isRefreshing}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              >
-                {isRefreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin"/>
-                ) : (
-                  'אשר מחיקה'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setDeleteConfirm(null);
+        }}
+        onConfirm={handleDelete}
+        title="האם אתה בטוח?"
+        description={
+          deleteConfirm?.type === 'task' 
+            ? 'פעולה זו תמחק לצמיתות את המשימה ואת כל תת-המשימות המשויכות אליה.'
+            : 'פעולה זו תמחק לצמיתות את תת-המשימה.'
+        }
+        isLoading={isRefreshing}
+      />
     </div>
   );
 } 

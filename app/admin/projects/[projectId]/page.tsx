@@ -31,6 +31,7 @@ import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
 import { toast } from 'sonner';
+import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 
 interface Task {
   _id: string;
@@ -79,7 +80,8 @@ export default function ProjectManagement() {
   const [user, setUser] = useState<any>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'project' | 'task', id: string } | null>(null);
 
   // Realtime notifications
   const { notification, showNotification } = useRealtimeNotification();
@@ -265,11 +267,13 @@ export default function ProjectManagement() {
     return subtasks.filter(subtask => subtask.taskId === taskId).length;
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async () => {
+    if (!deleteTarget || deleteTarget.type !== 'task') return;
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${deleteTarget.id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -277,7 +281,7 @@ export default function ProjectManagement() {
       });
 
       if (response.ok) {
-        setTasks(prevTasks => prevTasks.filter(task => task._id !== taskId));
+        setTasks(prevTasks => prevTasks.filter(task => task._id !== deleteTarget.id));
         toast.success('Task deleted successfully');
       } else {
         const data = await response.json();
@@ -288,11 +292,14 @@ export default function ProjectManagement() {
       console.error('Error deleting task:', error);
     } finally {
       setOperationLoading(false);
-      setDeleteConfirm(null);
+      setDeleteTarget(null);
+      setShowDeleteDialog(false);
     }
   };
 
   const handleDeleteProject = async () => {
+    if (!deleteTarget || deleteTarget.type !== 'project') return;
+    
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
@@ -315,7 +322,18 @@ export default function ProjectManagement() {
       console.error('Error deleting project:', error);
     } finally {
       setOperationLoading(false);
-      setDeleteConfirm(null);
+      setDeleteTarget(null);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    
+    if (deleteTarget.type === 'project') {
+      await handleDeleteProject();
+    } else {
+      await handleDeleteTask();
     }
   };
 
@@ -402,7 +420,10 @@ export default function ProjectManagement() {
                 <Edit className="h-5 w-5" />
               </Link>
               <button
-                onClick={() => setDeleteConfirm('project')}
+                onClick={() => {
+                  setDeleteTarget({ type: 'project', id: projectId });
+                  setShowDeleteDialog(true);
+                }}
                 className="p-2 inline-flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-colors"
                 title="מחק פרויקט"
               >
@@ -482,7 +503,10 @@ export default function ProjectManagement() {
                               <Edit className="h-4 w-4" />
                             </Link>
                             <button
-                              onClick={() => setDeleteConfirm(task._id)}
+                              onClick={() => {
+                                setDeleteTarget({ type: 'task', id: task._id });
+                                setShowDeleteDialog(true);
+                              }}
                               className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
                               title="מחק משימה"
                             >
@@ -499,38 +523,21 @@ export default function ProjectManagement() {
         </div>
       </main>
 
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" dir="rtl">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-lg font-bold">האם אתה בטוח?</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-              {deleteConfirm === 'project' 
-                ? 'פעולה זו תמחק לצמיתות את הפרויקט וכל המשימות ותת-המשימות שלו. לא ניתן לשחזר פעולה זו.'
-                : 'פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.'
-              }
-            </p>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
-              >
-                ביטול
-              </button>
-              <button
-                onClick={() => deleteConfirm === 'project' ? handleDeleteProject() : handleDeleteTask(deleteConfirm)}
-                disabled={operationLoading}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-              >
-                {operationLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin"/>
-                ) : (
-                  'אשר מחיקה'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={handleDelete}
+        title="האם אתה בטוח?"
+        description={
+          deleteTarget?.type === 'project'
+            ? 'פעולה זו תמחק לצמיתות את הפרויקט וכל המשימות ותת-המשימות שלו. לא ניתן לשחזר פעולה זו.'
+            : 'פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.'
+        }
+        isLoading={operationLoading}
+      />
     </div>
   );
 } 
