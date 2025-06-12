@@ -11,6 +11,13 @@
           "sbp_34eed4b68881f5b87ed47a9e31a59e0221a94ece"
         ]
       },
+      "shadcn-ui": {
+        "command": "npx",
+        "args": ["@jpisnice/shadcn-ui-mcp-server"],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+        }
+      },
       "MongoDB": {
         "command": "npx",
         "args": [
@@ -25,3 +32,5 @@
       }
     }
   }
+
+  

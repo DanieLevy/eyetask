@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { LogOut, Home, BarChart3, CheckSquare, FolderOpen, MessageCircle } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import AdminHeaderNav from '@/components/AdminHeaderNav';
 
@@ -81,11 +81,8 @@ export default function ConditionalHeader() {
             label: 'יציאה',
             icon: <LogOut className="h-4 w-4" />,
             onClick: () => {
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('adminToken');
-                localStorage.removeItem('adminUser');
-                window.location.href = '/admin';
-              }
+              // The logout logic is handled by the AppHeader component
+              // No need to duplicate it here
             },
             variant: 'destructive'
           }

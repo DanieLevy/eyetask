@@ -23,6 +23,7 @@ import {
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import ThemeToggle from '@/components/ThemeToggle';
 import HeaderDebugIcon from '@/components/HeaderDebugIcon';
+import AdminHeaderNav from '@/components/AdminHeaderNav';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -94,7 +95,6 @@ export default function AppHeader({
   const [user, setUser] = useState<{username: string; id: string} | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   
@@ -126,17 +126,17 @@ export default function AppHeader({
     
     // Check if user is logged in
     if (typeof window !== 'undefined') {
+      // Get user information from global context or localStorage
       const userData = window.__eyetask_user;
       const isAdmin = window.__eyetask_isAdmin;
-      
-      // For admin pages, also check localStorage
       const adminToken = localStorage.getItem('adminToken');
       const adminUser = localStorage.getItem('adminUser');
       
+      // Set user from either global or local storage
       if (userData) {
         setUser(userData);
         setShowLogout(true);
-      } else if (adminUser) {
+      } else if (adminUser && adminUser !== 'undefined' && adminUser !== 'null') {
         try {
           const parsedUser = JSON.parse(adminUser);
           setUser(parsedUser);
@@ -146,9 +146,8 @@ export default function AppHeader({
         }
       }
       
-      if (isAdmin || adminToken) {
-        setShowAdminDashboard(true);
-      }
+      // Set admin dashboard visibility
+      setShowAdminDashboard(!!(isAdmin || adminToken));
     }
     
     // Initialize the screen size detection
@@ -165,6 +164,12 @@ export default function AppHeader({
     // Cleanup
     return () => {
       window.removeEventListener('resize', checkScreenSize);
+      
+      // Clean up references to avoid memory leaks
+      if (typeof window !== 'undefined') {
+        // Don't clear global state on unmount, only on logout
+        // This prevents login state from being lost during navigation
+      }
     };
   }, []);
 
@@ -293,31 +298,8 @@ export default function AppHeader({
 
           {/* Admin Navigation Menu - Desktop */}
           {variant === 'admin' && !isSmallScreen && (
-            <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2 gap-1">
-              <Link href="/admin/dashboard">
-                <Button variant={pathname?.includes('/admin/dashboard') ? 'default' : 'ghost'} size="sm">
-                  <BarChart3 className="h-4 w-4 mr-1" />
-                  לוח בקרה
-                </Button>
-              </Link>
-              <Link href="/admin/tasks">
-                <Button variant={pathname?.includes('/admin/tasks') ? 'default' : 'ghost'} size="sm">
-                  <CheckSquare className="h-4 w-4 mr-1" />
-                  משימות
-                </Button>
-              </Link>
-              <Link href="/admin/projects">
-                <Button variant={pathname?.includes('/admin/projects') ? 'default' : 'ghost'} size="sm">
-                  <FolderOpen className="h-4 w-4 mr-1" />
-                  פרויקטים
-                </Button>
-              </Link>
-              <Link href="/admin/feedback">
-                <Button variant={pathname?.includes('/admin/feedback') ? 'default' : 'ghost'} size="sm">
-                  <MessageCircle className="h-4 w-4 mr-1" />
-                  פניות
-                </Button>
-              </Link>
+            <div className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2">
+              <AdminHeaderNav />
             </div>
           )}
 
