@@ -31,8 +31,25 @@ export async function GET(
       );
     }
 
+    // Ensure all fields are properly returned
+    const projectResponse = {
+      _id: project._id?.toString(),
+      name: project.name,
+      description: project.description,
+      isActive: project.isActive !== undefined ? project.isActive : true,
+      color: project.color || '#3B82F6',
+      priority: project.priority || 1,
+      clientName: project.clientName || '',
+      clientEmail: project.clientEmail || '',
+      clientPhone: project.clientPhone || '',
+      notes: project.notes || '',
+      image: project.image || '',
+      createdAt: project.createdAt?.toISOString(),
+      updatedAt: project.updatedAt?.toISOString()
+    };
+
     return NextResponse.json({
-      project,
+      project: projectResponse,
       success: true,
     });
   } catch (error) {

@@ -55,7 +55,15 @@ export async function POST(request: NextRequest) {
     
     const projectId = await db.createProject({
       name: body.name,
-      description: body.description
+      description: body.description || '',
+      isActive: body.isActive !== undefined ? body.isActive : true,
+      color: body.color || '#3B82F6',
+      priority: body.priority || 1,
+      clientName: body.clientName || '',
+      clientEmail: body.clientEmail || '',
+      clientPhone: body.clientPhone || '',
+      notes: body.notes || '',
+      image: body.image || ''
     });
     
     const newProject = await db.getProjectById(projectId);
@@ -71,6 +79,14 @@ export async function POST(request: NextRequest) {
         _id: newProject?._id?.toString(),
         name: newProject?.name,
         description: newProject?.description,
+        isActive: newProject?.isActive,
+        color: newProject?.color,
+        priority: newProject?.priority,
+        clientName: newProject?.clientName,
+        clientEmail: newProject?.clientEmail,
+        clientPhone: newProject?.clientPhone,
+        notes: newProject?.notes,
+        image: newProject?.image,
         createdAt: newProject?.createdAt.toISOString(),
         updatedAt: newProject?.updatedAt.toISOString()
       }, 

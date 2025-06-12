@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import Link from "next/link";
+import { use } from "react";
 
 // Create simple versions of missing UI components
 const Input = ({ 
@@ -70,6 +71,10 @@ const Checkbox = ({ id, checked, onCheckedChange }) => (
 );
 
 export default function EditProjectPage({ params }: { params: { projectId: string } }) {
+  // Unwrap params using React.use()
+  const unwrappedParams = use(params);
+  const projectId = unwrappedParams.projectId;
+  
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,7 +95,13 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
     async function fetchProject() {
       try {
         setLoading(true);
-        const response = await fetch(`/api/projects/${params.projectId}`);
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch(`/api/projects/${projectId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        });
         
         if (!response.ok) {
           throw new Error("Failed to fetch project");
@@ -118,7 +129,7 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
     }
 
     fetchProject();
-  }, [params.projectId]);
+  }, [projectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,10 +137,19 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
     try {
       setSubmitting(true);
       
-      const response = await fetch(`/api/projects/${params.projectId}`, {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        toast.error("You are not authenticated. Please log in.");
+        router.push('/admin');
+        return;
+      }
+      
+      const response = await fetch(`/api/projects/${projectId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
         body: JSON.stringify(formData),
       });
@@ -139,7 +159,7 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
       }
       
       toast.success("הפרויקט עודכן בהצלחה");
-      router.push(`/admin/projects/${params.projectId}`);
+      router.push(`/admin/projects/${projectId}`);
     } catch (error) {
       console.error("Error updating project:", error);
       toast.error("שגיאה בעדכון הפרויקט");
@@ -173,7 +193,7 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">עריכת פרויקט</h1>
         <Link 
-          href={`/admin/projects/${params.projectId}`} 
+          href={`/admin/projects/${projectId}`} 
           className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
         >
           חזרה לפרויקט
@@ -303,27 +323,30 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
                 rows={4}
               />
             </div>
+            
+            <div className="flex justify-end space-x-2 space-x-reverse pt-4">
+              <Button 
+                type="submit" 
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <span className="mr-2">שומר שינויים...</span>
+                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                  </>
+                ) : (
+                  "שמור שינויים"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push(`/admin/projects/${projectId}`)}
+              >
+                ביטול
+              </Button>
+            </div>
           </CardContent>
-          <div className="flex justify-between p-6 border-t">
-            <Button
-              type="button"
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
-              onClick={() => router.push(`/admin/projects/${params.projectId}`)}
-            >
-              ביטול
-            </Button>
-            <Button 
-              type="submit" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-              disabled={submitting}
-            >
-              {submitting ? (
-                <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
-              ) : (
-                "שמור שינויים"
-              )}
-            </Button>
-          </div>
         </Card>
       </form>
     </div>

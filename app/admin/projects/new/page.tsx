@@ -16,6 +16,13 @@ interface NewProjectData {
   name: string;
   description: string;
   image?: string;
+  isActive: boolean;
+  color: string;
+  priority: number;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  notes: string;
 }
 
 export default function NewProjectPage() {
@@ -25,7 +32,14 @@ export default function NewProjectPage() {
   const [newProjectData, setNewProjectData] = useState<NewProjectData>({
     name: '',
     description: '',
-    image: ''
+    image: '',
+    isActive: true,
+    color: '#3B82F6',
+    priority: 1,
+    clientName: '',
+    clientEmail: '',
+    clientPhone: '',
+    notes: ''
   });
 
   const handleCreateProject = async () => {
@@ -124,6 +138,90 @@ export default function NewProjectPage() {
                   currentImage={newProjectData.image}
                 />
                 <p className="text-xs text-muted-foreground mt-1">העלה תמונה המייצגת את הפרויקט</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">צבע</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newProjectData.color}
+                    onChange={(e) => setNewProjectData(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-12 h-12 p-1 rounded border border-border"
+                  />
+                  <input
+                    type="text"
+                    value={newProjectData.color}
+                    onChange={(e) => setNewProjectData(prev => ({ ...prev, color: e.target.value }))}
+                    className="flex-1 input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">עדיפות</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={newProjectData.priority}
+                  onChange={(e) => setNewProjectData(prev => ({ ...prev, priority: parseInt(e.target.value) || 1 }))}
+                  className="w-full input"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 mt-4">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={newProjectData.isActive}
+                  onChange={(e) => setNewProjectData(prev => ({ ...prev, isActive: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="isActive" className="text-sm font-medium">פרויקט פעיל</label>
+              </div>
+
+              <div className="mt-6 border-t border-border pt-4">
+                <h3 className="text-lg font-medium mb-3">פרטי לקוח</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">שם הלקוח</label>
+                    <input
+                      type="text"
+                      value={newProjectData.clientName}
+                      onChange={(e) => setNewProjectData(prev => ({ ...prev, clientName: e.target.value }))}
+                      className="w-full input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">אימייל</label>
+                    <input
+                      type="email"
+                      value={newProjectData.clientEmail}
+                      onChange={(e) => setNewProjectData(prev => ({ ...prev, clientEmail: e.target.value }))}
+                      className="w-full input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">טלפון</label>
+                    <input
+                      type="text"
+                      value={newProjectData.clientPhone}
+                      onChange={(e) => setNewProjectData(prev => ({ ...prev, clientPhone: e.target.value }))}
+                      className="w-full input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-foreground mb-1">הערות</label>
+                <textarea
+                  value={newProjectData.notes}
+                  onChange={(e) => setNewProjectData(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full input min-h-24"
+                  rows={4}
+                />
               </div>
             </div>
             

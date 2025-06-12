@@ -292,6 +292,33 @@ export default function ProjectManagement() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Project deleted successfully');
+        router.push('/admin/projects');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      toast.error('An error occurred while deleting the project.');
+      console.error('Error deleting project:', error);
+    } finally {
+      setOperationLoading(false);
+      setDeleteConfirm(null);
+    }
+  };
+
   const getPriorityColor = (priority: number) => {
     if (priority >= 1 && priority <= 3) return 'text-red-500 dark:text-red-400';
     if (priority >= 4 && priority <= 6) return 'text-amber-500 dark:text-amber-400';
@@ -374,6 +401,13 @@ export default function ProjectManagement() {
               >
                 <Edit className="h-5 w-5" />
               </Link>
+              <button
+                onClick={() => setDeleteConfirm('project')}
+                className="p-2 inline-flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-colors"
+                title="מחק פרויקט"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
@@ -470,7 +504,10 @@ export default function ProjectManagement() {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-lg font-bold">האם אתה בטוח?</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-              פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.
+              {deleteConfirm === 'project' 
+                ? 'פעולה זו תמחק לצמיתות את הפרויקט וכל המשימות ותת-המשימות שלו. לא ניתן לשחזר פעולה זו.'
+                : 'פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.'
+              }
             </p>
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -480,7 +517,7 @@ export default function ProjectManagement() {
                 ביטול
               </button>
               <button
-                onClick={() => handleDeleteTask(deleteConfirm)}
+                onClick={() => deleteConfirm === 'project' ? handleDeleteProject() : handleDeleteTask(deleteConfirm)}
                 disabled={operationLoading}
                 className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2"
               >

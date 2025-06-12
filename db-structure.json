@@ -1,0 +1,167 @@
+// Database: drivershub
+
+// Collection: subtasks
+interface Subtask {
+  _id: ObjectId;
+  title: string;
+  subtitle: string;
+  images: string[];
+  datacoNumber: string;
+  type: string;
+  amountNeeded: number;
+  labels: string[];
+  targetCar: string[];
+  weather: string;
+  scene: string;
+  dayTime: string[];
+  taskId: ObjectId | string;
+  createdAt: Date | string;
+  updatedAt: Date;
+  id?: string;
+}
+
+// Collection: dailyUpdates
+interface DailyUpdate {
+  _id: ObjectId;
+  title: string;
+  content: string;
+  type: string;
+  priority: number;
+  durationType: string;
+  durationValue: number | null;
+  expiresAt: Date | null;
+  isActive: boolean;
+  isPinned: boolean;
+  targetAudience: any[];
+  createdBy: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  isHidden: boolean;
+}
+
+// Collection: tasks
+interface Task {
+  _id: ObjectId;
+  title: string;
+  subtitle: string;
+  images: string[];
+  datacoNumber: string;
+  description: {
+    main: string;
+    howToExecute: string;
+  };
+  projectId: ObjectId;
+  type: string[];
+  locations: string[];
+  amountNeeded: number;
+  targetCar: string[];
+  lidar: boolean;
+  dayTime: string[];
+  priority: number;
+  isVisible: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Collection: activities
+interface Activity {
+  _id: ObjectId;
+  userType: string;
+  action: string;
+  category: string;
+  details: {
+    page?: null;
+    isUniqueVisitor?: boolean;
+    totalVisits?: number;
+    ticketNumber?: string;
+    category?: string;
+    priority?: string;
+    userName?: string;
+    updates?: {
+      priority?: string;
+      status?: string;
+    };
+    responseType?: string;
+    isPublic?: boolean;
+  };
+  severity: string;
+  isVisible: boolean;
+  timestamp: Date;
+  target?: {
+    id: string;
+    type: string;
+    title: string;
+  };
+  userId?: string;
+}
+
+// Collection: dailyUpdatesSettings
+interface DailyUpdateSetting {
+  _id: ObjectId;
+  key: string;
+  value: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Collection: analytics
+interface Analytics {
+  _id: ObjectId;
+  dailyStats: Record<string, number>;
+  lastUpdated: Date;
+  pageViews: {
+    admin: number;
+    tasks: Record<string, number>;
+    homepage: number;
+    projects: {
+      list: number;
+    };
+    [key: string]: any; // For dynamic keys like "task-{id}-subtasks"
+  };
+  totalVisits: number;
+  uniqueVisitors: number;
+}
+
+// Collection: appUsers
+interface AppUser {
+  _id: ObjectId;
+  username: string;
+  email: string;
+  passwordHash: string;
+  role: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+// Collection: feedbackTickets
+// (Empty collection but has indexes)
+interface FeedbackTicket {
+  _id: ObjectId;
+  // Fields would be defined here based on indexes
+  status: string;
+  createdAt: Date;
+  userId: string;
+}
+
+// Collection: projects
+interface Project {
+  _id: ObjectId;
+  name: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  color: string;
+  priority: number;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  notes: string;
+  image: string;
+}
+
+// Relationships
+// - subtasks.taskId → tasks._id (many-to-one)
+// - subtasks.id → ids._id (many-to-one)
+// - tasks.projectId → projects._id (many-to-one)
+// - activities.userId → users._id (many-to-one)

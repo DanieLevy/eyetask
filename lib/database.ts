@@ -9,7 +9,15 @@ import { cache } from './cache';
 export interface Project {
   _id?: ObjectId;
   name: string;
-  description?: string;
+  description: string;
+  isActive?: boolean;
+  color?: string;
+  priority?: number;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  notes?: string;
+  image?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -155,7 +163,16 @@ export class DatabaseService {
       const { projects } = await this.getCollections();
       const now = new Date();
       const result = await projects.insertOne({
-        ...project,
+        name: project.name,
+        description: project.description || '',
+        isActive: project.isActive !== undefined ? project.isActive : true,
+        color: project.color || '#3B82F6',
+        priority: project.priority || 1,
+        clientName: project.clientName || '',
+        clientEmail: project.clientEmail || '',
+        clientPhone: project.clientPhone || '',
+        notes: project.notes || '',
+        image: project.image || '',
         createdAt: now,
         updatedAt: now
       });
