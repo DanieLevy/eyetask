@@ -1009,3 +1009,22 @@ html[lang="en"] {
   backface-visibility: hidden;
   perspective: 1000px;
 }
+
+/* Remove server-side theme classes to prevent hydration mismatches */
+/* These will be added by next-themes on the client side only */
+@layer utilities {
+  .theme-safe {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+}
+
+/* Additional iOS theme switch reliability improvements */
+.dark * {
+  /* Ensure all child elements inherit dark theme properly on iOS */
+  color-scheme: inherit !important;
+}
+
+.light * {
+  /* Ensure all child elements inherit light theme properly on iOS */
+  color-scheme: inherit !important;
+}
