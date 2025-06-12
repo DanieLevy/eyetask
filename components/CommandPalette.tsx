@@ -164,7 +164,7 @@ export function CommandPalette({ children, className }: CommandPaletteProps) {
         </Button>
       )}
 
-      <CommandDialog open={open} onOpenChange={setOpen} dir="rtl">
+      <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="הקלד פקודה או חפש..." />
         <CommandList>
           <CommandEmpty>לא נמצאו תוצאות.</CommandEmpty>

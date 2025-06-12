@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { use } from 'react';
 import { InputField, TextareaField, CheckboxField } from '@/components/FormComponents';
 
 interface FormData {
@@ -23,11 +22,20 @@ interface FormData {
   image: string;
 }
 
-export default function EditProjectPage({ params }: { params: { projectId: string } }) {
-  // In Next.js 14+ params is async, we need to unwrap it
-  const unwrappedParams = use(params);
-  const projectId = unwrappedParams.projectId;
+// Define the page props type for Next.js 15+
+interface PageProps {
+  params: Promise<{ projectId: string }>;
+}
+
+export default async function EditProjectPage({ params }: PageProps) {
+  // Await the params to get the projectId
+  const { projectId } = await params;
   
+  return <EditProjectClient projectId={projectId} />;
+}
+
+// Client component that handles the actual functionality
+function EditProjectClient({ projectId }: { projectId: string }) {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -251,48 +259,53 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
                     label="פרויקט פעיל"
                     checked={formData.isActive}
                     onCheckedChange={(checked) => handleCheckboxChange('isActive', checked)}
-                    className="flex-1 mt-6"
+                    className="flex-1 self-end pb-1"
                   />
                 </div>
               </div>
               
               <TextareaField
-                label="תיאור הפרויקט"
+                label="תיאור"
                 htmlFor="description"
                 value={formData.description}
                 onChange={handleChange}
-                rows={4}
-                placeholder="תאר את הפרויקט בקצרה"
+                placeholder="תיאור הפרויקט"
+                rows={3}
               />
               
-              <div className="pt-4 border-t border-border">
-                <h3 className="text-lg font-medium mb-4">פרטי לקוח</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <InputField
-                    label="שם הלקוח"
-                    htmlFor="clientName"
-                    value={formData.clientName}
-                    onChange={handleChange}
-                    placeholder="הזן שם לקוח"
-                  />
-                  
-                  <InputField
-                    label="אימייל"
-                    htmlFor="clientEmail"
-                    type="email"
-                    value={formData.clientEmail}
-                    onChange={handleChange}
-                    placeholder="example@domain.com"
-                  />
-                  
-                  <InputField
-                    label="טלפון"
-                    htmlFor="clientPhone"
-                    value={formData.clientPhone}
-                    onChange={handleChange}
-                    placeholder="05X-XXXXXXX"
-                  />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputField
+                  label="שם לקוח"
+                  htmlFor="clientName"
+                  value={formData.clientName}
+                  onChange={handleChange}
+                  placeholder="שם הלקוח"
+                />
+                
+                <InputField
+                  label="אימייל לקוח"
+                  htmlFor="clientEmail"
+                  type="email"
+                  value={formData.clientEmail}
+                  onChange={handleChange}
+                  placeholder="אימייל הלקוח"
+                />
+                
+                <InputField
+                  label="טלפון לקוח"
+                  htmlFor="clientPhone"
+                  value={formData.clientPhone}
+                  onChange={handleChange}
+                  placeholder="טלפון הלקוח"
+                />
+                
+                <InputField
+                  label="תמונה (URL)"
+                  htmlFor="image"
+                  value={formData.image}
+                  onChange={handleChange}
+                  placeholder="קישור לתמונה"
+                />
               </div>
               
               <TextareaField
@@ -300,27 +313,34 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
                 htmlFor="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                rows={4}
-                placeholder="הערות נוספות על הפרויקט"
+                placeholder="הערות נוספות"
+                rows={2}
               />
               
-              <div className="pt-4 flex gap-4 justify-end">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => router.push(`/admin/projects/${projectId}`)}
-                  disabled={submitting}
-                >
-                  ביטול
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={submitting}
-                >
-                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  שמור שינויים
-                </Button>
+              <div className="flex justify-between pt-4 border-t border-border">
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? 'שומר...' : 'שמור שינויים'}
+                  </Button>
+                  <Link href={`/admin/projects/${projectId}`}>
+                    <Button type="button" variant="outline">
+                      ביטול
+                    </Button>
+                  </Link>
+                </div>
+                
+                <Link href={`/admin/projects/${projectId}`}>
+                  <Button type="button" variant="ghost" className="text-red-500">
+                    חזרה לפרויקט
+                  </Button>
+                </Link>
               </div>
+              
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700 mt-4">
+                  {error}
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>

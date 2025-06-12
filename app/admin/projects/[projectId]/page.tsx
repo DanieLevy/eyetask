@@ -524,10 +524,10 @@ export default function ProjectManagement() {
       </main>
 
       <DeleteConfirmationDialog
-        isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setDeleteTarget(null);
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open);
+          if (!open) setDeleteTarget(null);
         }}
         onConfirm={handleDelete}
         title="האם אתה בטוח?"
@@ -536,7 +536,7 @@ export default function ProjectManagement() {
             ? 'פעולה זו תמחק לצמיתות את הפרויקט וכל המשימות ותת-המשימות שלו. לא ניתן לשחזר פעולה זו.'
             : 'פעולה זו תמחק לצמיתות את המשימה. לא ניתן לשחזר פעולה זו.'
         }
-        isLoading={operationLoading}
+        loading={operationLoading}
       />
     </div>
   );

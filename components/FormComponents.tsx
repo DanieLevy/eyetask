@@ -197,8 +197,8 @@ export function SelectField({
       labelClassName={labelClassName}
       dir={dir}
     >
-      <Select value={value} onValueChange={onChange} {...props}>
-        <SelectTrigger id={htmlFor} className={cn(selectClassName)}>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={htmlFor} className={cn(selectClassName)} {...props}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent dir={dir}>

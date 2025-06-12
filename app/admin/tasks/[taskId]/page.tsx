@@ -112,6 +112,7 @@ export default function TaskManagement() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmationData | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchTaskData = useCallback(async () => {
     const token = localStorage.getItem('adminToken');
@@ -185,6 +186,7 @@ export default function TaskManagement() {
     if (!deleteConfirm) return;
 
     setIsRefreshing(true);
+    setDeleteLoading(true);
     const { type, id } = deleteConfirm;
     const url = type === 'task' ? `/api/tasks/${id}` : `/api/subtasks/${id}`;
     const successMessage = type === 'task' ? 'המשימה נמחקה בהצלחה' : 'תת-המשימה נמחקה בהצלחה';
@@ -212,6 +214,7 @@ export default function TaskManagement() {
       toast.error(errorMessage);
     } finally {
       setIsRefreshing(false);
+      setDeleteLoading(false);
       setDeleteConfirm(null);
       setShowDeleteDialog(false);
     }
@@ -466,19 +469,19 @@ export default function TaskManagement() {
       </main>
       
       <DeleteConfirmationDialog
-        isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setDeleteConfirm(null);
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open);
+          if (!open) setDeleteConfirm(null);
         }}
         onConfirm={handleDelete}
         title="האם אתה בטוח?"
         description={
-          deleteConfirm?.type === 'task' 
-            ? 'פעולה זו תמחק לצמיתות את המשימה ואת כל תת-המשימות המשויכות אליה.'
-            : 'פעולה זו תמחק לצמיתות את תת-המשימה.'
+          deleteConfirm?.type === 'task'
+            ? 'פעולה זו תמחק לצמיתות את המשימה וכל תת-המשימות שלה. לא ניתן לשחזר פעולה זו.'
+            : 'פעולה זו תמחק לצמיתות את תת-המשימה. לא ניתן לשחזר פעולה זו.'
         }
-        isLoading={isRefreshing}
+        loading={deleteLoading}
       />
     </div>
   );

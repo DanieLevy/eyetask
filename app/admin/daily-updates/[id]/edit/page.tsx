@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { use } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from 'lucide-react';
@@ -32,8 +31,8 @@ interface UpdateForm {
 
 export default function EditDailyUpdatePage() {
   const router = useRouter();
-  const params = use(useRouter().params);
-  const id = params?.id;
+  const params = useParams();
+  const id = params?.id as string;
 
   const [update, setUpdate] = useState<any>(null);
   const [loading, setLoading] = useState(true);

@@ -201,7 +201,7 @@ export default function AppHeader({
         label: 'יציאה',
         icon: <LogOut className="h-4 w-4" />,
         onClick: handleLogout,
-        variant: 'destructive'
+        variant: 'destructive' as const
       }
     ] : [])
   ];
