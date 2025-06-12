@@ -3,6 +3,8 @@
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -16,9 +18,14 @@ export default function ThemeToggle() {
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
     return (
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center">
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-9 w-9 border-foreground/20"
+        disabled
+      >
         <div className="w-5 h-5 animate-pulse bg-muted rounded"></div>
-      </div>
+      </Button>
     );
   }
 
@@ -26,23 +33,23 @@ export default function ThemeToggle() {
   const getIcon = () => {
     switch (theme) {
       case 'light':
-        return <Sun className="w-5 h-5 text-amber-500" />;
+        return <Sun className="h-[1.2rem] w-[1.2rem] text-amber-500" />;
       case 'dark':
-        return <Moon className="w-5 h-5 text-primary" />;
+        return <Moon className="h-[1.2rem] w-[1.2rem] text-primary" />;
       case 'system':
         return resolvedTheme === 'dark' ? (
           <div className="relative">
-            <Monitor className="w-5 h-5 text-muted-foreground" />
-            <Moon className="w-2.5 h-2.5 text-primary absolute -top-0.5 -right-0.5" />
+            <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />
+            <Moon className="h-[0.7rem] w-[0.7rem] text-primary absolute -top-0.5 -right-0.5" />
           </div>
         ) : (
           <div className="relative">
-            <Monitor className="w-5 h-5 text-muted-foreground" />
-            <Sun className="w-2.5 h-2.5 text-amber-500 absolute -top-0.5 -right-0.5" />
+            <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />
+            <Sun className="h-[0.7rem] w-[0.7rem] text-amber-500 absolute -top-0.5 -right-0.5" />
           </div>
         );
       default:
-        return <Monitor className="w-5 h-5 text-muted-foreground" />;
+        return <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />;
     }
   };
 
@@ -72,13 +79,21 @@ export default function ThemeToggle() {
   };
 
   return (
-    <button
-      onClick={toggleTheme}
-      className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-accent transition-colors"
-      title={getTooltip()}
-      aria-label={getTooltip()}
-    >
-      {getIcon()}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-9 w-9 border-foreground/20"
+          aria-label={getTooltip()}
+        >
+          {getIcon()}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {getTooltip()}
+      </TooltipContent>
+    </Tooltip>
   );
 } 

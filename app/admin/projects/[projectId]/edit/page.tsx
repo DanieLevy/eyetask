@@ -1,100 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import Link from "next/link";
-import { use } from "react";
+import { Loader2, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import { use } from 'react';
+import { InputField, TextareaField, CheckboxField } from '@/components/FormComponents';
 
-// Create simple versions of missing UI components
-const Input = ({ 
-  id, 
-  name, 
-  type = "text", 
-  value, 
-  onChange, 
-  className = "", 
-  min, 
-  max, 
-  required = false 
-}) => (
-  <input
-    id={id}
-    name={name}
-    type={type}
-    value={value}
-    onChange={onChange}
-    className={`w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${className}`}
-    min={min}
-    max={max}
-    required={required}
-  />
-);
-
-const Label = ({ htmlFor, children }) => (
-  <label 
-    htmlFor={htmlFor} 
-    className="text-sm font-medium text-gray-700 dark:text-gray-300"
-  >
-    {children}
-  </label>
-);
-
-const Textarea = ({ 
-  id, 
-  name, 
-  value, 
-  onChange, 
-  rows = 3, 
-  className = "" 
-}) => (
-  <textarea
-    id={id}
-    name={name}
-    value={value}
-    onChange={onChange}
-    rows={rows}
-    className={`w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${className}`}
-  />
-);
-
-const Checkbox = ({ id, checked, onCheckedChange }) => (
-  <input
-    id={id}
-    type="checkbox"
-    checked={checked}
-    onChange={e => onCheckedChange(e.target.checked)}
-    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:focus:ring-blue-400"
-  />
-);
+interface FormData {
+  name: string;
+  description: string;
+  isActive: boolean;
+  color: string;
+  priority: number;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  notes: string;
+  image: string;
+}
 
 export default function EditProjectPage({ params }: { params: { projectId: string } }) {
-  // Unwrap params using React.use()
+  // In Next.js 14+ params is async, we need to unwrap it
   const unwrappedParams = use(params);
   const projectId = unwrappedParams.projectId;
   
   const router = useRouter();
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    description: '',
+    isActive: true,
+    color: '#3B82F6', // Default blue
+    priority: 1,
+    clientName: '',
+    clientEmail: '',
+    clientPhone: '',
+    notes: '',
+    image: ''
+  });
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [project, setProject] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    isActive: true,
-    color: "#3B82F6", // Default blue color
-    priority: 1,
-    clientName: "",
-    clientEmail: "",
-    clientPhone: "",
-    notes: ""
-  });
-
+  const [error, setError] = useState<string | null>(null);
+  
   useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin');
+      return;
+    }
+    
+    // Fetch project data
     async function fetchProject() {
+      setLoading(true);
+      
       try {
-        setLoading(true);
         const token = localStorage.getItem('adminToken');
         const response = await fetch(`/api/projects/${projectId}`, {
           headers: {
@@ -104,39 +68,75 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
         });
         
         if (!response.ok) {
-          throw new Error("Failed to fetch project");
+          throw new Error(`Failed to fetch project: ${response.status}`);
         }
         
         const data = await response.json();
-        setProject(data.project);
+        
+        if (!data.success || !data.project) {
+          throw new Error(data.error || 'Failed to load project data');
+        }
+        
+        // Set form data from project
         setFormData({
-          name: data.project.name || "",
-          description: data.project.description || "",
-          isActive: data.project.isActive ?? true,
-          color: data.project.color || "#3B82F6",
+          name: data.project.name || '',
+          description: data.project.description || '',
+          isActive: data.project.isActive !== undefined ? data.project.isActive : true,
+          color: data.project.color || '#3B82F6',
           priority: data.project.priority || 1,
-          clientName: data.project.clientName || "",
-          clientEmail: data.project.clientEmail || "",
-          clientPhone: data.project.clientPhone || "",
-          notes: data.project.notes || ""
+          clientName: data.project.clientName || '',
+          clientEmail: data.project.clientEmail || '',
+          clientPhone: data.project.clientPhone || '',
+          notes: data.project.notes || '',
+          image: data.project.image || ''
         });
-      } catch (error) {
-        console.error("Error fetching project:", error);
-        toast.error("שגיאה בטעינת נתוני הפרויקט");
+        
+      } catch (err) {
+        console.error('Error fetching project:', err);
+        setError('Failed to load project data. Please try again.');
+        toast.error('Failed to load project data');
       } finally {
         setLoading(false);
       }
     }
-
+    
     fetchProject();
-  }, [projectId]);
+  }, [projectId, router]);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const target = e.target as HTMLInputElement;
+      setFormData(prev => ({
+        ...prev,
+        [name]: target.checked
+      }));
+    } else if (type === 'number') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: parseFloat(value) || 0
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
 
+  const handleCheckboxChange = (name: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
     try {
-      setSubmitting(true);
-      
       const token = localStorage.getItem('adminToken');
       if (!token) {
         toast.error("You are not authenticated. Please log in.");
@@ -145,210 +145,186 @@ export default function EditProjectPage({ params }: { params: { projectId: strin
       }
       
       const response = await fetch(`/api/projects/${projectId}`, {
-        method: "PUT",
+        method: 'PUT',
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(formData)
       });
       
       if (!response.ok) {
-        throw new Error("Failed to update project");
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update project');
       }
       
-      toast.success("הפרויקט עודכן בהצלחה");
-      router.push(`/admin/projects/${projectId}`);
-    } catch (error) {
-      console.error("Error updating project:", error);
-      toast.error("שגיאה בעדכון הפרויקט");
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Project updated successfully');
+        router.push(`/admin/projects/${projectId}`);
+      } else {
+        throw new Error(result.error || 'Failed to update project');
+      }
+    } catch (err: any) {
+      console.error('Error updating project:', err);
+      setError(err.message || 'Failed to update project');
+      toast.error(err.message || 'Failed to update project');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCheckboxChange = (checked: boolean) => {
-    setFormData(prev => ({ ...prev, isActive: checked }));
-  };
-
+  
   if (loading) {
     return (
-      <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-4">עריכת פרויקט</h1>
-        <div className="flex justify-center items-center h-[50vh]">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-900" dir="rtl">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">טוען פרטי פרויקט...</p>
         </div>
       </div>
     );
   }
-
+  
   return (
-    <div className="container py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">עריכת פרויקט</h1>
-        <Link 
-          href={`/admin/projects/${projectId}`} 
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
-        >
-          חזרה לפרויקט
-        </Link>
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 pb-8" dir="rtl">
+      <header className="sticky top-0 z-30 w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4 h-16">
+            <div className="flex items-center gap-3">
+              <Link 
+                href={`/admin/projects/${projectId}`}
+                className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                title="חזור"
+              >
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                עריכת פרויקט
+              </h1>
+            </div>
+          </div>
+        </div>
+      </header>
       
-      <form onSubmit={handleSubmit} className="mt-6">
-        <Card className="w-full max-w-4xl mx-auto">
-          <CardHeader className="border-b pb-3">
-            <h2 className="text-xl font-bold">עריכת פרויקט</h2>
-            <p className="text-sm text-gray-500">עדכן את פרטי הפרויקט</p>
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Card>
+          <CardHeader className="border-b border-border">
+            <h2 className="text-xl font-bold">עריכת פרויקט: {formData.name}</h2>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">שם הפרויקט</Label>
-                <Input
-                  id="name"
-                  name="name"
+          <CardContent className="pt-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputField
+                  label="שם הפרויקט"
+                  htmlFor="name"
                   value={formData.name}
                   onChange={handleChange}
-                  required={true}
+                  required
+                  placeholder="הזן שם פרויקט"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="color">צבע</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="color"
-                    name="color"
+                
+                <div className="flex gap-4 items-center">
+                  <InputField
+                    label="צבע פרויקט"
+                    htmlFor="color"
                     type="color"
-                    value={formData.color}
-                    onChange={handleChange}
-                    className="w-12 h-12 p-1"
-                  />
-                  <Input
-                    name="color"
                     value={formData.color}
                     onChange={handleChange}
                     className="flex-1"
                   />
+                  
+                  <InputField
+                    label="עדיפות"
+                    htmlFor="priority"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.priority}
+                    onChange={handleChange}
+                    hint="1 = גבוהה, 10 = נמוכה"
+                    className="flex-1"
+                  />
+                  
+                  <CheckboxField
+                    id="isActive"
+                    label="פרויקט פעיל"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => handleCheckboxChange('isActive', checked)}
+                    className="flex-1 mt-6"
+                  />
                 </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">תיאור</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="priority">עדיפות</Label>
-                <Input
-                  id="priority"
-                  name="priority"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={formData.priority}
-                  onChange={handleChange}
-                />
               </div>
               
-              <div className="space-y-2 flex items-end">
-                <div className="flex items-center space-x-2 space-x-reverse mt-6">
-                  <Checkbox 
-                    id="isActive" 
-                    checked={formData.isActive} 
-                    onCheckedChange={handleCheckboxChange}
-                  />
-                  <Label htmlFor="isActive">פרויקט פעיל</Label>
-                </div>
-              </div>
-            </div>
-            
-            <div className="pt-4">
-              <h3 className="text-lg font-medium mb-2">פרטי לקוח</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clientName">שם הלקוח</Label>
-                  <Input
-                    id="clientName"
-                    name="clientName"
+              <TextareaField
+                label="תיאור הפרויקט"
+                htmlFor="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={4}
+                placeholder="תאר את הפרויקט בקצרה"
+              />
+              
+              <div className="pt-4 border-t border-border">
+                <h3 className="text-lg font-medium mb-4">פרטי לקוח</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <InputField
+                    label="שם הלקוח"
+                    htmlFor="clientName"
                     value={formData.clientName}
                     onChange={handleChange}
+                    placeholder="הזן שם לקוח"
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="clientEmail">אימייל</Label>
-                  <Input
-                    id="clientEmail"
-                    name="clientEmail"
+                  
+                  <InputField
+                    label="אימייל"
+                    htmlFor="clientEmail"
                     type="email"
                     value={formData.clientEmail}
                     onChange={handleChange}
+                    placeholder="example@domain.com"
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="clientPhone">טלפון</Label>
-                  <Input
-                    id="clientPhone"
-                    name="clientPhone"
+                  
+                  <InputField
+                    label="טלפון"
+                    htmlFor="clientPhone"
                     value={formData.clientPhone}
                     onChange={handleChange}
+                    placeholder="05X-XXXXXXX"
                   />
                 </div>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="notes">הערות</Label>
-              <Textarea
-                id="notes"
-                name="notes"
+              
+              <TextareaField
+                label="הערות"
+                htmlFor="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={4}
+                placeholder="הערות נוספות על הפרויקט"
               />
-            </div>
-            
-            <div className="flex justify-end space-x-2 space-x-reverse pt-4">
-              <Button 
-                type="submit" 
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <span className="mr-2">שומר שינויים...</span>
-                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
-                  </>
-                ) : (
-                  "שמור שינויים"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push(`/admin/projects/${projectId}`)}
-              >
-                ביטול
-              </Button>
-            </div>
+              
+              <div className="pt-4 flex gap-4 justify-end">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => router.push(`/admin/projects/${projectId}`)}
+                  disabled={submitting}
+                >
+                  ביטול
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={submitting}
+                >
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  שמור שינויים
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
-      </form>
+      </main>
     </div>
   );
 } 

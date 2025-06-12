@@ -2,203 +2,338 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import { PlusCircle, Loader2, AlertTriangle, ChevronLeft, List, CheckCircle } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
-import { he } from 'date-fns/locale/he';
+import { he } from 'date-fns/locale';
+import { ColumnDef } from '@tanstack/react-table';
+import { Plus, Pencil, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import AppHeader from '@/components/AppHeader';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { Search, X } from "lucide-react";
+import { toast } from 'sonner';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { EmptyState } from '@/components/EmptyState';
 
-interface Project {
+type Project = {
   _id: string;
   name: string;
   description: string;
-  status: 'active' | 'completed' | 'planning';
-  updatedAt?: string;
-  taskCount?: number;
-}
-
-interface Task {
-  _id: string;
-  projectId: string;
-  status: 'open' | 'in-progress' | 'completed';
-  updatedAt?: string;
-}
+  isActive: boolean;
+  color: string;
+  priority: number;
+  clientName: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchValue, setSearchValue] = useState("");
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+
   useEffect(() => {
-    async function fetchData() {
+    // Check authentication
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin');
+      return;
+    }
+
+    fetchProjects();
+  }, [router]);
+
+  // Filter projects when search value changes
+  useEffect(() => {
+    if (searchValue) {
+      setFilteredProjects(
+        projects.filter(project => 
+          project.name.toLowerCase().includes(searchValue.toLowerCase())
+        )
+      );
+    } else {
+      setFilteredProjects(projects);
+    }
+  }, [searchValue, projects]);
+
+  const fetchProjects = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [projectsRes, tasksRes] = await Promise.all([
-          fetch('/api/projects'),
-          fetch('/api/tasks'),
-        ]);
-
-        if (!projectsRes.ok) {
-          throw new Error('לא ניתן לטעון פרויקטים');
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/projects', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
-        if (!tasksRes.ok) {
-          throw new Error('לא ניתן לטעון משימות');
-        }
+      });
 
-        const projectsData = await projectsRes.json();
-        const tasksData = await tasksRes.json();
-        
-        const projectsWithTaskCounts = (projectsData.projects || []).map((project: Project) => ({
-          ...project,
-          taskCount: (tasksData.tasks || []).filter((task: Task) => task.projectId === project._id).length
-        }));
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
 
-        projectsWithTaskCounts.sort((a: Project, b: Project) => (b.taskCount ?? 0) - (a.taskCount ?? 0));
-
-        setProjects(projectsWithTaskCounts);
-        setTasks(tasksData.tasks || []);
-      } catch (e: any) {
-        setError(e.message);
+      const data = await response.json();
+      if (data.success) {
+        setProjects(data.projects);
+        setFilteredProjects(data.projects);
+      } else {
+        toast.error('Failed to load projects');
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('Error loading projects');
     } finally {
       setLoading(false);
     }
+  };
+
+  const deleteProject = async (id: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק את הפרויקט? כל המשימות המקושרות יימחקו גם כן.')) {
+      return;
     }
-    fetchData();
-  }, []);
 
-  const getTaskCounts = (projectId: string) => {
-    const projectTasks = tasks.filter(task => task.projectId === projectId);
-    const openTasks = projectTasks.filter(task => task.status !== 'completed').length;
-    const completedTasks = projectTasks.length - openTasks;
-    return { openTasks, completedTasks, totalTasks: projectTasks.length };
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete project');
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('הפרויקט נמחק בהצלחה');
+        fetchProjects();
+      } else {
+        toast.error(result.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast.error('Error deleting project');
+    }
   };
 
-  const navigateToProject = (id: string) => {
-    router.push(`/admin/projects/${id}`);
-  };
-
-  const getMostRecentUpdate = (projectId: string) => {
-    const projectTasks = tasks
-      .filter(task => task.projectId === projectId && task.updatedAt)
-      .sort((a, b) => new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime());
-    
-    const project = projects.find(p => p._id === projectId);
-
-    const mostRecentTaskUpdate = projectTasks.length > 0 ? new Date(projectTasks[0].updatedAt!) : null;
-    const projectUpdate = project?.updatedAt ? new Date(project.updatedAt) : null;
-
-    if (!mostRecentTaskUpdate && !projectUpdate) return null;
-    if (mostRecentTaskUpdate && !projectUpdate) return mostRecentTaskUpdate;
-    if (!mostRecentTaskUpdate && projectUpdate) return projectUpdate;
-    
-    return mostRecentTaskUpdate! > projectUpdate! ? mostRecentTaskUpdate : projectUpdate;
-  };
-
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-        </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen bg-red-50 dark:bg-gray-900 text-red-700 dark:text-red-300">
-        <AlertTriangle className="h-12 w-12 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">אופס! משהו השתבש</h2>
-        <p>{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-6 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+  // Create actions menu for a project
+  const ActionMenu = ({ project }: { project: Project }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
         >
-          נסה שוב
-        </button>
-      </div>
-    );
-  }
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">תפריט פעולות</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuLabel>פעולות</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/projects/${project._id}`}>
+            <Eye className="mr-2 h-4 w-4" /> צפה
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/projects/${project._id}/edit`}>
+            <Pencil className="mr-2 h-4 w-4" /> ערוך
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => deleteProject(project._id)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> מחק
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
-    <div dir="rtl" className="bg-gray-50 dark:bg-gray-950 min-h-screen">
-      <main className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
-              פרויקטים
-                  </h1>
-            <button
-              onClick={() => router.push('/admin/projects/new')}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <PlusCircle size={20} />
-              <span>פרויקט חדש</span>
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => {
-              const { openTasks, completedTasks } = getTaskCounts(project._id);
-              const lastUpdate = getMostRecentUpdate(project._id);
-              
-                return (
-                <div
-                  key={project._id}
-                  onClick={() => navigateToProject(project._id)}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border border-transparent dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500"
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">
-                            {project.name}
-                      </h2>
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        project.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
-                        project.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : 
-                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }`}>
-                        {project.status === 'active' ? 'פעיל' : project.status === 'completed' ? 'הושלם' : 'בתכנון'}
-                      </span>
-                    </div>
-
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 h-10 overflow-hidden">
-                      {project.description}
-                    </p>
-
-                    <div className="mt-6 flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
-                       <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2" title="משימות פתוחות">
-                            <List className="w-4 h-4 text-orange-500" />
-                            <span>{openTasks}</span>
-                          </div>
-                          <div className="flex items-center gap-2" title="משימות שהושלמו">
-                             <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>{completedTasks}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        עדכון אחרון: {lastUpdate ? format(lastUpdate, 'd MMM yyyy, HH:mm', { locale: he }) : 'אין עדכונים'}
-                      </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-            })}
-          </div>
-
-          {projects.length === 0 && (
-            <div className="text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">לא נמצאו פרויקטים</h3>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
-                עדיין לא יצרת פרויקטים. לחץ על 'פרויקט חדש' כדי להתחיל.
-              </p>
+    <div className="min-h-screen bg-background pb-8" dir="rtl">
+      <AppHeader
+        title="פרויקטים"
+        subtitle="ניהול הפרויקטים במערכת"
+        onRefresh={fetchProjects}
+        isLoading={loading}
+        variant="admin"
+        headerActions={[
+          {
+            label: "פרויקט חדש",
+            icon: <Plus className="h-4 w-4" />,
+            href: "/admin/projects/new",
+            variant: "default"
+          }
+        ]}
+      />
+      
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        <Card className="border overflow-hidden">
+          <CardHeader className="px-4 sm:px-6 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">רשימת פרויקטים</CardTitle>
+                <p className="text-sm text-muted-foreground">{filteredProjects.length} פרויקטים במערכת</p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="חפש לפי שם פרויקט..."
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    className="text-right pr-9 pl-9"
+                  />
+                  {searchValue && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 p-0 h-4 w-4"
+                      onClick={() => setSearchValue("")}
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">נקה חיפוש</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="h-60 flex items-center justify-center">
+                <LoadingSpinner size="md" text="טוען פרויקטים..." />
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <EmptyState
+                title="אין פרויקטים"
+                description="לא נמצאו פרויקטים במערכת"
+                action={{
+                  label: "צור פרויקט חדש",
+                  href: "/admin/projects/new"
+                }}
+                icon={<Plus className="h-10 w-10" />}
+                variant="centered"
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-[40%]">שם הפרויקט</TableHead>
+                      <TableHead className="w-[15%] text-center hidden sm:table-cell">עדיפות</TableHead>
+                      <TableHead className="w-[15%] text-center">סטטוס</TableHead>
+                      <TableHead className="w-[20%] hidden md:table-cell">נוצר</TableHead>
+                      <TableHead className="w-[10%] text-right">פעולות</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProjects.map((project) => (
+                      <TableRow key={project._id} className="hover:bg-muted/40">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: project.color }}
+                            />
+                            <Link 
+                              href={`/admin/projects/${project._id}`}
+                              className="font-medium hover:underline text-foreground truncate"
+                            >
+                              {project.name}
+                            </Link>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center hidden sm:table-cell">
+                          <Badge 
+                            variant={project.priority <= 3 ? "default" : project.priority <= 7 ? "secondary" : "outline"}
+                            className="mx-auto"
+                          >
+                            {project.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={project.isActive ? "default" : "outline"} className="mx-auto">
+                            {project.isActive ? 'פעיל' : 'לא פעיל'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {format(new Date(project.createdAt), 'dd/MM/yyyy', { locale: he })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hidden sm:flex"
+                                  asChild
+                                >
+                                  <Link href={`/admin/projects/${project._id}`}>
+                                    <Eye className="h-4 w-4" />
+                                    <span className="sr-only">צפה</span>
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>צפה בפרויקט</TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hidden sm:flex"
+                                  asChild
+                                >
+                                  <Link href={`/admin/projects/${project._id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">ערוך</span>
+                                  </Link>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>ערוך פרויקט</TooltipContent>
+                            </Tooltip>
+                            
+                            <ActionMenu project={project} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

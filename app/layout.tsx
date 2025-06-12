@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -16,6 +15,7 @@ import Script from "next/script";
 import IOSThemeHandler from "@/components/IOSThemeHandler";
 import { GlobalLoadingIndicator } from "@/components/LoadingSystem";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ConditionalHeader from "@/components/ConditionalHeader";
 
 export const metadata: Metadata = {
   title: "Driver Tasks",
@@ -101,7 +101,7 @@ export default function RootLayout({
                   <RefreshProvider>
                     <GlobalPullToRefresh>
                       <div className="flex flex-col min-h-[100dvh] bg-background">
-                        <Header />
+                        <ConditionalHeader />
                         <main className="flex-1 overflow-auto bg-background">
                           {children}
                         </main>

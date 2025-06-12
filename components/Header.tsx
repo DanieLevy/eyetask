@@ -3,10 +3,29 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, LogOut, Home, Settings, BarChart3, MessageCircle } from 'lucide-react';
+import { 
+  Menu, 
+  LogOut, 
+  Home, 
+  Settings, 
+  BarChart3, 
+  MessageCircle,
+  ChevronRight,
+  Search
+} from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import ThemeToggle from '@/components/ThemeToggle';
 import HeaderDebugIcon from '@/components/HeaderDebugIcon';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { CommandPalette } from '@/components/CommandPalette';
 
 interface UserData {
   username: string;
@@ -22,7 +41,6 @@ declare global {
 }
 
 export default function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<{username: string; id: string} | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -33,9 +51,36 @@ export default function Header() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
+  // Check if we're on the homepage
+  const isHomePage = pathname === '/';
+  
+  // Check if we're on the admin login page
+  const isAdminLoginPage = pathname === '/admin';
+  
+  // Determine if we should show the logout button (user is logged in)
+  const [showLogout, setShowLogout] = useState(false);
+  
+  // Determine if we should show admin dashboard (user is admin)
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+
   // Prevent hydration mismatch by only showing dynamic content after mount
   useEffect(() => {
     setMounted(true);
+    
+    // Check if user is logged in
+    if (typeof window !== 'undefined') {
+      const userData = window.__eyetask_user;
+      const isAdmin = window.__eyetask_isAdmin;
+      
+      if (userData) {
+        setUser(userData);
+        setShowLogout(true);
+      }
+      
+      if (isAdmin) {
+        setShowAdminDashboard(true);
+      }
+    }
     
     // Initialize the screen size detection
     const checkScreenSize = () => {
@@ -54,83 +99,22 @@ export default function Header() {
     };
   }, []);
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!menuOpen) return;
-    
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const header = target.closest('header');
-      if (!header || !header.contains(target)) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside, true);
-    return () => document.removeEventListener('click', handleClickOutside, true);
-  }, [menuOpen]);
-
-  // Auto-detect admin status and load user context - only after mount
-  useEffect(() => {
-    if (!mounted) return;
-
-    const updateUserContext = () => {
-      if (typeof window !== 'undefined') {
-        const globalUser = window.__eyetask_user;
-        setUser(globalUser || null);
-      }
-    };
-
-    // Check for admin pages and load user context
-    if (pathname.startsWith('/admin') && pathname !== '/admin') {
-      const token = localStorage.getItem('adminToken');
-      const userData = localStorage.getItem('adminUser');
-      
-      if (token && userData && userData !== 'undefined' && userData !== 'null') {
-        try {
-          const parsedUser = JSON.parse(userData);
-          if (parsedUser && parsedUser.id && parsedUser.username) {
-            setUser(parsedUser);
-          }
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-        }
-      }
-    } else {
-      setUser(null);
-    }
-
-    // Listen for user context changes
-    updateUserContext();
-    window.addEventListener('userContextChanged', updateUserContext);
-    
-    return () => {
-      window.removeEventListener('userContextChanged', updateUserContext);
-    };
-  }, [pathname, mounted]);
-
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    setUser(null);
+    // Clear any user data
     if (typeof window !== 'undefined') {
       window.__eyetask_user = null;
       window.__eyetask_isAdmin = false;
+      
+      // Clear any stored tokens
+      localStorage.removeItem('adminToken');
+      
+      // Redirect to homepage
+      router.push('/');
     }
-    router.push('/admin');
-    setMenuOpen(false);
   };
-
-  // Determine current page context - use consistent logic
-  const isAdminLoginPage = pathname === '/admin';
-  const isHomePage = pathname === '/';
-  
-  // Only show dynamic content after mount to prevent hydration mismatch
-  const showLogout = mounted && user;
-  const showAdminDashboard = mounted && user && !isAdminLoginPage;
   
   return (
-    <header className="sticky top-0 z-50 bg-background border-b border-border">
+    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-2 sm:px-4 py-1 sm:py-2">
         <div className="flex items-center justify-between relative">
           {/* Logo */}
@@ -150,25 +134,6 @@ export default function Header() {
                   <polygon points="4.7,43.64 4.7,62.17 24.11,62.17 24.11,24.71"/>
                   <rect x="4.7" y="5.85" width="19.41" height="18.86"/>
                   <g>
-                    <path d="M120.72,24.69c2.32-2.95,5.48-4.8,9.77-4.8c4.99,0,8.57,2.19,10.61,5.62c2.39-3.43,6.25-5.62,11.38-5.62
-                      c8.5,0,13.07,6.17,13.07,13.57v20.35h-5.76V33.81c0-5.28-2.74-8.91-8.15-8.91c-5.27,0-8.5,4.04-8.5,9.25v19.67h-5.69V33.81
-                      c0-5.28-2.74-8.91-8.15-8.91c-5.27,0-8.5,4.04-8.5,9.25v19.67h-5.69v-33.1h5.62V24.69z"/>
-                    <path d="M200.86,37.3c0-6.99-5.13-12.61-11.88-12.61c-6.67,0-11.8,5.48-11.8,12.68c0,7.06,5.13,12.61,11.87,12.61
-                      C195.73,49.98,200.86,44.5,200.86,37.3 M171.35,37.37c0-9.87,7.66-17.54,17.78-17.54c10.05,0,17.57,7.61,17.57,17.47
-                      c0,9.87-7.66,17.54-17.78,17.54C178.87,54.85,171.35,47.24,171.35,37.37"/>
-                    <path d="M230.23,49.71c6.67,0,11.74-4.66,11.74-12.4c0-7.74-4.99-12.4-11.52-12.4c-6.6,0-12.08,5.28-12.08,12.54
-                      C218.36,44.57,223.7,49.71,230.23,49.71 M212.88,5.85h5.69v20.01c2.95-3.63,7.45-5.89,12.44-5.89c9.06,0,16.79,6.65,16.79,17.2
-                      c0,10.76-8.08,17.4-17.07,17.4c-4.78,0-9.28-2.12-12.23-5.69v4.93h-5.62V5.85z"/>
-                  </g>
-                  <path d="M259.92,53.82h-5.76v-33.1h5.76V53.82z M260.21,15.72h-6.32v-6.1h6.32V15.72z"/>
-                  <rect x="268.31" y="5.85" width="5.76" height="47.97"/>
-                  <g>
-                    <path d="M286.44,34.97h22.34c-0.85-6.44-5.13-10.35-10.89-10.35C292.27,24.63,287.42,28.39,286.44,34.97 M309.91,44.43l3.44,3.08
-                      c-3.79,4.8-8.85,7.33-15.39,7.33c-10.12,0-17.42-7.2-17.42-17.47c0-10,7.59-17.47,17.28-17.47c9.7,0,16.72,6.72,16.72,17.06
-                      c0,0.89-0.14,1.99-0.21,2.33h-27.89c0.77,6.72,5.9,10.83,12.01,10.83C302.74,50.12,306.6,48.4,309.91,44.43"/>
-                  </g>
-                  <polygon points="343.97,20.72 333.01,47.03 322.05,20.72 315.79,20.72 330.13,53.54 324.3,66.15 330.2,66.15 349.94,20.72"/>
-                  <g>
                     <path d="M357,34.97h22.34c-0.84-6.44-5.13-10.35-10.89-10.35C362.83,24.63,357.98,28.39,357,34.97 M380.47,44.43l3.44,3.08
                       c-3.79,4.8-8.85,7.33-15.39,7.33c-10.12,0-17.43-7.2-17.43-17.47c0-10,7.59-17.47,17.28-17.47c9.7,0,16.72,6.72,16.72,17.06
                       c0,0.89-0.14,1.99-0.21,2.33H357c0.77,6.72,5.9,10.83,12.01,10.83C373.3,50.12,377.17,48.4,380.47,44.43"/>
@@ -180,102 +145,129 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Center - App Name */}
-          <div className={`absolute left-1/2 transform -translate-x-1/2 ${isSmallScreen ? 'w-1/4 min-w-[60px]' : 'w-1/3 min-w-[100px]'}`}>
-            <h1 className={`text-sm sm:text-lg font-semibold text-foreground ${hebrewHeading.fontClass} text-center whitespace-nowrap overflow-hidden text-ellipsis`}>
+          {/* Center - App Name and Search */}
+          <div className="flex items-center justify-center absolute left-1/2 transform -translate-x-1/2 gap-2">
+            <h1 className={`text-sm sm:text-lg font-semibold text-foreground ${hebrewHeading.fontClass} whitespace-nowrap overflow-hidden text-ellipsis`}>
               Driver Tasks
             </h1>
+            
+            {/* Only show search on larger screens and when user is authenticated */}
+            {mounted && showAdminDashboard && !isSmallScreen && (
+              <div className="hidden sm:block ml-2">
+                <CommandPalette>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 h-8 text-xs text-muted-foreground"
+                  >
+                    <Search className="h-3 w-3" />
+                    <span className="hidden md:inline-block">חיפוש מהיר</span>
+                    <kbd className="hidden md:inline-flex pointer-events-none select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100">
+                      <span className="text-xs">⌘</span>K
+                    </kbd>
+                  </Button>
+                </CommandPalette>
+              </div>
+            )}
           </div>
 
           {/* Actions - Debug Icon, Theme Toggle and Mobile Menu Button */}
           <div className="flex items-center gap-0.5 sm:gap-1 relative z-10">
+            {/* Show command palette trigger on small screens for admin users */}
+            {mounted && showAdminDashboard && isSmallScreen && (
+              <CommandPalette>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </CommandPalette>
+            )}
+          
             {/* Debug Report Icon */}
             <div className={isSmallScreen ? "scale-75" : ""}>
               <HeaderDebugIcon />
             </div>
             
-            {/* Theme Toggle - Available for all users */}
+            {/* Theme Toggle */}
             <div className={isSmallScreen ? "scale-75" : ""}>
               <ThemeToggle />
             </div>
             
-            {/* Mobile Menu Button */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
-              className={`${isSmallScreen ? 'p-1.5' : 'p-2'} rounded-lg hover:bg-accent transition-colors touch-manipulation`}
-              aria-label="תפריט"
-              type="button"
-            >
-              <Menu className={`${isSmallScreen ? 'h-4 w-4' : 'h-5 w-5'} pointer-events-none`} />
-            </button>
+            {/* Mobile Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`${isSmallScreen ? 'h-8 w-8' : 'h-9 w-9'}`}
+                  aria-label="תפריט"
+                >
+                  <Menu className={`${isSmallScreen ? 'h-4 w-4' : 'h-5 w-5'}`} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {/* Only show when mounted to prevent hydration mismatch */}
+                {mounted && (
+                  <>
+                    {!isHomePage && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/" className="flex items-center gap-2 w-full cursor-pointer">
+                          <Home className="h-4 w-4" />
+                          עמוד הבית
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {showAdminDashboard && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/dashboard" className="flex items-center gap-2 w-full cursor-pointer">
+                            <BarChart3 className="h-4 w-4" />
+                            פאנל ניהול משימות
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/feedback" className="flex items-center gap-2 w-full cursor-pointer">
+                            <MessageCircle className="h-4 w-4" />
+                            ניהול פניות ודיווחים
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    
+                    {showLogout ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={handleLogout}
+                          className="flex items-center gap-2 text-destructive cursor-pointer"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          יציאה מהמערכת
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      !isAdminLoginPage && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin" className="flex items-center gap-2 w-full cursor-pointer">
+                              <Settings className="h-4 w-4" />
+                              פאנל ניהול משימות
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )
+                    )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-
-        {/* Mobile Menu - Only show after mount to prevent hydration mismatch */}
-        {mounted && menuOpen && (
-          <div className="md:hidden mt-2 sm:mt-3 p-2 sm:p-3 bg-card rounded-lg border border-border relative z-40 shadow-lg">
-            <nav className="space-y-1 sm:space-y-2 text-sm sm:text-base">
-              {!isHomePage && (
-                <Link 
-                  href="/" 
-                  className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Home className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                  עמוד הבית
-                </Link>
-              )}
-              
-              {/* Show admin dashboard for logged-in users */}
-              {showAdminDashboard && (
-                <>
-                  <Link 
-                    href="/admin/dashboard" 
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <BarChart3 className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                    פאנל ניהול משימות
-                  </Link>
-                  <Link 
-                    href="/admin/feedback" 
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <MessageCircle className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                    ניהול פניות ודיווחים
-                  </Link>
-                </>
-              )}
-              
-              {/* Show logout for logged-in users or login for non-logged users */}
-              {showLogout ? (
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 w-full p-1.5 sm:p-2 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors text-right"
-                >
-                  <LogOut className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                  יציאה מהמערכת
-                </button>
-              ) : (
-                !isAdminLoginPage && (
-                  <Link 
-                    href="/admin" 
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded hover:bg-accent transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <Settings className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-                    פאנל ניהול משימות
-                  </Link>
-                )
-              )}
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );
