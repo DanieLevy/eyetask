@@ -91,6 +91,22 @@ export default function ConditionalHeader() {
     );
   }
   
-  // Non-admin pages
-  return <AppHeader showSearch={false} />;
+  // Non-admin pages - ensure we're passing the proper props for the hamburger menu
+  return (
+    <AppHeader 
+      variant="default"
+      showAdmin={isAdmin}
+      showSearch={false}
+      headerActions={user ? [
+        {
+          label: 'יציאה',
+          icon: <LogOut className="h-4 w-4" />,
+          onClick: () => {
+            // The logout logic is handled by the AppHeader component
+          },
+          variant: 'destructive'
+        }
+      ] : []}
+    />
+  );
 } 

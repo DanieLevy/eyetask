@@ -427,9 +427,10 @@ export default function AppHeader({
                         );
                       })}
                       
-                      {/* Common navigation items */}
+                      {/* Common navigation items - ensure these always appear for default variant */}
                       {variant === 'default' && (
                         <>
+                          {/* Always show home link on non-home pages */}
                           {!isHomePage && (
                             <DropdownMenuItem asChild>
                               <Link href="/" className="flex items-center gap-2 w-full cursor-pointer">
@@ -439,6 +440,15 @@ export default function AppHeader({
                             </DropdownMenuItem>
                           )}
                           
+                          {/* Show project links */}
+                          <DropdownMenuItem asChild>
+                            <Link href="/project" className="flex items-center gap-2 w-full cursor-pointer">
+                              <FolderOpen className="h-4 w-4" />
+                              פרויקטים
+                            </Link>
+                          </DropdownMenuItem>
+                          
+                          {/* Show admin links if user is admin */}
                           {showAdmin && showAdminDashboard && (
                             <>
                               <DropdownMenuItem asChild>
@@ -456,7 +466,8 @@ export default function AppHeader({
                             </>
                           )}
                           
-                          {showLogout && variant === 'default' && (
+                          {/* Show logout if user is logged in */}
+                          {showLogout && (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
