@@ -138,6 +138,7 @@ export const MobileMenu = ({
           )}
           sideOffset={8}
           avoidCollisions={true}
+          style={{paddingTop: 0, marginTop: 0}}
         >
           {showSearch && (
             <div className="px-3 py-3 border-b border-border/50">

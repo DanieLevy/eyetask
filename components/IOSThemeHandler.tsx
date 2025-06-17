@@ -89,5 +89,55 @@ export default function IOSThemeHandler() {
     }
   }, [resolvedTheme, mounted, isPWA]);
   
+  useEffect(() => {
+    // Run only on client side
+    if (typeof window !== 'undefined') {
+      // Check if device is iOS
+      const isIOSDevice = localStorage.getItem('isIOSDevice') === 'true';
+      const isPWA = localStorage.getItem('isPWA') === 'true';
+
+      if (isIOSDevice) {
+        document.documentElement.classList.add('ios-device');
+        
+        // Apply PWA specific styles for iOS
+        if (isPWA) {
+          document.documentElement.classList.add('ios-pwa');
+          
+          // Fix layout spacing issues in PWA mode
+          const fixPWASpacing = () => {
+            // Fix spacing: remove any unnecessary padding/margin at the top
+            document.documentElement.style.padding = '0';
+            document.documentElement.style.margin = '0';
+            document.body.style.padding = '0';
+            document.body.style.margin = '0';
+            
+            // Apply safe-area-inset only to the header
+            const header = document.querySelector('header.unified-header');
+            if (header) {
+              // Use inline style for immediate effect
+              header.setAttribute('style', 'padding-top: env(safe-area-inset-top); margin-top: 0;');
+            }
+            
+            // Fix dropdown menus
+            const dropdowns = document.querySelectorAll('.dropdown-menu-content');
+            dropdowns.forEach(dropdown => {
+              dropdown.classList.add('notch-aware-dropdown');
+              // Ensure no padding at top of dropdown
+              (dropdown as HTMLElement).style.paddingTop = '0';
+              (dropdown as HTMLElement).style.marginTop = '0';
+            });
+          };
+          
+          // Apply fixes immediately
+          fixPWASpacing();
+          
+          // Also apply fixes after a short delay to handle post-hydration rendering
+          setTimeout(fixPWASpacing, 100);
+          setTimeout(fixPWASpacing, 500);
+        }
+      }
+    }
+  }, []);
+  
   return null;
 } 

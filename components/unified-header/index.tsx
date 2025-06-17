@@ -146,8 +146,9 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   return (
     <header className={cn(
       "sticky top-0 z-50 w-full bg-background/90 backdrop-blur-sm border-b border-border unified-header",
+      "m-0",
       className
-    )} dir="rtl">
+    )} dir="rtl" style={{marginTop: 0, paddingTop: "env(safe-area-inset-top)"}}>
       <div className="container px-3 md:px-6 py-2 md:py-3 mx-auto">
         <div className="flex items-center justify-center gap-2 md:gap-4 h-11">
           {/* Left Section: Logo and Title - Now with better vertical alignment */}

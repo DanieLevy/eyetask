@@ -67,6 +67,24 @@ const iosDetectionScript = `
         localStorage.setItem('isPWA', 'true');
         // Apply body classes after hydration to avoid mismatch
         document.documentElement.classList.add('ios-pwa');
+        
+        // Fix for double spacing in PWA mode
+        document.documentElement.style.padding = '0';
+        document.documentElement.style.margin = '0';
+        document.body.style.padding = '0';
+        document.body.style.margin = '0';
+        
+        // Only apply safe area insets to the header
+        var header = document.querySelector('header.unified-header');
+        if (header) {
+          header.style.paddingTop = 'env(safe-area-inset-top)';
+          header.style.marginTop = '0';
+        }
+        
+        // Fix dropdown top spacing
+        var style = document.createElement('style');
+        style.innerHTML = '.notch-aware-dropdown { padding-top: 0 !important; }';
+        document.head.appendChild(style);
       }
     } else {
       localStorage.removeItem('isIOSDevice');

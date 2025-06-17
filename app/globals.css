@@ -1036,7 +1036,9 @@ html[lang="en"] {
     height: 100vh;
     height: 100dvh; /* Dynamic viewport height - modern mobile browsers */
     width: 100vw;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: 0; /* Remove padding that was causing double spacing */
+    margin: 0;
+    overflow-x: hidden;
     background-color: hsl(var(--background));
   }
   
@@ -1046,12 +1048,16 @@ html[lang="en"] {
     width: 100%;
     position: relative;
     overflow-x: hidden;
+    margin: 0;
+    padding: 0; /* Remove padding that was causing double spacing */
   }
 
   /* Style header for PWA mode with notch support */
   header.unified-header {
-    padding-top: env(safe-area-inset-top);
+    padding-top: 0; /* Remove default padding */
+    margin-top: 0; /* Ensure no extra margin */
     background-color: hsl(var(--background));
+    /* Use safe-area-inset only where needed in child elements */
   }
   
   /* Ensure dropdown menus don't get cut off on notched devices */
@@ -1088,13 +1094,13 @@ html[lang="en"] {
 
     /* Prevent content from getting hidden under the status bar */
     body {
-      padding-top: env(safe-area-inset-top);
+      padding-top: 0; /* Remove body padding - handle in header */
     }
     
     /* Adjust header position for iOS status bar */
     header.unified-header {
       top: 0;
-      padding-top: env(safe-area-inset-top);
+      padding-top: env(safe-area-inset-top); /* Only add padding to header */
     }
   }
 }
@@ -1113,7 +1119,7 @@ html[lang="en"] {
 
 /* Specific fixes for dropdown menus on notched devices */
 .notch-aware-dropdown {
-  padding-top: env(safe-area-inset-top, 0);
+  padding-top: 0; /* Remove top padding that creates space at the top */
   padding-left: env(safe-area-inset-left, 0);
   padding-right: env(safe-area-inset-right, 0);
   /* Remove bottom padding - fix for PWA */
@@ -1125,10 +1131,12 @@ html[lang="en"] {
 .ios-pwa .unified-header {
   padding-top: env(safe-area-inset-top, 0);
   height: calc(56px + env(safe-area-inset-top, 0));
+  margin-top: 0; /* Ensure no extra margin */
 }
 
 .ios-pwa .dropdown-menu-content {
   max-height: calc(100vh - env(safe-area-inset-top, 0) - env(safe-area-inset-bottom, 0) - 56px) !important;
+  padding-top: 0; /* Remove top padding that creates space */
 }
 
 /* Ensure PWA with notch looks like a native app on iOS */
@@ -1183,11 +1191,13 @@ html[lang="en"] {
     border-radius: 1.25rem;
     max-width: 88vw;
     margin-top: 0.5rem;
+    padding-top: 0; /* Remove top padding */
   }
   
   /* Extra spacing for iOS safe areas - fix the padding */
   .ios-pwa .dropdown-menu-content {
     padding-bottom: 0 !important;
+    padding-top: 0 !important; /* Ensure no top padding */
     max-height: calc(100vh - env(safe-area-inset-top, 44px) - 4rem) !important;
   }
   
