@@ -243,7 +243,7 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
             
             {/* Mobile Menu Button */}
             <MobileMenu
-              items={navigationItems}
+              items={navigationItems.filter(item => item.id !== 'adminPanel')}
               actions={allActions}
               showSearch={showSearch}
             />

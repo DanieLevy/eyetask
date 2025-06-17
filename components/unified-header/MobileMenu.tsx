@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, Shield, X } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MobileMenuProps, HeaderAction, NavigationItem } from './types';
@@ -13,7 +13,6 @@ import { useAuth } from './AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -59,61 +58,44 @@ export const MobileMenu = ({ items, actions = [], showSearch = false }: MobileMe
     }
   }, []);
   
+  // Filter actions to only include important functional ones
+  const functionalActions = actions.filter(action => {
+    // Keep only login, logout, back, and refresh actions
+    return ['login', 'logout', 'back', 'refresh'].includes(action.id);
+  });
+  
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            "h-9 w-9 p-0 relative rounded-full",
-            isAdmin && "bg-primary/10 hover:bg-primary/15"
-          )}
+          className="h-9 w-9 p-0 relative rounded-full"
           aria-label="תפריט"
         >
           {isAdmin && (
-            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
           )}
-          <Menu className={cn(
-            "h-5 w-5",
-            isAdmin && "text-primary"
-          )} />
+          <Menu className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
         className={cn(
-          "w-64 dropdown-menu-content rounded-xl shadow-lg border-border/50",
+          "w-56 dropdown-menu-content rounded-xl shadow-lg border-border/50",
           "max-h-[calc(100vh-6rem)] overflow-y-auto",
           isPWA && "notch-aware-dropdown"
         )}
         sideOffset={8}
         avoidCollisions={true}
       >
-        {/* Header section with close button */}
-        <div className="flex items-center justify-between py-3 px-4 border-b border-border/50">
-          {isAdmin && (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-              <Shield className="h-3.5 w-3.5" />
-              <span className={cn(hebrewFont.fontClass)}>מצב ניהול</span>
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 ml-auto rtl:ml-0 rtl:mr-auto rounded-full hover:bg-muted"
-            onClick={() => setOpen(false)}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-        
         {showSearch && (
           <div className="px-3 py-3 border-b border-border/50">
             <HeaderSearch className="w-full" variant="mobile-full-width" />
           </div>
         )}
         
+        {/* Only show navigation items that are significant */}
         {items?.length > 0 && (
           <div className="py-2">
             {items.map((item) => (
@@ -136,13 +118,14 @@ export const MobileMenu = ({ items, actions = [], showSearch = false }: MobileMe
           </div>
         )}
         
-        {actions && actions.length > 0 && items?.length > 0 && (
+        {functionalActions.length > 0 && items?.length > 0 && (
           <DropdownMenuSeparator className="my-1 opacity-50" />
         )}
         
-        {actions && actions.length > 0 && (
+        {/* Render only functional actions */}
+        {functionalActions.length > 0 && (
           <div className="py-2">
-            {actions.map((action) => {
+            {functionalActions.map((action) => {
               // If it has an href, wrap it in a Link
               if (action.href) {
                 return (
