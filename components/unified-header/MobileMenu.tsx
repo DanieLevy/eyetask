@@ -109,8 +109,8 @@ export const MobileMenu = ({
   
   // Filter actions to only include important functional ones
   const functionalActions = actions.filter(action => {
-    // Keep only login, logout, back, and refresh actions
-    return ['login', 'logout', 'back', 'refresh'].includes(action.id);
+    // Keep only login, logout, back, refresh, and adminPanel actions
+    return ['login', 'logout', 'back', 'refresh', 'adminPanel'].includes(action.id);
   });
   
   return (

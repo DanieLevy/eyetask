@@ -234,7 +234,7 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
             
             {/* Mobile Menu Button - Now passing showThemeToggle and showDebugIcon */}
             <MobileMenu
-              items={navigationItems.filter(item => item.id !== 'adminPanel')}
+              items={navigationItems}
               actions={allActions}
               showSearch={showSearch}
               showThemeToggle={showThemeToggle}
