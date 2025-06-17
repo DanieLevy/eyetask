@@ -65,6 +65,8 @@ export interface MobileMenuProps {
   items: NavigationItem[];
   actions?: HeaderAction[];
   showSearch?: boolean;
+  showThemeToggle?: boolean;
+  showDebugIcon?: boolean;
 }
 
 export interface HeaderLogoProps {

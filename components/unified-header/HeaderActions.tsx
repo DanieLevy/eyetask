@@ -14,9 +14,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { HeaderActionsProps, HeaderAction } from './types';
+import { useHebrewFont } from '@/hooks/useFont';
 
 export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const hebrewFont = useHebrewFont('body');
   
   // Check screen size on mount and resize
   useEffect(() => {
@@ -47,14 +49,14 @@ export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
             <Button
               variant="outline"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 rounded-full"
               aria-label="פעולות"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>פעולות</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-48 rounded-xl">
+            <DropdownMenuLabel className={cn("font-light", hebrewFont.fontClass)}>פעולות</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {actions.map((action) => {
               const ActionItem = () => (
@@ -62,7 +64,7 @@ export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
                   key={action.id}
                   disabled={action.disabled}
                   onClick={action.onClick}
-                  className="cursor-pointer"
+                  className={cn("cursor-pointer font-light py-2.5", hebrewFont.fontClass)}
                 >
                   {action.icon && <action.icon className="mr-2 h-4 w-4" />}
                   {action.label}
@@ -84,7 +86,7 @@ export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
   }
   
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center justify-center gap-2", className)}>
       {actions.map((action) => {
         const ActionButton = () => (
           <Button
@@ -93,9 +95,12 @@ export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
             size="sm"
             onClick={action.onClick}
             disabled={action.disabled}
-            className="h-8 flex items-center gap-1.5"
+            className={cn(
+              "h-9 flex items-center justify-center gap-1.5 font-light transition-all", 
+              hebrewFont.fontClass
+            )}
           >
-            {action.icon && <action.icon className="h-3.5 w-3.5" />}
+            {action.icon && <action.icon className="h-4 w-4" />}
             <span className="text-sm">{action.label}</span>
           </Button>
         );

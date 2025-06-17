@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,6 @@ import HeaderActions from './HeaderActions';
 import HeaderNavigation from './HeaderNavigation';
 import HeaderUserMenu from './HeaderUserMenu';
 import MobileMenu from './MobileMenu';
-import ThemeToggle from '@/components/ThemeToggle';
-import HeaderDebugIcon from '@/components/HeaderDebugIcon';
 
 export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const [mounted, setMounted] = useState(false);
@@ -27,6 +25,7 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const { user, isAdmin, logout } = useAuth();
   const { getConfigForCurrentRoute } = useHeaderContext();
   const router = useRouter();
+  const pathname = usePathname();
   const hebrewHeading = useHebrewFont('heading');
   
   // Merge route-based config with passed props
@@ -150,23 +149,23 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
       className
     )} dir="rtl">
       <div className="container px-3 md:px-6 py-2 md:py-3 mx-auto">
-        <div className="flex items-center justify-between gap-2 md:gap-4 h-11">
-          {/* Left Section: Logo and Title */}
-          <div className="flex items-center gap-2 md:gap-3 flex-1 sm:flex-none">
+        <div className="flex items-center justify-center gap-2 md:gap-4 h-11">
+          {/* Left Section: Logo and Title - Now with better vertical alignment */}
+          <div className="flex items-center justify-center gap-2 md:gap-3 flex-1">
             {showLogo && (
               <HeaderLogo condensed={isSmallScreen || !!title} className="ltr:mr-auto rtl:ml-auto" />
             )}
             
             {title && (
-              <div className="flex flex-col overflow-hidden">
+              <div className="flex flex-col overflow-hidden items-center">
                 <h1 className={cn(
-                  "text-base md:text-lg font-semibold leading-none truncate",
+                  "text-base md:text-xl font-light leading-none truncate",
                   hebrewHeading.fontClass
                 )}>
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="text-xs md:text-sm text-muted-foreground truncate mt-0.5">
+                  <p className="text-xs md:text-sm text-muted-foreground truncate mt-0.5 font-light">
                     {subtitle}
                   </p>
                 )}
@@ -174,25 +173,17 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
             )}
           </div>
           
-          {/* Center: Navigation (Desktop Only) */}
+          {/* Center: Navigation (Desktop Only) - Now properly centered */}
           {navigationItems.length > 0 && (
-            <div className="hidden md:block flex-1 max-w-xl mx-auto">
+            <div className="hidden md:flex items-center justify-center flex-1 max-w-xl mx-auto">
               <HeaderNavigation items={navigationItems} className="justify-center" />
             </div>
           )}
           
           {/* Right Section: Actions, Search, User */}
-          <div className="flex items-center gap-2">
-            {/* Debug Icon - Always visible */}
-            <HeaderDebugIcon />
-            
-            {/* Theme Toggle - Always visible */}
-            {showThemeToggle && (
-              <ThemeToggle />
-            )}
-            
-            {/* Desktop-only elements */}
-            <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 flex-1">
+            {/* Desktop-only elements with improved alignment */}
+            <div className="hidden md:flex items-center justify-center gap-2">
               {showSearch && (
                 <HeaderSearch />
               )}
@@ -205,10 +196,10 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
                       size="icon"
                       onClick={onRefresh}
                       disabled={isLoading}
-                      className="h-8 w-8"
+                      className="h-9 w-9 rounded-full"
                     >
                       <RefreshCw className={cn(
-                        "h-3.5 w-3.5",
+                        "h-4 w-4",
                         isLoading && "animate-spin"
                       )} />
                     </Button>
@@ -223,10 +214,10 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
                   variant="outline"
                   size="sm"
                   onClick={handleBackClick}
-                  className="flex items-center gap-2 h-8"
+                  className="flex items-center justify-center gap-2 h-9 px-3 font-light"
                 >
                   <ArrowRight className="h-4 w-4" />
-                  {backLabel || "חזור"}
+                  <span className="text-sm">{backLabel || "חזור"}</span>
                 </Button>
               )}
               
@@ -241,11 +232,13 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
               )}
             </div>
             
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - Now passing showThemeToggle and showDebugIcon */}
             <MobileMenu
               items={navigationItems.filter(item => item.id !== 'adminPanel')}
               actions={allActions}
               showSearch={showSearch}
+              showThemeToggle={showThemeToggle}
+              showDebugIcon={true}
             />
           </div>
         </div>

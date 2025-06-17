@@ -1114,10 +1114,11 @@ html[lang="en"] {
 /* Specific fixes for dropdown menus on notched devices */
 .notch-aware-dropdown {
   padding-top: env(safe-area-inset-top, 0);
-  padding-right: env(safe-area-inset-right, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
   padding-left: env(safe-area-inset-left, 0);
-  box-sizing: border-box;
+  padding-right: env(safe-area-inset-right, 0);
+  /* Remove bottom padding - fix for PWA */
+  padding-bottom: 0 !important;
+  border-radius: 1rem;
 }
 
 /* Fix for specific iOS PWA appearance and notch handling */
@@ -1184,9 +1185,9 @@ html[lang="en"] {
     margin-top: 0.5rem;
   }
   
-  /* Extra spacing for iOS safe areas */
+  /* Extra spacing for iOS safe areas - fix the padding */
   .ios-pwa .dropdown-menu-content {
-    padding-bottom: env(safe-area-inset-bottom, 16px);
+    padding-bottom: 0 !important;
     max-height: calc(100vh - env(safe-area-inset-top, 44px) - 4rem) !important;
   }
   
@@ -1205,8 +1206,9 @@ html[lang="en"] {
 /* Notch-aware dropdown enhancements */
 .notch-aware-dropdown {
   padding-top: env(safe-area-inset-top, 0);
-  padding-bottom: env(safe-area-inset-bottom, 16px);
   padding-left: env(safe-area-inset-left, 0);
   padding-right: env(safe-area-inset-right, 0);
+  /* Remove bottom padding - fix for PWA */
+  padding-bottom: 0 !important;
   border-radius: 1rem;
 }
