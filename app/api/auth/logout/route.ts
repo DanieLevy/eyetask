@@ -1,38 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { AuthService, extractTokenFromHeader } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { activityLogger } from '@/lib/activityLogger';
+
+// Never cache this route
+export const dynamic = 'force-dynamic';
+
+// Initialize AuthService
+const auth = new AuthService();
 
 // POST /api/auth/logout - User logout
 export async function POST(request: NextRequest) {
   try {
-    // Extract user from request for logging
-    const user = auth.extractUserFromRequest(request);
+    // Extract token for logging purposes
+    const authHeader = request.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
     
-    if (user) {
-      logger.info('User logged out', 'AUTH_API', { 
-        username: user.username,
-        email: user.email 
-      });
+    // Try to get user for activity logging
+    let userId = null;
+    let username = null;
+    
+    if (token) {
+      const user = await auth.getUserFromToken(token);
+      if (user) {
+        userId = user.id;
+        username = user.username;
+        
+        // Log activity if we have a valid user
+        await activityLogger.logAuthActivity(
+          'logout',
+          userId,
+          username,
+          {},
+          request
+        );
+      }
     }
-
-    auth.logout();
     
-    // Create response and clear the auth cookie
-    const response = NextResponse.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-
-    // Clear the HTTP-only cookie
+    logger.info('User logout', 'AUTH_API', { userId, username });
+    
+    // Create response that clears auth cookie
+    const response = NextResponse.json(
+      { success: true },
+      { 
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
+    
+    // Clear auth cookie
     response.headers.set('Set-Cookie', auth.clearAuthCookie());
     
     return response;
   } catch (error) {
     logger.error('Logout API error', 'AUTH_API', undefined, error as Error);
     
-    return NextResponse.json(
-      { error: 'Internal server error', success: false },
-      { status: 500 }
+    // Still clear cookies even if there's an error
+    const response = NextResponse.json(
+      { error: 'Error during logout', success: false },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
+    
+    // Clear auth cookie
+    response.headers.set('Set-Cookie', auth.clearAuthCookie());
+    
+    return response;
   }
 } 

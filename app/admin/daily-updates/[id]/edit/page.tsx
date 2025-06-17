@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { InputField, TextareaField, SelectField, CheckboxField } from '@/components/FormComponents';
-import { AdminPageHeader } from '@/components/AdminPageHeader';
 import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
 
@@ -179,25 +178,21 @@ export default function EditDailyUpdatePage() {
 
   return (
     <div className="min-h-screen bg-background pb-8" dir="rtl">
-      <AdminPageHeader
-        title="עריכת עדכון יומי"
-        subtitle={update?.title}
-        backHref="/admin/daily-updates"
-        backLabel="חזרה לעדכונים יומיים"
-      />
-      
       <main className="container mx-auto px-4 py-6">
         <Card>
           <CardHeader className="border-b border-border">
-            <h2 className={`text-xl font-semibold text-foreground ${hebrewHeading.fontClass}`}>
-              עריכת עדכון יומי
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              עודכן לאחרונה: {timeAgo}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className={`text-2xl font-bold mb-1 ${hebrewHeading.fontClass}`}>
+                  עריכת עדכון יומי
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {update?.title} • נוצר {timeAgo}
+                </p>
+              </div>
+            </div>
           </CardHeader>
-
-          <CardContent className="pt-6">
+          <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <InputField
                 label="כותרת"

@@ -7,7 +7,6 @@ import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { ColumnDef } from '@tanstack/react-table';
 import { Plus, Pencil, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import AppHeader from '@/components/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -178,22 +177,6 @@ export default function ProjectsPage() {
 
   return (
     <div className="min-h-screen bg-background pb-8" dir="rtl">
-      <AppHeader
-        title="פרויקטים"
-        subtitle="ניהול הפרויקטים במערכת"
-        onRefresh={fetchProjects}
-        isLoading={loading}
-        variant="admin"
-        headerActions={[
-          {
-            label: "פרויקט חדש",
-            icon: <Plus className="h-4 w-4" />,
-            href: "/admin/projects/new",
-            variant: "default"
-          }
-        ]}
-      />
-      
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
         <Card className="border overflow-hidden">
           <CardHeader className="px-4 sm:px-6 pb-2">

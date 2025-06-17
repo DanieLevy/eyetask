@@ -23,8 +23,16 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Driver Tasks",
+    startupImage: [
+      "/icons/splash-640x1136.png",
+      "/icons/splash-750x1334.png",
+      "/icons/splash-1242x2208.png",
+      "/icons/splash-1125x2436.png",
+      "/icons/splash-828x1792.png",
+      "/icons/splash-1242x2688.png"
+    ]
   },
   formatDetection: {
     telephone: true,
@@ -43,7 +51,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Fix iOS device detection script to avoid hydration mismatch
+// Additional meta script for iOS PWA detection
 const iosDetectionScript = `
 (function() {
   try {
@@ -54,13 +62,15 @@ const iosDetectionScript = `
     // Store the iOS detection result in localStorage for use after hydration
     if (isIOS) {
       localStorage.setItem('isIOSDevice', 'true');
+      // Check if running as PWA
+      if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+        localStorage.setItem('isPWA', 'true');
+        // Apply body classes after hydration to avoid mismatch
+        document.documentElement.classList.add('ios-pwa');
+      }
     } else {
       localStorage.removeItem('isIOSDevice');
     }
-    
-    // Don't modify body classes here to avoid hydration mismatch
-    // The body class will be added via useEffect after hydration
-    
   } catch (e) {
     console.warn('iOS detection error:', e);
   }
@@ -79,8 +89,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Driver Tasks" />
         <link rel="apple-touch-icon" href="/icons/icon-512x512.png" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         
         {/* iOS detection script */}
         <Script id="ios-detection" strategy="beforeInteractive">

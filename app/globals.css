@@ -1028,3 +1028,185 @@ html[lang="en"] {
   /* Ensure all child elements inherit light theme properly on iOS */
   color-scheme: inherit !important;
 }
+
+/* PWA and Mobile-Specific Enhancements */
+@media (display-mode: standalone) {
+  /* Ensure the app expands to fill the entire viewport including notch area */
+  html {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height - modern mobile browsers */
+    width: 100vw;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background-color: hsl(var(--background));
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Style header for PWA mode with notch support */
+  header.unified-header {
+    padding-top: env(safe-area-inset-top);
+    background-color: hsl(var(--background));
+  }
+  
+  /* Ensure dropdown menus don't get cut off on notched devices */
+  [data-radix-popper-content-wrapper] {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Adjust the dropdown position to avoid the notch */
+  .dropdown-menu-content[data-side="top"] {
+    margin-top: env(safe-area-inset-top);
+  }
+  
+  /* Fix for bottom elements to respect safe area */
+  footer, 
+  .fixed-bottom,
+  [data-fixed="bottom"] {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fix for iOS PWA status bar */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    /* Status bar color for light theme */
+    html {
+      background-color: hsl(var(--background));
+    }
+    
+    /* Status bar color for dark theme */
+    html.dark {
+      background-color: hsl(var(--background));
+    }
+
+    /* Prevent content from getting hidden under the status bar */
+    body {
+      padding-top: env(safe-area-inset-top);
+    }
+    
+    /* Adjust header position for iOS status bar */
+    header.unified-header {
+      top: 0;
+      padding-top: env(safe-area-inset-top);
+    }
+  }
+}
+
+/* Dropdown menu fixes for PWA and notched devices */
+[role="menu"],
+[role="dialog"],
+[role="tooltip"],
+.dropdown-menu-content,
+.popover-content {
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 3rem);
+  max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 1rem);
+  margin-right: max(0.5rem, env(safe-area-inset-right));
+  margin-left: max(0.5rem, env(safe-area-inset-left));
+}
+
+/* Specific fixes for dropdown menus on notched devices */
+.notch-aware-dropdown {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  box-sizing: border-box;
+}
+
+/* Fix for specific iOS PWA appearance and notch handling */
+.ios-pwa .unified-header {
+  padding-top: env(safe-area-inset-top, 0);
+  height: calc(56px + env(safe-area-inset-top, 0));
+}
+
+.ios-pwa .dropdown-menu-content {
+  max-height: calc(100vh - env(safe-area-inset-top, 0) - env(safe-area-inset-bottom, 0) - 56px) !important;
+}
+
+/* Ensure PWA with notch looks like a native app on iOS */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    html.ios-pwa {
+      /* This ensures status bar text is properly visible */
+      background-color: transparent !important;
+    }
+    
+    .ios-pwa .unified-header {
+      /* Ensures the header sits under the status bar */
+      padding-top: env(safe-area-inset-top, 0);
+      margin-top: 0;
+      z-index: 49;
+      backdrop-filter: blur(10px);
+    }
+    
+    .ios-pwa body {
+      /* Removes top padding to avoid double spacing with header padding */
+      padding-top: 0 !important;
+    }
+  }
+}
+
+/* Modern dropdown menu styling */
+.dropdown-menu-content {
+  animation: fadeIn 150ms ease-out;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+              0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Improved RTL dropdown positioning */
+[dir="rtl"] .dropdown-menu-content {
+  transform-origin: top left;
+}
+
+/* Enhanced dropdown for PWA mode */
+@media (display-mode: standalone) {
+  .dropdown-menu-content {
+    border-radius: 1.25rem;
+    max-width: 88vw;
+    margin-top: 0.5rem;
+  }
+  
+  /* Extra spacing for iOS safe areas */
+  .ios-pwa .dropdown-menu-content {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    max-height: calc(100vh - env(safe-area-inset-top, 44px) - 4rem) !important;
+  }
+  
+  /* Admin indicator styling */
+  .admin-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: hsl(var(--primary));
+  }
+}
+
+/* Notch-aware dropdown enhancements */
+.notch-aware-dropdown {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+  border-radius: 1rem;
+}

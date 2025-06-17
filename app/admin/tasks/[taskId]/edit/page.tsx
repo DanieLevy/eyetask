@@ -12,6 +12,8 @@ import {
 import { capitalizeEnglishArray } from '@/lib/utils';
 import { MultipleImageUpload } from '@/components/ImageUpload';
 import { toast } from 'sonner';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { useMixedFont } from '@/hooks/useFont';
 
 interface Task {
   id: string;
@@ -51,6 +53,7 @@ export default function EditTaskPage() {
   const router = useRouter();
   const params = useParams();
   const taskId = params.taskId as string;
+  const mixedBody = useMixedFont('body');
   
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,43 +197,16 @@ export default function EditTaskPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/admin/tasks/${taskId}`}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              aria-label="חזור למשימה"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <Target className="h-6 w-6 text-primary" />
-              <div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>ניהול משימות</span>
-                  <ChevronRight className="h-4 w-4" />
-                  <span>{task.title}</span>
-                  <ChevronRight className="h-4 w-4" />
-                  <span>עריכה</span>
-                </div>
-                <h1 className="text-lg font-bold text-foreground">ערוך משימה</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card rounded-lg border border-border">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-xl font-semibold text-foreground">ערוך משימה</h2>
-              <p className="text-sm text-muted-foreground mt-1">ערוך את המשימה "{task.title}"</p>
+      <main className="container mx-auto px-4 py-6">
+        <Card className="border">
+          <CardHeader>
+            <div className="flex flex-col space-y-1.5">
+              <h2 className={`text-2xl font-semibold ${mixedBody.fontClass}`}>ערוך משימה</h2>
+              <p className={`text-sm text-muted-foreground ${mixedBody.fontClass}`}>{task.title}</p>
             </div>
-
+          </CardHeader>
+          <CardContent>
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Basic Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -457,8 +433,8 @@ export default function EditTaskPage() {
                 </Link>
               </div>
             </form>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

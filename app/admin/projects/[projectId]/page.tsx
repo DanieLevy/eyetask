@@ -385,55 +385,6 @@ export default function ProjectManagement() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-900" dir="rtl">
-      <header className="sticky top-0 z-30 w-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4 h-16">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title="חזור"
-              >
-                <ArrowRight className="h-5 w-5" />
-              </button>
-              <div className="flex flex-col">
-                <p className="text-sm text-gray-500 dark:text-gray-400">פרויקט</p>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                  {project.name}
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchProjectData(true)}
-                disabled={operationLoading}
-                className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title="רענן נתונים"
-              >
-                <RefreshCw className={`h-5 w-5 ${operationLoading ? 'animate-spin' : ''}`} />
-              </button>
-              <Link
-                href={`/admin/projects/${project._id}/edit`}
-                className="p-2 inline-flex items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/50 rounded-md transition-colors"
-                title="ערוך פרויקט"
-              >
-                <Edit className="h-5 w-5" />
-              </Link>
-              <button
-                onClick={() => {
-                  setDeleteTarget({ type: 'project', id: projectId });
-                  setShowDeleteDialog(true);
-                }}
-                className="p-2 inline-flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/50 rounded-md transition-colors"
-                title="מחק פרויקט"
-              >
-                <Trash2 className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{project.name}</h2>

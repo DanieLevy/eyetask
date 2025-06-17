@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -19,9 +20,9 @@ export default function ThemeToggle() {
   if (!mounted) {
     return (
       <Button
-        variant="outline"
-        size="icon"
-        className="h-9 w-9 border-foreground/20"
+        variant="ghost"
+        size="sm"
+        className={cn("w-8 h-8 p-0", className)}
         disabled
       >
         <div className="w-5 h-5 animate-pulse bg-muted rounded"></div>
@@ -33,23 +34,21 @@ export default function ThemeToggle() {
   const getIcon = () => {
     switch (theme) {
       case 'light':
-        return <Sun className="h-[1.2rem] w-[1.2rem] text-amber-500" />;
+        return <Sun className="h-5 w-5 text-amber-500" />;
       case 'dark':
-        return <Moon className="h-[1.2rem] w-[1.2rem] text-primary" />;
+        return <Moon className="h-5 w-5 text-sky-400" />;
       case 'system':
         return resolvedTheme === 'dark' ? (
-          <div className="relative">
-            <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />
-            <Moon className="h-[0.7rem] w-[0.7rem] text-primary absolute -top-0.5 -right-0.5" />
-          </div>
+          <Moon className="h-5 w-5 text-sky-400" />
         ) : (
-          <div className="relative">
-            <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />
-            <Sun className="h-[0.7rem] w-[0.7rem] text-amber-500 absolute -top-0.5 -right-0.5" />
-          </div>
+          <Sun className="h-5 w-5 text-amber-500" />
         );
       default:
-        return <Monitor className="h-[1.2rem] w-[1.2rem] text-muted-foreground" />;
+        return resolvedTheme === 'dark' ? (
+          <Moon className="h-5 w-5 text-sky-400" />
+        ) : (
+          <Sun className="h-5 w-5 text-amber-500" />
+        );
     }
   };
 
@@ -57,24 +56,22 @@ export default function ThemeToggle() {
   const getTooltip = () => {
     switch (theme) {
       case 'system':
-        return `מעבר למצב בהיר (כרגע: ${resolvedTheme === 'dark' ? 'כהה' : 'בהיר'})`;
+        return `מעבר למצב ${resolvedTheme === 'dark' ? 'בהיר' : 'כהה'}`;
       case 'light':
         return 'מעבר למצב כהה';
       case 'dark':
-        return 'מעבר למצב אוטומטי';
+        return 'מעבר למצב בהיר';
       default:
         return 'החלף ערכת נושא';
     }
   };
 
-  // Toggle through theme options: system -> light -> dark -> system
+  // Toggle through theme options: light -> dark -> light
   const toggleTheme = () => {
-    if (theme === 'system') {
+    if (theme === 'dark' || (theme === 'system' && resolvedTheme === 'dark')) {
       setTheme('light');
-    } else if (theme === 'light') {
-      setTheme('dark');
     } else {
-      setTheme('system');
+      setTheme('dark');
     }
   };
 
@@ -82,10 +79,10 @@ export default function ThemeToggle() {
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="outline"
-          size="icon"
+          variant="ghost"
+          size="sm"
           onClick={toggleTheme}
-          className="h-9 w-9 border-foreground/20"
+          className={cn("w-8 h-8 p-0 hover:bg-transparent", className)}
           aria-label={getTooltip()}
         >
           {getIcon()}

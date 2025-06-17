@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { AuthService } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
+
+// Never cache this route
+export const dynamic = 'force-dynamic';
+
+// Initialize AuthService
+const auth = new AuthService();
 
 // POST /api/auth/login - User authentication
 export async function POST(request: NextRequest) {
@@ -12,7 +18,14 @@ export async function POST(request: NextRequest) {
     if (!body.username || !body.password) {
       return NextResponse.json(
         { error: 'Username and password are required', success: false },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
 
@@ -50,6 +63,12 @@ export async function POST(request: NextRequest) {
           role: result.user.role
         },
         token: result.token
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       // Set HTTP-only cookie for authentication
@@ -73,7 +92,14 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json(
         { error: 'Invalid username or password', success: false },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Cache-Control': 'no-store, max-age=0, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
   } catch (error) {
@@ -81,7 +107,14 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(
       { error: 'Internal server error', success: false },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 } 

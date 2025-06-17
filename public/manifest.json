@@ -5,7 +5,7 @@
   "start_url": "/?utm_source=pwa&utm_medium=homescreen",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "he",
@@ -37,7 +37,8 @@
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/icons/icon-384x384.png",
@@ -47,7 +48,17 @@
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-dashboard.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Dashboard Screen"
     }
   ],
   "shortcuts": [
@@ -148,5 +159,7 @@
         "text/plain": [".txt"]
       }
     }
-  ]
+  ],
+  "handle_links": "preferred",
+  "id": "drivershub-pwa"
 } 
