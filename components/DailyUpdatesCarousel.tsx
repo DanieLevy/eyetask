@@ -17,14 +17,24 @@ interface DailyUpdate {
   is_active?: boolean;
   is_hidden?: boolean;
   isHidden?: boolean;
+  projectId?: string;
+  isGeneral?: boolean;
   expiresAt: string | null;
 }
 
 interface DailyUpdatesCarouselProps {
   className?: string;
+  projectId?: string;
+  projectName?: string;
+  hideWhenEmpty?: boolean;
 }
 
-export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCarouselProps) {
+export default function DailyUpdatesCarousel({ 
+  className = '',
+  projectId,
+  projectName,
+  hideWhenEmpty = false
+}: DailyUpdatesCarouselProps) {
   const [updates, setUpdates] = useState<DailyUpdate[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -38,11 +48,14 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hebrewFont = useHebrewFont('body');
 
+  // Dynamic storage key based on context
+  const storageKey = projectId ? `eyetask_hidden_updates_${projectId}` : 'eyetask_hidden_updates';
+
   // Load hidden update IDs from localStorage
   useEffect(() => {
     const loadHiddenUpdates = () => {
       try {
-        const storedIds = localStorage.getItem('eyetask_hidden_updates');
+        const storedIds = localStorage.getItem(storageKey);
         if (storedIds) {
           setHiddenUpdateIds(JSON.parse(storedIds));
         }
@@ -52,14 +65,23 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     };
     
     loadHiddenUpdates();
-  }, []);
+  }, [storageKey]);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const updatesResponse = await fetch('/api/daily-updates', {
+      // Build API URL with project filter if needed
+      const params = new URLSearchParams({
+        'Cache-Control': 'no-cache'
+      });
+      
+      if (projectId) {
+        params.append('projectId', projectId);
+      }
+      
+      const updatesResponse = await fetch(`/api/daily-updates?${params.toString()}`, {
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -81,17 +103,23 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
         setUpdates(filteredUpdates);
       }
 
-      try {
-        const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
-        
-        if (settingsResponse.ok) {
-          const settingsData = await settingsResponse.json();
-          if (settingsData?.value) {
-            setFallbackMessage(settingsData.value);
+      // Only fetch fallback message for general updates (homepage)
+      if (!projectId) {
+        try {
+          const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
+          
+          if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            if (settingsData?.value) {
+              setFallbackMessage(settingsData.value);
+            }
           }
+        } catch (settingsError) {
+          console.error('Error fetching fallback message settings:', settingsError);
         }
-      } catch (settingsError) {
-        console.error('Error fetching fallback message settings:', settingsError);
+      } else {
+        // For project-specific updates, use project-specific fallback
+        setFallbackMessage(`אין עדכונים עבור פרויקט ${projectName || 'זה'}`);
       }
     } catch (error) {
       console.error('Error fetching daily updates:', error);
@@ -101,7 +129,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     } finally {
       setLoading(false);
     }
-  }, [hiddenUpdateIds, updates.length]);
+  }, [hiddenUpdateIds, updates.length, projectId, projectName]);
 
   useEffect(() => {
     fetchData();
@@ -167,7 +195,7 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
       setHiddenUpdateIds(newHiddenIds);
       
       try {
-        localStorage.setItem('eyetask_hidden_updates', JSON.stringify(newHiddenIds));
+        localStorage.setItem(storageKey, JSON.stringify(newHiddenIds));
       } catch (err) {
         console.error('Error saving hidden updates to localStorage:', err);
       }
@@ -203,8 +231,18 @@ export default function DailyUpdatesCarousel({ className = '' }: DailyUpdatesCar
     );
   }
   
-  // Loading or no updates
+  // For project pages: hide component entirely if no updates and hideWhenEmpty is true
+  if (hideWhenEmpty && !loading && updates.length === 0) {
+    return null;
+  }
+  
+  // Loading or no updates (show fallback for homepage, hide for projects if specified)
   if ((loading && updates.length === 0) || (!loading && updates.length === 0)) {
+    // For project pages with hideWhenEmpty, don't show anything
+    if (hideWhenEmpty && !loading) {
+      return null;
+    }
+    
     return (
       <div className={`relative mb-3 ${className}`}>
         <div className={`rounded-xl border border-slate-200 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-800/20 p-3 backdrop-blur-sm ${loading ? 'animate-pulse' : ''}`}>

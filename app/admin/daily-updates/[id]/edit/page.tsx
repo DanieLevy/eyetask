@@ -26,6 +26,13 @@ interface UpdateForm {
   durationType: 'hours' | 'days' | 'permanent';
   durationValue: number;
   isPinned: boolean;
+  projectId: string; // NEW: Project assignment
+  isGeneral: boolean; // NEW: General vs project-specific
+}
+
+interface Project {
+  _id: string;
+  name: string;
 }
 
 export default function EditDailyUpdatePage() {
@@ -36,6 +43,8 @@ export default function EditDailyUpdatePage() {
   const [update, setUpdate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [form, setForm] = useState<UpdateForm>({
     title: '',
     content: '',
@@ -43,7 +52,9 @@ export default function EditDailyUpdatePage() {
     priority: 5,
     durationType: 'days',
     durationValue: 1,
-    isPinned: false
+    isPinned: false,
+    projectId: 'general',
+    isGeneral: true
   });
 
   useEffect(() => {
@@ -52,6 +63,26 @@ export default function EditDailyUpdatePage() {
     if (!token) {
       router.push('/admin');
       return;
+    }
+
+    async function fetchProjects() {
+      try {
+        const response = await fetch('/api/projects', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoadingProjects(false);
+      }
     }
 
     async function fetchUpdate() {
@@ -98,7 +129,9 @@ export default function EditDailyUpdatePage() {
           priority: data.update.priority || 5,
           durationType,
           durationValue,
-          isPinned: data.update.isPinned || false
+          isPinned: data.update.isPinned || false,
+          projectId: data.update.projectId || 'general',
+          isGeneral: data.update.isGeneral !== false
         });
 
       } catch (error) {
@@ -110,7 +143,18 @@ export default function EditDailyUpdatePage() {
     }
 
     fetchUpdate();
+    fetchProjects();
   }, [id, router]);
+
+  // Handle project selection change
+  const handleProjectChange = (projectId: string) => {
+    const isGeneral = projectId === 'general';
+    setForm({
+      ...form,
+      projectId,
+      isGeneral
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +180,8 @@ export default function EditDailyUpdatePage() {
         type: form.type,
         priority: form.priority,
         isPinned: form.isPinned,
+        projectId: form.projectId === 'general' ? null : form.projectId,
+        isGeneral: form.isGeneral,
         expiresAt
       };
 
@@ -214,6 +260,61 @@ export default function EditDailyUpdatePage() {
                 placeholder="הזן את תוכן העדכון"
                 dir="rtl"
               />
+
+              {/* Project Assignment */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${mixedBody.fontClass}`}>
+                  הצגה *
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="edit-general"
+                      name="editProjectAssignment"
+                      checked={form.projectId === 'general'}
+                      onChange={() => handleProjectChange('general')}
+                      className="text-primary"
+                    />
+                    <label htmlFor="edit-general" className={`text-sm ${mixedBody.fontClass}`}>
+                      כללי (דף הבית)
+                    </label>
+                  </div>
+                  
+                  {loadingProjects ? (
+                    <div className="text-sm text-muted-foreground">טוען פרויקטים...</div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground mb-1">פרויקט ספציפי:</div>
+                      {projects.length > 0 ? (
+                        projects.map(project => (
+                          <div key={project._id} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id={`edit-project-${project._id}`}
+                              name="editProjectAssignment"
+                              checked={form.projectId === project._id}
+                              onChange={() => handleProjectChange(project._id)}
+                              className="text-primary"
+                            />
+                            <label 
+                              htmlFor={`edit-project-${project._id}`} 
+                              className={`text-sm ${mixedBody.fontClass}`}
+                            >
+                              {project.name}
+                            </label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-muted-foreground">אין פרויקטים זמינים</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  עדכונים כלליים יוצגו בדף הבית, עדכונים ספציפיים יוצגו רק בעמוד הפרויקט הנבחר
+                </p>
+              </div>
 
               <SelectField
                 label="סוג העדכון"

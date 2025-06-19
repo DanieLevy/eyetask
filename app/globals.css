@@ -732,6 +732,14 @@ html[lang="en"] {
     pointer-events: auto;
   }
   
+
+  
+  /* Pull to Refresh PWA Safe Area Support */
+  .pwa-pull-refresh-indicator {
+    top: env(safe-area-inset-top, 0px) !important;
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+  
   /* Ensure notifications appear above iOS status bar */
   .notification-mobile-pwa {
     margin-top: env(safe-area-inset-top, 20px);
@@ -1102,6 +1110,13 @@ html[lang="en"] {
       top: 0;
       padding-top: env(safe-area-inset-top); /* Only add padding to header */
     }
+    
+    /* iOS PWA Pull to Refresh - Extra safe area handling */
+    .pwa-pull-refresh-indicator {
+      top: env(safe-area-inset-top, 44px) !important; /* Fallback to 44px for status bar */
+      padding-top: 12px !important; /* Extra padding for iOS */
+      backdrop-filter: blur(20px) !important; /* Better iOS-style blur */
+    }
   }
 }
 
@@ -1180,6 +1195,17 @@ html[lang="en"] {
   }
 }
 
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-2rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Improved RTL dropdown positioning */
 [dir="rtl"] .dropdown-menu-content {
   transform-origin: top left;
@@ -1211,6 +1237,15 @@ html[lang="en"] {
     border-radius: 50%;
     background-color: hsl(var(--primary));
   }
+  
+  /* PWA Pull to Refresh - Ensure visibility below notch */
+  .pwa-pull-refresh-indicator {
+    top: env(safe-area-inset-top, 0px) !important;
+    padding-top: 8px !important; /* Extra padding for better visibility */
+    min-height: calc(70px + env(safe-area-inset-top, 0px)) !important;
+  }
+  
+
 }
 
 /* Notch-aware dropdown enhancements */

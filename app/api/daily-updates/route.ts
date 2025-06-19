@@ -3,6 +3,7 @@ import { db } from '@/lib/database';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { toObjectId } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 import { cache } from '@/lib/cache';
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for daily updates
@@ -13,9 +14,12 @@ export async function GET(request: NextRequest) {
     // Check if this is for admin (include hidden) or homepage (exclude hidden)
     const url = new URL(request.url);
     const includeHidden = url.searchParams.get('includeHidden') === 'true';
+    const projectId = url.searchParams.get('projectId'); // NEW: Project filter
     
-    // Generate cache key based on whether hidden items are included
-    const cacheKey = `daily_updates_${includeHidden ? 'admin' : 'public'}`;
+    // Generate cache key based on parameters
+    const cacheKey = includeHidden 
+      ? 'daily_updates_admin_all' // Admin gets all updates regardless of project
+      : `daily_updates_public_${projectId || 'general'}`;
     
     // Try to get from cache first
     const cachedUpdates = cache.get<{ updates: any[], count: number }>(cacheKey, {
@@ -27,6 +31,7 @@ export async function GET(request: NextRequest) {
       logger.debug('Daily updates served from cache', 'DAILY_UPDATES_API', { 
         count: cachedUpdates.count, 
         includeHidden,
+        projectId,
         cached: true
       });
       
@@ -38,8 +43,17 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Fetch active daily updates from MongoDB
-    const updates = await db.getActiveDailyUpdates(includeHidden);
+    // Fetch daily updates from MongoDB
+    let updates;
+    if (includeHidden) {
+      // For admin panel - get ALL updates regardless of scope
+      updates = await db.getAllDailyUpdates();
+    } else {
+      // For frontend - use scope filtering
+      updates = projectId 
+        ? await db.getActiveDailyUpdatesByScope(projectId, includeHidden)
+        : await db.getActiveDailyUpdatesByScope(undefined, includeHidden); // General updates
+    }
 
     // Transform updates for API response
     const transformedUpdates = updates.map(update => ({
@@ -55,6 +69,8 @@ export async function GET(request: NextRequest) {
         is_pinned: update.isPinned,
         is_hidden: update.isHidden || false,
         targetAudience: update.targetAudience,
+        projectId: update.projectId?.toString(),
+        isGeneral: update.isGeneral,
         created_at: update.createdAt.toISOString(),
         updated_at: update.updatedAt.toISOString()
     }));
@@ -70,7 +86,8 @@ export async function GET(request: NextRequest) {
 
     logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { 
       count: updates.length, 
-      includeHidden 
+      includeHidden,
+      projectId: projectId || 'general'
     });
 
     return NextResponse.json({ 
@@ -101,7 +118,9 @@ export async function POST(request: NextRequest) {
       durationValue = 7,
       isPinned = false,
       isHidden = false,
-      targetAudience = ['all']
+      targetAudience = ['all'],
+      projectId = null,        // NEW: Project assignment
+      isGeneral = true         // NEW: General vs project-specific flag
     } = body;
 
     // Validate required fields
@@ -151,6 +170,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate project assignment
+    let validatedProjectId: ObjectId | undefined = undefined;
+    let validatedIsGeneral = true;
+    
+    if (projectId && projectId !== 'general') {
+      // Verify project exists
+      const project = await db.getProjectById(projectId);
+      if (!project) {
+        return NextResponse.json({ 
+          error: 'Project not found' 
+        }, { status: 400 });
+      }
+      validatedProjectId = toObjectId(projectId);
+      validatedIsGeneral = false;
+    }
+
     // Create new daily update in MongoDB
     const updateId = await db.createDailyUpdate({
       title: title.trim(),
@@ -164,12 +199,19 @@ export async function POST(request: NextRequest) {
       isPinned,
       targetAudience,
       isHidden,
+      projectId: validatedProjectId,
+      isGeneral: validatedIsGeneral,
       createdBy: user ? toObjectId(user.id) : undefined
     });
 
-    // Invalidate both caches (admin and public)
-    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
-    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
+    // Invalidate relevant caches
+    cache.delete('daily_updates_admin_all', { namespace: CACHE_NAMESPACE }); // Admin cache
+    cache.delete('daily_updates_public_general', { namespace: CACHE_NAMESPACE }); // General public cache
+    
+    if (validatedProjectId) {
+      // Also invalidate project-specific caches
+      cache.delete(`daily_updates_public_${projectId}`, { namespace: CACHE_NAMESPACE });
+    }
 
     logger.info('Daily update created successfully', 'DAILY_UPDATES_API', { 
       updateId, 

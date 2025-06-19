@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { fromObjectId } from '@/lib/mongodb';
+import { fromObjectId, toObjectId } from '@/lib/mongodb';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { cache } from '@/lib/cache';
@@ -41,6 +41,8 @@ export async function GET(
       is_active: dailyUpdateResult.isActive,
       is_pinned: dailyUpdateResult.isPinned,
       targetAudience: dailyUpdateResult.targetAudience,
+      projectId: dailyUpdateResult.projectId ? fromObjectId(dailyUpdateResult.projectId) : null,
+      isGeneral: dailyUpdateResult.isGeneral,
       createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
       created_at: dailyUpdateResult.createdAt.toISOString(),
       updated_at: dailyUpdateResult.updatedAt.toISOString()
@@ -82,7 +84,9 @@ export async function PUT(
       isPinned,
       isActive,
       isHidden,
-      targetAudience
+      targetAudience,
+      projectId,
+      isGeneral
     } = body;
 
     // Build update object with only provided fields
@@ -123,6 +127,32 @@ export async function PUT(
     if (isActive !== undefined) updateData.isActive = isActive;
     if (isHidden !== undefined) updateData.isHidden = isHidden;
     if (targetAudience !== undefined) updateData.targetAudience = targetAudience;
+    
+    // Handle project assignment updates
+    if (projectId !== undefined) {
+      if (projectId && projectId !== 'general') {
+        // Verify project exists
+        const project = await db.getProjectById(projectId);
+        if (!project) {
+          return NextResponse.json({ 
+            error: 'Project not found' 
+          }, { status: 400 });
+        }
+        updateData.projectId = toObjectId(projectId);
+        updateData.isGeneral = false;
+      } else {
+        // Set as general update
+        updateData.projectId = null;
+        updateData.isGeneral = true;
+      }
+    }
+    
+    if (isGeneral !== undefined) {
+      updateData.isGeneral = isGeneral;
+      if (isGeneral) {
+        updateData.projectId = null; // Clear project association for general updates
+      }
+    }
 
     // Update the daily update
     const updated = await db.updateDailyUpdate(id, updateData);
@@ -133,8 +163,24 @@ export async function PUT(
     }
 
     // Invalidate caches to ensure consistency
-    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
-    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
+    // Get the original update to know which caches to invalidate
+    const originalUpdate = await db.getDailyUpdateById(id);
+    
+    // Invalidate admin cache (gets all updates)
+    cache.delete('daily_updates_admin_all', { namespace: CACHE_NAMESPACE });
+    
+    // Invalidate general public cache
+    cache.delete('daily_updates_public_general', { namespace: CACHE_NAMESPACE });
+    
+    // Invalidate project-specific public caches if relevant
+    if (originalUpdate?.projectId) {
+      cache.delete(`daily_updates_public_${originalUpdate.projectId.toString()}`, { namespace: CACHE_NAMESPACE });
+    }
+    
+    // If project was changed, also invalidate new project cache
+    if (updateData.projectId && updateData.projectId.toString() !== originalUpdate?.projectId?.toString()) {
+      cache.delete(`daily_updates_public_${updateData.projectId.toString()}`, { namespace: CACHE_NAMESPACE });
+    }
 
     // Get the updated daily update
     const dailyUpdateResult = await db.getDailyUpdateById(id);
@@ -157,6 +203,8 @@ export async function PUT(
       is_pinned: dailyUpdateResult.isPinned,
       is_hidden: dailyUpdateResult.isHidden || false,
       targetAudience: dailyUpdateResult.targetAudience,
+      projectId: dailyUpdateResult.projectId ? fromObjectId(dailyUpdateResult.projectId) : null,
+      isGeneral: dailyUpdateResult.isGeneral,
       createdBy: dailyUpdateResult.createdBy ? fromObjectId(dailyUpdateResult.createdBy) : null,
       created_at: dailyUpdateResult.createdAt.toISOString(),
       updated_at: dailyUpdateResult.updatedAt.toISOString()
@@ -190,6 +238,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid daily update ID' }, { status: 400 });
     }
 
+    // Get the update details before deletion for cache invalidation
+    const updateToDelete = await db.getDailyUpdateById(id);
+    
     // Delete the daily update
     const deleted = await db.deleteDailyUpdate(id);
 
@@ -198,9 +249,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Daily update not found or failed to delete' }, { status: 404 });
     }
 
-    // Invalidate caches to ensure consistency
-    cache.delete('daily_updates_admin', { namespace: CACHE_NAMESPACE });
-    cache.delete('daily_updates_public', { namespace: CACHE_NAMESPACE });
+    // Invalidate relevant caches
+    cache.delete('daily_updates_admin_all', { namespace: CACHE_NAMESPACE }); // Admin cache
+    cache.delete('daily_updates_public_general', { namespace: CACHE_NAMESPACE }); // General public cache
+    
+    if (updateToDelete?.projectId) {
+      cache.delete(`daily_updates_public_${updateToDelete.projectId.toString()}`, { namespace: CACHE_NAMESPACE });
+    }
 
     logger.info('Daily update deleted', 'DAILY_UPDATES_API', { id, userId: user?.id });
     return NextResponse.json({ 

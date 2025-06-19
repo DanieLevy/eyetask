@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -22,6 +22,13 @@ interface UpdateForm {
   durationType: 'hours' | 'days' | 'permanent';
   durationValue: number;
   isPinned: boolean;
+  projectId: string; // NEW: Project assignment
+  isGeneral: boolean; // NEW: General vs project-specific
+}
+
+interface Project {
+  _id: string;
+  name: string;
 }
 
 export default function NewDailyUpdatePage() {
@@ -31,6 +38,8 @@ export default function NewDailyUpdatePage() {
   
   const [submitting, setSubmitting] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   
   const initialForm: UpdateForm = {
     title: '',
@@ -39,10 +48,49 @@ export default function NewDailyUpdatePage() {
     priority: 5,
     durationType: 'days',
     durationValue: 1,
-    isPinned: false
+    isPinned: false,
+    projectId: 'general',
+    isGeneral: true
   };
   
   const [form, setForm] = useState<UpdateForm>(initialForm);
+
+  // Fetch projects on component mount
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch('/api/projects', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        toast.error('שגיאה בטעינת הפרויקטים');
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  // Handle project selection change
+  const handleProjectChange = (projectId: string) => {
+    const isGeneral = projectId === 'general';
+    setForm({
+      ...form,
+      projectId,
+      isGeneral
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +206,61 @@ export default function NewDailyUpdatePage() {
                   dir="rtl"
                   placeholder="הזן את תוכן העדכון"
                 />
+              </div>
+
+              {/* Project Assignment */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${mixedBody.fontClass}`}>
+                  הצגה *
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      id="general"
+                      name="projectAssignment"
+                      checked={form.projectId === 'general'}
+                      onChange={() => handleProjectChange('general')}
+                      className="text-primary"
+                    />
+                    <label htmlFor="general" className={`text-sm ${mixedBody.fontClass}`}>
+                      כללי (דף הבית)
+                    </label>
+                  </div>
+                  
+                  {loadingProjects ? (
+                    <div className="text-sm text-muted-foreground">טוען פרויקטים...</div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground mb-1">פרויקט ספציפי:</div>
+                      {projects.length > 0 ? (
+                        projects.map(project => (
+                          <div key={project._id} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              id={`project-${project._id}`}
+                              name="projectAssignment"
+                              checked={form.projectId === project._id}
+                              onChange={() => handleProjectChange(project._id)}
+                              className="text-primary"
+                            />
+                            <label 
+                              htmlFor={`project-${project._id}`} 
+                              className={`text-sm ${mixedBody.fontClass}`}
+                            >
+                              {project.name}
+                            </label>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-muted-foreground">אין פרויקטים זמינים</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  עדכונים כלליים יוצגו בדף הבית, עדכונים ספציפיים יוצגו רק בעמוד הפרויקט הנבחר
+                </p>
               </div>
 
               {/* Type */}

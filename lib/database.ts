@@ -100,6 +100,8 @@ export interface DailyUpdate {
   isPinned: boolean;
   isHidden: boolean;
   targetAudience: string[];
+  projectId?: ObjectId;  // NEW: For project-specific updates
+  isGeneral?: boolean;   // NEW: True for general updates (home page), false for project-specific
   createdBy?: ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -633,6 +635,68 @@ export class DatabaseService {
     } catch (error) {
       handleMongoError(error, 'getActiveDailyUpdates');
       return [];
+    }
+  }
+
+  // NEW: Get daily updates filtered by project or general updates
+  async getActiveDailyUpdatesByScope(projectId?: string, includeHidden = false): Promise<DailyUpdate[]> {
+    try {
+      const { dailyUpdates } = await this.getCollections();
+      const now = new Date();
+      
+      const filter: any = {
+        isActive: true,
+        $or: [
+          { expiresAt: { $exists: false } },
+          { expiresAt: null },
+          { expiresAt: { $gt: now } }
+        ]
+      };
+      
+      if (!includeHidden) {
+        filter.isHidden = false;
+      }
+
+      // Filter by scope
+      if (projectId) {
+        // Get project-specific updates
+        filter.projectId = toObjectId(projectId);
+        filter.isGeneral = false;
+      } else {
+        // Get general updates (for homepage)
+        filter.$or = [
+          ...filter.$or,
+          { isGeneral: true }, // Explicitly marked as general
+          { isGeneral: { $exists: false }, projectId: { $exists: false } }, // Legacy updates (no project association)
+          { isGeneral: { $exists: false }, projectId: null } // Legacy updates with null projectId
+        ];
+        
+        // Ensure we don't get project-specific updates
+        filter.isGeneral = { $ne: false };
+      }
+
+      const result = await dailyUpdates.find(filter).sort({
+        isPinned: -1,    // Pinned first
+        priority: 1,     // Priority 1 first, 10 last (ascending)
+        createdAt: -1    // Newest first within same priority
+      }).toArray();
+      
+      return result;
+    } catch (error) {
+      handleMongoError(error, 'getActiveDailyUpdatesByScope');
+      return [];
+    }
+  }
+
+  // NEW: Get project by name (needed for project pages)
+  async getProjectByName(name: string): Promise<Project | null> {
+    try {
+      const { projects } = await this.getCollections();
+      const result = await projects.findOne({ name });
+      return result;
+    } catch (error) {
+      handleMongoError(error, 'getProjectByName');
+      return null;
     }
   }
 

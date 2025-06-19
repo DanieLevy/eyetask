@@ -10,7 +10,9 @@ import {
   Pin, 
   PinOff,
   ArrowRight,
-  Settings
+  Settings,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { toast } from 'sonner';
@@ -25,8 +27,15 @@ interface DailyUpdate {
   duration_value?: number;
   is_pinned: boolean;
   is_active: boolean;
+  projectId?: string; // NEW: Project association
+  isGeneral?: boolean; // NEW: General vs project-specific
   created_at: string;
   updated_at: string;
+}
+
+interface Project {
+  _id: string;
+  name: string;
 }
 
 export default function DailyUpdatesPage() {
@@ -38,15 +47,18 @@ export default function DailyUpdatesPage() {
   const [fallbackMessage, setFallbackMessage] = useState('לא נמצאו עדכונים להצגה');
   const [isEditingFallback, setIsEditingFallback] = useState(false);
   const [isSavingFallback, setIsSavingFallback] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
     fetchUpdates();
     fetchFallbackMessage();
+    fetchProjects();
   }, []);
 
   const fetchUpdates = async () => {
     try {
-      const response = await fetch('/api/daily-updates');
+      const response = await fetch('/api/daily-updates?includeHidden=true');
       const result = await response.json();
       
       if (result.success) {
@@ -57,6 +69,33 @@ export default function DailyUpdatesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/projects', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const getProjectName = (projectId?: string): string => {
+    if (!projectId) return 'כללי';
+    const project = projects.find(p => p._id === projectId);
+    return project ? project.name : 'פרויקט לא נמצא';
   };
 
   const fetchFallbackMessage = async () => {
@@ -221,6 +260,27 @@ export default function DailyUpdatesPage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Quick Stats */}
+          <div className="flex items-center gap-6 text-xs text-muted-foreground mb-4 p-3 bg-muted/30 rounded-md border border-border/30">
+            <span className="flex items-center gap-1">
+              <span className="font-medium text-foreground">{updates.length}</span>
+              סך הכול
+            </span>
+            <span className="flex items-center gap-1">
+              <Pin className="w-3 h-3" />
+              <span className="font-medium text-primary">{updates.filter(u => u.is_pinned).length}</span>
+              מוצמדים
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="font-medium text-blue-600">{updates.filter(u => u.isGeneral === true || (!u.projectId && u.isGeneral !== false)).length}</span>
+              כלליים
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="font-medium text-green-600">{updates.filter(u => u.projectId && u.isGeneral === false).length}</span>
+              ספציפיים
+            </span>
+          </div>
+
           {/* Fallback Message Settings */}
           <div className="bg-card rounded-lg border border-border mb-8">
             <div className="p-4 border-b border-border flex items-center justify-between">
@@ -287,46 +347,66 @@ export default function DailyUpdatesPage() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {sortedUpdates.map((update) => (
                 <div
                   key={update.id}
                   className={`
-                    bg-card rounded-lg border-2 transition-all hover:shadow-md
+                    bg-card rounded-lg border transition-all hover:shadow-sm hover:border-border/60
                     ${update.is_pinned 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border'
+                      ? 'border-primary/30 bg-primary/5 shadow-sm' 
+                      : 'border-border/40'
                     }
                   `}
                 >
-                  <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className={`text-lg font-semibold text-foreground ${hebrewHeading.fontClass}`}>
-                            {update.title}
-                          </h3>
-                          <div className={`w-3 h-3 rounded-full ${getTypeColor(update.type)}`}></div>
-                          <span className={`text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground ${mixedBody.fontClass}`}>
-                            {getTypeLabel(update.type)}
-                          </span>
-                          {update.is_pinned && (
-                            <Pin className="h-4 w-4 text-primary" />
-                          )}
+                  {/* Header Bar */}
+                  <div className={`px-4 py-3 border-b border-border/20 ${update.is_pinned ? 'bg-primary/10' : 'bg-muted/20'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {/* Priority Badge */}
+                        <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
+                          update.priority <= 3 ? 'bg-red-500' : 
+                          update.priority <= 6 ? 'bg-yellow-500' : 
+                          'bg-green-500'
+                        }`}>
+                          {update.priority}
                         </div>
                         
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                          <span>עדיפות: {update.priority}</span>
-                          <span>משך: {formatDuration(update.duration_type, update.duration_value)}</span>
-                          <span>{new Date(update.created_at).toLocaleDateString('he-IL')}</span>
-                        </div>
+                        {/* Title */}
+                        <h3 className={`text-base font-semibold text-foreground ${hebrewHeading.fontClass}`}>
+                          {update.title}
+                        </h3>
+                        
+                        {/* Type Badge */}
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                          update.type === 'error' ? 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400' :
+                          update.type === 'warning' ? 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400' :
+                          update.type === 'success' ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400' :
+                          update.type === 'announcement' ? 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' :
+                          'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${getTypeColor(update.type)}`}></div>
+                          {getTypeLabel(update.type)}
+                        </span>
+                        
+                        {/* Pinned Badge */}
+                        {update.is_pinned && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                            <Pin className="h-3 w-3" />
+                            מוצמד
+                          </span>
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleTogglePin(update.id, update.is_pinned)}
-                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                          className={`flex items-center justify-center p-1.5 rounded-md transition-colors ${
+                            update.is_pinned 
+                              ? 'text-primary hover:bg-primary/20' 
+                              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                          }`}
                           title={update.is_pinned ? 'בטל הצמדה' : 'הצמד'}
                         >
                           {update.is_pinned ? (
@@ -337,24 +417,48 @@ export default function DailyUpdatesPage() {
                         </button>
                         <Link
                           href={`/admin/daily-updates/${update.id}/edit`}
-                          className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                          className="flex items-center justify-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
                           title="ערוך"
                         >
                           <Edit className="h-4 w-4" />
                         </Link>
                         <button
                           onClick={() => handleDelete(update.id)}
-                          className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-colors"
+                          className="flex items-center justify-center p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
                           title="מחק"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Content */}
+                  {/* Content Area */}
+                  <div className="px-4 py-3">
+                    {/* Meta Information */}
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(update.duration_type, update.duration_value)}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(update.created_at).toLocaleDateString('he-IL')}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${
+                        (update.isGeneral === true || (!update.projectId && update.isGeneral !== false))
+                          ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30'
+                          : 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border-green-200/50 dark:border-green-800/30'
+                      }`}>
+                        {(update.isGeneral === true || (!update.projectId && update.isGeneral !== false)) 
+                          ? <>🏠 כללי</> 
+                          : <>📁 {loadingProjects ? '...' : getProjectName(update.projectId)}</>}
+                      </span>
+                    </div>
+                    
+                    {/* Update Content */}
                     <div className="text-foreground">
-                      <p className={`leading-relaxed ${mixedBody.fontClass}`}>
+                      <p className={`text-sm leading-relaxed ${mixedBody.fontClass}`}>
                         {update.content}
                       </p>
                     </div>

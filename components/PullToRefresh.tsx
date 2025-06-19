@@ -108,10 +108,12 @@ export default function PullToRefresh({
       {/* Modern pull indicator */}
       {shouldShowIndicator && (
         <div 
-          className={`fixed top-0 left-0 right-0 flex items-center justify-center transition-all duration-300 ease-out backdrop-blur-sm z-50 ${getIndicatorGradient()}`}
+          className={`fixed left-0 right-0 flex items-center justify-center transition-all duration-300 ease-out backdrop-blur-sm z-50 pwa-pull-refresh-indicator ${getIndicatorGradient()}`}
           style={{ 
+            top: 'env(safe-area-inset-top, 0px)',
             height: `${Math.min(pullDistance, 70)}px`,
             transform: `translateY(-${Math.max(0, 70 - pullDistance) * 0.5}px)`,
+            paddingTop: 'env(safe-area-inset-top, 0px)',
           }}
         >
           <div className="relative flex flex-col items-center">

@@ -30,6 +30,7 @@ import { useProjectData } from "@/hooks/useOptimizedData";
 import { ProjectPageLoadingSkeleton } from "@/components/SkeletonLoaders";
 import { InlineLoading } from "@/components/LoadingSystem";
 import SimpleImageGallery from "@/components/SimpleImageGallery";
+import DailyUpdatesCarousel from "@/components/DailyUpdatesCarousel";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface Task {
@@ -631,6 +632,14 @@ export default function ProjectPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Project-specific Daily Updates */}
+        <DailyUpdatesCarousel 
+          projectId={project._id}
+          projectName={project.name}
+          hideWhenEmpty={true}
+          className="mb-8"
+        />
+        
         {tasks.length === 0 ? (
           <div className="text-center py-12">
             <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
