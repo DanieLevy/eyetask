@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { 
   ArrowRight, 
   ChevronDown, 
@@ -30,6 +29,7 @@ import { useProjectData } from "@/hooks/useOptimizedData";
 import { ProjectPageLoadingSkeleton } from "@/components/SkeletonLoaders";
 import { InlineLoading } from "@/components/LoadingSystem";
 import SimpleImageGallery from "@/components/SimpleImageGallery";
+import CloudinaryImage from "@/components/CloudinaryImage";
 import DailyUpdatesCarousel from "@/components/DailyUpdatesCarousel";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -85,10 +85,7 @@ export default function ProjectPage() {
     new Set()
   );
 
-  // Helper to identify base64 images
-  const isBase64Image = (url: string): boolean => {
-    return !!url && url.startsWith("data:");
-  };
+
 
   // Use optimized data fetching
   const { 
@@ -946,39 +943,22 @@ export default function ProjectPage() {
                                                 subtask.images &&
                                                 subtask.images.length > 0 && (
                                               <div 
-                                                className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                                                className="w-8 h-8 rounded-md overflow-hidden bg-muted flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all relative"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   // Click handling is now done by the ImageDisplay component
                                                 }}
                                               >
-                                                    {isBase64Image(
-                                                      subtask.images[0]
-                                                    ) ? (
-                                                      <div className="relative w-full h-full">
-                                                        <Image
-                                                  src={subtask.images[0]} 
-                                                  alt="Preview" 
-                                                          fill
-                                                          sizes="32px"
-                                                          className="object-cover"
-                                                          unoptimized={true}
-                                                        />
-                                                      </div>
-                                                    ) : (
-                                                      <div className="relative w-full h-full">
-                                                        <Image
-                                                          src={
-                                                            subtask.images[0]
-                                                          }
-                                                          alt="Preview"
-                                                          fill
-                                                          sizes="32px"
-                                                          className="object-cover"
-                                                          draggable={false}
-                                                        />
-                                                      </div>
-                                                    )}
+                                                    <CloudinaryImage
+                                                      src={subtask.images[0]}
+                                                      alt="Preview"
+                                                      width={32}
+                                                      height={32}
+                                                      sizes="32px"
+                                                      className="w-full h-full object-cover"
+                                                      crop="fill"
+                                                      quality="auto:good"
+                                                    />
                                               </div>
                                             )}
                                             <div className="min-w-0">

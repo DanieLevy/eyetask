@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { saveFile } from '@/lib/fileStorage';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -71,31 +72,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      logger.warn('File too large upload attempt', 'UPLOAD_API', { 
+        fileSize: file.size,
+        maxSize,
+        fileName: file.name 
+      });
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 10MB.', success: false },
+        { status: 400 }
+      );
+    }
 
-    // Generate unique filename (for reference only)
+    // Upload to Cloudinary
+    const cloudinaryUrl = await saveFile(file, {
+      folder: 'eyetask/uploads',
+      tags: ['api-upload', user.username],
+      context: {
+        uploadedBy: user.username,
+        uploadedAt: new Date().toISOString(),
+        originalFileName: file.name
+      }
+    });
+
+    // Generate unique filename for compatibility (though not used for storage)
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    
-    // Always convert to base64 data URL
-    const base64 = buffer.toString('base64');
-    const publicUrl = `data:${file.type};base64,${base64}`;
-    const filePath = `base64:${fileName}`;
-    
-    logger.info('Image converted to base64', 'UPLOAD_API', {
-      fileName,
-      fileSize: file.size,
-      base64Length: base64.length
-    });
 
     const executionTime = Date.now() - startTime;
     logger.info('Image upload successful', 'UPLOAD_API', {
       fileName,
       fileSize: file.size,
       fileType: file.type,
-      method: 'base64',
+      method: 'cloudinary',
+      cloudinaryUrl,
       username: user.username,
       executionTime: `${executionTime}ms`
     });
@@ -104,13 +116,13 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         fileName: fileName,
-        filePath: filePath,
-        publicUrl: publicUrl,
+        filePath: cloudinaryUrl, // Return Cloudinary URL as filePath
+        publicUrl: cloudinaryUrl, // Return Cloudinary URL as publicUrl
         fileSize: file.size,
         fileType: file.type,
-        method: 'base64'
+        method: 'cloudinary'
       },
-      message: 'Image uploaded successfully'
+      message: 'Image uploaded successfully to Cloudinary'
     });
 
   } catch (error) {

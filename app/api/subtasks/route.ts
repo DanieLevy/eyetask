@@ -5,6 +5,7 @@ import { fromObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { activityLogger } from '@/lib/activityLogger';
 import { saveFile } from '@/lib/fileStorage';
+import { logger } from '@/lib/logger';
 
 // GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
 export async function GET(request: NextRequest) {
@@ -99,14 +100,43 @@ export async function POST(request: NextRequest) {
     const images = formData.getAll('images') as File[];
     const imageUrls: string[] = [];
 
-    // Save uploaded images and get their URLs
+    // Save uploaded images to Cloudinary and get their URLs
     if (images && images.length > 0) {
       for (const image of images) {
         // Basic validation for the file
         if (image.size === 0) continue;
         
-        // Use saveFile to convert to base64
-        const url = await saveFile(image);
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+        if (!validTypes.includes(image.type)) {
+          logger.warn('Invalid file type in subtask creation', 'SUBTASKS_API', { 
+            fileType: image.type,
+            fileName: image.name 
+          });
+          continue; // Skip invalid files
+        }
+
+        // Validate file size (10MB limit)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (image.size > maxSize) {
+          logger.warn('File too large in subtask creation', 'SUBTASKS_API', { 
+            fileSize: image.size,
+            fileName: image.name 
+          });
+          continue; // Skip large files
+        }
+        
+        // Upload to Cloudinary
+        const url = await saveFile(image, {
+          folder: 'eyetask/subtasks',
+          tags: ['subtask', 'new-subtask', user?.username || 'unknown'],
+          context: {
+            uploadedBy: user?.username || 'unknown',
+            uploadedAt: new Date().toISOString(),
+            originalFileName: image.name,
+            context: 'subtask-creation'
+          }
+        });
         imageUrls.push(url);
       }
     }

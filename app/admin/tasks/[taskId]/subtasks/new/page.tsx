@@ -106,7 +106,7 @@ export default function NewSubtaskPage() {
       return;
     }
     
-    // Convert files to base64 for preview
+    // Convert files to data URLs for preview
     const previews = await Promise.all(
       files.map(async (file, index) => {
         return new Promise<{id: string, url: string}>((resolve) => {
@@ -410,14 +410,7 @@ export default function NewSubtaskPage() {
                   <div className="mt-4">
                     <h4 className="text-sm font-medium text-foreground">תצוגה מקדימה:</h4>
                     <SimpleImageGallery 
-                      images={imagePreviewUrls}
-                      onRemove={(id) => {
-                        const indexToRemove = imagePreviewUrls.findIndex(preview => preview.id === id);
-                        if (indexToRemove !== -1) {
-                          handleRemoveNewImage(indexToRemove);
-                        }
-                      }}
-                      removable={true}
+                      images={imagePreviewUrls.map(preview => preview.url)}
                 />
                   </div>
                 )}

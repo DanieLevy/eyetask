@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { X, Share, Plus } from 'lucide-react';
 import { usePWADetection } from '@/hooks/usePWADetection';
 import { useHebrewFont } from '@/hooks/useFont';
-import Image from 'next/image';
 
 export default function SmartAppBanner() {
   const {
@@ -75,11 +74,15 @@ export default function SmartAppBanner() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg overflow-hidden shadow-sm">
-                <Image
+                <img
                   src="/icons/icon-192x192.png"
                   alt="DC Drivers"
                   width={48}
                   height={48}
+                  style={{
+                    color: 'initial',
+                    background: 'none'
+                  }}
                 />
               </div>
               <div>
@@ -122,12 +125,16 @@ export default function SmartAppBanner() {
             {/* Simple Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
-                <Image 
+                <img 
                   src="/icons/icon-128x128.png" 
                   alt="DC Drivers"
                   width={24}
                   height={24}
                   className="rounded-lg"
+                  style={{
+                    color: 'initial',
+                    background: 'none'
+                  }}
                 />
                 <h3 className={`text-sm font-semibold text-card-foreground ${hebrewFont.fontClass}`}>
                   התקנת DC Drivers
@@ -231,12 +238,16 @@ export function MiniAppBanner() {
   return (
     <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-sm">
       <div className="flex items-center gap-2">
-        <Image 
+        <img 
           src="/icons/icon-128x128.png" 
           alt="DC Drivers"
           width={24}
           height={24}
           className="rounded-lg"
+          style={{
+            color: 'initial',
+            background: 'none'
+          }}
         />
         <div className="flex-1 min-w-0">
           <p className={`text-sm text-card-foreground ${hebrewFont.fontClass}`}>

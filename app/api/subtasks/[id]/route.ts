@@ -4,6 +4,7 @@ import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/
 import { fromObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { saveFile, deleteFile } from '@/lib/fileStorage';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -109,17 +110,73 @@ export async function PUT(
     // CRITICAL LOG: What is in the body before we add images or touch taskId?
     console.log('[PUT /api/subtasks] Parsed body from form data:', JSON.stringify(body, null, 2));
 
-    // 3. Determine which images to delete
+    // 3. Determine which images to delete and delete them from Cloudinary
     const imagesToDelete = currentImageUrls.filter(url => !existingImagesToKeep.includes(url));
+    
+    if (imagesToDelete.length > 0) {
+      logger.info('Deleting old images from Cloudinary', 'SUBTASKS_API', {
+        subtaskId: id,
+        imagesToDelete: imagesToDelete.length
+      });
 
-    // 4. Delete old images from storage
-    await Promise.all(imagesToDelete.map(url => deleteFile(url)));
+      // Delete old images from Cloudinary (don't await to avoid blocking)
+      imagesToDelete.forEach(async (imageUrl) => {
+        try {
+          await deleteFile(imageUrl);
+        } catch (error) {
+          logger.warn('Failed to delete old image from Cloudinary', 'SUBTASKS_API', {
+            imageUrl,
+            error: (error as Error).message
+          });
+        }
+      });
+    }
 
-    // 5. Save new images to storage
-    const newImageUrls = await Promise.all(newImages.map(file => saveFile(file)));
+    // 4. Upload new images to Cloudinary
+    const newImageUrls: string[] = [];
+    if (newImages && newImages.length > 0) {
+        for (const image of newImages) {
+            if (image.size === 0) continue;
 
-    // 6. Combine image lists
-    body.images = [...existingImagesToKeep, ...newImageUrls];
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+            if (!validTypes.includes(image.type)) {
+              logger.warn('Invalid file type in subtask update', 'SUBTASKS_API', { 
+                fileType: image.type,
+                fileName: image.name 
+              });
+              continue; // Skip invalid files
+            }
+
+            // Validate file size (10MB limit)
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (image.size > maxSize) {
+              logger.warn('File too large in subtask update', 'SUBTASKS_API', { 
+                fileSize: image.size,
+                fileName: image.name 
+              });
+              continue; // Skip large files
+            }
+
+            // Upload to Cloudinary
+            const url = await saveFile(image, {
+              folder: 'eyetask/subtasks',
+              tags: ['subtask', 'subtask-update', user?.username || 'unknown'],
+              context: {
+                uploadedBy: user?.username || 'unknown',
+                uploadedAt: new Date().toISOString(),
+                originalFileName: image.name,
+                context: 'subtask-update',
+                subtaskId: id
+              }
+            });
+            newImageUrls.push(url);
+        }
+    }
+
+    // 5. Combine existing images (that we're keeping) with new uploaded images
+    const finalImages = [...existingImagesToKeep, ...newImageUrls];
+    body.images = finalImages;
     
     // CRITICAL: Explicitly remove taskId from the update payload to prevent it from being overwritten.
     // This is a safeguard against any form data issues.
@@ -214,7 +271,7 @@ export async function DELETE(
 
     // Await params to fix Next.js 15 requirement
     const { id } = await params;
-    // Get the subtask first to know which task to update
+    // Get the subtask first to know which task to update and clean up images
     const subtaskToDelete = await db.getSubtaskById(id);
     if (!subtaskToDelete) {
       return NextResponse.json(
@@ -223,17 +280,48 @@ export async function DELETE(
       );
     }
 
+    // Delete all subtask images from Cloudinary before deleting the subtask
+    if (subtaskToDelete.images && subtaskToDelete.images.length > 0) {
+      logger.info('Deleting subtask images before subtask deletion', 'SUBTASK_DELETE', {
+        subtaskId: id,
+        imageCount: subtaskToDelete.images.length,
+        images: subtaskToDelete.images
+      });
+
+      for (const imageUrl of subtaskToDelete.images) {
+        try {
+          await deleteFile(imageUrl);
+          logger.info('Successfully deleted subtask image during subtask deletion', 'SUBTASK_DELETE', {
+            subtaskId: id,
+            imageUrl: imageUrl
+          });
+        } catch (error) {
+          logger.error('Failed to delete subtask image during subtask deletion', 'SUBTASK_DELETE', {
+            subtaskId: id,
+            imageUrl: imageUrl
+          }, error as Error);
+          // Continue with other deletions even if one fails
+        }
+      }
+    }
+
     const deleted = await db.deleteSubtask(id);
     
     if (!deleted) {
       return NextResponse.json(
-        { error: 'Subtask not found', success: false },
+        { error: 'Subtask not found or not deleted', success: false },
         { status: 404 }
       );
     }
 
     // Automatically recalculate task amount after deleting subtask
     await updateTaskAmount(fromObjectId(subtaskToDelete.taskId));
+    
+    logger.info('Subtask and all associated images deleted successfully', 'SUBTASK_DELETE', {
+      subtaskId: id,
+      imageCount: subtaskToDelete.images?.length || 0,
+      taskId: fromObjectId(subtaskToDelete.taskId)
+    });
     
     return NextResponse.json({ 
       message: 'Subtask deleted successfully', 

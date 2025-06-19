@@ -104,7 +104,7 @@ export default function EditSubtaskPage() {
       return;
     }
     
-    // Convert files to base64 for preview
+    // Convert files to data URLs for preview
     const newPreviews = await Promise.all(
       files.map(async (file, index) => {
         return new Promise<{id: string, url: string}>((resolve) => {
@@ -379,10 +379,8 @@ export default function EditSubtaskPage() {
               {/* Image Uploader */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">תמונות קיימות</label>
-                 <SimpleImageGallery 
-                    images={existingImageUrls.map(url => ({ id: url, url }))}
-                    onRemove={handleRemoveExistingImage}
-                    removable={true}
+                 <SimpleImageGallery
+                    images={existingImageUrls}
                   />
                   {existingImageUrls.length === 0 && (
                     <p className="text-sm text-muted-foreground">אין תמונות קיימות.</p>
@@ -410,14 +408,7 @@ export default function EditSubtaskPage() {
                   <div className="mt-4">
                     <h4 className="text-sm font-medium text-foreground">תצוגה מקדימה של תמונות חדשות:</h4>
                     <SimpleImageGallery 
-                      images={newImagePreviews}
-                      onRemove={(id) => {
-                        const indexToRemove = newImagePreviews.findIndex(preview => preview.id === id);
-                        if (indexToRemove !== -1) {
-                          handleRemoveNewImage(indexToRemove);
-                        }
-                      }}
-                      removable={true}
+                      images={newImagePreviews.map(preview => preview.url)}
                 />
                   </div>
                 )}

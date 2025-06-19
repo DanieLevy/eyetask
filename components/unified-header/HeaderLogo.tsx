@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { HeaderLogoProps } from './types';
 import { useTheme } from 'next-themes';
@@ -49,16 +48,17 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
             )}
             style={{ filter: resolvedTheme === 'dark' ? 'invert(1)' : 'none' }}
           >
-            <Image
+            <img
               src="/icons/header-icon-blacktext.svg"
               alt="Driver Tasks Logo"
-              fill
               style={{ 
+                width: '100%',
+                height: '100%',
                 objectFit: 'contain', 
-                objectPosition: isRtl ? 'right center' : 'left center'
+                objectPosition: isRtl ? 'right center' : 'left center',
+                color: 'initial',
+                background: 'none'
               }}
-              sizes={`(max-width: 768px) ${condensed ? '120px' : '140px'}, ${condensed ? '120px' : '140px'}`}
-              priority
               className="transition-all duration-300"
             />
           </div>

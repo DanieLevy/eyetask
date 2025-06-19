@@ -1,165 +1,178 @@
+// Install: npm install yet-another-react-lightbox
+
 'use client';
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { X, Maximize } from 'lucide-react';
-import Image from 'next/image';
-import ImprovedImageViewer from './ImprovedImageViewer';
+import { useState } from 'react';
+import Lightbox from 'yet-another-react-lightbox';
+import 'yet-another-react-lightbox/styles.css';
 
-interface GalleryImage {
-  id: string;
-  url: string;
-}
+// Optional plugins
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
+import Download from 'yet-another-react-lightbox/plugins/download';
+import Share from 'yet-another-react-lightbox/plugins/share';
+import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails';
+import 'yet-another-react-lightbox/plugins/thumbnails.css';
 
-interface SimpleImageGalleryProps {
-  images: GalleryImage[] | string[];
-  onRemove?: (id: string) => void;
-  removable?: boolean;
-  maxHeight?: string;
+interface ImageGalleryProps {
+  images: string[];
+  alt?: string;
   className?: string;
 }
 
-export default function SimpleImageGallery({ 
+export default function ModernImageGallery({ 
   images, 
-  onRemove, 
-  removable = false,
-  maxHeight = '200px',
+  alt = 'Gallery image',
   className = ''
-}: SimpleImageGalleryProps) {
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const galleryRef = useRef<HTMLDivElement>(null);
-  
-  // Handle both array of objects with id/url and array of string URLs
-  const processedImages = useMemo(() => {
-    return images.map((image, index) => {
-      if (typeof image === 'string') {
-        return {
-          id: `image-${index}`,
-          url: image
-        };
-      }
-      return image as GalleryImage;
-    });
-  }, [images]);
+}: ImageGalleryProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
-  // Get all image URLs for the zoom viewer
-  const imageUrls = useMemo(() => {
-    return processedImages.map(img => img.url);
-  }, [processedImages]);
-
-  const handleImageLoaded = useCallback((url: string) => {
-    setLoadedImages(prev => {
-      const newSet = new Set(prev);
-      newSet.add(url);
-      return newSet;
-    });
-  }, []);
-
-  const handleOpenViewer = useCallback((index: number) => {
-    console.log('Opening viewer at index:', index);
-    setActiveIndex(index);
-  }, []);
-
-  const handleCloseViewer = useCallback(() => {
-    console.log('Closing viewer');
-    setActiveIndex(null);
-  }, []);
-
-  // Check if URL is a base64 data URL
-  const isBase64Image = (url: string) => {
-    return url.startsWith('data:');
-  };
-
-  if (!processedImages.length) {
-    return null;
-  }
+  // Transform images for lightbox format
+  const slides = images.map((src, index) => ({
+    src,
+    alt: `${alt} ${index + 1}`,
+  }));
 
   return (
     <>
-      <div 
-        className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 ${className}`}
-        ref={galleryRef}
-      >
-        {processedImages.map((image, index) => (
-          <div 
-            key={image.id} 
-            className="relative group aspect-square rounded-md overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 cursor-pointer"
-            style={{ maxHeight }}
-            onClick={() => handleOpenViewer(index)}
+      {/* Thumbnail Grid */}
+      <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 ${className}`}>
+        {images.map((image, index) => (
+          <div
+            key={index}
+            className="group relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+            onClick={() => {
+              setPhotoIndex(index);
+              setIsOpen(true);
+            }}
           >
-            {/* Use a wrapper div to maintain aspect ratio */}
-            <div className="w-full h-full relative">
-              {/* Use img for base64 images and next/image for regular URLs */}
-              {isBase64Image(image.url) ? (
-                <img
-                  src={image.url}
-                  alt="Gallery image"
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                  onLoad={() => handleImageLoaded(image.url)}
-                  style={{ 
-                    opacity: loadedImages.has(image.url) ? 1 : 0,
-                    transition: 'opacity 0.3s ease-in-out'
-                  }}
-                />
-              ) : (
-                <Image
-                  src={image.url}
-                  alt="Gallery image"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 33vw"
-                  className="object-cover"
-                  loading="eager"
-                  onLoad={() => handleImageLoaded(image.url)}
-                  style={{ 
-                    opacity: loadedImages.has(image.url) ? 1 : 0,
-                    transition: 'opacity 0.3s ease-in-out'
-                  }}
-                />
-              )}
-              
-              {/* Loading indicator */}
-              {!loadedImages.has(image.url) && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              )}
-            </div>
+            <img
+              src={image}
+              alt={`${alt} ${index + 1}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+              loading="lazy"
+            />
             
-            {/* Controls overlay */}
-            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
-              {removable && onRemove && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(image.id);
-                  }}
-                  className="absolute top-1 right-1 p-1 bg-red-600/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label="Remove image"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <div
-                className="p-2 bg-white/80 text-gray-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform hover:scale-110"
-                aria-label="View image"
-              >
-                <Maximize className="w-4 h-4" />
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-2">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Use the improved image viewer for better background click handling */}
-      {activeIndex !== null && (
-        <ImprovedImageViewer
-          images={imageUrls}
-          initialIndex={activeIndex}
-          isOpen={true}
-          onClose={handleCloseViewer}
+      {/* Lightbox */}
+      <Lightbox
+        open={isOpen}
+        close={() => setIsOpen(false)}
+        slides={slides}
+        index={photoIndex}
+        plugins={[Zoom, Download, Share, Thumbnails]}
+        zoom={{
+          maxZoomPixelRatio: 3,
+          zoomInMultiplier: 2,
+        }}
+        thumbnails={{
+          position: 'bottom',
+          width: 80,
+          height: 60,
+          border: 0,
+          borderRadius: 8,
+          padding: 4,
+          gap: 8,
+        }}
+        carousel={{
+          finite: false,
+          preload: 2,
+          padding: 0,
+        }}
+        animation={{
+          fade: 300,
+          swipe: 500,
+        }}
+        controller={{
+          closeOnPullDown: true,
+          closeOnBackdropClick: true,
+        }}
+        // Custom styles
+        styles={{
+          container: { 
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            backdropFilter: 'blur(8px)',
+          },
+        }}
+      />
+    </>
+  );
+}
+
+// Alternative: With Next.js Image optimization
+export function NextJSImageGallery({ images, alt = 'Gallery image', className = '' }: ImageGalleryProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  const slides = images.map((src, index) => ({
+    src,
+    alt: `${alt} ${index + 1}`,
+  }));
+
+  return (
+    <>
+      <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 ${className}`}>
+        {images.map((image, index) => (
+          <div
+            key={index}
+            className="group relative aspect-square cursor-pointer overflow-hidden rounded-xl"
+            onClick={() => {
+              setPhotoIndex(index);
+              setIsOpen(true);
+            }}
+          >
+            {/* Use Next.js Image for optimization */}
+            <img
+              src={image}
+              alt={`${alt} ${index + 1}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+              loading="lazy"
             />
-      )}
+          </div>
+        ))}
+      </div>
+
+      <Lightbox
+        open={isOpen}
+        close={() => setIsOpen(false)}
+        slides={slides}
+        index={photoIndex}
+        plugins={[Zoom, Download, Thumbnails]}
+        carousel={{
+          padding: 0,
+        }}
+        styles={{
+          container: {
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          },
+        }}
+        // Render function for Next.js Image
+        render={{
+          slide: ({ slide }) => (
+            <img
+              src={slide.src}
+              alt={slide.alt}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+              }}
+            />
+          ),
+        }}
+      />
     </>
   );
 }
