@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Eye, BarChart3, ArrowLeft, Smartphone, Star } from 'lucide-react';
@@ -34,9 +34,9 @@ interface Task {
 }
 
 function HomePageCore() {
+  const searchParams = useSearchParams();
   const { status: offlineStatus } = useOfflineStatus();
   const { status: pwaStatus } = usePWADetection();
-  const searchParams = useSearchParams();
   const { preloadProject } = useDataPreloader();
   const { withPageLoading } = usePageLoading();
 
@@ -44,9 +44,31 @@ function HomePageCore() {
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
 
+  // Performance tracking
+  const componentId = useRef(`homepage-${Math.random().toString(36).substr(2, 9)}`);
+  const renderCount = useRef(0);
+  const effectTracker = useRef({
+    analytics: 0,
+    serviceWorker: 0
+  });
+
+  // Track renders
+  renderCount.current++;
+  console.log(`🏠 [HOMEPAGE-RENDER] ${componentId.current} - Render #${renderCount.current}`);
+  
+  if (renderCount.current > 3) {
+    console.warn(`⚠️ [HOMEPAGE-WARNING] ${componentId.current} - High render count: ${renderCount.current}`);
+  }
+
   // Check if launched from PWA
   const isPWALaunch = searchParams?.get('utm_source') === 'pwa';
   const launchSource = searchParams?.get('utm_medium');
+
+  console.log(`🔍 [HOMEPAGE-PARAMS] ${componentId.current} - URL params:`, {
+    isPWALaunch,
+    launchSource,
+    searchParams: searchParams?.toString()
+  });
 
   // Use optimized data fetching
   const { 
@@ -57,15 +79,48 @@ function HomePageCore() {
     isStale 
   } = useHomepageData();
 
-  const projects = (homepageData?.projects || []).sort((a, b) => (b.taskCount || 0) - (a.taskCount || 0));
-  const tasks = homepageData?.tasks || [];
+  console.log(`📊 [HOMEPAGE-DATA] ${componentId.current} - Data state:`, {
+    hasData: !!homepageData,
+    loading,
+    hasError: !!error,
+    isStale,
+    projectsCount: homepageData?.projects?.length || 0,
+    tasksCount: homepageData?.tasks?.length || 0
+  });
+
+  const projects = useMemo(() => {
+    console.log(`🔄 [HOMEPAGE-MEMO] ${componentId.current} - Processing projects data`);
+    const sorted = (homepageData?.projects || []).sort((a, b) => (b.taskCount || 0) - (a.taskCount || 0));
+    console.log(`📋 [HOMEPAGE-PROJECTS] ${componentId.current} - Sorted ${sorted.length} projects`);
+    return sorted;
+  }, [homepageData?.projects]);
+
+  const tasks = useMemo(() => {
+    console.log(`🔄 [HOMEPAGE-MEMO] ${componentId.current} - Processing tasks data`);
+    const taskList = homepageData?.tasks || [];
+    console.log(`📋 [HOMEPAGE-TASKS] ${componentId.current} - Processed ${taskList.length} tasks`);
+    return taskList;
+  }, [homepageData?.tasks]);
 
   // Register refresh function for pull-to-refresh
   usePageRefresh(refetch);
 
   // Log analytics for homepage visits
   useEffect(() => {
+    effectTracker.current.analytics++;
+    console.log(`📈 [HOMEPAGE-ANALYTICS-EFFECT] ${componentId.current} - Effect #${effectTracker.current.analytics} triggered:`, {
+      isOnline: offlineStatus.isOnline,
+      hasData: !!homepageData,
+      isPWALaunch,
+      launchSource,
+      displayMode: pwaStatus.displayMode,
+      isStandalone: pwaStatus.isStandalone
+    });
+
     if (offlineStatus.isOnline && homepageData) {
+      console.log(`🚀 [HOMEPAGE-ANALYTICS] ${componentId.current} - Sending analytics request`);
+      const startTime = Date.now();
+      
       fetch('/api/analytics', {
         method: 'POST',
         headers: { 
@@ -79,51 +134,83 @@ function HomePageCore() {
           displayMode: pwaStatus.displayMode,
           isStandalone: pwaStatus.isStandalone
         }),
-      }).catch(console.error);
+      })
+      .then(() => {
+        console.log(`✅ [HOMEPAGE-ANALYTICS] ${componentId.current} - Analytics sent (${Date.now() - startTime}ms)`);
+      })
+      .catch((error) => {
+        console.error(`❌ [HOMEPAGE-ANALYTICS] ${componentId.current} - Analytics failed:`, error);
+      });
+    } else {
+      console.log(`⚠️ [HOMEPAGE-ANALYTICS] ${componentId.current} - Skipped analytics:`, {
+        isOnline: offlineStatus.isOnline,
+        hasData: !!homepageData
+      });
     }
   }, [homepageData, offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.displayMode, pwaStatus.isStandalone]);
 
   // Register service worker for offline functionality
   useEffect(() => {
+    effectTracker.current.serviceWorker++;
+    console.log(`🔧 [HOMEPAGE-SW-EFFECT] ${componentId.current} - Service Worker effect #${effectTracker.current.serviceWorker} triggered`);
+
     if ('serviceWorker' in navigator) {
+      console.log(`🚀 [HOMEPAGE-SW] ${componentId.current} - Registering service worker`);
+      const startTime = Date.now();
+      
       navigator.serviceWorker.register('/sw.js')
         .then(registration => {
-          console.log('Service worker registered successfully');
+          console.log(`✅ [HOMEPAGE-SW] ${componentId.current} - Service worker registered (${Date.now() - startTime}ms)`);
         })
         .catch(error => {
-          console.error('Service worker registration failed:', error);
+          console.error(`❌ [HOMEPAGE-SW] ${componentId.current} - Service worker registration failed:`, error);
         });
+    } else {
+      console.log(`⚠️ [HOMEPAGE-SW] ${componentId.current} - Service worker not supported`);
     }
   }, []);
 
   // Preload project data on hover
   const handleProjectHover = useCallback((projectName: string) => {
-    preloadProject(projectName);
+    console.log(`🖱️ [HOMEPAGE-HOVER] ${componentId.current} - Project hover: ${projectName}`);
+    const startTime = Date.now();
+    
+    preloadProject(projectName)
+      .then(() => {
+        console.log(`✅ [HOMEPAGE-PRELOAD] ${componentId.current} - Project preloaded: ${projectName} (${Date.now() - startTime}ms)`);
+      })
+      .catch((error) => {
+        console.error(`❌ [HOMEPAGE-PRELOAD] ${componentId.current} - Preload failed for ${projectName}:`, error);
+      });
   }, [preloadProject]);
 
-  const getTaskCountForProject = (projectId: string) => {
+  const getTaskCountForProject = useCallback((projectId: string) => {
     const project = projects.find(p => p._id === projectId);
     if (project && project.taskCount !== undefined) {
       return project.taskCount;
     }
-    return tasks.filter(task => task.projectId === projectId && task.isVisible).length;
-  };
+    const count = tasks.filter(task => task.projectId === projectId && task.isVisible).length;
+    console.log(`🔢 [HOMEPAGE-TASK-COUNT] ${componentId.current} - Project ${projectId}: ${count} tasks`);
+    return count;
+  }, [projects, tasks]);
 
-  const getHighPriorityTasksForProject = (projectId: string) => {
+  const getHighPriorityTasksForProject = useCallback((projectId: string) => {
     const project = projects.find(p => p._id === projectId);
     if (project && project.highPriorityCount !== undefined) {
       return project.highPriorityCount;
     }
-    return tasks.filter(task => 
+    const count = tasks.filter(task => 
       task.projectId === projectId && 
       task.isVisible && 
       task.priority >= 1 && 
       task.priority <= 3
     ).length;
-  };
+    console.log(`🔥 [HOMEPAGE-PRIORITY-COUNT] ${componentId.current} - Project ${projectId}: ${count} high priority tasks`);
+    return count;
+  }, [projects, tasks]);
 
   // Welcome message based on launch source
-  const getWelcomeMessage = () => {
+  const getWelcomeMessage = useCallback(() => {
     if (isPWALaunch) {
       switch (launchSource) {
         case 'homescreen':
@@ -140,7 +227,18 @@ function HomePageCore() {
     }
     
     return 'ברוכים הבאים ל-Driver Tasks';
-  };
+  }, [isPWALaunch, launchSource, pwaStatus.isStandalone]);
+
+  // Log final render state
+  console.log(`🏁 [HOMEPAGE-FINAL] ${componentId.current} - Final render state:`, {
+    renderCount: renderCount.current,
+    effectCounts: effectTracker.current,
+    projectsCount: projects.length,
+    tasksCount: tasks.length,
+    loading,
+    hasError: !!error,
+    isStale
+  });
 
   return (
     <InlineLoading

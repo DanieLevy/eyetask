@@ -14,9 +14,7 @@ export async function GET(request: NextRequest) {
       status: isDbConnected ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       database: {
-        connected: isDbConnected,
-        connectionAge: connectionStatus.connectionAge ? `${Math.floor(connectionStatus.connectionAge / 1000)}s` : null,
-        requestsServed: connectionStatus.requestsServed
+        connected: isDbConnected
       },
       uptime: process.uptime(),
       version: process.version

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProjectPageData } from '@/lib/database';
+import { db } from '@/lib/database';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ projectName: string }>;
@@ -11,7 +13,8 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const data = await getProjectPageData(params.projectName);
+    const { projectName } = await params;
+    const data = await getProjectPageData(projectName);
     
     if (!data) {
       return NextResponse.json(

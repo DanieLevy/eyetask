@@ -233,12 +233,12 @@ export function usePWADetection(): UsePWADetectionReturn {
       const choiceResult = await deferredPrompt.userChoice;
       
       if (choiceResult.outcome === 'accepted') {
-        console.log('PWA: Installation accepted');
+
         localStorage.setItem(STORAGE_KEYS.INSTALL_DISMISSED, Date.now().toString());
         setDeferredPrompt(null);
         return true;
       } else {
-        console.log('PWA: Installation dismissed');
+
         dismissInstallPrompt();
         return false;
       }
@@ -251,7 +251,7 @@ export function usePWADetection(): UsePWADetectionReturn {
   // Show install instructions for iOS
   const showInstallInstructions = useCallback(() => {
     // This will be handled by a modal/banner component
-    console.log('PWA: Showing install instructions');
+
   }, []);
 
   // Dismiss install prompt
@@ -334,7 +334,7 @@ export function usePWADetection(): UsePWADetectionReturn {
     
     // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('PWA: beforeinstallprompt event fired');
+
       
       // Check user preferences and app state
       const neverShow = localStorage.getItem(STORAGE_KEYS.NEVER_SHOW) === 'true';
@@ -346,10 +346,10 @@ export function usePWADetection(): UsePWADetectionReturn {
       // Only prevent default if user specifically opted out or already in standalone
       // Otherwise, let the browser show its native install banner
       if (neverShow || isStandalone) {
-        console.log('PWA: Preventing default install prompt (user opted out or already standalone)');
+
         e.preventDefault();
       } else {
-        console.log('PWA: Allowing native install banner to show');
+
         // Don't prevent default - let browser show native prompt
         // We can still show our custom banner alongside it
       }
@@ -357,7 +357,7 @@ export function usePWADetection(): UsePWADetectionReturn {
 
     // Listen for app installed
     const handleAppInstalled = () => {
-      console.log('PWA: App installed successfully');
+
       setDeferredPrompt(null);
       updateStatus();
     };

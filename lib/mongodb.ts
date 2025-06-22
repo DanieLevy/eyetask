@@ -18,33 +18,16 @@ interface CachedConnection {
   client: MongoClient | null;
   db: Db | null;
   isConnecting: boolean;
-  connectionCount: number;
-  lastConnectionTime: number;
-  requestsServedByThisConnection: number;
   collections: Partial<DatabaseCollections>;
-  lastHeartbeat: number;
-  pendingOperations: number;
 }
 
-const globalWithMongo = global as typeof global & {
-  mongo: CachedConnection | null;
+// Global to track MongoDB connection
+let cached: CachedConnection = {
+  client: null,
+  db: null,
+  isConnecting: false,
+  collections: {}
 };
-
-let cached = globalWithMongo.mongo;
-
-if (!cached) {
-  cached = globalWithMongo.mongo = { 
-    client: null, 
-    db: null, 
-    isConnecting: false,
-    connectionCount: 0,
-    lastConnectionTime: 0,
-    requestsServedByThisConnection: 0,
-    collections: {},
-    lastHeartbeat: Date.now(),
-    pendingOperations: 0
-  };
-}
 
 // Connection pool configuration
 const CONNECTION_OPTIONS: MongoClientOptions = {
@@ -63,35 +46,19 @@ const CONNECTION_OPTIONS: MongoClientOptions = {
   }
 };
 
-// Flag to prevent multiple connection monitoring setups
-
-
 /**
  * Connect to the MongoDB database
  */
 export async function connectToDatabase(): Promise<{
   client: MongoClient | null;
   db: Db | null;
-  isNewConnection: boolean;
-  connectionCount: number;
-  requestsServedByThisConnection: number;
-  pendingOperations: number;
 }> {
   try {
     // If we already have a connection, reuse it
     if (cached && cached.client && cached.db) {
-      // Update tracking info
-      cached.requestsServedByThisConnection += 1;
-      cached.lastHeartbeat = Date.now();
-      cached.pendingOperations += 1;
-      
       return {
         client: cached.client,
-        db: cached.db,
-        isNewConnection: false,
-        connectionCount: cached.connectionCount,
-        requestsServedByThisConnection: cached.requestsServedByThisConnection,
-        pendingOperations: cached.pendingOperations
+        db: cached.db
       };
     }
 
@@ -109,15 +76,9 @@ export async function connectToDatabase(): Promise<{
         cached.isConnecting = false; // Reset the flag
       } else {
         // Connection completed, return it
-        cached.requestsServedByThisConnection += 1;
-        cached.pendingOperations += 1;
         return {
           client: cached.client,
-          db: cached.db,
-          isNewConnection: false,
-          connectionCount: cached.connectionCount,
-          requestsServedByThisConnection: cached.requestsServedByThisConnection,
-          pendingOperations: cached.pendingOperations
+          db: cached.db
         };
       }
     }
@@ -136,10 +97,6 @@ export async function connectToDatabase(): Promise<{
 async function createNewConnection(): Promise<{
   client: MongoClient | null;
   db: Db | null;
-  isNewConnection: boolean;
-  connectionCount: number;
-  requestsServedByThisConnection: number;
-  pendingOperations: number;
 }> {
   try {
     const MONGODB_URI = process.env.MONGODB_URI;
@@ -177,24 +134,15 @@ async function createNewConnection(): Promise<{
       client, 
       db, 
       isConnecting: false,
-      connectionCount: (cached?.connectionCount || 0) + 1,
-      lastConnectionTime: Date.now(),
-      requestsServedByThisConnection: 1,
-      collections: {},
-      lastHeartbeat: Date.now(),
-      pendingOperations: cached?.pendingOperations || 0
+      collections: {}
     };
     
     // Store the updated cache globally
-    cached = globalWithMongo.mongo = updatedCache;
+    cached = updatedCache;
 
     return {
       client,
-      db,
-      isNewConnection: true,
-      connectionCount: updatedCache.connectionCount,
-      requestsServedByThisConnection: updatedCache.requestsServedByThisConnection,
-      pendingOperations: updatedCache.pendingOperations
+      db
     };
   } catch (error) {
     if (cached) {
@@ -219,14 +167,14 @@ export async function getCollection<T extends Document = Document>(
 
   // Check if we already have the collection cached
   if (cached && cached.collections[collectionName]) {
-    return cached.collections[collectionName] as Collection<T>;
+    return cached.collections[collectionName] as unknown as Collection<T>;
   }
 
   // Get the collection and cache it
   const collection = db.collection<T>(collectionName as string);
   
   if (cached) {
-    cached.collections[collectionName] = collection;
+    cached.collections[collectionName] = collection as unknown as Collection;
   }
 
   return collection;
@@ -256,39 +204,20 @@ export async function getCollections(): Promise<DatabaseCollections> {
 }
 
 /**
- * Get connection status for monitoring
+ * Get connection status for health checks
  */
 export function getConnectionStatus(): {
   isConnected: boolean;
-  connectionAge: number | null;
-  requestsServed: number;
-  connectionCount: number;
 } {
   if (!cached || !cached.client || !cached.db) {
     return {
-      isConnected: false,
-      connectionAge: null,
-      requestsServed: 0,
-      connectionCount: 0
+      isConnected: false
     };
   }
 
   return {
-    isConnected: true,
-    connectionAge: Date.now() - cached.lastConnectionTime,
-    requestsServed: cached.requestsServedByThisConnection,
-    connectionCount: cached.connectionCount
+    isConnected: true
   };
-}
-
-/**
- * Handle MongoDB operation completion
- * Call this when your DB operation is complete to release the operation hold
- */
-export function completeOperation(operation: string): void {
-  if (cached && cached.client && cached.db) {
-    cached.pendingOperations = Math.max(0, (cached.pendingOperations || 1) - 1);
-  }
 }
 
 /**

@@ -238,7 +238,6 @@ export function createHealthCheckResponse(): NextResponse<ApiResponse> {
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     uptime: process.uptime(),
-    memory: process.memoryUsage(),
     environment: process.env.NODE_ENV || 'development'
   }, 'Service is healthy');
 }
@@ -316,58 +315,4 @@ export function createRequestContext(req: NextRequest): RequestContext {
     startTime: Date.now(),
     clientId: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
   };
-}
-
-// Metrics collection (basic implementation)
-export class ApiMetrics {
-  private static requests = new Map<string, number>();
-  private static errors = new Map<string, number>();
-  private static responseTimes = new Map<string, number[]>();
-  
-  static recordRequest(endpoint: string): void {
-    const current = this.requests.get(endpoint) || 0;
-    this.requests.set(endpoint, current + 1);
-  }
-  
-  static recordError(endpoint: string): void {
-    const current = this.errors.get(endpoint) || 0;
-    this.errors.set(endpoint, current + 1);
-  }
-  
-  static recordResponseTime(endpoint: string, time: number): void {
-    const times = this.responseTimes.get(endpoint) || [];
-    times.push(time);
-    
-    // Keep only last 100 response times
-    if (times.length > 100) {
-      times.shift();
-    }
-    
-    this.responseTimes.set(endpoint, times);
-  }
-  
-  static getMetrics(): any {
-    const metrics: any = {
-      requests: Object.fromEntries(this.requests),
-      errors: Object.fromEntries(this.errors),
-      responseTimes: {},
-    };
-    
-    for (const [endpoint, times] of this.responseTimes.entries()) {
-      if (times.length > 0) {
-        const avg = times.reduce((a, b) => a + b, 0) / times.length;
-        const min = Math.min(...times);
-        const max = Math.max(...times);
-        
-        metrics.responseTimes[endpoint] = {
-          average: Math.round(avg),
-          min,
-          max,
-          count: times.length,
-        };
-      }
-    }
-    
-    return metrics;
-  }
 } 

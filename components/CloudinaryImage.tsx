@@ -191,14 +191,7 @@ export default function CloudinaryImage({
   //   imageProps.blurDataURL = blurDataURL || thumbnailUrl;
   // }
 
-  console.log('CloudinaryImage rendering with props:', {
-    src: optimizedSrc,
-    fill,
-    width,
-    height,
-    className,
-    actualUrl: optimizedSrc
-  });
+
 
   // Use regular img tag for ALL cases to fix black image issue
   // The issue is that Next.js Image component is applying problematic styles

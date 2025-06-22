@@ -4,12 +4,14 @@ import { db } from '@/lib/database';
 import { requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { cache } from '@/lib/cache';
+import { extractTokenFromHeader } from '@/lib/auth';
+import { requireAuthEnhanced } from '@/lib/auth';
 
 const CACHE_NAMESPACE = 'daily_updates';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -63,17 +65,30 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Require admin access
-    const user = await requireAdmin();
-    if (!user) {
+    // Extract token and authenticate user
+    const authHeader = request.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
+    
+    if (!token) {
       return NextResponse.json(
-        { error: 'Admin access required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
+
+    const authResult = await requireAuthEnhanced(token);
+    if (!authResult.authorized || !authResult.user) {
+      return NextResponse.json(
+        { error: authResult.error || 'Authentication failed' },
+        { status: 401 }
+      );
+    }
+
+    // Require admin access
+    const user = requireAdmin(authResult.user);
 
     const { id } = await params;
     
@@ -231,17 +246,30 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Require admin access
-    const user = await requireAdmin();
-    if (!user) {
+    // Extract token and authenticate user
+    const authHeader = request.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
+    
+    if (!token) {
       return NextResponse.json(
-        { error: 'Admin access required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
+
+    const authResult = await requireAuthEnhanced(token);
+    if (!authResult.authorized || !authResult.user) {
+      return NextResponse.json(
+        { error: authResult.error || 'Authentication failed' },
+        { status: 401 }
+      );
+    }
+
+    // Require admin access
+    const user = requireAdmin(authResult.user);
 
     const { id } = await params;
     

@@ -494,19 +494,12 @@ export class DatabaseService {
       // Get current analytics document
       let analyticsDoc = await analytics.findOne({});
       
-      if (!analyticsDoc) {
-        // Initialize if doesn't exist
-        analyticsDoc = {
-          totalVisits: 0,
-          uniqueVisitors: 0,
-          dailyStats: {},
-          pageViews: { admin: 0, tasks: {}, homepage: 0, projects: {} },
-          lastUpdated: new Date()
-        };
-      }
-
-      const isUniqueVisitor = !analyticsDoc.dailyStats[dateStr];
-      const newTotalVisits = analyticsDoc.totalVisits + 1;
+      const currentTotalVisits = analyticsDoc?.totalVisits || 0;
+      const currentUniqueVisitors = analyticsDoc?.uniqueVisitors || 0;
+      const currentDailyStats = analyticsDoc?.dailyStats || {};
+      
+      const isUniqueVisitor = !currentDailyStats[dateStr];
+      const newTotalVisits = currentTotalVisits + 1;
       
       // Update or create the document
       await analytics.updateOne(
@@ -514,8 +507,8 @@ export class DatabaseService {
         {
           $set: {
             totalVisits: newTotalVisits,
-            uniqueVisitors: isUniqueVisitor ? (analyticsDoc.uniqueVisitors || 0) + 1 : analyticsDoc.uniqueVisitors,
-            [`dailyStats.${dateStr}`]: (analyticsDoc.dailyStats[dateStr] || 0) + 1,
+            uniqueVisitors: isUniqueVisitor ? currentUniqueVisitors + 1 : currentUniqueVisitors,
+            [`dailyStats.${dateStr}`]: (currentDailyStats[dateStr] || 0) + 1,
             lastUpdated: new Date()
           }
         },
@@ -988,7 +981,7 @@ export class DatabaseService {
   }
 
   clearAllCaches(): void {
-    cache.clear({ namespace: 'api_data' });
+    cache.clear('api_data');
   }
 }
 

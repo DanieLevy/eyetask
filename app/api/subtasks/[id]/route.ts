@@ -79,8 +79,6 @@ export async function PUT(
     const { id } = await params;
     const formData = await request.formData();
     
-    console.log('[PUT /api/subtasks] Received form data for subtask:', id);
-
     // 1. Get current subtask to find out which images to delete
     const currentSubtask = await db.getSubtaskById(id);
     if (!currentSubtask) {
@@ -196,7 +194,7 @@ export async function PUT(
         }
     }
 
-    console.log('[PUT /api/subtasks] Final update payload for DB:', JSON.stringify(body, null, 2));
+
 
     const updated = await db.updateSubtask(id, body);
     
