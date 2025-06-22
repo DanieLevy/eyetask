@@ -83,17 +83,17 @@ export default function BugReportModal({ isOpen, onClose, pageContext }: BugRepo
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'bug',
-          subject: `Bug: ${pageContext.title}`,
-          description: JSON.stringify(reportData, null, 2),
-          email: email || undefined,
-          priority: severity === 'high' ? 'urgent' : severity === 'medium' ? 'normal' : 'low',
-          sourceUrl: pageContext.url,
-          metadata: {
-            userAgent: pageContext.userAgent,
-            pageType: pageContext.pageType,
-            relatedId: pageContext.relatedId,
-          }
+          userName: 'Anonymous User', // Default for bug reports
+          userEmail: email || undefined,
+          title: `Bug: ${pageContext.title}`,
+          description: `${description}\n\n--- Technical Details ---\nPage: ${pageContext.url}\nPage Type: ${pageContext.pageType}\nUser Agent: ${pageContext.userAgent}\nTimestamp: ${new Date().toISOString()}${pageContext.relatedId ? `\nRelated ID: ${pageContext.relatedId}` : ''}`,
+          category: 'bug_report',
+          issueType: 'bug',
+          isUrgent: severity === 'high',
+          relatedTo: pageContext.relatedId ? {
+            type: pageContext.pageType === 'task' ? 'task' : pageContext.pageType === 'project' ? 'project' : 'task',
+            id: pageContext.relatedId
+          } : undefined
         }),
       });
       
