@@ -40,7 +40,7 @@ export function useCacheUtils() {
       // Clear session storage
       sessionStorage.clear();
       
-      console.log('All caches cleared successfully');
+
     } catch (error) {
       console.error('Failed to clear caches:', error);
     }

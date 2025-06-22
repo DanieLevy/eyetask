@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         
         // Upload to Cloudinary
         const url = await saveFile(image, {
-          folder: 'eyetask/subtasks',
+          folder: 'drivertasks/subtasks',
           tags: ['subtask', 'new-subtask', user?.username || 'unknown'],
           context: {
             uploadedBy: user?.username || 'unknown',

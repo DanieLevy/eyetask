@@ -1,12 +1,12 @@
-# Brand Update Summary: EyeTask → Drivers Hub
+# Brand Update Summary: EyeTask → Driver Tasks
 
 ## Overview
-This document summarizes the comprehensive brand update from "EyeTask" to "Drivers Hub" across the entire project.
+This document summarizes the comprehensive brand update from "EyeTask" to "Driver Tasks" across the entire project, including the systematic replacement of "eyetask" with "drivertasks" in technical identifiers.
 
 ## ✅ Updated References
 
 ### Documentation Files
-- `Workplan.md` - All instances of EyeTask updated to Drivers Hub
+- `Workplan.md` - All instances of EyeTask updated to Driver Tasks
 - `TECHNICAL_PRESENTATION.md` - App name and descriptions updated
 - `README.md` - Title, app name, and directory references updated
 - `MONGODB_CONVERSION_SUMMARY.md` - Application name updated
@@ -35,21 +35,25 @@ This document summarizes the comprehensive brand update from "EyeTask" to "Drive
 - `app/admin/page.tsx` - Footer copyright updated
 - `hooks/usePWADetection.ts` - URL scheme updated to `drivershub://`
 
-## 🔧 Intentionally Unchanged (Technical Identifiers)
+## 🔧 Updated Technical Identifiers
 
 ### Cache and Storage Keys
-These remain unchanged to maintain compatibility with existing installations:
-- Service Worker cache names: `eyetask-v3`, `eyetask-static-v3`, etc.
-- LocalStorage keys: `eyetask-last-sync`, `eyetask-cache-info`, etc.
-- SessionStorage keys: `eyetask-shared-content`, `eyetask-opened-files`, etc.
-- IndexedDB database name: `EyeTaskDB`
-- Global window variables: `__eyetask_user`, `__eyetask_isAdmin`
+These have been systematically updated for consistency:
+- Service Worker cache names: `drivertasks-v3`, `drivertasks-static-v3`, etc.
+- LocalStorage keys: `drivertasks-last-sync`, `drivertasks-cache-info`, etc.
+- SessionStorage keys: `drivertasks-shared-content`, `drivertasks-opened-files`, etc.
+- IndexedDB database name: `DriverTasksDB`
+- Global window variables: `__drivertasks_user`, `__drivertasks_isAdmin`
 
 ### JWT Configuration
-- JWT issuer remains: `eyetask-app` (for token compatibility)
+- JWT issuer updated: `drivertasks-app`
 
 ### PWA Storage Keys
-- Install tracking keys: `eyetask-install-dismissed`, `eyetask-install-reminded`, etc.
+- Install tracking keys: `drivertasks-install-dismissed`, `drivertasks-install-reminded`, etc.
+
+### Cloudinary Configuration
+- Default folder: `drivertasks` (was `eyetask`)
+- Default tags: `['drivertasks', 'auto-upload']`
 
 ## 🎯 User-Facing Changes
 
@@ -72,13 +76,11 @@ These remain unchanged to maintain compatibility with existing installations:
 ## 📱 PWA Updates
 
 ### Updated
-- Protocol handler: `web+eyetask` → `web+drivershub`
-- Custom URL scheme: `eyetask://` → `drivershub://`
+- Protocol handler: `web+drivertasks`
+- Custom URL scheme: `drivertasks://`
 - Offline page title
-
-### Maintained
-- Cache names (for backward compatibility)
-- Storage keys (for user data persistence)
+- Cache names: `drivertasks-*`
+- Storage keys: `drivertasks-*`
 
 ## 🔄 Migration Notes
 
@@ -110,4 +112,4 @@ These remain unchanged to maintain compatibility with existing installations:
 
 ---
 
-**Note**: This brand update maintains full backward compatibility while presenting the new "Drivers Hub" identity to users. 
+**Note**: This brand update systematically replaces "eyetask" with "drivertasks" throughout the technical stack while maintaining the "Driver Tasks" user-facing identity. 

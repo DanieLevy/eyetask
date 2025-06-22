@@ -19,11 +19,10 @@ const nextConfig: NextConfig = {
   },
   // Enable server components
   experimental: {
-    serverActions: {},
-    serverComponentsExternalPackages: ['cloudinary']
+    serverActions: {}
   },
   // External packages for server components
-  serverExternalPackages: [],
+  serverExternalPackages: ['cloudinary'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve 'fs' module on the client to prevent this error on build --> Error: Can't resolve 'fs'

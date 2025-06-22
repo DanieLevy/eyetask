@@ -32,49 +32,6 @@ import SimpleImageGallery from "@/components/SimpleImageGallery";
 import CloudinaryImage from "@/components/CloudinaryImage";
 import DailyUpdatesCarousel from "@/components/DailyUpdatesCarousel";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface Task {
-  _id: string;
-  title: string;
-  subtitle?: string;
-  images?: string[];
-  datacoNumber: string;
-  description: {
-    main: string;
-    howToExecute: string;
-  };
-  projectId: string;
-  type: ('events' | 'hours')[];
-  locations: string[];
-  amountNeeded: number;
-  targetCar: string[];
-  lidar: boolean;
-  dayTime: ('day' | 'night' | 'dusk' | 'dawn')[];
-  priority: number;
-  isVisible: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface Subtask {
-  _id: string;
-  taskId: string;
-  title: string;
-  subtitle?: string;
-  images?: string[];
-  datacoNumber: string;
-  type: 'events' | 'hours';
-  amountNeeded: number;
-  labels: string[];
-  targetCar: string[];
-  weather: string;
-  scene: string;
-  dayTime: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
@@ -84,8 +41,6 @@ export default function ProjectPage() {
   const [expandedSubtasks, setExpandedSubtasks] = useState<Set<string>>(
     new Set()
   );
-
-
 
   // Use optimized data fetching
   const { 
@@ -98,8 +53,6 @@ export default function ProjectPage() {
   const project = projectData?.project;
   const tasks = projectData?.tasks || [];
   const subtasks = projectData?.subtasks || {};
-
-  // Image viewer is now handled directly by ImageDisplay components
 
   // Filtering states
   const [activeFilters, setActiveFilters] = useState<{
@@ -123,9 +76,6 @@ export default function ProjectPage() {
 
   // Register this page's refresh function
   usePageRefresh(refetch);
-
-  // Set up realtime subscription for tasks
-  // useTasksRealtime(refetch);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

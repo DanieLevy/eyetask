@@ -48,10 +48,7 @@ export async function POST(request: NextRequest) {
         request
       );
       
-      logger.info('User login successful', 'AUTH_API', { 
-        username: result.user.username,
-        email: result.user.email 
-      });
+
       
       // Create response with auth cookie
       const response = NextResponse.json({

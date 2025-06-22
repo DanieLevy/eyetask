@@ -55,7 +55,7 @@ export class AuthService {
           email: user.email, 
           role: user.role,
           iat: Math.floor(Date.now() / 1000),
-          iss: 'eyetask-app'
+          iss: 'drivertasks-app'
         },
         JWT_SECRET,
         { expiresIn: '24h' }
@@ -125,10 +125,7 @@ export class AuthService {
 
       const token = this.generateToken(authUser);
 
-      logger.info('User logged in successfully', 'AUTH', { 
-        username: user.username,
-        email: user.email 
-      });
+
 
       return { user: authUser, token };
     } catch (error) {
@@ -173,10 +170,7 @@ export class AuthService {
 
       const token = this.generateToken(authUser);
 
-      logger.info('User registered successfully', 'AUTH', { 
-        username: data.username,
-        email: data.email 
-      });
+
 
       return { user: authUser, token };
     } catch (error) {
@@ -209,7 +203,6 @@ export class AuthService {
 
   // Logout (client-side will remove token)
   logout(): void {
-    logger.info('User logged out', 'AUTH');
   }
 
   // Enhanced middleware helper to extract user from request

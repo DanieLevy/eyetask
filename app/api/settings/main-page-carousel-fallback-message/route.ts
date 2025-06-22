@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       ttl: CACHE_TTL
     });
 
-    logger.info('Fallback message setting fetched', 'SETTINGS_API', { key: SETTING_KEY });
+
 
     return NextResponse.json({ 
       success: true, 

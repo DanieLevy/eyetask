@@ -10,14 +10,12 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('adminToken') || localStorage.getItem('token');
 };
 
-
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string | null) => void;
   currentImage?: string;
 }
 
 export default function ImageUpload({ onImageSelect, currentImage }: ImageUploadProps) {
-  const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,11 +40,9 @@ export default function ImageUpload({ onImageSelect, currentImage }: ImageUpload
     setIsUploading(true);
 
     try {
-      // Create FormData for upload
       const formData = new FormData();
       formData.append('file', file);
 
-      // Upload to our API (which uses Cloudinary)
       const response = await fetch('/api/upload/image', {
         method: 'POST',
         headers: {
@@ -62,7 +58,6 @@ export default function ImageUpload({ onImageSelect, currentImage }: ImageUpload
       const result = await response.json();
       
       if (result.success && result.data.publicUrl) {
-        setPreview(result.data.publicUrl);
         onImageSelect(result.data.publicUrl);
       } else {
         throw new Error(result.error || 'Upload failed');
@@ -72,19 +67,19 @@ export default function ImageUpload({ onImageSelect, currentImage }: ImageUpload
       alert('Failed to upload image. Please try again.');
     } finally {
       setIsUploading(false);
+      // Clear the input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
   const handleRemoveImage = () => {
-    setPreview(null);
     onImageSelect(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   return (
-    <div>
+    <div className="w-full">
       <input
         type="file"
         ref={fileInputRef}
@@ -93,10 +88,11 @@ export default function ImageUpload({ onImageSelect, currentImage }: ImageUpload
         className="hidden"
         disabled={isUploading}
       />
-      {preview ? (
-        <div className="relative group w-full h-48 rounded-lg overflow-hidden">
+      
+      {currentImage ? (
+        <div className="relative group aspect-square max-w-sm mx-auto">
           <CloudinaryImage
-            src={preview}
+            src={currentImage}
             alt="Project"
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
@@ -104,19 +100,7 @@ export default function ImageUpload({ onImageSelect, currentImage }: ImageUpload
             crop="fill"
             quality="auto:good"
           />
-          {/* Temporarily comment out overlay to debug black image issue */}
-          {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
-            <button
-              onClick={handleRemoveImage}
-              disabled={isUploading}
-              className="p-2 bg-red-600/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-              aria-label="Remove image"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div> */}
           
-          {/* Simple remove button without overlay */}
           <button
             onClick={handleRemoveImage}
             disabled={isUploading}
@@ -277,19 +261,7 @@ export function MultipleImageUpload({ onImagesChange, currentImages = [] }: Mult
                 crop="fill"
                 quality="auto:good"
               />
-              {/* Temporarily comment out overlay to debug black image issue */}
-              {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
-                <button
-                  onClick={() => handleRemoveImage(index)}
-                  disabled={isUploading}
-                  className="absolute top-1 right-1 p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity scale-75 group-hover:scale-100 disabled:opacity-50"
-                  aria-label="Remove image"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div> */}
               
-              {/* Simple remove button without overlay */}
               <button
                 onClick={() => handleRemoveImage(index)}
                 disabled={isUploading}

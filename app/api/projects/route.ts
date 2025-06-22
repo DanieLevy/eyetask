@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const projects = await db.getAllProjects();
     
-    logger.info('Projects fetched successfully', 'PROJECTS_API', { count: projects.length });
+
     
     return NextResponse.json({
       projects: projects.map(project => ({

@@ -79,7 +79,7 @@ drivers-hub/
 
 **Changelogs Directory:**
 - Analytics system enhancement documentation
-- Brand update summary (EyeTask → Drivers Hub)
+- Brand update summary (EyeTask → Driver Tasks)
 - Feedback system implementation details
 
 **Deployment Directory:**

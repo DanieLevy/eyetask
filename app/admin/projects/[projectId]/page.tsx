@@ -93,7 +93,7 @@ export default function ProjectManagement() {
 
   // Realtime handlers
   const handleProjectChange = useCallback((payload: any) => {
-    console.log('🔄 Project realtime update:', payload);
+
     
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
@@ -107,7 +107,7 @@ export default function ProjectManagement() {
   }, [projectId, router]);
 
   const handleTaskChange = useCallback((payload: any) => {
-    console.log('🔄 Task realtime update:', payload);
+    
     
     const { eventType, new: newRecord, old: oldRecord } = payload;
     

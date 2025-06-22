@@ -49,7 +49,7 @@ export default function DailyUpdatesCarousel({
   const hebrewFont = useHebrewFont('body');
 
   // Dynamic storage key based on context
-  const storageKey = projectId ? `eyetask_hidden_updates_${projectId}` : 'eyetask_hidden_updates';
+  const storageKey = projectId ? `drivertasks_hidden_updates_${projectId}` : 'drivertasks_hidden_updates';
 
   // Load hidden update IDs from localStorage
   useEffect(() => {

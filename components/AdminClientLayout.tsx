@@ -80,8 +80,8 @@ export default function AdminClientLayout({ children }: AdminClientLayoutProps) 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Store user context globally for header component
-      (window as any).__eyetask_user = user;
-      (window as any).__eyetask_isAdmin = pathname.startsWith('/admin') && pathname !== '/admin';
+              (window as any).__drivertasks_user = user;
+        (window as any).__drivertasks_isAdmin = pathname.startsWith('/admin') && pathname !== '/admin';
       
       // Trigger a custom event to notify header component
       window.dispatchEvent(new CustomEvent('userContextChanged', { 

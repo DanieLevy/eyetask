@@ -131,8 +131,8 @@ export function CommandPalette({ children, className }: CommandPaletteProps) {
   const handleLogout = React.useCallback(() => {
     // Clear any stored tokens
     if (typeof window !== "undefined") {
-      window.__eyetask_user = null
-      window.__eyetask_isAdmin = false
+              window.__drivertasks_user = null
+        window.__drivertasks_isAdmin = false
       localStorage.removeItem("adminToken")
       router.push("/")
     }

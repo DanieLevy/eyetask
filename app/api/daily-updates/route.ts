@@ -84,11 +84,7 @@ export async function GET(request: NextRequest) {
       ttl: CACHE_TTL
     });
 
-    logger.info('Daily updates fetched successfully', 'DAILY_UPDATES_API', { 
-      count: updates.length, 
-      includeHidden,
-      projectId: projectId || 'general'
-    });
+
 
     return NextResponse.json({ 
       success: true, 
@@ -213,12 +209,7 @@ export async function POST(request: NextRequest) {
       cache.delete(`daily_updates_public_${projectId}`, { namespace: CACHE_NAMESPACE });
     }
 
-    logger.info('Daily update created successfully', 'DAILY_UPDATES_API', { 
-      updateId, 
-      title: title.trim(),
-      type,
-      userId: user?.id 
-    });
+
 
     return NextResponse.json({ 
       success: true, 

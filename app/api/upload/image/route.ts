@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Cloudinary
     const cloudinaryUrl = await saveFile(file, {
-      folder: 'eyetask/uploads',
+      folder: 'drivertasks/uploads',
       tags: ['api-upload', user.username],
       context: {
         uploadedBy: user.username,

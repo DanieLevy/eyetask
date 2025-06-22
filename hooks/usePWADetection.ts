@@ -58,10 +58,10 @@ interface UsePWADetectionReturn {
 }
 
 const STORAGE_KEYS = {
-  INSTALL_DISMISSED: 'eyetask-install-dismissed',
-  INSTALL_REMINDED: 'eyetask-install-reminded',
-  NEVER_SHOW: 'eyetask-never-show-install',
-  LAUNCH_COUNT: 'eyetask-launch-count'
+  INSTALL_DISMISSED: 'drivertasks-install-dismissed',
+  INSTALL_REMINDED: 'drivertasks-install-reminded',
+  NEVER_SHOW: 'drivertasks-never-show-install',
+  LAUNCH_COUNT: 'drivertasks-launch-count'
 } as const;
 
 const APP_DOMAINS = [

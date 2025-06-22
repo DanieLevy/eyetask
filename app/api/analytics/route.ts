@@ -249,13 +249,7 @@ export async function GET(request: NextRequest) {
       ttl: CACHE_TTL
     });
 
-    logger.info('Analytics data fetched successfully', 'ANALYTICS_API', { 
-      totalTasks, 
-      totalProjects, 
-      totalActivities: activityStats.totalActions,
-      range,
-      userId: user?.id 
-    });
+
 
     return NextResponse.json({
       success: true,
@@ -309,11 +303,7 @@ export async function POST(request: NextRequest) {
     // Invalidate the analytics cache
     cache.delete('analytics_summary', { namespace: CACHE_NAMESPACE });
     
-    logger.info('Analytics visit logged', 'ANALYTICS_API', {
-      date: dateStr,
-      isUniqueVisitor: result.isUniqueVisitor,
-      totalVisits: result.totalVisits
-    });
+
     
     return NextResponse.json({ 
       success: true,

@@ -82,14 +82,7 @@ export function withApiHandler<T = any>(
     const url = req.url;
     
     try {
-      // Log incoming request
-      logger.info(`API Request [${requestId}]`, 'API', {
-        method,
-        url: url.split('?')[0], // Remove query params for logging
-        userAgent: req.headers.get('user-agent'),
-        ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-        hasAuth: !!req.headers.get('authorization')
-      });
+
 
       // Add request ID to request for use in handlers
       (req as any).requestId = requestId;
@@ -97,11 +90,7 @@ export function withApiHandler<T = any>(
       const response = await handler(req, context);
       const executionTime = Date.now() - startTime;
 
-      // Log successful response
-      logger.info(`API Response [${requestId}]`, 'API', {
-        status: response.status,
-        executionTime: `${executionTime}ms`
-      });
+
 
       return response;
     } catch (error) {

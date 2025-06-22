@@ -106,7 +106,7 @@ export async function PUT(
     });
 
     // CRITICAL LOG: What is in the body before we add images or touch taskId?
-    console.log('[PUT /api/subtasks] Parsed body from form data:', JSON.stringify(body, null, 2));
+
 
     // 3. Determine which images to delete and delete them from Cloudinary
     const imagesToDelete = currentImageUrls.filter(url => !existingImagesToKeep.includes(url));
@@ -158,7 +158,7 @@ export async function PUT(
 
             // Upload to Cloudinary
             const url = await saveFile(image, {
-              folder: 'eyetask/subtasks',
+              folder: 'drivertasks/subtasks',
               tags: ['subtask', 'subtask-update', user?.username || 'unknown'],
               context: {
                 uploadedBy: user?.username || 'unknown',

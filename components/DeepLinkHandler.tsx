@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useCallback, Suspense } from 'react';
+import React, { useEffect, useCallback, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePWADetection } from '@/hooks/usePWADetection';
+import { toast } from 'sonner';
 
 interface DeepLinkConfig {
   [key: string]: {
@@ -108,261 +109,373 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status, getAppUrl, isAppUrl } = usePWADetection();
+  const hasProcessedRef = useRef(false);
+  const hasProcessedProtocolRef = useRef(false);
 
-  // Handle PWA launch parameters
-  const handleLaunchParams = useCallback(() => {
-    if (!status.launchParams) return;
+  // Handle URL parameters and deep links
+  useEffect(() => {
+    if (hasProcessedRef.current) return;
+    hasProcessedRef.current = true;
 
-    const utmSource = status.launchParams.get('utm_source');
-    const utmMedium = status.launchParams.get('utm_medium');
-    const protocol = status.launchParams.get('protocol');
-    const action = status.launchParams.get('action');
-    const target = status.launchParams.get('target');
+    // Get URL parameters
+    const utmSource = searchParams.get('utm_source');
+    const utmMedium = searchParams.get('utm_medium');
+    const action = searchParams.get('action');
+    const projectName = searchParams.get('project');
+    const taskId = searchParams.get('task');
+    const sharedContent = searchParams.get('shared');
+    const files = searchParams.get('files');
 
-    // Track PWA launches
-    if (utmSource === 'pwa') {
-      console.log('App launched from:', utmMedium || 'unknown');
-      
-      // Track analytics if available
-      if (typeof window !== 'undefined' && 'gtag' in window) {
-        (window as any).gtag('event', 'pwa_launch', {
-          source: utmMedium,
-          timestamp: new Date().toISOString()
-        });
+    // Handle protocol launches (drivertasks://)
+    if (utmMedium === 'protocol' || utmSource === 'protocol') {
+      if (action) {
+        handleDeepLinkAction(action, { projectName, taskId, sharedContent, files });
       }
-    }
-
-    // Handle protocol launches
-    if (protocol) {
-      handleProtocolLaunch(protocol);
-    }
-
-    // Handle action-based launches
-    if (action && target) {
-      handleActionLaunch(action, target);
-    }
-  }, [status.launchParams]);
-
-      // Handle custom protocol launches (web+drivershub://)
-  const handleProtocolLaunch = useCallback((protocolData: string) => {
-    try {
-      const decodedData = decodeURIComponent(protocolData);
-      const url = new URL(decodedData);
-      
-      // Extract path and navigate
-      if (isAppUrl(decodedData)) {
-        router.push(url.pathname + url.search);
-      }
-    } catch (error) {
-      console.error('Failed to handle protocol launch:', error);
-    }
-  }, [router, isAppUrl]);
-
-  // Handle action-based launches (shortcuts, notifications)
-  const handleActionLaunch = useCallback((action: string, target: string) => {
-    const config = DEEP_LINK_ROUTES[action];
-    
-    if (!config) {
-      console.warn('Unknown deep link action:', action);
       return;
     }
 
-    // Replace path parameters
-    let targetPath = config.path;
-    if (target && targetPath.includes('{')) {
-      targetPath = targetPath.replace(/{(\w+)}/g, target);
-    }
-
-    // Navigate to target or fallback
-    router.push(targetPath || config.fallback || '/');
-  }, [router]);
-
-  // Handle external links and redirections
-  const handleExternalLink = useCallback((url: string) => {
-    if (!isAppUrl(url)) return false;
-
-    try {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname + urlObj.search + urlObj.hash;
-      
-      if (status.isStandalone) {
-        // Already in PWA, just navigate
-        router.push(path);
-        return true;
-      } else if (status.canHandleAppLinks) {
-        // Try to open in installed PWA
-        const appUrl = getAppUrl(path);
-        window.location.href = appUrl;
-        return true;
+    // Handle external links
+    if (utmSource === 'external' || utmMedium === 'external') {
+      if (action) {
+        handleExternalLink(action, { projectName, taskId, sharedContent, files });
       }
-      
-      return false;
-    } catch (error) {
-      console.error('Failed to handle external link:', error);
-      return false;
-    }
-  }, [status, router, isAppUrl, getAppUrl]);
-
-  // Handle share target (when app receives shared content)
-  const handleShareTarget = useCallback(() => {
-    if (!searchParams) return;
-    
-    const sharedTitle = searchParams.get('title');
-    const sharedText = searchParams.get('text');
-    const sharedUrl = searchParams.get('url');
-
-    // Skip if this is a feedback form redirect or debug report
-    if (window.location.pathname === '/feedback' || 
-        window.location.search.includes('category=') ||
-        window.location.search.includes('issueType=')) {
       return;
     }
 
-    if (sharedTitle || sharedText || sharedUrl) {
-      // Redirect to appropriate handler
-      const shareData = {
-        title: sharedTitle || '',
-        text: sharedText || '',
-        url: sharedUrl || ''
-      };
-
-      // Store in session for handling by target component
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('eyetask-shared-content', JSON.stringify(shareData));
+    // Handle shared content
+    if (sharedContent) {
+      try {
+        const content = JSON.parse(decodeURIComponent(sharedContent));
+        handleSharedContent(content);
+      } catch (error) {
+        console.error('Failed to parse shared content:', error);
       }
-      
-      // Navigate to new task creation with shared content
-      router.push('/admin/tasks/new?shared=true');
+      return;
+    }
+
+    // Handle file sharing
+    if (files) {
+      try {
+        const fileList = JSON.parse(decodeURIComponent(files));
+        handleSharedFiles(fileList);
+      } catch (error) {
+        console.error('Failed to parse shared files:', error);
+      }
+      return;
+    }
+
+    // Handle direct navigation
+    if (projectName) {
+      router.push(`/project/${encodeURIComponent(projectName)}`);
+      return;
+    }
+
+    if (taskId) {
+      // Would need to fetch task details to get project name
+      // For now, just show a toast
+      toast.info('נווט למשימה', {
+        description: `מזהה משימה: ${taskId}`
+      });
+      return;
+    }
+
+    // Handle app launches
+    if (utmMedium && utmSource) {
+      // Silent app launch tracking
     }
   }, [searchParams, router]);
 
-  // Setup global link interception
+  // Handle protocol-based deep links
   useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const link = target.closest('a[href]') as HTMLAnchorElement;
-      
-      if (!link) return;
+    if (hasProcessedProtocolRef.current) return;
 
-      const href = link.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) {
-        return;
-      }
-
-      // Check if it's an app link that should be handled specially
-      if (isAppUrl(href)) {
-        const shouldIntercept = handleExternalLink(href);
-        if (shouldIntercept) {
-          event.preventDefault();
+    const handleProtocolLaunch = (event: MessageEvent) => {
+      try {
+        const { type, data } = event.data;
+        
+        if (type === 'PROTOCOL_LAUNCH') {
+          hasProcessedProtocolRef.current = true;
+          
+          const { action, params } = data;
+          handleDeepLinkAction(action, params);
         }
+      } catch (error) {
+        console.error('Failed to handle protocol launch:', error);
       }
     };
 
-    // Listen for clicks on links
-    document.addEventListener('click', handleClick);
+    const handleUnknownMessage = (event: MessageEvent) => {
+      if (event.data?.type && event.data.type !== 'PROTOCOL_LAUNCH') {
+        console.warn('Unknown deep link action:', event.data.type);
+      }
+    };
+
+    // Listen for protocol messages
+    window.addEventListener('message', handleProtocolLaunch);
     
     return () => {
-      document.removeEventListener('click', handleClick);
+      window.removeEventListener('message', handleProtocolLaunch);
     };
-  }, [handleExternalLink, isAppUrl]);
+  }, []);
 
-  // Setup message listeners for cross-frame communication
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-
-      const { type, data } = event.data || {};
-
-      // Skip processing if no type is provided
-      if (!type) {
-        return;
-      }
-
-      switch (type) {
-        case 'NAVIGATE_TO':
-          if (data?.path) {
-            router.push(data.path);
+  // Handle external link clicks
+  const handleExternalLink = async (action: string, params: any) => {
+    try {
+      switch (action) {
+        case 'open-project':
+          if (params.projectName) {
+            router.push(`/project/${encodeURIComponent(params.projectName)}`);
+            toast.success('פתיחת פרויקט', {
+              description: `נפתח פרויקט: ${params.projectName}`
+            });
           }
           break;
           
-        case 'OPEN_IN_APP':
-          if (data?.url) {
-            handleExternalLink(data.url);
-          }
-          break;
-          
-        case 'SHARE_CONTENT':
-          if (data?.content && typeof window !== 'undefined') {
-            sessionStorage.setItem('eyetask-shared-content', JSON.stringify(data.content));
-            router.push('/admin/tasks/new?shared=true');
+        case 'open-task':
+          if (params.taskId) {
+            // Would need to implement task opening logic
+            toast.info('פתיחת משימה', {
+              description: `מזהה משימה: ${params.taskId}`
+            });
           }
           break;
           
         default:
-          // Only log if we have a valid type that we don't recognize
-          if (typeof type === 'string' && type.length > 0) {
-            console.log('Unknown message type:', type);
+          // Unknown action
+          break;
+      }
+    } catch (error) {
+      console.error('Failed to handle external link:', error);
+      toast.error('שגיאה בפתיחת קישור חיצוני');
+    }
+  };
+
+  // Handle deep link actions
+  const handleDeepLinkAction = (action: string, params: any) => {
+    switch (action) {
+      case 'open-project':
+        if (params.projectName) {
+          router.push(`/project/${encodeURIComponent(params.projectName)}`);
+          toast.success('פתיחת פרויקט', {
+            description: `נפתח פרויקט: ${params.projectName}`
+          });
+        }
+        break;
+        
+      case 'open-task':
+        if (params.taskId) {
+          // Implement task opening
+          toast.info('פתיחת משימה', {
+            description: `מזהה משימה: ${params.taskId}`
+          });
+        }
+        break;
+        
+      case 'share-content':
+        if (params.sharedContent) {
+          try {
+            const content = JSON.parse(params.sharedContent);
+            handleSharedContent(content);
+          } catch (error) {
+            toast.error('שגיאה בפענוח תוכן משותף');
           }
+        }
+        break;
+        
+      case 'open-files':
+        if (params.files) {
+          try {
+            const fileList = JSON.parse(params.files);
+            handleSharedFiles(fileList);
+          } catch (error) {
+            toast.error('שגיאה בפתיחת קבצים');
+          }
+        }
+        break;
+        
+      default:
+        // Unknown action
+        break;
+    }
+  };
+
+  // Handle shared content
+  const handleSharedContent = (content: any) => {
+    try {
+      // Store shared content for the app to use
+      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify(content));
+      
+      toast.success('תוכן משותף התקבל', {
+        description: 'התוכן זמין לשימוש באפליקציה'
+      });
+      
+      // Navigate to appropriate page based on content type
+      if (content.type === 'project' && content.projectName) {
+        router.push(`/project/${encodeURIComponent(content.projectName)}`);
+      } else if (content.type === 'task' && content.taskId) {
+        // Navigate to task
+        toast.info('פתיחת משימה משותפת');
+      }
+    } catch (error) {
+      toast.error('שגיאה בעיבוד תוכן משותף');
+    }
+  };
+
+  // Handle shared files
+  const handleSharedFiles = (files: any[]) => {
+    try {
+      // Store files for the app to use
+      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify({
+        type: 'files',
+        files: files
+      }));
+      
+      // Also store in a specific files key for easier access
+      sessionStorage.setItem('drivertasks-opened-files', JSON.stringify(
+        files.map(file => ({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          lastModified: file.lastModified
+        }))
+      ));
+      
+      toast.success('קבצים התקבלו', {
+        description: `התקבלו ${files.length} קבצים`
+      });
+      
+      // Navigate to appropriate page for file handling
+      router.push('/admin/tasks/new');
+    } catch (error) {
+      toast.error('שגיאה בעיבוד קבצים משותפים');
+    }
+  };
+
+  // Listen for messages from service worker or other sources
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const { type, data } = event.data || {};
+      
+      switch (type) {
+        case 'OFFLINE_SYNC':
+          if (data?.success) {
+            toast.success('סנכרון הושלם', {
+              description: 'הנתונים סונכרנו בהצלחה'
+            });
+          } else {
+            toast.error('שגיאה בסנכרון', {
+              description: 'לא ניתן לסנכרן את הנתונים'
+            });
+          }
+          break;
+          
+        case 'CACHE_UPDATED':
+          // Silent cache update
+          break;
+          
+        case 'SHARE_CONTENT':
+          if (data?.content) {
+            handleSharedContent(data.content);
+          }
+          break;
+          
+        case 'OPEN_FILES':
+          if (data?.files) {
+            handleSharedFiles(data.files);
+          }
+          break;
+          
+        default:
+          // Unknown message type
+          break;
       }
     };
 
     window.addEventListener('message', handleMessage);
-    
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [router, handleExternalLink]);
-
-  // Process launch parameters on mount
-  useEffect(() => {
-    handleLaunchParams();
-    handleShareTarget();
-  }, [handleLaunchParams, handleShareTarget]);
-
-  // Setup web app manifest event listeners
-  useEffect(() => {
-    // Handle app shortcut activations
-    const handleAppShortcut = (event: any) => {
-      if (event.url) {
-        const url = new URL(event.url);
-        router.push(url.pathname + url.search);
-      }
-    };
-
-    // Handle file handlers
-    const handleFileOpen = (event: any) => {
-      if (event.files && event.files.length > 0 && typeof window !== 'undefined') {
-        // Store files for processing
-        sessionStorage.setItem('eyetask-opened-files', JSON.stringify(
-          Array.from(event.files as FileList).map((file) => ({
-            name: file.name,
-            type: file.type,
-            size: file.size
-          }))
-        ));
-        
-        router.push('/import?files=true');
-      }
-    };
-
-    // Listen for PWA events
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        const { type, data } = event.data || {};
-        
-        // Skip processing if no type is provided
-        if (!type) {
-          return;
-        }
-        
-        if (type === 'SHORTCUT_ACTIVATED') {
-          handleAppShortcut(data);
-        } else if (type === 'FILE_HANDLER_ACTIVATED') {
-          handleFileOpen(data);
-        }
-      });
-    }
+    return () => window.removeEventListener('message', handleMessage);
   }, [router]);
+
+  // Web Share API support
+  useEffect(() => {
+    // Register share target if supported
+    if ('serviceWorker' in navigator && 'share' in navigator) {
+      // Enable web share target
+    }
+  }, []);
+
+  // Handle app shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Handle keyboard shortcuts for deep link actions
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case 'k':
+            // Quick search/command palette
+            event.preventDefault();
+            // Implement command palette
+            break;
+            
+          case 'n':
+            // New task
+            event.preventDefault();
+            router.push('/admin/tasks/new');
+            break;
+            
+          case 'h':
+            // Home
+            event.preventDefault();
+            router.push('/');
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
+
+  // Handle share actions
+  const handleShare = async (content: any) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: content.title || 'Driver Tasks',
+          text: content.description || 'תוכן מ-Driver Tasks',
+          url: content.url || window.location.href
+        });
+      } else {
+        // Fallback to clipboard
+        await navigator.clipboard.writeText(content.url || window.location.href);
+        toast.success('קישור הועתק ללוח');
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      toast.error('שגיאה בשיתוף');
+    }
+  };
+
+  const handleClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('הועתק ללוח');
+    } catch (error) {
+      console.error('Clipboard write failed:', error);
+      toast.error('שגיאה בהעתקה');
+    }
+  };
+
+  // Expose functions to global scope for external use
+  useEffect(() => {
+    (window as any).deepLinkHandler = {
+      handleShare,
+      handleClipboard,
+      handleDeepLinkAction
+    };
+
+    return () => {
+      delete (window as any).deepLinkHandler;
+    };
+  }, []);
 
   return <>{children}</>;
 }

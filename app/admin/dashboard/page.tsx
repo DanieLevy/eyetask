@@ -6,58 +6,23 @@ import Link from 'next/link';
 import { 
   Plus, 
   Eye, 
-  Edit, 
-  Trash2, 
-  Users, 
   FolderPlus, 
-  Activity,
-  TrendingUp,
-  Calendar,
-  Clock,
-  ArrowUpRight,
-  RefreshCw,
-  Settings,
-  Bell,
   BarChart3,
   CheckSquare,
   AlertCircle,
   Layers,
-  Filter,
-  Search,
-  SortAsc,
-  MoreVertical,
-  ExternalLink,
-  LogOut,
-  ArrowLeft,
-  RotateCcw,
-  Home,
-  Zap,
-  BookOpen,
-  PieChart,
   Database,
-  Cpu,
-  Shield,
   Server,
-  HardDrive,
-  FolderOpen,
   MessageCircle,
-  Menu,
-  X,
-  Upload
+  Upload,
+  Cpu
 } from 'lucide-react';
-import MobileyeLogoIcon from '@/components/icons/MobileyeLogoIcon';
 import { toast } from 'sonner';
 
 // Import shadcn UI components
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
-
-import { dashboardGraphsConfig } from '@/data/dashboard-graphs-config';
 
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
@@ -97,10 +62,8 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [cacheLoading, setCacheLoading] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const router = useRouter();
   
@@ -110,19 +73,7 @@ export default function AdminDashboard() {
   const mixedHeading = useMixedFont('heading');
   const mixedBody = useMixedFont('body');
 
-  // Load user data from localStorage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userData = localStorage.getItem('adminUser');
-      if (userData && userData !== 'undefined' && userData !== 'null') {
-        try {
-          setUser(JSON.parse(userData));
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-        }
-      }
-    }
-  }, []);
+
 
   // Fetch cache status
   const fetchCacheStatus = useCallback(async () => {
@@ -210,11 +161,7 @@ export default function AdminDashboard() {
   // Register this page's refresh function
   usePageRefresh(refreshData);
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    router.push('/admin');
-  };
+
 
   // Calculate comprehensive statistics
   const stats = {
@@ -454,7 +401,7 @@ export default function AdminDashboard() {
                 <div className="group p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200 active:scale-95">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-500 rounded-lg flex-shrink-0">
-                      <Calendar className="h-4 w-4 text-white" />
+                      <Eye className="h-4 w-4 text-white" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-indigo-900 text-sm">

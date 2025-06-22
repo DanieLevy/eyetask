@@ -174,7 +174,7 @@ export default function OfflineBanner() {
       caches.keys().then(cacheNames => {
         Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName.includes('eyetask-api')) {
+            if (cacheName.includes('drivertasks-api')) {
               return caches.delete(cacheName);
             }
             return Promise.resolve();

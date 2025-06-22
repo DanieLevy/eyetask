@@ -113,7 +113,7 @@ export default function CloudinaryImage({
   const optimizedSrc = useMemo(() => {
     // For debugging: Use the original URL directly for Cloudinary images
     if (isCloudinaryUrl(src) && !width && !height && !transformation) {
-      console.log('Using original Cloudinary URL:', src);
+              // Using original Cloudinary URL
       return src;
     }
     return getOptimizedImageUrl();

@@ -50,9 +50,9 @@ interface UseOfflineStatusReturn {
 
 // Storage keys
 const STORAGE_KEYS = {
-  LAST_SYNC: 'eyetask-last-sync',
-  CACHE_INFO: 'eyetask-cache-info',
-  OFFLINE_QUEUE: 'eyetask-offline-queue'
+  LAST_SYNC: 'drivertasks-last-sync',
+  CACHE_INFO: 'drivertasks-cache-info',
+  OFFLINE_QUEUE: 'drivertasks-offline-queue'
 } as const;
 
 export function useOfflineStatus(): UseOfflineStatusReturn {
@@ -106,7 +106,7 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
 
       // Calculate cache size and get latest update time
       for (const cacheName of cacheNames) {
-        if (cacheName.includes('eyetask')) {
+        if (cacheName.includes('drivertasks')) {
           const cache = await caches.open(cacheName);
           const keys = await cache.keys();
           
@@ -188,7 +188,7 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
   // Open IndexedDB
   const openDB = useCallback((): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open('EyeTaskDB', 1);
+      const request = indexedDB.open('DriverTasksDB', 1);
       
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
@@ -513,7 +513,7 @@ function generateRequestId(): string {
 
 async function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('EyeTaskDB', 1);
+    const request = indexedDB.open('DriverTasksDB', 1);
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);

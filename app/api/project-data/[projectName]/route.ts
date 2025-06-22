@@ -45,7 +45,7 @@ export async function DELETE(
     // Clear project data cache
     db.invalidateProjectCache(projectName);
     
-    logger.info(`Project data cache cleared for: ${projectName}`, 'PROJECT_DATA_API');
+
     
     return NextResponse.json(
       { success: true, message: `Project data cache cleared for: ${projectName}` },

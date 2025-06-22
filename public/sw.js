@@ -1,7 +1,7 @@
-const CACHE_NAME = 'eyetask-v3';
-const STATIC_CACHE = 'eyetask-static-v3';
-const API_CACHE = 'eyetask-api-v3';
-const OFFLINE_CACHE = 'eyetask-offline-v3';
+const CACHE_NAME = 'drivertasks-v3';
+const STATIC_CACHE = 'drivertasks-static-v3';
+const API_CACHE = 'drivertasks-api-v3';
+const OFFLINE_CACHE = 'drivertasks-offline-v3';
 
 // URLs to cache for offline functionality - only valid URLs
 const staticUrlsToCache = [
@@ -26,7 +26,7 @@ const apiEndpoints = [
 ];
 
 // Offline task queue storage key
-const OFFLINE_QUEUE_KEY = 'eyetask-offline-queue';
+const OFFLINE_QUEUE_KEY = 'drivertasks-offline-queue';
 
 // Helper function to safely cache URLs
 async function safeCacheUrls(cache, urls, label = '') {
@@ -34,32 +34,22 @@ async function safeCacheUrls(cache, urls, label = '') {
     urls.map(async (url) => {
       try {
         await cache.add(url);
-        console.log(`Service Worker: Cached ${label} ${url}`);
         return { url, success: true };
       } catch (error) {
-        console.warn(`Service Worker: Failed to cache ${label} ${url}:`, error.message);
         return { url, success: false, error: error.message };
       }
     })
   );
-  
-  const failed = results.filter(r => r.status === 'rejected' || !r.value.success);
-  if (failed.length > 0) {
-    console.warn(`Service Worker: ${failed.length} ${label} URLs failed to cache`);
-  }
   
   return results;
 }
 
 // Install event - cache static resources
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
-  
   event.waitUntil(
     Promise.all([
       // Cache essential static resources
       caches.open(STATIC_CACHE).then(async (cache) => {
-        console.log('Service Worker: Caching essential static resources');
         // Cache essential URLs first (these must succeed)
         await cache.addAll(staticUrlsToCache);
         
@@ -71,12 +61,10 @@ self.addEventListener('install', (event) => {
       
       // Cache offline page
       caches.open(OFFLINE_CACHE).then(async (cache) => {
-        console.log('Service Worker: Caching offline page');
         try {
           await cache.add('/offline.html');
         } catch (error) {
           // Create a simple offline page if the file doesn't exist
-          console.warn('Service Worker: offline.html not found, creating fallback');
           const offlineResponse = new Response(`
             <!DOCTYPE html>
             <html lang="he" dir="rtl">
@@ -114,7 +102,6 @@ self.addEventListener('install', (event) => {
       // Skip waiting to activate immediately
       self.skipWaiting()
     ]).catch(error => {
-      console.error('Service Worker: Install failed:', error);
       // Don't prevent installation, just log the error
       return true;
     })
@@ -123,8 +110,6 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches and take control
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
-  
   event.waitUntil(
     Promise.all([
       // Clean up old caches
@@ -135,9 +120,8 @@ self.addEventListener('activate', (event) => {
               cacheName !== STATIC_CACHE && 
               cacheName !== API_CACHE && 
               cacheName !== OFFLINE_CACHE &&
-              cacheName.startsWith('eyetask-')
+              cacheName.startsWith('drivertasks-')
             ) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -198,91 +182,92 @@ async function handleApiRequest(request) {
       
       // Add timestamp to track cache freshness
       const cacheKey = new URL(request.url);
-      cacheKey.searchParams.set('_cached', Date.now().toString());
+      cacheKey.searchParams.set('cached_at', Date.now().toString());
       
-      // Store both the original URL and timestamped version
-      await Promise.all([
-        cache.put(request.url, responseClone.clone()),
-        cache.put(cacheKey.toString(), responseClone)
-      ]);
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log('Service Worker: Network failed for API request:', request.url);
-    
-    // Fallback to cache for GET requests
-    if (request.method === 'GET') {
-      const cachedResponse = await caches.match(request);
-      if (cachedResponse) {
-        console.log('Service Worker: Serving API from cache:', request.url);
-        
-        // Add cache indicator header
-        const modifiedResponse = new Response(cachedResponse.body, {
-          status: cachedResponse.status,
-          statusText: cachedResponse.statusText,
-          headers: {
-            ...cachedResponse.headers,
-            'X-Served-From': 'cache',
-            'X-Cache-Date': new Date().toISOString()
-          }
-        });
-        
-        return modifiedResponse;
+      try {
+        await cache.put(request, responseClone);
+      } catch (cacheError) {
+        // Caching failed, but we still have the network response
       }
     }
     
-    // No cache available, return offline response
+    return networkResponse;
+    
+  } catch (networkError) {
+    // Network failed, try cache
+    const cache = await caches.open(API_CACHE);
+    const cachedResponse = await cache.match(request);
+    
+    if (cachedResponse) {
+      // Add stale indicator to cached responses
+      const response = cachedResponse.clone();
+      response.headers.set('X-Served-From', 'cache-offline');
+      response.headers.set('X-Cache-Time', new Date().toISOString());
+      return response;
+    }
+    
+    // No cache available, return error response
     return new Response(
       JSON.stringify({
-        error: 'Offline',
-        message: 'No network connection and no cached data available',
-        cached: false
+        error: 'Network unavailable and no cached data',
+        offline: true,
+        timestamp: new Date().toISOString()
       }),
       {
         status: 503,
+        statusText: 'Service Unavailable',
         headers: {
           'Content-Type': 'application/json',
-          'X-Served-From': 'offline'
+          'X-Served-From': 'offline-fallback'
         }
       }
     );
   }
 }
 
-// Navigation Request Handler with offline fallback
+// Navigation Request Handler - serve pages with offline fallback
 async function handleNavigationRequest(request) {
   try {
     // Try network first
     const networkResponse = await fetch(request);
     
-    // Cache successful navigation responses
+    // Cache successful page responses
     if (networkResponse.ok) {
       const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
+      cache.put(request, networkResponse.clone()).catch(() => {
+        // Caching failed, but we have the response
+      });
     }
     
     return networkResponse;
-  } catch (error) {
-    console.log('Service Worker: Network failed for navigation:', request.url);
     
-    // Try to serve from cache
-    const cachedResponse = await caches.match(request);
+  } catch (networkError) {
+    // Network failed, try cache
+    const cache = await caches.open(STATIC_CACHE);
+    const cachedResponse = await cache.match(request);
+    
     if (cachedResponse) {
       return cachedResponse;
     }
     
-    // Fallback to offline page
-    const offlineResponse = await caches.match('/offline.html');
-    return offlineResponse || new Response('Offline', { status: 503 });
+    // No cached page, serve offline page
+    const offlineCache = await caches.open(OFFLINE_CACHE);
+    const offlinePage = await offlineCache.match('/offline.html');
+    
+    return offlinePage || new Response('Offline - No cached content available', {
+      status: 503,
+      statusText: 'Service Unavailable'
+    });
   }
 }
 
-// Static Request Handler - cache first strategy
+// Static Request Handler - cache-first for static assets
 async function handleStaticRequest(request) {
   try {
-    // Check cache first for static assets
-    const cachedResponse = await caches.match(request);
+    // Try cache first for static assets
+    const cache = await caches.open(STATIC_CACHE);
+    const cachedResponse = await cache.match(request);
+    
     if (cachedResponse) {
       return cachedResponse;
     }
@@ -292,316 +277,278 @@ async function handleStaticRequest(request) {
     
     // Cache successful responses
     if (networkResponse.ok) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
+      cache.put(request, networkResponse.clone()).catch(() => {
+        // Caching failed, but we have the response
+      });
     }
     
     return networkResponse;
-  } catch (error) {
-    console.log('Service Worker: Failed to fetch static asset:', request.url);
     
-    // For failed static assets, return a minimal response
+  } catch (networkError) {
+    // Both cache and network failed
     return new Response('Resource not available offline', {
       status: 503,
-      headers: { 'Content-Type': 'text/plain' }
+      statusText: 'Service Unavailable'
     });
   }
 }
 
-// Handle offline requests (POST/PUT/DELETE when offline)
+// Offline Request Handler - queue non-GET requests for later
 async function handleOfflineRequest(request) {
-  console.log('Service Worker: Handling offline request:', request.method, request.url);
+  const requestData = {
+    id: generateRequestId(),
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers.entries()),
+    body: null,
+    timestamp: Date.now()
+  };
   
+  // Get request body if present
   try {
-    // Store the request for later processing
-    const requestData = {
-      url: request.url,
-      method: request.method,
-      headers: Object.fromEntries(request.headers.entries()),
-      body: request.method !== 'GET' ? await request.text() : null,
-      timestamp: Date.now(),
-      id: generateRequestId()
-    };
-    
-    await addToOfflineQueue(requestData);
-    
-    // Return a response indicating the request was queued
-    return new Response(
-      JSON.stringify({
-        success: false,
-        queued: true,
-        message: 'Request queued for when connection is restored',
-        requestId: requestData.id
-      }),
-      {
-        status: 202, // Accepted
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Queued-For-Sync': 'true'
-        }
-      }
-    );
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      requestData.body = await request.text();
+    }
   } catch (error) {
-    console.error('Service Worker: Error handling offline request:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'Failed to queue request for offline processing'
-      }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' }
+    // Body reading failed
+  }
+  
+  // Add to offline queue
+  await addToOfflineQueue(requestData);
+  
+  // Return immediate response indicating the request was queued
+  return new Response(
+    JSON.stringify({
+      queued: true,
+      requestId: requestData.id,
+      message: 'Request queued for when connection is restored',
+      timestamp: new Date().toISOString()
+    }),
+    {
+      status: 202,
+      statusText: 'Accepted',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Offline-Queued': 'true',
+        'X-Request-ID': requestData.id
       }
-    );
+    }
+  );
+}
+
+// Add request to offline queue using IndexedDB
+async function addToOfflineQueue(requestData) {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(['offlineQueue'], 'readwrite');
+    const store = transaction.objectStore('offlineQueue');
+    await store.add(requestData);
+  } catch (error) {
+    // Fallback to localStorage if IndexedDB fails
+    try {
+      const existingQueue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+      existingQueue.push(requestData);
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(existingQueue));
+    } catch (storageError) {
+      // Both storage methods failed
+    }
   }
 }
 
-// Offline queue management
-async function addToOfflineQueue(requestData) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['offline_queue'], 'readwrite');
-    const store = transaction.objectStore('offline_queue');
-    const request = store.add(requestData);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
+// Process offline queue when connection is restored
 async function processOfflineQueue() {
   if (!navigator.onLine) {
-    console.log('Service Worker: Still offline, skipping queue processing');
     return;
   }
   
-  console.log('Service Worker: Processing offline queue...');
-  
   try {
+    // Try IndexedDB first
     const db = await openDB();
-    const transaction = db.transaction(['offline_queue'], 'readwrite');
-    const store = transaction.objectStore('offline_queue');
-    
-    const requests = await new Promise((resolve, reject) => {
-      const getAllRequest = store.getAll();
-      getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-      getAllRequest.onerror = () => reject(getAllRequest.error);
-    });
+    const transaction = db.transaction(['offlineQueue'], 'readwrite');
+    const store = transaction.objectStore('offlineQueue');
+    const requests = await store.getAll();
     
     for (const requestData of requests) {
       try {
-        // Recreate the request
-        const fetchOptions = {
+        const response = await fetch(requestData.url, {
           method: requestData.method,
-          headers: requestData.headers
-        };
+          headers: requestData.headers,
+          body: requestData.body
+        });
         
-        if (requestData.body) {
-          fetchOptions.body = requestData.body;
-        }
+        // Notify clients of successful sync
+        notifyClientsOfSync(requestData.id, true);
         
-        // Attempt to replay the request
-        const response = await fetch(requestData.url, fetchOptions);
+        // Remove from queue
+        await store.delete(requestData.id);
         
-        if (response.ok) {
-          // Request successful, remove from queue
-          await new Promise((resolve, reject) => {
-            const deleteRequest = store.delete(requestData.id);
-            deleteRequest.onsuccess = () => resolve(deleteRequest.result);
-            deleteRequest.onerror = () => reject(deleteRequest.error);
-          });
-          
-          console.log('Service Worker: Successfully processed queued request:', requestData.url);
-          
-          // Notify the client about successful sync
-          notifyClientsOfSync(requestData.id, true);
-        } else {
-          console.log('Service Worker: Queued request failed:', requestData.url, response.status);
-          // Keep in queue for retry later
-        }
       } catch (error) {
-        console.error('Service Worker: Error processing queued request:', error);
-        // Keep in queue for retry later
+        // Request failed, leave in queue for retry
+        notifyClientsOfSync(requestData.id, false);
       }
     }
+    
   } catch (error) {
-    console.error('Service Worker: Error processing offline queue:', error);
+    // Fallback to localStorage
+    try {
+      const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (!queueData) return;
+      
+      const requests = JSON.parse(queueData);
+      const remainingRequests = [];
+      
+      for (const requestData of requests) {
+        try {
+          const response = await fetch(requestData.url, {
+            method: requestData.method,
+            headers: requestData.headers,
+            body: requestData.body
+          });
+          
+          notifyClientsOfSync(requestData.id, true);
+          
+        } catch (error) {
+          // Request failed, keep in queue
+          remainingRequests.push(requestData);
+          notifyClientsOfSync(requestData.id, false);
+        }
+      }
+      
+      // Update localStorage with remaining requests
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remainingRequests));
+      
+    } catch (storageError) {
+      // Both storage methods failed
+    }
   }
 }
 
-// IndexedDB setup for offline queue
+// Open IndexedDB for offline queue
 async function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('EyeTaskDB', 1);
+    const request = indexedDB.open('DriverTasksDB', 1);
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
     
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
-      if (!db.objectStoreNames.contains('offline_queue')) {
-        const store = db.createObjectStore('offline_queue', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('offlineQueue')) {
+        const store = db.createObjectStore('offlineQueue', { keyPath: 'id' });
         store.createIndex('timestamp', 'timestamp', { unique: false });
       }
     };
   });
 }
 
-// Utility functions
+// Generate unique request ID
 function generateRequestId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// Notify clients about sync status
 function notifyClientsOfSync(requestId, success) {
   self.clients.matchAll().then(clients => {
     clients.forEach(client => {
       client.postMessage({
-        type: 'SYNC_COMPLETE',
+        type: 'OFFLINE_SYNC',
         requestId,
-        success
+        success,
+        timestamp: Date.now()
       });
     });
+  }).catch(() => {
+    // Client notification failed
   });
-}
-
-// Background sync event
-self.addEventListener('sync', (event) => {
-  console.log('Service Worker: Background sync triggered:', event.tag);
-  
-  if (event.tag === 'background-sync' || event.tag === 'offline-queue-sync') {
-    event.waitUntil(processOfflineQueue());
-  }
-});
-
-// Message handling from clients
-self.addEventListener('message', (event) => {
-  const { type, data } = event.data || {};
-  
-  switch (type) {
-    case 'CLEAR_API_CACHE':
-      event.waitUntil(
-        caches.delete(API_CACHE).then(() => {
-          console.log('Service Worker: API cache cleared');
-          event.ports[0]?.postMessage({ success: true });
-        })
-      );
-      break;
-      
-    case 'CLEAR_ALL_CACHE':
-      event.waitUntil(
-        Promise.all([
-          caches.delete(API_CACHE),
-          caches.delete(STATIC_CACHE)
-        ]).then(() => {
-          console.log('Service Worker: All caches cleared');
-          event.ports[0]?.postMessage({ success: true });
-        })
-      );
-      break;
-      
-    case 'PROCESS_OFFLINE_QUEUE':
-      event.waitUntil(processOfflineQueue());
-      break;
-      
-    case 'GET_CACHE_STATUS':
-      event.waitUntil(
-        getCacheStatusForUrl(data?.url).then(status => {
-          // Send message back to the specific client
-          self.clients.get(event.source.id).then(client => {
-            if (client) {
-              client.postMessage({ 
-                type: 'CACHE_STATUS', 
-                isFromCache: status.isFromCache,
-                cacheDate: status.cacheDate,
-                lastSync: status.lastSync,
-                url: data?.url
-              });
-            }
-          }).catch(() => {
-            // Fallback: broadcast to all clients
-            self.clients.matchAll().then(clients => {
-              clients.forEach(client => {
-                client.postMessage({ 
-                  type: 'CACHE_STATUS', 
-                  isFromCache: status.isFromCache,
-                  cacheDate: status.cacheDate,
-                  lastSync: status.lastSync,
-                  url: data?.url
-                });
-              });
-            });
-          });
-        })
-      );
-      break;
-      
-    default:
-      console.log('Service Worker: Unknown message type:', type);
-  }
-});
-
-// Enhanced cache status for specific URLs
-async function getCacheStatusForUrl(url) {
-  if (!url) {
-    return { isFromCache: false };
-  }
-
-  try {
-    // Check if URL exists in any cache
-    const cacheNames = await caches.keys();
-    
-    for (const cacheName of cacheNames) {
-      const cache = await caches.open(cacheName);
-      const response = await cache.match(url);
-      
-      if (response) {
-        // Try to get cache date from headers
-        const cacheDate = response.headers.get('X-Cache-Date') || 
-                         response.headers.get('date') ||
-                         new Date().toISOString();
-        
-        return {
-          isFromCache: true,
-          cacheDate,
-          lastSync: localStorage?.getItem('eyetask-last-sync') || null,
-          cacheName
-        };
-      }
-    }
-    
-    return { isFromCache: false };
-  } catch (error) {
-    console.error('Service Worker: Error checking cache status:', error);
-    return { isFromCache: false };
-  }
-}
-
-// Get cache status for debugging
-async function getCacheStatus() {
-  const cacheNames = await caches.keys();
-  const status = {};
-  
-  for (const cacheName of cacheNames) {
-    const cache = await caches.open(cacheName);
-    const keys = await cache.keys();
-    status[cacheName] = {
-      count: keys.length,
-      urls: keys.map(req => req.url).slice(0, 5) // First 5 URLs for debugging
-    };
-  }
-  
-  return status;
 }
 
 // Listen for online/offline events
 self.addEventListener('online', () => {
-  console.log('Service Worker: Back online, processing queue...');
   processOfflineQueue();
 });
 
-self.addEventListener('offline', () => {
-  console.log('Service Worker: Gone offline');
+// Background sync (if supported)
+if ('sync' in self.registration) {
+  self.addEventListener('sync', (event) => {
+    if (event.tag === 'offline-queue-sync') {
+      event.waitUntil(processOfflineQueue());
+    }
+  });
+}
+
+// Message handler for cache management
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CACHE_STATUS') {
+    event.ports[0].postMessage(getCacheStatus());
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    event.waitUntil(
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.filter(name => name.startsWith('drivertasks-'))
+                    .map(name => caches.delete(name))
+        );
+      }).then(() => {
+        event.ports[0].postMessage({ cleared: true });
+      })
+    );
+  }
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
-console.log('Service Worker: Loaded and ready'); 
+// Helper function to get cache status for specific URL
+async function getCacheStatusForUrl(url) {
+  try {
+    const cacheNames = [STATIC_CACHE, API_CACHE, OFFLINE_CACHE];
+    const status = {};
+    
+    for (const cacheName of cacheNames) {
+      const cache = await caches.open(cacheName);
+      const response = await cache.match(url);
+      status[cacheName] = {
+        cached: !!response,
+        timestamp: response ? response.headers.get('date') : null
+      };
+    }
+    
+    return status;
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+// Helper function to get overall cache status
+async function getCacheStatus() {
+  try {
+    const cacheNames = await caches.keys();
+    const drivertasksCaches = cacheNames.filter(name => name.startsWith('drivertasks-'));
+    
+    const status = {
+      caches: drivertasksCaches,
+      online: navigator.onLine,
+      timestamp: new Date().toISOString(),
+      lastSync: localStorage?.getItem('drivertasks-last-sync') || null,
+    };
+    
+    // Get queue status
+    try {
+      const db = await openDB();
+      const transaction = db.transaction(['offlineQueue'], 'readonly');
+      const store = transaction.objectStore('offlineQueue');
+      const count = await store.count();
+      status.queuedRequests = count;
+    } catch (error) {
+      // Fallback to localStorage
+      const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      status.queuedRequests = queueData ? JSON.parse(queueData).length : 0;
+    }
+    
+    return status;
+  } catch (error) {
+    return { error: error.message };
+  }
+} 

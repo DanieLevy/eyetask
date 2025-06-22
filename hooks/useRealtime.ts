@@ -34,7 +34,7 @@ export function useRealtime(
 
     intervalRef.current = setInterval(async () => {
       try {
-        logger.info(`Realtime update triggered`, 'USE_REALTIME', { interval });
+    
         await callbackRef.current();
       } catch (error) {
         console.error('Realtime update error:', error);

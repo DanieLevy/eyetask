@@ -24,7 +24,7 @@ export async function DELETE(request: NextRequest) {
     // Clear homepage data cache
     db.invalidateHomepageCache();
     
-    logger.info('Homepage data cache cleared manually', 'HOMEPAGE_DATA_API');
+
     
     return NextResponse.json(
       { success: true, message: 'Homepage data cache cleared' },

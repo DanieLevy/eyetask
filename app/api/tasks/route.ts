@@ -27,11 +27,7 @@ export async function GET(request: NextRequest) {
       tasks = await db.getAllTasks(isAdmin);
     }
     
-    logger.info('Tasks fetched successfully', 'TASKS_API', { 
-      count: tasks.length,
-      isAdmin,
-      userId: user?.id 
-    });
+
     
     return NextResponse.json({
       tasks: tasks.map(task => ({
@@ -143,11 +139,7 @@ export async function POST(request: NextRequest) {
       request
     );
     
-    logger.info('Task created successfully', 'TASKS_API', { 
-      taskId,
-      title: body.title,
-      userId: user?.id 
-    });
+
     
     return NextResponse.json({ 
       task: {

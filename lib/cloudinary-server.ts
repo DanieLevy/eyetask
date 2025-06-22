@@ -51,19 +51,19 @@ export async function uploadToCloudinary(
     logger.info('Starting Cloudinary upload', 'CLOUDINARY_UPLOAD', {
       fileSize: file instanceof File ? file.size : (file instanceof Buffer ? file.length : 'buffer'),
       fileName: file instanceof File ? file.name : 'buffer',
-      folder: options.folder || 'eyetask',
+      folder: options.folder || 'drivertasks',
       hasTransformation: !!options.transformation
     });
 
     // Default upload options with optimization - following official Cloudinary patterns
     const baseOptions: any = {
-      folder: options.folder || 'eyetask',
+      folder: options.folder || 'drivertasks',
       resource_type: 'image' as const,
       quality: 'auto:good',
       use_filename: true,
       unique_filename: true,
       overwrite: false,
-      tags: options.tags || ['eyetask', 'auto-upload'],
+      tags: options.tags || ['drivertasks', 'auto-upload'],
       context: options.context || {}
     };
 

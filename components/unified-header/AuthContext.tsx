@@ -81,8 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             // Set global flags for backward compatibility
             if (typeof window !== 'undefined') {
-              window.__eyetask_user = verifiedUser;
-              window.__eyetask_isAdmin = true;
+                      window.__drivertasks_user = verifiedUser;
+        window.__drivertasks_isAdmin = true;
             }
           } else {
             // Token is invalid, clear auth
@@ -100,8 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Clear any global flags
         if (typeof window !== 'undefined') {
-          window.__eyetask_user = null;
-          window.__eyetask_isAdmin = false;
+          window.__drivertasks_user = null;
+          window.__drivertasks_isAdmin = false;
         }
       }
     } catch (error) {
@@ -125,8 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Clear global flags for backward compatibility
     if (typeof window !== 'undefined') {
-      window.__eyetask_user = null;
-      window.__eyetask_isAdmin = false;
+      window.__drivertasks_user = null;
+      window.__drivertasks_isAdmin = false;
     }
   };
   
@@ -177,8 +177,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Set global flags for backward compatibility
       if (typeof window !== 'undefined') {
-        window.__eyetask_user = userData;
-        window.__eyetask_isAdmin = true;
+        window.__drivertasks_user = userData;
+        window.__drivertasks_isAdmin = true;
       }
     } catch (error) {
       console.error('Error during login:', error);
@@ -230,8 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Set global flags
       if (typeof window !== 'undefined') {
-        window.__eyetask_user = verifiedUser;
-        window.__eyetask_isAdmin = true;
+        window.__drivertasks_user = verifiedUser;
+        window.__drivertasks_isAdmin = true;
       }
       
       return true;

@@ -24,11 +24,11 @@ export async function saveFile(
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
-      folder: options.folder || 'eyetask'
+      folder: options.folder || 'drivertasks'
     });
 
     const result = await uploadToCloudinary(file, {
-      folder: options.folder || 'eyetask',
+      folder: options.folder || 'drivertasks',
       tags: options.tags || ['file-upload'],
       context: options.context || {}
     });
@@ -73,12 +73,12 @@ export async function saveMultipleFiles(
   try {
     logger.info('Starting batch file upload to Cloudinary', 'FILE_STORAGE_BATCH', {
       fileCount: files.length,
-      folder: options.folder || 'eyetask'
+      folder: options.folder || 'drivertasks'
     });
 
     const uploadPromises = files.map(async (file, index) => {
       const result = await uploadToCloudinary(file, {
-        folder: options.folder || 'eyetask',
+        folder: options.folder || 'drivertasks',
         tags: [...(options.tags || []), `batch-${Date.now()}`, `index-${index}`],
         context: { ...options.context, originalIndex: index.toString() }
       });
