@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-import { auth } from '@/lib/auth';
+import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { activityLogger } from '@/lib/activityLogger';
-import { toObjectId, fromObjectId } from '@/lib/mongodb';
+import { createObjectId } from '@/lib/mongodb';
 
 // Define interfaces based on the JSON structure
 interface JiraSubtask {
@@ -139,7 +139,7 @@ async function verifyParentTasks(parentIssues: JiraParentIssue[]): Promise<{
       errors.push(`Task with DATACO number ${originalKey} not found in the system`);
     } else {
       taskMap[originalKey] = {
-        id: task._id ? fromObjectId(task._id) : '',
+        id: task._id ? task._id.toString() : '',
         title: task.title
       };
     }
@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
             dayTime: Array.isArray(jiraSubtask.day_time) 
               ? jiraSubtask.day_time as string[]
               : mapDayTime(jiraSubtask.day_time as string),
-            taskId: toObjectId(taskInfo.id)
+            taskId: createObjectId(taskInfo.id)
           };
           
           // Create the subtask

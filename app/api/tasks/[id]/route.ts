@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { fromObjectId } from '@/lib/mongodb';
 import { deleteFile } from '@/lib/fileStorage';
 import { logger } from '@/lib/logger';
 
@@ -49,13 +48,13 @@ export async function GET(
 
     // Convert MongoDB result to API format
     const task = {
-      id: fromObjectId(taskResult._id!),
+      id: taskResult._id!.toString(),
       title: taskResult.title,
       subtitle: taskResult.subtitle,
       images: taskResult.images || [],
       datacoNumber: taskResult.datacoNumber,
       description: taskResult.description,
-      projectId: fromObjectId(taskResult.projectId),
+      projectId: taskResult.projectId.toString(),
       type: taskResult.type,
       locations: taskResult.locations,
       amountNeeded: taskResult.amountNeeded,
@@ -168,13 +167,13 @@ export async function PUT(
 
     // Convert MongoDB result to API format
     const task = {
-      id: fromObjectId(taskResult._id!),
+      id: taskResult._id!.toString(),
       title: taskResult.title,
       subtitle: taskResult.subtitle,
       images: taskResult.images || [],
       datacoNumber: taskResult.datacoNumber,
       description: taskResult.description,
-      projectId: fromObjectId(taskResult.projectId),
+      projectId: taskResult.projectId.toString(),
       type: taskResult.type,
       locations: taskResult.locations,
       amountNeeded: taskResult.amountNeeded,
@@ -273,13 +272,13 @@ export async function DELETE(
               await deleteFile(imageUrl);
               logger.info('Successfully deleted subtask image during task deletion', 'TASK_DELETE', {
                 taskId: id,
-                subtaskId: fromObjectId(subtask._id!),
+                subtaskId: subtask._id!.toString(),
                 imageUrl: imageUrl
               });
             } catch (error) {
               logger.error('Failed to delete subtask image during task deletion', 'TASK_DELETE', {
                 taskId: id,
-                subtaskId: fromObjectId(subtask._id!),
+                subtaskId: subtask._id!.toString(),
                 imageUrl: imageUrl
               }, error as Error);
               // Continue with other deletions even if one fails

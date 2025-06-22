@@ -350,22 +350,6 @@ export default function DailyUpdatesCarousel({
           </div>
         )}
 
-        {/* Close Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const updateId = currentUpdate._id || currentUpdate.id;
-            if (updateId) {
-              hideUpdate(updateId);
-            }
-          }}
-          className="absolute top-1 left-1 z-10 flex items-center justify-center bg-transparent p-1 rounded-full"
-          title="הסתר עדכון זה"
-        >
-          <X className="h-3 w-3 text-black dark:text-white hover:opacity-80" />
-        </button>
-
         {/* Content */}
         <div className="p-2">
           <div className="flex flex-row items-center gap-2">
@@ -376,9 +360,26 @@ export default function DailyUpdatesCarousel({
 
             {/* Text Content */}
             <div className="flex-1 min-w-0">
-              <p className={`text-xs font-medium leading-tight ${colors.text} ${hebrewFont.fontClass} mb-0.5`}>
-                {currentUpdate.title}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-xs font-medium leading-tight ${colors.text} ${hebrewFont.fontClass} mb-0.5`}>
+                  {currentUpdate.title}
+                </p>
+                {/* Close Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const updateId = currentUpdate._id || currentUpdate.id;
+                    if (updateId) {
+                      hideUpdate(updateId);
+                    }
+                  }}
+                  className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-full flex-shrink-0 min-h-0 min-w-0"
+                  title="הסתר עדכון זה"
+                >
+                  <X className="h-3 w-3 text-black dark:text-white hover:opacity-80" />
+                </button>
+              </div>
               <p className={`text-2xs leading-tight ${colors.text} ${hebrewFont.fontClass} opacity-90`}>
                 {currentUpdate.content}
               </p>

@@ -1,48 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
-import { attemptMemoryRecovery } from '@/lib/memory-monitor';
-
-// Declare the custom global property for TypeScript
-declare global {
-  var __appCache: Record<string, Record<string, any>> | undefined;
-}
 
 /**
- * API endpoint to trigger memory garbage collection and recovery
+ * API endpoint to trigger garbage collection
  * This is used by the monitoring page to help manage memory usage
  * POST /api/health/gc
  */
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest) {
   try {
-    logger.info('Manual garbage collection triggered', 'MEMORY_GC', {
-      source: 'monitoring-page'
-    });
-    
-    // Attempt memory recovery
-    const success = attemptMemoryRecovery();
-    
-    // Clear any module-level caches that might be holding on to memory
-    if (global.__appCache) {
-      const appCache = global.__appCache; // Create a local reference that TypeScript knows is defined
-      Object.keys(appCache).forEach(key => {
-        appCache[key] = {};
+    // Check if garbage collection is available
+    if (typeof global.gc === 'function') {
+      // Trigger garbage collection
+      global.gc();
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Garbage collection triggered successfully',
+        timestamp: new Date().toISOString()
       });
+    } else {
+      return NextResponse.json({
+        success: false,
+        message: 'Garbage collection not available. Run with --expose-gc flag.',
+        timestamp: new Date().toISOString()
+      }, { status: 400 });
     }
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Memory recovery attempted',
-      gcTriggered: success
-    });
-    
   } catch (error) {
-    logger.error('Error during manual garbage collection', 'MEMORY_GC', {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    
     return NextResponse.json({
       success: false,
-      error: 'Failed to trigger memory recovery'
+      error: 'Failed to trigger garbage collection',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 } 

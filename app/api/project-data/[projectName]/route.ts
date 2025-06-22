@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { logger } from '@/lib/logger';
-import { PerformanceTracker, logMemoryUsage } from '@/lib/enhanced-logging';
+import { getProjectPageData } from '@/lib/database';
 
 interface RouteParams {
   params: Promise<{ projectName: string }>;
@@ -12,53 +10,19 @@ export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const tracker = new PerformanceTracker('PROJECT_DATA_API', 'GET /api/project-data/[projectName]');
-  
   try {
-    tracker.checkpoint('start_processing');
+    const data = await getProjectPageData(params.projectName);
     
-    // Await params to fix Next.js 15 requirement
-    const { projectName: rawProjectName } = await params;
-    const projectName = decodeURIComponent(rawProjectName);
+    if (!data) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
     
-    logger.debug(`Project data request for: ${projectName}`, 'PROJECT_DATA_API');
-    
-    tracker.checkpoint('before_db_query');
-    
-    // Get project data - the database service handles caching internally
-    const data = await db.getProjectPageData(projectName);
-    
-    tracker.checkpoint('after_db_query');
-    
-    // Log memory usage
-    logMemoryUsage('PROJECT_DATA_API_MEMORY');
-    
-    // Set response headers for client caching - 10 seconds max age
-    // This allows client-side refreshes to pick up new data quickly while
-    // still providing some caching benefit for frequent requests
-    const headers = {
-      'Cache-Control': 'public, max-age=10, s-maxage=10, stale-while-revalidate=60',
-      'Content-Type': 'application/json'
-    };
-    
-    tracker.checkpoint('before_response');
-    
-    // Log success with counts
-    tracker.finish({
-      projectName,
-      taskCount: data.tasks.length,
-      responseSize: `${(JSON.stringify(data).length / 1024).toFixed(2)} KB`
-    });
-    
-    return NextResponse.json(data, { headers });
+    return NextResponse.json(data);
   } catch (error) {
-    logger.error('Failed to fetch project data', 'PROJECT_DATA_API', {
-      error: (error as Error).message,
-      projectName: (await params).projectName
-    });
-    
-    tracker.finish({ error: (error as Error).message });
-    
+    console.error('Error in project-data API:', error);
     return NextResponse.json(
       { error: 'Failed to fetch project data' },
       { status: 500 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { auth, requireAdmin } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { toObjectId } from '@/lib/mongodb';
+import { createObjectId } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { cache } from '@/lib/cache';
 
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
           error: 'Project not found' 
         }, { status: 400 });
       }
-      validatedProjectId = toObjectId(projectId);
+      validatedProjectId = createObjectId(projectId);
       validatedIsGeneral = false;
     }
 
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
       isHidden,
       projectId: validatedProjectId,
       isGeneral: validatedIsGeneral,
-      createdBy: user ? toObjectId(user.id) : undefined
+      createdBy: user ? createObjectId(user.id) : undefined
     });
 
     // Invalidate relevant caches

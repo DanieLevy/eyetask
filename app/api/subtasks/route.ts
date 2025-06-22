@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { fromObjectId } from '@/lib/mongodb';
+
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { activityLogger } from '@/lib/activityLogger';
 import { saveFile } from '@/lib/fileStorage';
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
       // Get subtasks for a specific task
       const subtaskResults = await db.getSubtasksByTask(taskIdFilter);
               subtasks = subtaskResults.map(subtask => ({
-        id: fromObjectId(subtask._id!),
-        taskId: fromObjectId(subtask.taskId),
+        id: subtask._id!.toString(),
+        taskId: subtask.taskId.toString(),
         title: subtask.title,
         subtitle: subtask.subtitle,
         images: subtask.images || [],
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     );
     
     // Automatically recalculate task amount
-    await updateTaskAmount(fromObjectId(body.taskId));
+    await updateTaskAmount(body.taskId.toString());
     
     // Get the created subtask to return
     const subtaskResult = await db.getSubtaskById(subtaskId);
@@ -217,8 +217,8 @@ export async function POST(request: NextRequest) {
 
     // Convert to API format
     const subtask = {
-      id: fromObjectId(subtaskResult._id!),
-      taskId: fromObjectId(subtaskResult.taskId),
+      id: subtaskResult._id!.toString(),
+      taskId: subtaskResult.taskId.toString(),
       title: subtaskResult.title,
       subtitle: subtaskResult.subtitle,
       images: subtaskResult.images || [],

@@ -1,5 +1,5 @@
 import { connectToDatabase } from '@/lib/mongodb';
-import { toObjectId, fromObjectId } from '@/lib/mongodb';
+import { createObjectId, ObjectId } from '@/lib/mongodb';
 import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
 import { 
@@ -111,7 +111,7 @@ class FeedbackService {
       };
 
       const result = await feedbackTickets.insertOne(ticket);
-      const ticketId = fromObjectId(result.insertedId);
+      const ticketId = result.insertedId.toString();
 
       // Log activity
       await activityLogger.logActivity({
@@ -156,15 +156,15 @@ class FeedbackService {
       
       switch (type) {
         case 'project':
-          const project = await projects.findOne({ _id: toObjectId(id) });
+          const project = await projects.findOne({ _id: createObjectId(id) });
           return project?.name || 'Unknown Project';
         
         case 'task':
-          const task = await tasks.findOne({ _id: toObjectId(id) });
+          const task = await tasks.findOne({ _id: createObjectId(id) });
           return task?.title || 'Unknown Task';
         
         case 'subtask':
-          const subtask = await subtasks.findOne({ _id: toObjectId(id) });
+          const subtask = await subtasks.findOne({ _id: createObjectId(id) });
           return subtask?.title || 'Unknown Subtask';
         
         default:
@@ -182,7 +182,7 @@ class FeedbackService {
   async getTicketById(ticketId: string): Promise<FeedbackTicket | null> {
     try {
       const feedbackTickets = await this.getFeedbackCollection();
-      const ticket = await feedbackTickets.findOne({ _id: toObjectId(ticketId) });
+      const ticket = await feedbackTickets.findOne({ _id: createObjectId(ticketId) });
       return ticket as FeedbackTicket;
     } catch (error) {
       logger.error('Failed to get ticket by ID', 'FEEDBACK_SERVICE', { ticketId }, error as Error);
@@ -308,7 +308,7 @@ class FeedbackService {
       }
 
       const result = await feedbackTickets.updateOne(
-        { _id: toObjectId(ticketId) },
+        { _id: createObjectId(ticketId) },
         { $set: updateData }
       );
 
@@ -353,7 +353,7 @@ class FeedbackService {
       // Get ticket for logging
       const ticket = await this.getTicketById(ticketId);
       
-      const result = await feedbackTickets.deleteOne({ _id: toObjectId(ticketId) });
+      const result = await feedbackTickets.deleteOne({ _id: createObjectId(ticketId) });
 
       if (result.deletedCount > 0 && adminId && adminName && ticket) {
         // Log activity
@@ -408,7 +408,7 @@ class FeedbackService {
       };
 
       const result = await feedbackTickets.updateOne(
-        { _id: toObjectId(ticketId) },
+        { _id: createObjectId(ticketId) },
         { 
           $push: { responses: response } as any,
           $set: { updatedAt: new Date() }
@@ -468,7 +468,7 @@ class FeedbackService {
       };
 
       const result = await feedbackTickets.updateOne(
-        { _id: toObjectId(ticketId) },
+        { _id: createObjectId(ticketId) },
         { 
           $push: { internalNotes: note } as any,
           $set: { updatedAt: new Date() }
@@ -657,10 +657,10 @@ class FeedbackService {
       const result = [];
 
       for (const subtask of subtaskList) {
-        const task = await tasks.findOne({ _id: subtask.taskId });
+        const task = await tasks.findOne({ _id: createObjectId(subtask.taskId) });
         if (task && task.isVisible) { // Only include subtasks from visible tasks
           result.push({
-            id: fromObjectId(subtask._id!),
+            id: subtask._id!.toString(),
             title: subtask.title,
             taskTitle: task.title
           });

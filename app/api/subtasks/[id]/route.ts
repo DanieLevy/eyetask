@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { fromObjectId } from '@/lib/mongodb';
+
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { saveFile, deleteFile } from '@/lib/fileStorage';
 import { logger } from '@/lib/logger';
@@ -29,8 +29,8 @@ export async function GET(
 
     // Convert MongoDB result to API format
     const subtask = {
-      id: fromObjectId(subtaskResult._id!),
-      taskId: fromObjectId(subtaskResult.taskId),
+      id: subtaskResult._id!.toString(),
+      taskId: subtaskResult.taskId.toString(),
       title: subtaskResult.title,
       subtitle: subtaskResult.subtitle,
       images: subtaskResult.images || [],
@@ -217,12 +217,12 @@ export async function PUT(
     }
 
     // Automatically recalculate task amount after updating subtask
-    await updateTaskAmount(fromObjectId(subtaskResult.taskId));
+    await updateTaskAmount(subtaskResult.taskId.toString());
 
     // Convert MongoDB result to API format
     const subtask = {
-      id: fromObjectId(subtaskResult._id!),
-      taskId: fromObjectId(subtaskResult.taskId),
+      id: subtaskResult._id!.toString(),
+      taskId: subtaskResult.taskId.toString(),
       title: subtaskResult.title,
       subtitle: subtaskResult.subtitle,
       images: subtaskResult.images || [],
@@ -315,12 +315,12 @@ export async function DELETE(
     }
 
     // Automatically recalculate task amount after deleting subtask
-    await updateTaskAmount(fromObjectId(subtaskToDelete.taskId));
+    await updateTaskAmount(subtaskToDelete.taskId.toString());
     
     logger.info('Subtask and all associated images deleted successfully', 'SUBTASK_DELETE', {
       subtaskId: id,
       imageCount: subtaskToDelete.images?.length || 0,
-      taskId: fromObjectId(subtaskToDelete.taskId)
+      taskId: subtaskToDelete.taskId.toString()
     });
     
     return NextResponse.json({ 

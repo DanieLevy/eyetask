@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-import { fromObjectId } from '@/lib/mongodb';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -57,13 +57,13 @@ async function handleVisibilityToggle(
 
     // Convert MongoDB result to API format
     const taskResponse = {
-      id: fromObjectId(updatedTask._id!),
+      id: updatedTask._id!.toString(),
       title: updatedTask.title,
       subtitle: updatedTask.subtitle,
       images: updatedTask.images || [],
       datacoNumber: updatedTask.datacoNumber,
       description: updatedTask.description,
-      projectId: fromObjectId(updatedTask.projectId),
+      projectId: updatedTask.projectId.toString(),
       type: updatedTask.type,
       locations: updatedTask.locations,
       amountNeeded: updatedTask.amountNeeded,

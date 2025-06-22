@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { toObjectId, fromObjectId } from '@/lib/mongodb';
+import { createObjectId } from '@/lib/mongodb';
 import { updateTaskAmount } from '@/lib/taskUtils';
 
 const subtaskSchema = {
@@ -223,7 +223,7 @@ export async function POST(
       weather: requestBody.weather || 'Clear',
       scene: requestBody.scene || 'Urban',
       dayTime: Array.isArray(requestBody.dayTime) ? requestBody.dayTime : [],
-      taskId: toObjectId(taskId)
+      taskId: createObjectId(taskId)
     };
     
     const newSubtaskId = await db.createSubtask(subtaskData);
@@ -233,7 +233,7 @@ export async function POST(
     
     // Fetch the created subtask to return it
     const subtasks = await db.getSubtasksByTask(taskId);
-    const newSubtask = subtasks.find(s => fromObjectId(s._id!) === newSubtaskId);
+    const newSubtask = subtasks.find(s => s._id!.toString() === newSubtaskId);
     
     logger.info('Subtask created successfully', 'SUBTASKS_API', {
       subtaskId: newSubtaskId,
