@@ -139,8 +139,12 @@ export default function DailyUpdatesPage() {
     if (!confirm('האם אתה בטוח שברצונך למחוק את העדכון?')) return;
     
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/daily-updates/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
       
       if (response.ok) {
@@ -156,9 +160,13 @@ export default function DailyUpdatesPage() {
 
   const handleTogglePin = async (id: string, currentPinned: boolean) => {
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/daily-updates/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({ isPinned: !currentPinned })
       });
       

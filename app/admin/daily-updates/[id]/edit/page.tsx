@@ -100,11 +100,11 @@ export default function EditDailyUpdatePage() {
         }
 
         const data = await response.json();
-        setUpdate(data.update);
+        setUpdate(data);
 
         // Set form data from update
-        const expireDate = data.update.expiresAt ? new Date(data.update.expiresAt) : null;
-        const createdDate = new Date(data.update.createdAt);
+        const expireDate = data.expiresAt ? new Date(data.expiresAt) : null;
+        const createdDate = new Date(data.createdAt);
         const diffHours = expireDate ? 
           Math.round((expireDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60)) : 0;
         const diffDays = diffHours / 24;
@@ -123,15 +123,15 @@ export default function EditDailyUpdatePage() {
         }
 
         setForm({
-          title: data.update.title,
-          content: data.update.content,
-          type: data.update.type || 'info',
-          priority: data.update.priority || 5,
+          title: data.title,
+          content: data.content,
+          type: data.type || 'info',
+          priority: data.priority || 5,
           durationType,
           durationValue,
-          isPinned: data.update.isPinned || false,
-          projectId: data.update.projectId || 'general',
-          isGeneral: data.update.isGeneral !== false
+          isPinned: data.isPinned || false,
+          projectId: data.projectId || 'general',
+          isGeneral: data.isGeneral !== false
         });
 
       } catch (error) {

@@ -19,10 +19,10 @@ export const taskTypeOptions = [
 
 // Task time of day options
 export const dayTimeOptions = [
-  { value: 'day', label: 'יום' },
-  { value: 'night', label: 'לילה' },
-  { value: 'dusk', label: 'דמדומים' },
-  { value: 'dawn', label: 'שחר' }
+  { value: 'day', label: 'יום / Day' },
+  { value: 'night', label: 'לילה / Night' },
+  { value: 'dusk', label: 'דמדומים / Dusk' },
+  { value: 'dawn', label: 'שחר / Dawn' }
 ];
 
 // Task priority options

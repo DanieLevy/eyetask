@@ -122,13 +122,13 @@ export default function ProjectPage() {
   const getDayTimeLabel = (dayTime: string) => {
     switch (dayTime) {
       case "day":
-        return "יום";
+        return "יום / Day";
       case "night":
-        return "לילה";
+        return "לילה / Night";
       case "dusk":
-        return "דמדומים";
+        return "דמדומים / Dusk";
       case "dawn":
-        return "שחר";
+        return "שחר / Dawn";
       default:
         return dayTime;
     }
