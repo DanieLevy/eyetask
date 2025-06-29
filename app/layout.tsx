@@ -4,7 +4,6 @@ import { Toaster } from "sonner";
 import Footer from "@/components/Footer";
 import SmartAppBanner from "@/components/SmartAppBanner";
 import OfflineBanner from "@/components/OfflineBanner";
-import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
@@ -127,7 +126,6 @@ export default function RootLayout({
               <DeepLinkHandler>
                 <SmartAppBanner />
                 <OfflineBanner />
-                <PushNotificationBanner />
                 <GlobalLoadingIndicator position="top" showProgress={true} />
                 <AdminClientLayout>
                   <RefreshProvider>
