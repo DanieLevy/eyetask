@@ -551,4 +551,136 @@ async function getCacheStatus() {
   } catch (error) {
     return { error: error.message };
   }
-} 
+}
+
+// Push event - handle incoming push notifications
+self.addEventListener('push', event => {
+  console.log('[SW] Push notification received');
+  
+  if (!event.data) {
+    console.log('[SW] Push notification has no data');
+    return;
+  }
+
+  let data;
+  try {
+    data = event.data.json();
+  } catch (e) {
+    console.error('[SW] Error parsing push data:', e);
+    return;
+  }
+
+  const notification = data.notification || {};
+  const options = {
+    body: notification.body || 'התקבלה התראה חדשה',
+    icon: notification.icon || '/icons/icon-192x192.png',
+    badge: notification.badge || '/icons/icon-72x72.png',
+    image: notification.image,
+    tag: notification.tag || 'default',
+    requireInteraction: notification.requireInteraction || false,
+    data: notification.data || {},
+    actions: notification.actions || [],
+    // iOS specific options
+    vibrate: [200, 100, 200],
+    timestamp: Date.now(),
+    silent: false
+  };
+
+  // Log notification for debugging
+  console.log('[SW] Showing notification:', notification.title, options);
+
+  event.waitUntil(
+    self.registration.showNotification(
+      notification.title || 'EyeTask',
+      options
+    ).then(() => {
+      // Track notification delivery
+      if (notification.data?.notificationId) {
+        return fetch('/api/push/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            notificationId: notification.data.notificationId,
+            event: 'delivered'
+          })
+        }).catch(err => console.error('[SW] Failed to track delivery:', err));
+      }
+    })
+  );
+});
+
+// Notification click event
+self.addEventListener('notificationclick', event => {
+  console.log('[SW] Notification clicked:', event.notification.tag);
+  
+  event.notification.close();
+  
+  const data = event.notification.data || {};
+  const url = data.url || '/';
+  
+  // Handle action clicks
+  if (event.action) {
+    console.log('[SW] Action clicked:', event.action);
+    // Handle specific actions here
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // Focus existing window if open
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus().then(() => {
+              // Navigate to URL if needed
+              if (url !== '/' && client.navigate) {
+                return client.navigate(url);
+              }
+            });
+          }
+        }
+        // Open new window if none found
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
+      })
+      .then(() => {
+        // Track click
+        if (data.notificationId) {
+          return fetch('/api/push/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              notificationId: data.notificationId,
+              event: 'clicked'
+            })
+          }).catch(err => console.error('[SW] Failed to track click:', err));
+        }
+      })
+  );
+});
+
+// Push subscription change event
+self.addEventListener('pushsubscriptionchange', event => {
+  console.log('[SW] Push subscription changed');
+  
+  event.waitUntil(
+    self.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: event.oldSubscription.options.applicationServerKey
+    })
+    .then(subscription => {
+      // Send new subscription to server
+      return fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: subscription.toJSON(),
+          oldEndpoint: event.oldSubscription.endpoint
+        })
+      });
+    })
+    .catch(err => {
+      console.error('[SW] Failed to resubscribe:', err);
+    })
+  );
+}); 

@@ -17,7 +17,8 @@ import {
   Upload,
   Cpu,
   Users,
-  Car
+  Car,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -546,6 +547,27 @@ export default function AdminDashboard() {
                         </h3>
                         <p className="text-xs text-rose-700 truncate">
                           הוספה ועריכת משתמשים
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )}
+
+              {/* Push Notifications - Admin Only */}
+              {userRole === 'admin' && (
+                <Link href="/admin/push-notifications" className="block">
+                  <div className="group p-4 rounded-lg bg-cyan-50 hover:bg-cyan-100 transition-all border border-cyan-200 active:scale-95">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-cyan-500 rounded-lg flex-shrink-0">
+                        <Bell className="h-4 w-4 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-cyan-900 text-sm">
+                          התראות Push
+                        </h3>
+                        <p className="text-xs text-cyan-700 truncate">
+                          שלח התראות למשתמשים
                         </p>
                       </div>
                     </div>

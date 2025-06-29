@@ -178,6 +178,49 @@ export interface ActivityLog {
   severity: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface PushSubscription {
+  _id?: ObjectId;
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  subscription: {
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  };
+  userAgent: string;
+  deviceType: 'ios' | 'android' | 'desktop';
+  createdAt: Date;
+  lastActive: Date;
+  isActive: boolean;
+}
+
+export interface PushNotification {
+  _id?: ObjectId;
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  image?: string;
+  url?: string;
+  tag?: string;
+  requireInteraction?: boolean;
+  targetRoles?: string[];
+  targetUsers?: string[];
+  sentBy: string;
+  sentAt: Date;
+  deliveryStats: {
+    sent: number;
+    delivered: number;
+    failed: number;
+    clicked: number;
+  };
+  status: 'pending' | 'sending' | 'sent' | 'failed';
+}
+
 // Database service class
 export class DatabaseService {
   private async getCollections() {
@@ -198,6 +241,8 @@ export class DatabaseService {
       dailyUpdatesSettings: db.collection<DailyUpdateSetting>('dailyUpdatesSettings'),
       activities: db.collection('activities'),
       feedbackTickets: db.collection('feedbackTickets'),
+      pushSubscriptions: db.collection<PushSubscription>('pushSubscriptions'),
+      pushNotifications: db.collection<PushNotification>('pushNotifications')
     };
   }
 
@@ -1484,6 +1529,160 @@ export class DatabaseService {
     } catch (error) {
       logger.error('Error logging activity', 'DATABASE', { error: (error as Error).message });
       return false;
+    }
+  }
+
+  // Push Notification Methods
+  async savePushSubscription(subscription: Omit<PushSubscription, '_id' | 'createdAt' | 'lastActive'>): Promise<string> {
+    try {
+      const { pushSubscriptions } = await this.getCollections();
+      const now = new Date();
+      
+      // Check if subscription already exists
+      const existing = await pushSubscriptions.findOne({
+        'subscription.endpoint': subscription.subscription.endpoint
+      });
+      
+      if (existing) {
+        // Update existing subscription
+        await pushSubscriptions.updateOne(
+          { _id: existing._id },
+          {
+            $set: {
+              ...subscription,
+              lastActive: now,
+              isActive: true
+            }
+          }
+        );
+        logger.info('Updated push subscription', 'DATABASE', { userId: subscription.userId });
+        return existing._id.toString();
+      }
+      
+      // Create new subscription
+      const result = await pushSubscriptions.insertOne({
+        ...subscription,
+        createdAt: now,
+        lastActive: now,
+        isActive: true
+      });
+      
+      logger.info('Created push subscription', 'DATABASE', { userId: subscription.userId });
+      return result.insertedId.toString();
+    } catch (error) {
+      logger.error('Error saving push subscription', 'DATABASE', { error: (error as Error).message });
+      throw error;
+    }
+  }
+
+  async removePushSubscription(endpoint: string): Promise<boolean> {
+    try {
+      const { pushSubscriptions } = await this.getCollections();
+      const result = await pushSubscriptions.updateOne(
+        { 'subscription.endpoint': endpoint },
+        { $set: { isActive: false } }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      logger.error('Error removing push subscription', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async getActivePushSubscriptions(filters?: {
+    roles?: string[];
+    userIds?: string[];
+  }): Promise<PushSubscription[]> {
+    try {
+      const { pushSubscriptions } = await this.getCollections();
+      const query: any = { isActive: true };
+      
+      if (filters?.roles && filters.roles.length > 0) {
+        query.role = { $in: filters.roles };
+      }
+      
+      if (filters?.userIds && filters.userIds.length > 0) {
+        query.userId = { $in: filters.userIds };
+      }
+      
+      const result = await pushSubscriptions.find(query).toArray();
+      return result;
+    } catch (error) {
+      logger.error('Error getting push subscriptions', 'DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  async createPushNotification(notification: Omit<PushNotification, '_id' | 'sentAt' | 'deliveryStats' | 'status'>): Promise<string> {
+    try {
+      const { pushNotifications } = await this.getCollections();
+      const result = await pushNotifications.insertOne({
+        ...notification,
+        sentAt: new Date(),
+        deliveryStats: {
+          sent: 0,
+          delivered: 0,
+          failed: 0,
+          clicked: 0
+        },
+        status: 'pending'
+      });
+      
+      logger.info('Created push notification', 'DATABASE', { id: result.insertedId });
+      return result.insertedId.toString();
+    } catch (error) {
+      logger.error('Error creating push notification', 'DATABASE', { error: (error as Error).message });
+      throw error;
+    }
+  }
+
+  async updatePushNotificationStats(id: string, stats: Partial<PushNotification['deliveryStats']>, status?: PushNotification['status']): Promise<boolean> {
+    try {
+      const { pushNotifications } = await this.getCollections();
+      const update: any = {};
+      
+      if (stats.sent !== undefined) update['deliveryStats.sent'] = stats.sent;
+      if (stats.delivered !== undefined) update['deliveryStats.delivered'] = stats.delivered;
+      if (stats.failed !== undefined) update['deliveryStats.failed'] = stats.failed;
+      if (stats.clicked !== undefined) update['deliveryStats.clicked'] = stats.clicked;
+      if (status) update.status = status;
+      
+      const result = await pushNotifications.updateOne(
+        { _id: createObjectId(id) },
+        { $set: update }
+      );
+      
+      return result.modifiedCount > 0;
+    } catch (error) {
+      logger.error('Error updating push notification stats', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async getPushNotificationHistory(limit: number = 50): Promise<PushNotification[]> {
+    try {
+      const { pushNotifications } = await this.getCollections();
+      const result = await pushNotifications
+        .find({})
+        .sort({ sentAt: -1 })
+        .limit(limit)
+        .toArray();
+      return result;
+    } catch (error) {
+      logger.error('Error getting push notification history', 'DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  async updatePushSubscriptionActivity(endpoint: string): Promise<void> {
+    try {
+      const { pushSubscriptions } = await this.getCollections();
+      await pushSubscriptions.updateOne(
+        { 'subscription.endpoint': endpoint },
+        { $set: { lastActive: new Date() } }
+      );
+    } catch (error) {
+      logger.error('Error updating push subscription activity', 'DATABASE', { error: (error as Error).message });
     }
   }
 }
