@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, Shield, AlertTriangle, Clock, Users, CheckCircle, XCircle } from 'lucide-react';
 import { useHebrewFont } from '@/hooks/useFont';
+import { apiClient } from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
 
 interface CacheStatus {
   currentVersion: number;
@@ -18,21 +20,33 @@ export default function CacheManagementPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [reason, setReason] = useState('');
   const hebrewFont = useHebrewFont('body');
+  const router = useRouter();
+
+  // Check authentication on mount
+  useEffect(() => {
+    if (!apiClient.isAuthenticated()) {
+      router.push('/admin');
+      return;
+    }
+  }, [router]);
 
   // Fetch cache status
   const fetchCacheStatus = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/cache?action=status');
-      const data = await response.json();
+      const data = await apiClient.get<any>('/api/admin/cache?action=status');
       
       if (data.success) {
         setCacheStatus(data.data);
       } else {
         setMessage({ type: 'error', text: data.message });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to fetch cache status' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to fetch cache status' });
+      // If unauthorized, redirect to login
+      if (error.status === 401) {
+        router.push('/admin');
+      }
     } finally {
       setLoading(false);
     }
@@ -46,16 +60,10 @@ export default function CacheManagementPage() {
 
     setActionLoading('clear-all');
     try {
-      const response = await fetch('/api/admin/cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'clear-all',
-          reason: reason || 'Manual cache clear by admin'
-        })
+      const data = await apiClient.post<any>('/api/admin/cache', { 
+        action: 'clear-all',
+        reason: reason || 'Manual cache clear by admin'
       });
-      
-      const data = await response.json();
       
       if (data.success) {
         setMessage({ type: 'success', text: `מטמון נוקה בהצלחה! גרסה חדשה: ${data.data.newVersion}` });
@@ -64,8 +72,8 @@ export default function CacheManagementPage() {
       } else {
         setMessage({ type: 'error', text: data.message });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to clear caches' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to clear caches' });
     } finally {
       setActionLoading(null);
     }
@@ -75,13 +83,7 @@ export default function CacheManagementPage() {
   const softCacheUpdate = async () => {
     setActionLoading('soft-clear');
     try {
-      const response = await fetch('/api/admin/cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'soft-clear' })
-      });
-      
-      const data = await response.json();
+      const data = await apiClient.post<any>('/api/admin/cache', { action: 'soft-clear' });
       
       if (data.success) {
         setMessage({ type: 'success', text: `עדכון רך בוצע! גרסה חדשה: ${data.data.newVersion}` });
@@ -89,8 +91,8 @@ export default function CacheManagementPage() {
       } else {
         setMessage({ type: 'error', text: data.message });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to perform soft update' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to perform soft update' });
     } finally {
       setActionLoading(null);
     }
@@ -100,13 +102,7 @@ export default function CacheManagementPage() {
   const resetForceUpdate = async () => {
     setActionLoading('reset-force');
     try {
-      const response = await fetch('/api/admin/cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset-force' })
-      });
-      
-      const data = await response.json();
+      const data = await apiClient.post<any>('/api/admin/cache', { action: 'reset-force' });
       
       if (data.success) {
         setMessage({ type: 'success', text: 'דגל עדכון חובה אופס' });
@@ -114,8 +110,8 @@ export default function CacheManagementPage() {
       } else {
         setMessage({ type: 'error', text: data.message });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to reset force update' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to reset force update' });
     } finally {
       setActionLoading(null);
     }

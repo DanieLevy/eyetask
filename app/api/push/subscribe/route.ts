@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
+import { pushService } from '@/lib/services/pushNotificationService';
 
 // POST /api/push/subscribe - Subscribe to push notifications
 export async function POST(request: NextRequest) {
@@ -100,6 +101,43 @@ export async function POST(request: NextRequest) {
       deviceType,
       isIOS
     });
+    
+    // Send welcome notification to this user only
+    try {
+      logger.info('[Push Subscribe] Sending welcome notification', 'PUSH_SUBSCRIBE', {
+        userId: user.id
+      });
+
+      const welcomeResult = await pushService.sendToUser(
+        user.id,
+        {
+          title: 'ברוכים הבאים! 🎉',
+          body: 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-72x72.png',
+          url: '/'
+        },
+        'system' // Sent by system
+      );
+
+      if (welcomeResult.success) {
+        logger.info('[Push Subscribe] Welcome notification sent', 'PUSH_SUBSCRIBE', {
+          userId: user.id,
+          sent: welcomeResult.sent
+        });
+      } else {
+        logger.warn('[Push Subscribe] Failed to send welcome notification', 'PUSH_SUBSCRIBE', {
+          userId: user.id,
+          errors: welcomeResult.errors
+        });
+      }
+    } catch (err) {
+      logger.error('[Push Subscribe] Error sending welcome notification', 'PUSH_SUBSCRIBE', {
+        userId: user.id,
+        error: (err as Error).message
+      });
+      // Don't fail the subscription if welcome message fails
+    }
 
     return NextResponse.json({ 
       success: true,

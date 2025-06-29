@@ -564,21 +564,27 @@ self.addEventListener('push', function(event) {
     const payload = event.data.json();
     console.log('[SW Push] Received notification:', payload);
     
+    // Extract notification data (handle both direct and nested formats)
+    const notification = payload.notification || payload;
+    
     // iOS specific check
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
     console.log('[SW Push] iOS device:', isIOS);
 
     const options = {
-      body: payload.body || payload.message || '',
-      icon: payload.icon || '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
+      body: notification.body || notification.message || '',
+      icon: notification.icon || '/icons/icon-192x192.png',
+      badge: notification.badge || '/icons/icon-192x192.png',
+      image: notification.image,
       vibrate: [200, 100, 200],
       data: {
         dateOfArrival: Date.now(),
-        ...payload.data
+        url: notification.data?.url || notification.url || '/',
+        ...notification.data
       },
-      tag: payload.tag || 'default',
-      requireInteraction: false, // iOS doesn't support this well
+      tag: notification.tag || 'default',
+      requireInteraction: notification.requireInteraction || false,
+      actions: notification.actions || [],
       silent: false
     };
 
@@ -586,10 +592,18 @@ self.addEventListener('push', function(event) {
     if (isIOS) {
       delete options.vibrate; // iOS doesn't support vibrate
       delete options.requireInteraction;
+      delete options.actions; // iOS has limited action support
     }
 
+    // Clean up undefined values
+    Object.keys(options).forEach(key => {
+      if (options[key] === undefined) {
+        delete options[key];
+      }
+    });
+
     const notificationPromise = self.registration.showNotification(
-      payload.title || 'EyeTask Notification',
+      notification.title || 'EyeTask',
       options
     );
 
@@ -599,7 +613,7 @@ self.addEventListener('push', function(event) {
       return self.registration.showNotification(
         'EyeTask',
         {
-          body: 'You have a new notification',
+          body: 'התקבלה התראה חדשה',
           icon: '/icons/icon-192x192.png'
         }
       );
