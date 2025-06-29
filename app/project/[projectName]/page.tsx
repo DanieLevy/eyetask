@@ -165,18 +165,8 @@ export default function ProjectPage() {
   // Filter subtasks based on active day time filters
   const getFilteredSubtasks = (taskId: string) => {
     const taskSubtasks = subtasks[taskId] || [];
-    
-    // If no day time filters are active, show all subtasks
-    if (activeFilters.dayTime.length === 0) {
-      return taskSubtasks;
-    }
-
-    // Filter subtasks that have any of the selected day times
-    return taskSubtasks.filter((subtask) =>
-      activeFilters.dayTime.some((selectedTime) =>
-        subtask.dayTime.includes(selectedTime)
-      )
-    );
+    // Only show visible subtasks (default to visible if field is missing)
+    return taskSubtasks.filter((subtask) => subtask.isVisible !== false);
   };
 
   // Sort filtered tasks based on sortBy state

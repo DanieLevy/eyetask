@@ -36,6 +36,7 @@ interface Subtask {
   dayTime: string[];
   createdAt: string;
   updatedAt: string;
+  isVisible: boolean;
 }
 
 export default function EditSubtaskPage() {
@@ -508,7 +509,7 @@ export default function EditSubtaskPage() {
                 </button>
                 <Link
                   href={`/admin/tasks/${taskId}`}
-                  className="px-4 py-2 border border-border rounded-lg hover:bg-accent transition-colors text-center"
+                  className="flex-1 bg-muted text-foreground px-4 py-2 rounded-lg hover:bg-muted/80 transition-colors flex items-center justify-center gap-2"
                 >
                   ביטול
                 </Link>
@@ -519,4 +520,4 @@ export default function EditSubtaskPage() {
       </main>
     </div>
   );
-} 
+}

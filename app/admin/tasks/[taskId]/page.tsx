@@ -70,6 +70,7 @@ interface Subtask {
   weather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
   dayTime: string[];
+  isVisible?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -236,21 +237,44 @@ export default function TaskManagement() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setTask(prev => prev ? { ...prev, isVisible: !prev.isVisible } : null);
-          toast.success(`נראות המשימה עודכנה ל${task.isVisible ? 'לא נראית' : 'נראית'}`);
-        } else {
-          toast.error(data.error || 'שגיאה בעדכון נראות המשימה');
-        }
+        setTask(prev => prev ? { ...prev, isVisible: !prev.isVisible } : null);
+        toast.success(`Task visibility updated`);
       } else {
-        toast.error('שגיאה בעדכון נראות המשימה');
+        toast.error('Failed to update task visibility');
       }
     } catch (error) {
-      console.error('Error toggling visibility:', error);
-      toast.error('אירעה שגיאה בעדכון נראות המשימה');
+      console.error('Error toggling task visibility:', error);
+      toast.error('An error occurred while updating visibility.');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleSubtaskToggleVisibility = async (subtaskId: string, currentVisibility: boolean) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/subtasks/${subtaskId}/visibility`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isVisible: !currentVisibility })
+      });
+
+      if (response.ok) {
+        setSubtasks(prevSubtasks => 
+          prevSubtasks.map(subtask => 
+            subtask._id === subtaskId ? { ...subtask, isVisible: !currentVisibility } : subtask
+          )
+        );
+        toast.success(`Subtask visibility updated`);
+      } else {
+        toast.error('Failed to update subtask visibility');
+      }
+    } catch (error) {
+      console.error('Error toggling subtask visibility:', error);
+      toast.error('An error occurred while updating visibility.');
     }
   };
 
@@ -433,6 +457,13 @@ export default function TaskManagement() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleSubtaskToggleVisibility(subtask._id, subtask.isVisible !== false)}
+                          className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-yellow-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"
+                          title={subtask.isVisible !== false ? 'הסתר' : 'הצג'}
+                        >
+                          {subtask.isVisible !== false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-yellow-500"/>}
+                        </button>
                         <Link
                           href={`/admin/tasks/${task._id}/subtasks/${subtask._id}/edit`}
                           className="p-2 inline-flex items-center justify-center text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-gray-700 rounded-md transition-all"

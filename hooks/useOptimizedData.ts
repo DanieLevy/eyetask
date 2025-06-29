@@ -343,6 +343,7 @@ interface ProjectPageData {
       weather: string;
       scene: string;
       dayTime: string[];
+      isVisible?: boolean;
       createdAt: string;
       updatedAt: string;
     }>;

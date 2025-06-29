@@ -56,6 +56,7 @@ export interface Subtask {
   weather?: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
   scene?: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
   dayTime: string[];
+  isVisible?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -323,7 +324,7 @@ export class DatabaseService {
   async getSubtasksByTask(taskId: string): Promise<Subtask[]> {
     try {
       const { subtasks } = await this.getCollections();
-      const result = await subtasks.find({ taskId: createObjectId(taskId) }).sort({ createdAt: -1 }).toArray();
+      const result = await subtasks.find({ taskId: createObjectId(taskId), $or: [{ isVisible: { $exists: false } }, { isVisible: true }] }).sort({ createdAt: -1 }).toArray();
       return result;
     } catch (error) {
       logger.error('Error getting subtasks by task', 'DATABASE', { error: (error as Error).message });
@@ -334,7 +335,7 @@ export class DatabaseService {
   async getSubtasksByDatacoNumber(datacoNumber: string): Promise<Subtask[]> {
     try {
       const { subtasks } = await this.getCollections();
-      const result = await subtasks.find({ datacoNumber }).toArray();
+      const result = await subtasks.find({ datacoNumber, $or: [{ isVisible: { $exists: false } }, { isVisible: true }] }).toArray();
       return result;
     } catch (error) {
       logger.error('Error getting subtasks by dataco number', 'DATABASE', { error: (error as Error).message });
@@ -348,6 +349,7 @@ export class DatabaseService {
       const now = new Date();
       const result = await subtasks.insertOne({
         ...subtask,
+        isVisible: subtask.isVisible !== undefined ? subtask.isVisible : true,
         taskId: createObjectId(subtask.taskId as any),
         createdAt: now,
         updatedAt: now
@@ -396,6 +398,20 @@ export class DatabaseService {
       return result.deletedCount > 0;
     } catch (error) {
       logger.error('Error deleting subtask', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async updateSubtaskVisibility(id: string, isVisible: boolean): Promise<boolean> {
+    try {
+      const { subtasks } = await this.getCollections();
+      const result = await subtasks.updateOne(
+        { _id: createObjectId(id) },
+        { $set: { isVisible, updatedAt: new Date() } }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      logger.error('Error updating subtask visibility', 'DATABASE', { error: (error as Error).message });
       return false;
     }
   }
@@ -896,7 +912,7 @@ export class DatabaseService {
       
       // Fetch subtasks for all tasks in this project
       const allSubtasks = await subtasks.find(
-        { taskId: { $in: taskIds } }
+        { taskId: { $in: taskIds }, $or: [{ isVisible: { $exists: false } }, { isVisible: true }] }
       ).toArray();
       
       // Organize subtasks by task ID
@@ -995,4 +1011,8 @@ export async function getHomepageData() {
 
 export async function getProjectPageData(projectName: string) {
   return db.getProjectPageData(projectName);
+}
+
+export async function updateSubtaskVisibility(id: string, isVisible: boolean) {
+  return db.updateSubtaskVisibility(id, isVisible);
 } 

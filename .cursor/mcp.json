@@ -25,12 +25,10 @@
           "@mongodb-js/mongodb-mcp-server"
         ],
         "env": {
-          "MDB_MCP_API_CLIENT_ID": "ladjlycy",
-          "MDB_MCP_API_CLIENT_SECRET": "8a4d74d0-515f-47f5-ab8d-59907e97fd48",
+          "MDB_MCP_API_CLIENT_ID": "vnadpbh",
+          "MDB_MCP_API_CLIENT_SECRET": "a6e8420c-7630-4aeb-89fb-13b1dca9adad",
           "MDB_MCP_CONNECTION_STRING": "mongodb+srv://daniellevy:daniellevy@drivershubcluster.rxun1vo.mongodb.net/?retryWrites=true&w=majority&appName=drivershubcluster"
         }
       }
     }
   }
-
-  
