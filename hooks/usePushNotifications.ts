@@ -150,15 +150,49 @@ export function usePushNotifications() {
       const { publicKey } = await response.json();
       console.log('[Push] VAPID public key received, length:', publicKey?.length);
 
+      // Detect if we're on iOS
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                          (navigator as any).standalone === true;
+      
+      console.log('[Push] Platform detection:', { isIOS, isStandalone });
+      
+      // iOS-specific validation
+      if (isIOS && !publicKey) {
+        throw new Error('VAPID key is required for iOS push notifications');
+      }
+
       // Subscribe to push notifications
       console.log('[Push] Subscribing to push notifications...');
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey)
-      });
       
-      console.log('[Push] Subscription created:', subscription);
-      console.log('[Push] Endpoint:', subscription.endpoint);
+      let subscription;
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+        
+        console.log('[Push] Subscription created:', subscription);
+        console.log('[Push] Endpoint:', subscription.endpoint);
+        
+        // iOS-specific: Verify the subscription is valid
+        if (isIOS && !subscription.endpoint) {
+          throw new Error('Invalid subscription: no endpoint received');
+        }
+      } catch (subscribeError) {
+        console.error('[Push] Subscription error:', subscribeError);
+        
+        // Provide more specific error messages for iOS
+        if (isIOS && subscribeError instanceof Error) {
+          if (subscribeError.message.includes('applicationServerKey')) {
+            throw new Error('iOS push notification setup failed: Invalid VAPID key format. Please contact support.');
+          } else if (subscribeError.message.includes('permission')) {
+            throw new Error('Push notification permission denied. Please enable notifications in iOS Settings.');
+          }
+        }
+        
+        throw subscribeError;
+      }
 
       // Send subscription to server
       console.log('[Push] Sending subscription to server...');
@@ -312,19 +346,39 @@ export function usePushNotifications() {
   };
 }
 
-// Helper function to convert VAPID key
-function urlBase64ToUint8Array(base64String: string) {
+// Helper function to convert VAPID key - iOS compatible version
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
   console.log('[Push] Converting VAPID key, length:', base64String?.length);
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  
+  // Validate input
+  if (!base64String || typeof base64String !== 'string') {
+    throw new Error('Invalid VAPID key: empty or not a string');
+  }
+  
+  // iOS requires proper padding - ensure we have the right padding
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
     .replace(/\-/g, '+')
     .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+  
+  try {
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    
+    // Validate the key length for P-256 curve (iOS requirement)
+    // P-256 public keys should be 65 bytes (uncompressed) or 33 bytes (compressed)
+    if (outputArray.length !== 65 && outputArray.length !== 33) {
+      console.warn('[Push] VAPID key length unusual:', outputArray.length, 'bytes');
+    }
+    
+    console.log('[Push] VAPID key converted successfully, byte length:', outputArray.length);
+    return outputArray;
+  } catch (error) {
+    console.error('[Push] Error converting VAPID key:', error);
+    throw new Error('Failed to convert VAPID key: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
-  return outputArray;
 } 

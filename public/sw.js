@@ -557,46 +557,59 @@ async function getCacheStatus() {
 self.addEventListener('push', event => {
   console.log('[SW] Push notification received');
   
-  if (!event.data) {
-    console.log('[SW] Push notification has no data');
-    return;
-  }
+  // iOS Fix: Always use waitUntil to prevent the service worker from terminating
+  event.waitUntil((async () => {
+    if (!event.data) {
+      console.log('[SW] Push notification has no data');
+      return;
+    }
 
-  let data;
-  try {
-    data = event.data.json();
-  } catch (e) {
-    console.error('[SW] Error parsing push data:', e);
-    return;
-  }
+    let data;
+    try {
+      data = event.data.json();
+    } catch (e) {
+      console.error('[SW] Error parsing push data:', e);
+      // iOS Fix: Still show a notification even if data parsing fails
+      return self.registration.showNotification('EyeTask', {
+        body: 'התקבלה התראה חדשה',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-72x72.png',
+        tag: 'fallback',
+        timestamp: Date.now()
+      });
+    }
 
-  const notification = data.notification || {};
-  const options = {
-    body: notification.body || 'התקבלה התראה חדשה',
-    icon: notification.icon || '/icons/icon-192x192.png',
-    badge: notification.badge || '/icons/icon-72x72.png',
-    image: notification.image,
-    tag: notification.tag || 'default',
-    requireInteraction: notification.requireInteraction || false,
-    data: notification.data || {},
-    actions: notification.actions || [],
-    // iOS specific options
-    vibrate: [200, 100, 200],
-    timestamp: Date.now(),
-    silent: false
-  };
+    const notification = data.notification || {};
+    const options = {
+      body: notification.body || 'התקבלה התראה חדשה',
+      icon: notification.icon || '/icons/icon-192x192.png',
+      badge: notification.badge || '/icons/icon-72x72.png',
+      image: notification.image,
+      tag: notification.tag || 'default',
+      requireInteraction: notification.requireInteraction || false,
+      data: notification.data || {},
+      actions: notification.actions || [],
+      // iOS specific options
+      vibrate: [200, 100, 200],
+      timestamp: Date.now(),
+      silent: false,
+      // iOS Fix: Add renotify to ensure notifications show even with same tag
+      renotify: true
+    };
 
-  // Log notification for debugging
-  console.log('[SW] Showing notification:', notification.title, options);
+    // Log notification for debugging
+    console.log('[SW] Showing notification:', notification.title, options);
 
-  event.waitUntil(
-    self.registration.showNotification(
-      notification.title || 'EyeTask',
-      options
-    ).then(() => {
+    try {
+      await self.registration.showNotification(
+        notification.title || 'EyeTask',
+        options
+      );
+      
       // Track notification delivery
       if (notification.data?.notificationId) {
-        return fetch('/api/push/track', {
+        // Don't await tracking to prevent blocking
+        fetch('/api/push/track', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -605,8 +618,21 @@ self.addEventListener('push', event => {
           })
         }).catch(err => console.error('[SW] Failed to track delivery:', err));
       }
-    })
-  );
+    } catch (error) {
+      console.error('[SW] Failed to show notification:', error);
+      // iOS Fix: Fallback notification if main notification fails
+      try {
+        await self.registration.showNotification('EyeTask', {
+          body: 'התקבלה התראה חדשה',
+          icon: '/icons/icon-192x192.png',
+          tag: 'error-fallback',
+          timestamp: Date.now()
+        });
+      } catch (fallbackError) {
+        console.error('[SW] Fallback notification also failed:', fallbackError);
+      }
+    }
+  })());
 });
 
 // Notification click event
