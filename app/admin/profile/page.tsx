@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 
 interface UserProfile {
   _id: string;
@@ -43,17 +43,6 @@ export default function ProfilePage() {
   });
   
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-
-  // Push notifications
-  const {
-    isSupported,
-    permission,
-    isSubscribed,
-    isLoading: pushLoading,
-    subscribe,
-    unsubscribe,
-    showIOSInstallPrompt
-  } = usePushNotifications();
 
   useEffect(() => {
     fetchUserProfile();
@@ -445,85 +434,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Push Notifications Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                התראות Push
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isSupported ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    הדפדפן שלך אינו תומך בהתראות Push
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">קבל התראות</p>
-                      <p className="text-sm text-muted-foreground">
-                        קבל התראות על משימות חדשות, עדכונים ועוד
-                      </p>
-                    </div>
-                    <Button
-                      variant={isSubscribed ? "destructive" : "default"}
-                      size="sm"
-                      onClick={async () => {
-                        if (isSubscribed) {
-                          await unsubscribe();
-                        } else {
-                          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-                          const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                                             (window.navigator as any).standalone === true;
-                          
-                          if (isIOS && !isStandalone) {
-                            showIOSInstallPrompt();
-                          } else {
-                            await subscribe();
-                          }
-                        }
-                      }}
-                      disabled={pushLoading}
-                    >
-                      {pushLoading ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : isSubscribed ? (
-                        <>
-                          <X className="h-4 w-4 mr-1" />
-                          בטל התראות
-                        </>
-                      ) : (
-                        <>
-                          <Bell className="h-4 w-4 mr-1" />
-                          הפעל התראות
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  
-                  {permission === 'denied' && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        ההתראות חסומות בדפדפן. יש לאפשר התראות בהגדרות הדפדפן
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  
-                  {isSubscribed && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>התראות פעילות</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <PushNotificationSettings />
         </div>
       </div>
     </div>

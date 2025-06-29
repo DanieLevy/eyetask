@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, LogOut, Sun, Moon, Bug, Info, Bell, AlertCircle } from 'lucide-react';
+import { Menu, LogOut, Sun, Moon, Bug, Info, User as UserIcon, Share, User, Settings, Home, CheckSquare, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MobileMenuProps, HeaderAction, NavigationItem } from './types';
@@ -12,7 +12,6 @@ import { renderIcon, getIconForItem } from './utils';
 import { useAuth } from './AuthContext';
 import { useTheme } from 'next-themes';
 import BugReportModal from '../BugReportModal';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +19,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 // Type to support more flexible action variants for the mobile menu
 type FlexibleHeaderAction = HeaderAction | Omit<HeaderAction, 'variant'> & { variant: string };
@@ -54,19 +55,17 @@ export const MobileMenu = ({
   showThemeToggle = true,
   showDebugIcon = true
 }: MobileMenuPropsInternal) => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, isAdmin, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const [isPWA, setIsPWA] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
-  const hebrewFont = useHebrewFont('body');
-  const { isAdmin } = useAuth();
+  const hebrewFont = useHebrewFont('heading');
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { isSupported, permission, isSubscribed, subscribe } = usePushNotifications();
-  
-  // Check if push notifications need attention (only for authenticated users)
-  const token = typeof window !== 'undefined' ? (localStorage.getItem('adminToken') || localStorage.getItem('token')) : null;
-  const needsPushAttention = token && isSupported && !isSubscribed && permission !== 'denied';
   
   // Detect if running as PWA
+  const [isPWA, setIsPWA] = useState(false);
+  
   useEffect(() => {
     // Check if running in standalone mode (PWA)
     setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
@@ -131,11 +130,6 @@ export const MobileMenu = ({
           >
             {isAdmin && (
               <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
-            )}
-            {needsPushAttention && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 ring-2 ring-background flex items-center justify-center">
-                <span className="text-white text-xs font-bold">!</span>
-              </span>
             )}
             <Menu className="h-5 w-5" />
           </Button>
@@ -222,54 +216,6 @@ export const MobileMenu = ({
                   <Bug className="h-4 w-4 text-orange-500" />
                   <span>דיווח על בעיה</span>
                 </div>
-              </DropdownMenuItem>
-            )}
-            
-            {/* Push Notifications Button - Show only if needs attention */}
-            {needsPushAttention && (
-              <DropdownMenuItem
-                className={cn(
-                  "cursor-pointer flex justify-between items-center py-2.5 px-4",
-                  hebrewFont.fontClass
-                )}
-                onClick={async () => {
-                  // Check if user is authenticated
-                  const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-                  if (!token) {
-                    // Show error message
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                    toast.textContent = 'יש להתחבר למערכת כדי להפעיל התראות';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
-                    setOpen(false);
-                    return;
-                  }
-                  
-                  const result = await subscribe();
-                  if (result.success) {
-                    // Show success message
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                    toast.textContent = 'התראות הופעלו בהצלחה!';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
-                  } else {
-                    // Show error message
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-                    toast.textContent = result.error || 'שגיאה בהפעלת התראות';
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
-                  }
-                  setOpen(false);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-orange-500" />
-                  <span>הפעל התראות</span>
-                </div>
-                <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
               </DropdownMenuItem>
             )}
           </div>
