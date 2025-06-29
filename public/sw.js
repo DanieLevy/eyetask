@@ -1,4 +1,4 @@
-const CACHE_NAME = 'drivertasks-v3';
+// Cache version management
 const STATIC_CACHE = 'drivertasks-static-v3';
 const API_CACHE = 'drivertasks-api-v3';
 const OFFLINE_CACHE = 'drivertasks-offline-v3';
@@ -16,26 +16,18 @@ const optionalStaticUrls = [
   '/offline.html'
 ];
 
-// API endpoints that need caching
-const apiEndpoints = [
-  '/api/tasks',
-  '/api/projects', 
-  '/api/admin/dashboard',
-  '/api/analytics',
-  '/api/daily-updates'
-];
-
 // Offline task queue storage key
 const OFFLINE_QUEUE_KEY = 'drivertasks-offline-queue';
 
 // Helper function to safely cache URLs
-async function safeCacheUrls(cache, urls, label = '') {
+async function safeCacheUrls(cache, urls) {
   const results = await Promise.allSettled(
     urls.map(async (url) => {
       try {
         await cache.add(url);
         return { url, success: true };
       } catch (error) {
+        console.warn(`[SW] Failed to cache ${url}:`, error.message);
         return { url, success: false, error: error.message };
       }
     })
@@ -54,7 +46,7 @@ self.addEventListener('install', (event) => {
         await cache.addAll(staticUrlsToCache);
         
         // Cache optional URLs with error handling
-        await safeCacheUrls(cache, optionalStaticUrls, 'optional');
+        await safeCacheUrls(cache, optionalStaticUrls);
         
         return true;
       }),
@@ -63,7 +55,8 @@ self.addEventListener('install', (event) => {
       caches.open(OFFLINE_CACHE).then(async (cache) => {
         try {
           await cache.add('/offline.html');
-        } catch (error) {
+        } catch (err) {
+          console.warn('[SW] Failed to cache offline.html, creating fallback:', err.message);
           // Create a simple offline page if the file doesn't exist
           const offlineResponse = new Response(`
             <!DOCTYPE html>
@@ -101,7 +94,8 @@ self.addEventListener('install', (event) => {
       
       // Skip waiting to activate immediately
       self.skipWaiting()
-    ]).catch(error => {
+    ]).catch(err => {
+      console.error('[SW] Installation error:', err);
       // Don't prevent installation, just log the error
       return true;
     })
@@ -122,6 +116,7 @@ self.addEventListener('activate', (event) => {
               cacheName !== OFFLINE_CACHE &&
               cacheName.startsWith('drivertasks-')
             ) {
+              console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -186,14 +181,14 @@ async function handleApiRequest(request) {
       
       try {
         await cache.put(request, responseClone);
-      } catch (cacheError) {
+      } catch {
         // Caching failed, but we still have the network response
       }
     }
     
     return networkResponse;
     
-  } catch (networkError) {
+  } catch {
     // Network failed, try cache
     const cache = await caches.open(API_CACHE);
     const cachedResponse = await cache.match(request);
@@ -241,7 +236,7 @@ async function handleNavigationRequest(request) {
     
     return networkResponse;
     
-  } catch (networkError) {
+  } catch {
     // Network failed, try cache
     const cache = await caches.open(STATIC_CACHE);
     const cachedResponse = await cache.match(request);
@@ -284,7 +279,7 @@ async function handleStaticRequest(request) {
     
     return networkResponse;
     
-  } catch (networkError) {
+  } catch {
     // Both cache and network failed
     return new Response('Resource not available offline', {
       status: 503,
@@ -309,7 +304,7 @@ async function handleOfflineRequest(request) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       requestData.body = await request.text();
     }
-  } catch (error) {
+  } catch {
     // Body reading failed
   }
   
@@ -343,13 +338,13 @@ async function addToOfflineQueue(requestData) {
     const transaction = db.transaction(['offlineQueue'], 'readwrite');
     const store = transaction.objectStore('offlineQueue');
     await store.add(requestData);
-  } catch (error) {
+  } catch {
     // Fallback to localStorage if IndexedDB fails
     try {
       const existingQueue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
       existingQueue.push(requestData);
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(existingQueue));
-    } catch (storageError) {
+    } catch {
       // Both storage methods failed
     }
   }
@@ -370,7 +365,7 @@ async function processOfflineQueue() {
     
     for (const requestData of requests) {
       try {
-        const response = await fetch(requestData.url, {
+        await fetch(requestData.url, {
           method: requestData.method,
           headers: requestData.headers,
           body: requestData.body
@@ -382,13 +377,13 @@ async function processOfflineQueue() {
         // Remove from queue
         await store.delete(requestData.id);
         
-      } catch (error) {
+      } catch {
         // Request failed, leave in queue for retry
         notifyClientsOfSync(requestData.id, false);
       }
     }
     
-  } catch (error) {
+  } catch {
     // Fallback to localStorage
     try {
       const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY);
@@ -399,7 +394,7 @@ async function processOfflineQueue() {
       
       for (const requestData of requests) {
         try {
-          const response = await fetch(requestData.url, {
+          await fetch(requestData.url, {
             method: requestData.method,
             headers: requestData.headers,
             body: requestData.body
@@ -407,7 +402,7 @@ async function processOfflineQueue() {
           
           notifyClientsOfSync(requestData.id, true);
           
-        } catch (error) {
+        } catch {
           // Request failed, keep in queue
           remainingRequests.push(requestData);
           notifyClientsOfSync(requestData.id, false);
@@ -417,7 +412,7 @@ async function processOfflineQueue() {
       // Update localStorage with remaining requests
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remainingRequests));
       
-    } catch (storageError) {
+    } catch {
       // Both storage methods failed
     }
   }
@@ -500,27 +495,6 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Helper function to get cache status for specific URL
-async function getCacheStatusForUrl(url) {
-  try {
-    const cacheNames = [STATIC_CACHE, API_CACHE, OFFLINE_CACHE];
-    const status = {};
-    
-    for (const cacheName of cacheNames) {
-      const cache = await caches.open(cacheName);
-      const response = await cache.match(url);
-      status[cacheName] = {
-        cached: !!response,
-        timestamp: response ? response.headers.get('date') : null
-      };
-    }
-    
-    return status;
-  } catch (error) {
-    return { error: error.message };
-  }
-}
-
 // Helper function to get overall cache status
 async function getCacheStatus() {
   try {
@@ -541,7 +515,7 @@ async function getCacheStatus() {
       const store = transaction.objectStore('offlineQueue');
       const count = await store.count();
       status.queuedRequests = count;
-    } catch (error) {
+    } catch {
       // Fallback to localStorage
       const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY);
       status.queuedRequests = queueData ? JSON.parse(queueData).length : 0;

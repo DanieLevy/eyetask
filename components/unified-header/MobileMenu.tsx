@@ -78,6 +78,7 @@ export const MobileMenu = ({
   const { user, isAdmin, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  const [showPushTooltip, setShowPushTooltip] = useState(false);
   const hebrewFont = useHebrewFont('heading');
   const { theme, setTheme, resolvedTheme } = useTheme();
   
@@ -107,6 +108,23 @@ export const MobileMenu = ({
       pushLoading
     });
   }, [hasToken, isSupported, isSubscribed, permission, needsPushAttention, pushLoading]);
+  
+  // Show tooltip if user dismissed banner but hasn't subscribed
+  useEffect(() => {
+    if (needsPushAttention && typeof window !== 'undefined') {
+      const bannerDismissed = sessionStorage.getItem('push-banner-dismissed') === 'true';
+      if (bannerDismissed) {
+        // Show tooltip after 3 seconds
+        const timer = setTimeout(() => {
+          setShowPushTooltip(true);
+          // Auto hide after 10 seconds
+          setTimeout(() => setShowPushTooltip(false), 10000);
+        }, 3000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [needsPushAttention]);
   
   // Detect if running as PWA
   const [isPWA, setIsPWA] = useState(false);
@@ -165,25 +183,40 @@ export const MobileMenu = ({
   
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 w-9 p-0 relative rounded-full z-50"
-            aria-label="תפריט"
-          >
-            {isAdmin && (
-              <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background z-10" />
-            )}
-            {needsPushAttention && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 ring-2 ring-background flex items-center justify-center z-20">
-                <span className="text-white text-[10px] font-bold leading-none">!</span>
-              </span>
-            )}
-            <Menu className="h-5 w-5" />
+      <div className="relative">
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 p-0 relative rounded-full z-50 touch-manipulation outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [@media(hover:none)]:focus:outline-none"
+              aria-label="תפריט"
+            >
+              {isAdmin && (
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background z-10" />
+              )}
+              {needsPushAttention && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 ring-2 ring-background flex items-center justify-center z-20">
+                  <span className="text-white text-[10px] font-bold leading-none">!</span>
+                </span>
+              )}
+                          <Menu className="h-5 w-5" />
           </Button>
         </DropdownMenuTrigger>
+        
+        {/* Push notification tooltip */}
+        {showPushTooltip && needsPushAttention && !open && (
+          <div className="absolute top-full mt-2 right-0 z-40 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-3 py-2 rounded-lg shadow-lg max-w-[200px]">
+              <div className="flex items-center gap-2">
+                <Bell className="h-3 w-3 flex-shrink-0" />
+                <span className="leading-tight">אפשר להפעיל התראות מהתפריט</span>
+              </div>
+              <div className="absolute -top-1 right-4 w-2 h-2 bg-gray-900 dark:bg-gray-100 rotate-45" />
+            </div>
+          </div>
+        )}
+        
         <DropdownMenuContent 
           align="end" 
           className={cn(
@@ -393,6 +426,7 @@ export const MobileMenu = ({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
       
       {/* Bug Report Modal */}
       {isBugReportOpen && (

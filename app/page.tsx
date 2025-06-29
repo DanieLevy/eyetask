@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
+import { PushNotificationBanner } from '@/components/PushNotificationBanner';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 import { usePWADetection } from '@/hooks/usePWADetection';
 import ProjectCard from '@/components/ProjectCard';
@@ -156,6 +157,9 @@ function HomePageCore() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6">
+        {/* Push Notification Banner */}
+        <PushNotificationBanner />
+        
         {/* Daily Updates Carousel */}
         <div className="mb-8">
           <DailyUpdatesCarousel />
