@@ -76,7 +76,7 @@ export async function GET(
     // Track page view
     await trackPageView(`task-${taskId}-subtasks`);
     
-    const subtasks = await db.getSubtasksByTask(taskId);
+    const subtasks = await db.getSubtasksByTask(taskId, !!isAdmin);
     
     logger.info('Subtasks fetched successfully', 'SUBTASKS_API', { 
       taskId, 

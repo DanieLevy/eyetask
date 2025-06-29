@@ -321,10 +321,14 @@ export class DatabaseService {
   }
 
   // Subtask operations
-  async getSubtasksByTask(taskId: string): Promise<Subtask[]> {
+  async getSubtasksByTask(taskId: string, includeHidden = false): Promise<Subtask[]> {
     try {
       const { subtasks } = await this.getCollections();
-      const result = await subtasks.find({ taskId: createObjectId(taskId), $or: [{ isVisible: { $exists: false } }, { isVisible: true }] }).sort({ createdAt: -1 }).toArray();
+      const filter: any = { taskId: createObjectId(taskId) };
+      if (!includeHidden) {
+        filter.$or = [{ isVisible: { $exists: false } }, { isVisible: true }];
+      }
+      const result = await subtasks.find(filter).sort({ createdAt: -1 }).toArray();
       return result;
     } catch (error) {
       logger.error('Error getting subtasks by task', 'DATABASE', { error: (error as Error).message });
