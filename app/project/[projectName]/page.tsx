@@ -191,8 +191,22 @@ export default function ProjectPage() {
   // Filter subtasks based on active day time filters
   const getFilteredSubtasks = (taskId: string) => {
     const taskSubtasks = subtasks[taskId] || [];
-    // Only show visible subtasks (default to visible if field is missing)
-    return taskSubtasks.filter((subtask) => subtask.isVisible !== false);
+    
+    // Filter by visibility first
+    let filtered = taskSubtasks.filter((subtask) => subtask.isVisible !== false);
+    
+    // If day time filters are active, also filter by day time
+    if (activeFilters.dayTime.length > 0) {
+      filtered = filtered.filter((subtask) =>
+        // Check if subtask has any of the selected day times
+        subtask.dayTime && subtask.dayTime.length > 0 && 
+        activeFilters.dayTime.some((filterTime) =>
+          subtask.dayTime.includes(filterTime)
+        )
+      );
+    }
+    
+    return filtered;
   };
 
   // Sort filtered tasks based on sortBy state
@@ -232,16 +246,19 @@ export default function ProjectPage() {
 
   // Calculate total subtasks
   const totalSubtasks = Object.values(subtasks).reduce(
-    (total, taskSubtasks) => total + taskSubtasks.length,
+    (total, taskSubtasks) => total + taskSubtasks.filter(subtask => subtask.isVisible !== false).length,
     0
   );
   const filteredSubtasks = hasActiveFilters 
     ? Object.values(subtasks).reduce((total, taskSubtasks) => {
-        const filtered = taskSubtasks.filter((subtask) =>
-          activeFilters.dayTime.some((selectedTime) =>
-            subtask.dayTime.includes(selectedTime)
-          )
-        );
+        const filtered = taskSubtasks
+          .filter((subtask) => subtask.isVisible !== false) // Filter by visibility first
+          .filter((subtask) =>
+            subtask.dayTime && subtask.dayTime.length > 0 &&
+            activeFilters.dayTime.some((filterTime) =>
+              subtask.dayTime.includes(filterTime)
+            )
+          );
         return total + filtered.length;
       }, 0)
     : totalSubtasks;
