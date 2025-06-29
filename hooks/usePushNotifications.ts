@@ -94,7 +94,7 @@ export function usePushNotifications() {
     
     if (!state.isSupported) {
       console.error('[Push] Push notifications not supported');
-      toast.error('Push notifications are not supported');
+      toast.error('Push notifications are not supported in this browser');
       return { success: false, error: 'Push notifications are not supported in this browser' };
     }
 
@@ -165,8 +165,26 @@ export function usePushNotifications() {
       // Subscribe to push notifications
       console.log('[Push] Subscribing to push notifications...');
       
+      // Check if user is admin for detailed logging
+      const isAdmin = localStorage.getItem('adminToken') !== null;
+      
       let subscription;
       try {
+        // Log detailed VAPID key info for admin users
+        if (isAdmin) {
+          console.log('[Push Admin] Raw VAPID key:', publicKey);
+          console.log('[Push Admin] VAPID key type:', typeof publicKey);
+          console.log('[Push Admin] VAPID key first 50 chars:', publicKey?.substring(0, 50));
+          
+          try {
+            const convertedKey = urlBase64ToUint8Array(publicKey);
+            console.log('[Push Admin] Converted key byte length:', convertedKey.length);
+            console.log('[Push Admin] First 10 bytes:', Array.from(convertedKey.slice(0, 10)));
+          } catch (conversionError) {
+            console.error('[Push Admin] VAPID key conversion error:', conversionError);
+          }
+        }
+        
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicKey)
@@ -180,6 +198,20 @@ export function usePushNotifications() {
           throw new Error('Invalid subscription: no endpoint received');
         }
       } catch (subscribeError) {
+        // Enhanced admin logging
+        if (isAdmin) {
+          console.error('[Push Admin] Full subscription error:', subscribeError);
+          console.error('[Push Admin] Error name:', (subscribeError as Error).name);
+          console.error('[Push Admin] Error message:', (subscribeError as Error).message);
+          console.error('[Push Admin] Error stack:', (subscribeError as Error).stack);
+          
+          // Log DOMException details if available
+          if (subscribeError instanceof DOMException) {
+            console.error('[Push Admin] DOMException code:', subscribeError.code);
+            console.error('[Push Admin] DOMException name:', subscribeError.name);
+          }
+        }
+        
         console.error('[Push] Subscription error:', subscribeError);
         
         // Provide more specific error messages for iOS
@@ -348,18 +380,32 @@ export function usePushNotifications() {
 
 // Helper function to convert VAPID key - iOS compatible version
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  console.log('[Push] Converting VAPID key, length:', base64String?.length);
+  const isAdmin = localStorage.getItem('adminToken') !== null;
+  
+  if (isAdmin) {
+    console.log('[Push Admin] urlBase64ToUint8Array input:', base64String);
+    console.log('[Push Admin] Input length:', base64String?.length);
+    console.log('[Push Admin] Input type:', typeof base64String);
+  }
   
   // Validate input
   if (!base64String || typeof base64String !== 'string') {
     throw new Error('Invalid VAPID key: empty or not a string');
   }
   
+  // Remove any whitespace that might have been added
+  base64String = base64String.trim();
+  
   // iOS requires proper padding - ensure we have the right padding
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
     .replace(/\-/g, '+')
     .replace(/_/g, '/');
+  
+  if (isAdmin) {
+    console.log('[Push Admin] After padding:', base64);
+    console.log('[Push Admin] Padded length:', base64.length);
+  }
   
   try {
     const rawData = window.atob(base64);
@@ -373,11 +419,28 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     // P-256 public keys should be 65 bytes (uncompressed) or 33 bytes (compressed)
     if (outputArray.length !== 65 && outputArray.length !== 33) {
       console.warn('[Push] VAPID key length unusual:', outputArray.length, 'bytes');
+      if (isAdmin) {
+        console.error('[Push Admin] Invalid key length! Expected 65 or 33 bytes, got:', outputArray.length);
+        console.error('[Push Admin] This may cause issues on iOS devices');
+      }
     }
     
-    console.log('[Push] VAPID key converted successfully, byte length:', outputArray.length);
+    if (isAdmin) {
+      console.log('[Push Admin] Conversion successful, byte array length:', outputArray.length);
+      console.log('[Push Admin] Key format:', outputArray.length === 65 ? 'uncompressed' : outputArray.length === 33 ? 'compressed' : 'unknown');
+      
+      // Check for uncompressed key format (should start with 0x04)
+      if (outputArray.length === 65) {
+        console.log('[Push Admin] First byte (should be 0x04 for uncompressed):', '0x' + outputArray[0].toString(16).padStart(2, '0'));
+      }
+    }
+    
     return outputArray;
   } catch (error) {
+    if (isAdmin) {
+      console.error('[Push Admin] atob conversion failed:', error);
+      console.error('[Push Admin] Base64 string that failed:', base64);
+    }
     console.error('[Push] Error converting VAPID key:', error);
     throw new Error('Failed to convert VAPID key: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }

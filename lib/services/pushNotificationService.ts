@@ -17,6 +17,30 @@ logger.info('Push Service Initialization', 'PUSH_SERVICE', {
   privateKeyLength: vapidPrivateKey.length
 });
 
+// Additional debug logging for VAPID key format
+if (vapidPublicKey) {
+  const hasLineBreaks = vapidPublicKey.includes('\n') || vapidPublicKey.includes('\r');
+  const hasSpaces = vapidPublicKey.includes(' ');
+  const trimmedLength = vapidPublicKey.trim().length;
+  
+  if (hasLineBreaks || hasSpaces || trimmedLength !== vapidPublicKey.length) {
+    logger.warn('VAPID public key may have formatting issues', 'PUSH_SERVICE', {
+      hasLineBreaks,
+      hasSpaces,
+      originalLength: vapidPublicKey.length,
+      trimmedLength,
+      firstChar: vapidPublicKey.charCodeAt(0),
+      lastChar: vapidPublicKey.charCodeAt(vapidPublicKey.length - 1)
+    });
+  }
+  
+  logger.info('VAPID public key format check', 'PUSH_SERVICE', {
+    firstTenChars: vapidPublicKey.substring(0, 10),
+    lastTenChars: vapidPublicKey.substring(vapidPublicKey.length - 10),
+    keyPreview: vapidPublicKey.substring(0, 20) + '...' + vapidPublicKey.substring(vapidPublicKey.length - 20)
+  });
+}
+
 if (vapidPublicKey && vapidPrivateKey) {
   try {
     webpush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey);
@@ -360,8 +384,21 @@ class PushNotificationService {
   getPublicKey() {
     if (!vapidPublicKey) {
       logger.warn('Public VAPID key requested but not configured', 'PUSH_SERVICE');
+      return vapidPublicKey;
     }
-    return vapidPublicKey;
+    
+    // Clean the key of any potential formatting issues
+    const cleanedKey = vapidPublicKey.trim().replace(/[\r\n\s]/g, '');
+    
+    if (cleanedKey !== vapidPublicKey) {
+      logger.info('VAPID key cleaned', 'PUSH_SERVICE', {
+        originalLength: vapidPublicKey.length,
+        cleanedLength: cleanedKey.length,
+        removed: vapidPublicKey.length - cleanedKey.length
+      });
+    }
+    
+    return cleanedKey;
   }
 }
 
