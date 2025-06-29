@@ -66,21 +66,47 @@ export interface AppUser {
   username: string;
   email: string;
   passwordHash: string;
-  role: 'admin';
+  role: 'admin' | 'data_manager' | 'driver_manager';
   createdAt: Date;
   lastLogin?: Date;
+  isActive?: boolean;
+  createdBy?: ObjectId;
+  lastModifiedBy?: ObjectId;
+  lastModifiedAt?: Date;
 }
 
 export interface Analytics {
   _id?: ObjectId;
-  totalVisits: number;
-  uniqueVisitors: number;
-  dailyStats: Record<string, any>;
-  pageViews: {
-    admin: number;
-    tasks: Record<string, any>;
-    homepage: number;
-    projects: Record<string, any>;
+  // Visit tracking
+  visits: {
+    total: number;
+    today: number;
+    last7Days: number;
+    last30Days: number;
+  };
+  // Unique visitors tracking
+  uniqueVisitors: {
+    total: number;
+    today: Set<string> | string[]; // User IDs who visited today
+    last7Days: Set<string> | string[];
+    last30Days: Set<string> | string[];
+  };
+  // Daily aggregation
+  dailyStats: {
+    [date: string]: {
+      visits: number;
+      uniqueVisitors: string[]; // Array of user IDs
+      actions: number;
+      loginCount: number;
+    };
+  };
+  // Real-time counters
+  counters: {
+    projects: number;
+    tasks: number;
+    subtasks: number;
+    users: number;
+    activeUsers: number;
   };
   lastUpdated: Date;
 }
@@ -113,6 +139,45 @@ export interface DailyUpdateSetting {
   updatedAt: Date;
 }
 
+// New interface for detailed user sessions
+export interface UserSession {
+  _id?: ObjectId;
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  sessionStart: Date;
+  sessionEnd?: Date;
+  ipAddress?: string;
+  userAgent?: string;
+  actions: number;
+  lastActivity: Date;
+  isActive: boolean;
+}
+
+// Enhanced activity event interface
+export interface ActivityLog {
+  _id?: ObjectId;
+  timestamp: Date;
+  userId: string;
+  username: string;
+  userRole: string;
+  action: string;
+  category: 'auth' | 'project' | 'task' | 'subtask' | 'user' | 'system' | 'view';
+  target?: {
+    id: string;
+    type: string;
+    name?: string;
+  };
+  metadata?: {
+    ipAddress?: string;
+    userAgent?: string;
+    changes?: Record<string, { old: any; new: any }>;
+    [key: string]: any;
+  };
+  severity: 'info' | 'success' | 'warning' | 'error';
+}
+
 // Database service class
 export class DatabaseService {
   private async getCollections() {
@@ -127,6 +192,8 @@ export class DatabaseService {
       subtasks: db.collection<Subtask>('subtasks'),
       appUsers: db.collection<AppUser>('appUsers'),
       analytics: db.collection<Analytics>('analytics'),
+      userSessions: db.collection<UserSession>('userSessions'),
+      activityLogs: db.collection<ActivityLog>('activityLogs'),
       dailyUpdates: db.collection<DailyUpdate>('dailyUpdates'),
       dailyUpdatesSettings: db.collection<DailyUpdateSetting>('dailyUpdatesSettings'),
       activities: db.collection('activities'),
@@ -448,6 +515,7 @@ export class DatabaseService {
       const { appUsers } = await this.getCollections();
       const result = await appUsers.insertOne({
         ...user,
+        isActive: user.isActive !== undefined ? user.isActive : true,
         createdAt: new Date()
       });
       return result.insertedId.toString();
@@ -457,11 +525,112 @@ export class DatabaseService {
     }
   }
 
+  async getAllUsers(): Promise<AppUser[]> {
+    try {
+      const { appUsers } = await this.getCollections();
+      const result = await appUsers.find({}).sort({ createdAt: -1 }).toArray();
+      return result;
+    } catch (error) {
+      logger.error('Error getting all users', 'DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  async getUserById(id: string): Promise<AppUser | null> {
+    try {
+      const { appUsers } = await this.getCollections();
+      const result = await appUsers.findOne({ _id: createObjectId(id) });
+      return result;
+    } catch (error) {
+      logger.error('Error getting user by ID', 'DATABASE', { error: (error as Error).message });
+      return null;
+    }
+  }
+
+  async updateUser(id: string, updates: Partial<AppUser>, modifiedBy: string): Promise<boolean> {
+    try {
+      const { appUsers } = await this.getCollections();
+      const result = await appUsers.updateOne(
+        { _id: createObjectId(id) },
+        { 
+          $set: {
+            ...updates,
+            lastModifiedBy: createObjectId(modifiedBy),
+            lastModifiedAt: new Date()
+          }
+        }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      logger.error('Error updating user', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    try {
+      const { appUsers } = await this.getCollections();
+      const result = await appUsers.deleteOne({ _id: createObjectId(id) });
+      return result.deletedCount > 0;
+    } catch (error) {
+      logger.error('Error deleting user', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
   // Analytics operations
   async getAnalytics(): Promise<Analytics | null> {
     try {
       const { analytics } = await this.getCollections();
-      const result = await analytics.findOne({});
+      let result = await analytics.findOne({});
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Initialize analytics if not exists
+      if (!result) {
+        const now = new Date();
+        const initialData: Analytics = {
+          visits: { total: 0, today: 0, last7Days: 0, last30Days: 0 },
+          uniqueVisitors: { total: 0, today: [], last7Days: [], last30Days: [] },
+          dailyStats: {
+            [today]: {
+              visits: 0,
+              uniqueVisitors: [],
+              actions: 0,
+              loginCount: 0
+            }
+          },
+          counters: { projects: 0, tasks: 0, subtasks: 0, users: 0, activeUsers: 0 },
+          lastUpdated: now
+        };
+        const insertResult = await analytics.insertOne(initialData);
+        result = { ...initialData, _id: insertResult.insertedId };
+      }
+      
+      // Ensure today's stats exist
+      if (result && (!result.dailyStats || !result.dailyStats[today])) {
+        await analytics.updateOne(
+          {},
+          {
+            $set: {
+              [`dailyStats.${today}`]: {
+                visits: 0,
+                uniqueVisitors: [],
+                actions: 0,
+                loginCount: 0
+              }
+            }
+          }
+        );
+        // Update the result object to reflect the change
+        if (!result.dailyStats) result.dailyStats = {};
+        result.dailyStats[today] = {
+          visits: 0,
+          uniqueVisitors: [],
+          actions: 0,
+          loginCount: 0
+        };
+      }
+      
       return result;
     } catch (error) {
       logger.error('Error getting analytics', 'DATABASE', { error: (error as Error).message });
@@ -469,104 +638,369 @@ export class DatabaseService {
     }
   }
 
-  async updateAnalytics(updates: Partial<Analytics>): Promise<boolean> {
+  // New method to track user visit
+  async trackVisit(userId: string, username: string, email: string, role: string): Promise<void> {
     try {
-      const { analytics } = await this.getCollections();
-      const result = await analytics.updateOne(
-        {},
-        { 
+      // Skip tracking for admin users
+      if (role === 'admin') {
+        return;
+      }
+      
+      const { analytics, userSessions } = await this.getCollections();
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      
+      // Update or create user session
+      await userSessions.updateOne(
+        { userId, isActive: true },
+        {
           $set: {
-            ...updates,
-            lastUpdated: new Date()
+            username,
+            email,
+            role,
+            lastActivity: now
+          },
+          $setOnInsert: {
+            sessionStart: now,
+            actions: 0,
+            isActive: true
           }
         },
         { upsert: true }
       );
-      return result.modifiedCount > 0 || result.upsertedCount > 0;
-    } catch (error) {
-      logger.error('Error updating analytics', 'DATABASE', { error: (error as Error).message });
-      return false;
-    }
-  }
-
-  async incrementPageView(page: string): Promise<boolean> {
-    try {
-      const { analytics } = await this.getCollections();
-      const result = await analytics.updateOne(
-        {},
-        { 
-          $inc: { [`pageViews.${page}`]: 1 },
-          $set: { lastUpdated: new Date() }
-        },
-        { upsert: true }
+      
+      // Increment actions separately to avoid conflict
+      await userSessions.updateOne(
+        { userId, isActive: true },
+        { $inc: { actions: 1 } }
       );
-      return true;
+      
+      // Update analytics
+      const analyticsDoc = await this.getAnalytics();
+      if (analyticsDoc) {
+        // Update unique visitors arrays
+        const todayVisitors = new Set(analyticsDoc.uniqueVisitors.today as string[]);
+        const last7DaysVisitors = new Set(analyticsDoc.uniqueVisitors.last7Days as string[]);
+        const last30DaysVisitors = new Set(analyticsDoc.uniqueVisitors.last30Days as string[]);
+        
+        todayVisitors.add(userId);
+        last7DaysVisitors.add(userId);
+        last30DaysVisitors.add(userId);
+        
+        // Update daily stats
+        if (!analyticsDoc.dailyStats[today]) {
+          analyticsDoc.dailyStats[today] = {
+            visits: 0,
+            uniqueVisitors: [],
+            actions: 0,
+            loginCount: 0
+          };
+        }
+        
+        const dailyUniqueVisitors = new Set(analyticsDoc.dailyStats[today].uniqueVisitors);
+        dailyUniqueVisitors.add(userId);
+        
+        await analytics.updateOne(
+          {},
+          {
+            $set: {
+              'uniqueVisitors.today': Array.from(todayVisitors),
+              'uniqueVisitors.last7Days': Array.from(last7DaysVisitors),
+              'uniqueVisitors.last30Days': Array.from(last30DaysVisitors),
+              [`dailyStats.${today}.uniqueVisitors`]: Array.from(dailyUniqueVisitors),
+              'uniqueVisitors.total': await userSessions.countDocuments({}),
+              lastUpdated: now
+            },
+            $inc: {
+              'visits.total': 1,
+              'visits.today': 1,
+              [`dailyStats.${today}.visits`]: 1
+            }
+          }
+        );
+      }
     } catch (error) {
-      logger.error('Error incrementing page view', 'DATABASE', { error: (error as Error).message });
-      return false;
+      logger.error('Error tracking visit', 'DATABASE', { error: (error as Error).message });
     }
   }
 
-  async logVisit(dateStr: string): Promise<{ isUniqueVisitor: boolean; totalVisits: number }> {
+  // New method to log action with detailed tracking
+  async logAction(data: {
+    userId: string;
+    username: string;
+    userRole: string;
+    action: string;
+    category: ActivityLog['category'];
+    target?: ActivityLog['target'];
+    metadata?: ActivityLog['metadata'];
+    severity?: ActivityLog['severity'];
+  }): Promise<void> {
     try {
-      const { analytics } = await this.getCollections();
+      // Skip logging for admin users
+      if (data.userRole === 'admin') {
+        return;
+      }
       
-      // Get current analytics document
-      let analyticsDoc = await analytics.findOne({});
+      const { activityLogs, analytics, userSessions } = await this.getCollections();
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
       
-      const currentTotalVisits = analyticsDoc?.totalVisits || 0;
-      const currentUniqueVisitors = analyticsDoc?.uniqueVisitors || 0;
-      const currentDailyStats = analyticsDoc?.dailyStats || {};
+      // Create activity log
+      await activityLogs.insertOne({
+        timestamp: now,
+        userId: data.userId,
+        username: data.username,
+        userRole: data.userRole,
+        action: data.action,
+        category: data.category,
+        target: data.target,
+        metadata: data.metadata,
+        severity: data.severity || 'info'
+      });
       
-      const isUniqueVisitor = !currentDailyStats[dateStr];
-      const newTotalVisits = currentTotalVisits + 1;
+      // Update user session
+      await userSessions.updateOne(
+        { userId: data.userId, isActive: true },
+        {
+          $set: { lastActivity: now },
+          $inc: { actions: 1 }
+        }
+      );
       
-      // Update or create the document
+      // Ensure daily stats structure exists before incrementing
+      const analyticsDoc = await this.getAnalytics();
+      if (analyticsDoc && !analyticsDoc.dailyStats[today]) {
+        await analytics.updateOne(
+          {},
+          {
+            $set: {
+              [`dailyStats.${today}`]: {
+                visits: 0,
+                uniqueVisitors: [],
+                actions: 0,
+                loginCount: 0
+              }
+            }
+          }
+        );
+      }
+      
+      // Update analytics daily stats
+      await analytics.updateOne(
+        {},
+        {
+          $inc: {
+            [`dailyStats.${today}.actions`]: 1,
+            ...(data.category === 'auth' && data.action.includes('התחבר') ? 
+              { [`dailyStats.${today}.loginCount`]: 1 } : {})
+          }
+        }
+      );
+    } catch (error) {
+      logger.error('Error logging action', 'DATABASE', { error: (error as Error).message });
+    }
+  }
+
+  // Update counters
+  async updateAnalyticsCounters(): Promise<void> {
+    try {
+      const { analytics, projects, tasks, subtasks, appUsers, userSessions } = await this.getCollections();
+      
+      const [projectCount, taskCount, subtaskCount, userCount, activeUserCount] = await Promise.all([
+        projects.countDocuments({}),
+        tasks.countDocuments({}),
+        subtasks.countDocuments({}),
+        appUsers.countDocuments({}),
+        userSessions.countDocuments({ isActive: true })
+      ]);
+      
       await analytics.updateOne(
         {},
         {
           $set: {
-            totalVisits: newTotalVisits,
-            uniqueVisitors: isUniqueVisitor ? currentUniqueVisitors + 1 : currentUniqueVisitors,
-            [`dailyStats.${dateStr}`]: (currentDailyStats[dateStr] || 0) + 1,
+            'counters.projects': projectCount,
+            'counters.tasks': taskCount,
+            'counters.subtasks': subtaskCount,
+            'counters.users': userCount,
+            'counters.activeUsers': activeUserCount,
             lastUpdated: new Date()
           }
-        },
-        { upsert: true }
+        }
       );
-
-      return { isUniqueVisitor, totalVisits: newTotalVisits };
     } catch (error) {
-      logger.error('Error logging visit', 'DATABASE', { error: (error as Error).message });
-      return { isUniqueVisitor: false, totalVisits: 0 };
+      logger.error('Error updating analytics counters', 'DATABASE', { error: (error as Error).message });
     }
   }
 
-  async logActivity(activityData: {
-    category: string;
-    action: string;
-    severity: 'info' | 'warning' | 'error' | 'success';
-    details?: Record<string, any>;
-    userId?: string;
-    userType?: 'admin' | 'user' | 'system';
-    target?: {
-      id: string;
-      type: string;
-      title?: string;
-    };
-  }): Promise<boolean> {
+  // Get analytics data for dashboard
+  async getAnalyticsDashboard(range: '1d' | '7d' | '30d'): Promise<any> {
     try {
-      const { activities } = await this.getCollections();
-      await activities.insertOne({
-        ...activityData,
-        timestamp: new Date(),
-        userId: activityData.userId ? createObjectId(activityData.userId) : undefined
+      const { analytics, activityLogs, userSessions } = await this.getCollections();
+      const now = new Date();
+      const startDate = new Date();
+      
+      if (range === '1d') {
+        startDate.setDate(startDate.getDate() - 1);
+      } else if (range === '7d') {
+        startDate.setDate(startDate.getDate() - 7);
+      } else {
+        startDate.setDate(startDate.getDate() - 30);
+      }
+      
+      // Get analytics document
+      const analyticsDoc = await this.getAnalytics();
+      
+      // Get recent activities (exclude admin)
+      const recentActivities = await activityLogs
+        .find({ 
+          timestamp: { $gte: startDate },
+          userRole: { $ne: 'admin' }
+        })
+        .sort({ timestamp: -1 })
+        .limit(100)
+        .toArray();
+      
+      // Get active sessions (exclude admin)
+      const activeSessions = await userSessions
+        .find({ 
+          isActive: true,
+          role: { $ne: 'admin' }
+        })
+        .sort({ lastActivity: -1 })
+        .toArray();
+      
+      // Calculate visit stats based on range and daily stats
+      let visitCount = 0;
+      let uniqueVisitorCount = 0;
+      const uniqueVisitorSet = new Set<string>();
+      
+      if (analyticsDoc && analyticsDoc.dailyStats) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        
+        if (range === '1d') {
+          // For today, use today's stats
+          const todayStats = analyticsDoc.dailyStats[today] || { visits: 0, uniqueVisitors: [] };
+          visitCount = todayStats.visits || 0;
+          uniqueVisitorCount = Array.isArray(todayStats.uniqueVisitors) ? todayStats.uniqueVisitors.length : 0;
+        } else {
+          // Calculate from daily stats for the range
+          const endDate = new Date();
+          const startDateCalc = new Date();
+          startDateCalc.setDate(startDateCalc.getDate() - (range === '7d' ? 7 : 30));
+          
+          Object.entries(analyticsDoc.dailyStats).forEach(([date, stats]) => {
+            const dateObj = new Date(date);
+            if (dateObj >= startDateCalc && dateObj <= endDate) {
+              visitCount += stats.visits || 0;
+              if (Array.isArray(stats.uniqueVisitors)) {
+                stats.uniqueVisitors.forEach(userId => uniqueVisitorSet.add(userId));
+              }
+            }
+          });
+          
+          uniqueVisitorCount = uniqueVisitorSet.size;
+        }
+      }
+      
+      // Group activities by category
+      const activityByCategory: Record<string, number> = {};
+      const activityByUser: Record<string, { count: number; username: string; role: string }> = {};
+      
+      recentActivities.forEach(activity => {
+        // By category
+        activityByCategory[activity.category] = (activityByCategory[activity.category] || 0) + 1;
+        
+        // By user
+        if (!activityByUser[activity.userId]) {
+          activityByUser[activity.userId] = {
+            count: 0,
+            username: activity.username,
+            role: activity.userRole
+          };
+        }
+        activityByUser[activity.userId].count++;
       });
-      return true;
+      
+      // Get top users
+      const topUsers = Object.entries(activityByUser)
+        .map(([userId, data]) => ({
+          userId,
+          username: data.username,
+          role: data.role,
+          actionCount: data.count
+        }))
+        .sort((a, b) => b.actionCount - a.actionCount)
+        .slice(0, 10);
+      
+      return {
+        visits: visitCount,
+        uniqueVisitors: uniqueVisitorCount,
+        activeSessions: activeSessions.length,
+        counters: analyticsDoc?.counters || {},
+        recentActivities: recentActivities.slice(0, 50),
+        activityByCategory,
+        topUsers,
+        dailyStats: analyticsDoc?.dailyStats || {}
+      };
     } catch (error) {
-      logger.error('Error logging activity', 'DATABASE', { error: (error as Error).message });
-      return false;
+      logger.error('Error getting analytics dashboard', 'DATABASE', { error: (error as Error).message });
+      throw error;
     }
+  }
+
+  // Clean up old analytics data (run periodically)
+  async cleanupAnalytics(): Promise<void> {
+    try {
+      const { analytics, activityLogs, userSessions } = await this.getCollections();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      // Remove old activity logs
+      await activityLogs.deleteMany({
+        timestamp: { $lt: thirtyDaysAgo }
+      });
+      
+      // Mark old sessions as inactive
+      await userSessions.updateMany(
+        { lastActivity: { $lt: thirtyDaysAgo }, isActive: true },
+        { $set: { isActive: false } }
+      );
+      
+      // Clean up daily stats older than 30 days
+      const analyticsDoc = await analytics.findOne({});
+      if (analyticsDoc) {
+        const dailyStats = analyticsDoc.dailyStats;
+        const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+        
+        Object.keys(dailyStats).forEach(date => {
+          if (date < cutoffDate) {
+            delete dailyStats[date];
+          }
+        });
+        
+        await analytics.updateOne(
+          {},
+          { $set: { dailyStats, lastUpdated: new Date() } }
+        );
+      }
+    } catch (error) {
+      logger.error('Error cleaning up analytics', 'DATABASE', { error: (error as Error).message });
+    }
+  }
+
+  // Legacy methods for backward compatibility
+  async updateAnalytics(updates: Partial<Analytics>): Promise<boolean> {
+    return true; // No-op for legacy code
+  }
+
+  async incrementPageView(page: string): Promise<boolean> {
+    return true; // No-op for legacy code
+  }
+
+  async logVisit(dateStr: string): Promise<{ isUniqueVisitor: boolean; totalVisits: number }> {
+    // Legacy method - return dummy data
+    return { isUniqueVisitor: false, totalVisits: 0 };
   }
 
   // Daily Updates operations
@@ -1002,6 +1436,55 @@ export class DatabaseService {
 
   clearAllCaches(): void {
     cache.clear('api_data');
+  }
+
+  async logActivity(activityData: {
+    category: string;
+    action: string;
+    severity: 'info' | 'warning' | 'error' | 'success';
+    details?: Record<string, any>;
+    userId?: string;
+    userType?: 'admin' | 'user' | 'system';
+    target?: {
+      id: string;
+      type: string;
+      title?: string;
+    };
+  }): Promise<boolean> {
+    try {
+      // Map to new logAction method
+      if (activityData.userId) {
+        const user = await this.getUserById(activityData.userId);
+        if (user) {
+          await this.logAction({
+            userId: activityData.userId,
+            username: user.username,
+            userRole: user.role,
+            action: activityData.action,
+            category: activityData.category as ActivityLog['category'],
+            target: activityData.target,
+            metadata: activityData.details,
+            severity: activityData.severity
+          });
+        }
+      } else {
+        // System action
+        await this.logAction({
+          userId: 'system',
+          username: 'System',
+          userRole: 'system',
+          action: activityData.action,
+          category: activityData.category as ActivityLog['category'],
+          target: activityData.target,
+          metadata: activityData.details,
+          severity: activityData.severity
+        });
+      }
+      return true;
+    } catch (error) {
+      logger.error('Error logging activity', 'DATABASE', { error: (error as Error).message });
+      return false;
+    }
   }
 }
 

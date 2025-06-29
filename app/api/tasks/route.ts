@@ -11,20 +11,20 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     
     const user = auth.extractUserFromRequest(request);
-    const isAdmin = auth.isAdmin(user);
+    const canManageData = auth.canManageData(user);
     
     let tasks;
     
     if (projectId) {
       // If a projectId is provided, fetch tasks for that project
       tasks = await db.getTasksByProject(projectId);
-      if (!isAdmin) {
-        // If user is not admin, filter out hidden tasks
+      if (!canManageData) {
+        // If user cannot manage data, filter out hidden tasks
         tasks = tasks.filter(task => task.isVisible);
       }
     } else {
-      // If no projectId, fetch all tasks based on admin status
-      tasks = await db.getAllTasks(isAdmin);
+      // If no projectId, fetch all tasks based on access level
+      tasks = await db.getAllTasks(canManageData);
     }
     
 
@@ -67,12 +67,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/tasks - Create new task (admin only)
+// POST /api/tasks - Create new task (admin and data managers)
 export async function POST(request: NextRequest) {
   try {
     // Extract and verify user authentication
     const user = auth.extractUserFromRequest(request);
-    requireAdmin(user);
+    
+    // Check if user can manage data (admin or data_manager)
+    if (!user || !auth.canManageData(user)) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Admin or Data Manager access required', success: false },
+        { status: 401 }
+      );
+    }
     
     const body = await request.json();
     

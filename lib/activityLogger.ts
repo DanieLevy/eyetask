@@ -51,6 +51,11 @@ class ActivityLogger {
    */
   async logActivity(activity: Omit<ActivityEvent, '_id' | 'timestamp'>): Promise<void> {
     try {
+      // Skip logging for admin users
+      if (activity.userType === 'admin') {
+        return;
+      }
+      
       const activities = await this.getActivitiesCollection();
       
       const activityEvent: ActivityEvent = {

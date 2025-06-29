@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
+import { deduplicatedFetch } from '@/lib/request-deduplication';
 
 interface DailyUpdate {
   _id?: string;
@@ -81,7 +82,7 @@ export default function DailyUpdatesCarousel({
         params.append('projectId', projectId);
       }
       
-      const updatesResponse = await fetch(`/api/daily-updates?${params.toString()}`, {
+      const updatesResponse = await deduplicatedFetch(`/api/daily-updates?${params.toString()}`, {
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -106,7 +107,7 @@ export default function DailyUpdatesCarousel({
       // Only fetch fallback message for general updates (homepage)
       if (!projectId) {
         try {
-          const settingsResponse = await fetch('/api/settings/main-page-carousel-fallback-message');
+          const settingsResponse = await deduplicatedFetch('/api/settings/main-page-carousel-fallback-message');
           
           if (settingsResponse.ok) {
             const settingsData = await settingsResponse.json();
@@ -123,13 +124,14 @@ export default function DailyUpdatesCarousel({
       }
     } catch (error) {
       console.error('Error fetching daily updates:', error);
-      if (updates.length === 0) {
+      // Don't set error if we already have updates (they might be from cache)
+      if (!updates || updates.length === 0) {
         setError('אירעה שגיאה בטעינת העדכונים. נסה שוב מאוחר יותר.');
       }
     } finally {
       setLoading(false);
     }
-  }, [hiddenUpdateIds, updates.length, projectId, projectName]);
+  }, [hiddenUpdateIds, projectId, projectName]); // Remove updates.length from dependencies to prevent re-fetch loop
 
   useEffect(() => {
     fetchData();

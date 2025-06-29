@@ -52,7 +52,7 @@ driver-tasks/
 │   ├── api/                # API routes (tasks, projects, feedback, analytics)
 │   │   └── health/         # Performance monitoring endpoints
 │   ├── admin/              # Admin dashboard pages
-│   │   └── performance-monitoring/ # Performance monitoring UI
+
 │   ├── feedback/           # Public feedback system
 │   └── project/            # Project detail pages
 ├── components/             # Reusable React components
@@ -114,7 +114,7 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 1. **Initial Setup:** Visit `/admin/setup` (first-time only)
 2. **Login:** Access admin dashboard at `/admin/login`
 3. **Dashboard:** Comprehensive admin interface at `/admin/dashboard`
-4. **Monitoring:** System performance monitoring at `/admin/performance-monitoring`
+
 
 ## 🌟 Recent Major Features
 

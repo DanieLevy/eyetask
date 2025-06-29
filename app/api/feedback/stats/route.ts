@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
 
 // GET - Get feedback statistics (Admin only)
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add admin authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
     
     const searchParams = request.nextUrl.searchParams;
     

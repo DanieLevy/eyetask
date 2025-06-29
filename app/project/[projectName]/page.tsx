@@ -77,6 +77,32 @@ export default function ProjectPage() {
   // Register this page's refresh function
   usePageRefresh(refetch);
 
+  // Track page visit
+  useEffect(() => {
+    const trackVisit = async () => {
+      const token = localStorage.getItem('adminToken');
+      if (token && projectName) {
+        try {
+          await fetch('/api/analytics', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              page: `project_${projectName}`,
+              action: 'page_view'
+            })
+          });
+        } catch (error) {
+          console.error('Failed to track visit:', error);
+        }
+      }
+    };
+
+    trackVisit();
+  }, [projectName]);
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -3,10 +3,21 @@
 This directory contains technical architecture and implementation details for the system.
 
 ## Files:
-- `performance-monitoring.md` - Comprehensive documentation of the monitoring system
+
 - `performance-optimizations.md` - Performance optimization techniques
 - `mongodb-conversion.md` - Database migration documentation
 - `technical-presentation.md` - System architecture overview
+- `analytics-implementation.md` - Analytics system documentation
+- `header-component.md` - Unified header component documentation
+
+## Analytics System
+
+The system includes comprehensive analytics tracking:
+- User activity logging
+- Page visit tracking
+- Real-time statistics
+- Admin-only analytics dashboard
+- Automatic data aggregation
 
 ## Performance Monitoring
 
@@ -17,4 +28,4 @@ The system includes comprehensive performance monitoring features:
 - Detailed metrics and diagnostics
 - Admin dashboard integration
 
-Access the monitoring dashboard at `/admin/performance-monitoring` 
+ 

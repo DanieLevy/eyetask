@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
 
 // Cache version management
 const CACHE_VERSION_KEY = 'cache-version';
@@ -15,6 +16,17 @@ let cacheVersionStore: { [key: string]: any } = {
 // GET /api/admin/cache - Get current cache status
 export async function GET(req: NextRequest) {
   try {
+    // Check authentication - Only admins can manage cache
+    const user = auth.extractUserFromRequest(req);
+    requireAdmin(user);
+    
+    if (!auth.hasRestrictedAccess(user)) {
+      return NextResponse.json({
+        error: 'Access denied - Admin only feature',
+        success: false
+      }, { status: 403 });
+    }
+    
     const searchParams = req.nextUrl.searchParams;
     const action = searchParams.get('action');
 
@@ -64,6 +76,17 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/cache - Trigger cache clearing
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication - Only admins can manage cache
+    const user = auth.extractUserFromRequest(req);
+    requireAdmin(user);
+    
+    if (!auth.hasRestrictedAccess(user)) {
+      return NextResponse.json({
+        error: 'Access denied - Admin only feature',
+        success: false
+      }, { status: 403 });
+    }
+    
     const body = await req.json();
     const { action, reason } = body;
 

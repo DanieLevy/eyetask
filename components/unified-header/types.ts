@@ -25,7 +25,7 @@ export interface NavigationItem {
 export interface UserData {
   username: string;
   id: string;
-  role?: 'admin' | 'user';
+  role?: 'admin' | 'user' | 'data_manager' | 'driver_manager';
 }
 
 export interface UnifiedHeaderProps {

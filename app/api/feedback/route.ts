@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { CreateFeedbackRequest, FeedbackFilterOptions } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
 
 // POST - Create new feedback ticket (Public endpoint - no auth required)
 export async function POST(request: NextRequest) {
@@ -94,8 +95,9 @@ export async function POST(request: NextRequest) {
 // GET - Get tickets with filtering (Admin only)
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add admin authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
     
     const searchParams = request.nextUrl.searchParams;
     

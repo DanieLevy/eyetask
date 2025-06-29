@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { AddResponseRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
 // POST - Add response to ticket
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    // TODO: Add authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
     const body = await request.json();
@@ -36,18 +39,16 @@ export async function POST(
       attachments: body.attachments || []
     };
 
-    // TODO: Get actual user info from session
-    // For now, assume admin user
-    const authorType = 'admin';
-    const authorName = 'Admin User';
-    const authorId = 'admin-temp-id';
+    // Get actual user info from session
+    const adminId = authenticatedUser.id;
+    const adminName = authenticatedUser.username;
 
     const success = await feedbackService.addResponse(
       id,
       responseData,
-      authorType,
-      authorName,
-      authorId
+      'admin',
+      adminName,
+      adminId
     );
 
     if (!success) {

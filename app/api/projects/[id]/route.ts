@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/projects/[id] - Get a specific project by ID
+// GET /api/projects/[id] - Get single project
 export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { searchParams } = new URL(request.url);
+  const includeDetails = searchParams.get('includeDetails') === 'true';
+  const { id } = await params;
+
   try {
-    // Await params to fix Next.js 15 requirement
-    const { id } = await params;
-    
-    if (!id || typeof id !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid project ID', success: false },
-        { status: 400 }
-      );
-    }
-    
     const project = await db.getProjectById(id);
     
     if (!project) {
@@ -31,26 +27,33 @@ export async function GET(
       );
     }
 
-    // Ensure all fields are properly returned
-    const projectResponse = {
-      _id: project._id?.toString(),
-      name: project.name,
-      description: project.description,
-      isActive: project.isActive !== undefined ? project.isActive : true,
-      color: project.color || '#3B82F6',
-      priority: project.priority || 1,
-      clientName: project.clientName || '',
-      clientEmail: project.clientEmail || '',
-      clientPhone: project.clientPhone || '',
-      notes: project.notes || '',
-      image: project.image || '',
-      createdAt: project.createdAt?.toISOString(),
-      updatedAt: project.updatedAt?.toISOString()
-    };
+    // If details are requested, include tasks and subtasks count
+    if (includeDetails) {
+      const tasks = await db.getTasksByProject(id);
+      const subtasksCount = await Promise.all(
+        tasks.map(async (task) => {
+          const subtasks = await db.getSubtasksByTask(task._id!.toString());
+          return subtasks.length;
+        })
+      );
 
-    return NextResponse.json({
-      project: projectResponse,
-      success: true,
+      return NextResponse.json({
+        project: {
+          ...project,
+          _id: project._id?.toString(),
+          taskCount: tasks.length,
+          subtaskCount: subtasksCount.reduce((a, b) => a + b, 0)
+        },
+        success: true
+      });
+    }
+
+    return NextResponse.json({ 
+      project: {
+        ...project,
+        _id: project._id?.toString()
+      }, 
+      success: true 
     });
   } catch (error) {
     console.error('Error fetching project:', error);
@@ -61,104 +64,150 @@ export async function GET(
   }
 }
 
-// PUT /api/projects/[id] - Update a project (admin only)
+// PUT /api/projects/[id] - Update project
 export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-
-    if (!authorized || !isAdminEnhanced(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
-        { status: 401 }
-      );
+    const user = auth.extractUserFromRequest(request);
+    
+    // Check if user can manage data (admin or data_manager)
+    if (!user || !auth.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized - Admin or Data Manager access required',
+        success: false
+      }, { status: 401 });
     }
 
-    // Await params to fix Next.js 15 requirement
-    const { id } = await params;
-    const body = await request.json();
-    
-    // Validate required fields
-    if (!body.name) {
-      return NextResponse.json(
-        { error: 'Project name is required', success: false },
-        { status: 400 }
-      );
+    const data = await request.json();
+    const { id: projectId } = await params;
+
+    // Get current project for comparison
+    const currentProject = await db.getProjectById(projectId);
+    if (!currentProject) {
+      return NextResponse.json({
+        error: 'Project not found',
+        success: false
+      }, { status: 404 });
     }
+
+    const success = await db.updateProject(projectId, data);
     
-    const updated = await db.updateProject(id, body);
-    
-    if (!updated) {
-      return NextResponse.json(
-        { error: 'Project not found or not updated', success: false },
-        { status: 404 }
-      );
+    if (success) {
+      // Clear caches
+      db.invalidateHomepageCache();
+      db.invalidateProjectCache(currentProject.name);
+      db.clearAllCaches();
+      
+      // Log the action
+      await db.logAction({
+        userId: user.id,
+        username: user.username,
+        userRole: user.role,
+        action: `עדכן פרויקט: ${currentProject.name}`,
+        category: 'project',
+        target: {
+          id: projectId,
+          type: 'project',
+          name: currentProject.name
+        },
+        metadata: {
+          updatedFields: Object.keys(data)
+        },
+        severity: 'success'
+      });
+
+      logger.info('Project updated successfully', 'PROJECTS_API', { 
+        projectId, 
+        userId: user.id,
+        updatedFields: Object.keys(data)
+      });
+
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({
+        error: 'Failed to update project',
+        success: false
+      }, { status: 500 });
     }
-    
-    // Get the updated project to return
-    const project = await db.getProjectById(id);
-    if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found after update', success: false },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json({ 
-      project, 
-      message: 'Project updated successfully',
-      success: true 
-    });
   } catch (error) {
-    console.error('Error updating project:', error);
-    return NextResponse.json(
-      { error: 'Failed to update project', success: false },
-      { status: 500 }
-    );
+    logger.error('Project update error', 'PROJECTS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to update project',
+      success: false
+    }, { status: 500 });
   }
 }
 
-// DELETE /api/projects/[id] - Delete a project (admin only)
+// DELETE /api/projects/[id] - Delete project
 export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
+  request: NextRequest, 
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-
-    if (!authorized || !isAdminEnhanced(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
-        { status: 401 }
-      );
+    const user = auth.extractUserFromRequest(request);
+    
+    // Check if user can manage data (admin or data_manager)
+    if (!user || !auth.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized - Admin or Data Manager access required',
+        success: false
+      }, { status: 401 });
     }
 
-    // Await params to fix Next.js 15 requirement
-    const { id } = await params;
-    const deleted = await db.deleteProject(id);
-    
-    if (!deleted) {
-      return NextResponse.json(
-        { error: 'Project not found', success: false },
-        { status: 404 }
-      );
+    const { id: projectId } = await params;
+
+    // Get project details before deletion
+    const project = await db.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json({
+        error: 'Project not found',
+        success: false
+      }, { status: 404 });
     }
+
+    const success = await db.deleteProject(projectId);
     
-    return NextResponse.json({ 
-      message: 'Project deleted successfully', 
-      success: true 
-    });
+    if (success) {
+      // Clear caches
+      db.invalidateHomepageCache();
+      db.invalidateProjectCache(project.name);
+      db.clearAllCaches();
+      
+      // Log the action
+      await db.logAction({
+        userId: user.id,
+        username: user.username,
+        userRole: user.role,
+        action: `מחק פרויקט: ${project.name}`,
+        category: 'project',
+        target: {
+          id: projectId,
+          type: 'project',
+          name: project.name
+        },
+        severity: 'warning'
+      });
+
+      logger.info('Project deleted successfully', 'PROJECTS_API', { 
+        projectId, 
+        projectName: project.name,
+        userId: user.id
+      });
+
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({
+        error: 'Failed to delete project',
+        success: false
+      }, { status: 500 });
+    }
   } catch (error) {
-    console.error('Error deleting project:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete project', success: false },
-      { status: 500 }
-    );
+    logger.error('Project deletion error', 'PROJECTS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to delete project',
+      success: false
+    }, { status: 500 });
   }
 } 

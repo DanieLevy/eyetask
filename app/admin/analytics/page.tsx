@@ -1,242 +1,180 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ArrowRight, 
-  BarChart3, 
-  TrendingUp, 
-  TrendingDown,
-  Users, 
-  Target, 
+import {
+  ArrowRight,
+  BarChart3,
+  Users,
   Activity,
-  Calendar,
-  Clock,
-  Eye,
-  MessageSquare,
-  Zap,
-  CheckCircle,
-  AlertTriangle,
-  RefreshCw,
-  Download,
-  Filter,
-  Search,
+  Target,
   ChevronRight,
-  Info
+  RefreshCw,
+  Clock,
+  Calendar,
+  User,
+  LogIn,
+  Edit,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  CheckSquare,
+  UserCheck,
+  Menu
 } from 'lucide-react';
-
-// Temporary inline hooks to bypass import issue
-const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
-const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
-const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface AnalyticsData {
-  // Overview Stats
-  totalTasks: number;
-  visibleTasks: number;
-  hiddenTasks: number;
-  totalSubtasks: number;
-  totalProjects: number;
-  totalVisits: number;
+  visits: number;
   uniqueVisitors: number;
-  
-  // Performance Metrics
-  tasksByPriority: {
-    high: number;
-    medium: number;
-    low: number;
-    none: number;
+  activeSessions: number;
+  counters: {
+    projects: number;
+    tasks: number;
+    subtasks: number;
+    users: number;
+    activeUsers: number;
   };
-  
-  tasksByType: {
-    events: number;
-    hours: number;
-  };
-  
-  tasksByProject: Array<{
-    projectName: string;
-    taskCount: number;
-    subtaskCount: number;
-    highPriorityCount: number;
-  }>;
-  
-  // Time-based Analytics
-  recentActivity: Array<{
-    date: string;
-    visits: number;
-    tasksCreated: number;
-    subtasksCreated: number;
-  }>;
-  
-  // User Engagement
-  mostViewedTasks: Array<{
-    taskId: string;
-    taskTitle: string;
-    projectName: string;
-    views: number;
-  }>;
-  
-  // Performance Indicators
-  completionRate: number;
-  averageTasksPerProject: number;
-  averageSubtasksPerTask: number;
-  
-  // Productivity Metrics
-  tasksCreatedThisWeek: number;
-  tasksCreatedLastWeek: number;
-  visitsThisWeek: number;
-  visitsLastWeek: number;
-  
-  // System Health
-  systemHealth: {
-    score: number;
-    uptime: number;
-    responseTime: number;
-    errorRate: number;
-  };
-
-  // Activity Stats
-  activityStats?: {
-    totalActions: number;
-    actionsByCategory: Record<string, number>;
-    actionsByType: Record<string, number>;
-    topUsers: Array<{
-      userId: string;
-      username?: string;
-      actionCount: number;
-    }>;
-  };
-
-  // Last Actions - Real activity log
-  lastActions?: Array<{
-    id: string;
+  recentActivities: Array<{
+    _id: string;
     timestamp: Date;
-    userId?: string;
-    userType: 'admin' | 'user' | 'system';
+    userId: string;
+    username: string;
+    userRole: string;
     action: string;
-    category: 'task' | 'project' | 'subtask' | 'user' | 'system' | 'auth' | 'view' | 'daily_update';
+    category: string;
     target?: {
       id: string;
       type: string;
-      title?: string;
+      name?: string;
     };
-    severity: 'info' | 'warning' | 'error' | 'success';
-    metadata?: Record<string, any>;
+    severity: string;
+  }>;
+  activityByCategory: Record<string, number>;
+  topUsers: Array<{
+    userId: string;
+    username: string;
+    role: string;
+    actionCount: number;
+  }>;
+  dailyStats: Record<string, {
+    visits: number;
+    uniqueVisitors: string[];
+    actions: number;
+    loginCount: number;
   }>;
 }
 
 export default function AnalyticsPage() {
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [refreshing, setRefreshing] = useState(false);
-  
+  const [timeRange, setTimeRange] = useState<'1d' | '7d' | '30d'>('7d');
   const router = useRouter();
-  
-  // Font configurations
-  const hebrewHeading = useHebrewFont('heading');
-  const mixedBody = useMixedFont('body');
 
-  const fetchAnalyticsData = useCallback(async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setRefreshing(true);
       const token = localStorage.getItem('adminToken');
-      const timestamp = Date.now();
-      
-      const response = await fetch(`/api/analytics?range=${timeRange}&_t=${timestamp}`, {
-        headers: { 
+      if (!token) {
+        router.push('/admin');
+        return;
+      }
+
+      const response = await fetch(`/api/analytics?range=${timeRange}`, {
+        headers: {
           Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Cache-Control': 'no-cache'
         }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        setAnalyticsData(result.analytics);
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics');
       }
 
-      setLoading(false);
+      const data = await response.json();
+      if (data.success) {
+        setAnalytics(data.data);
+      }
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      setLoading(false);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
-  }, [timeRange]);
-
-  // Register this page's refresh function
-  usePageRefresh(fetchAnalyticsData);
+  }, [timeRange, router]);
 
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('adminToken');
-    const userData = localStorage.getItem('adminUser');
-    
-    if (!token || !userData || userData === 'undefined' || userData === 'null') {
-      router.push('/admin');
-      return;
+    fetchAnalytics();
+    const interval = setInterval(fetchAnalytics, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchAnalytics]);
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'auth':
+        return <LogIn className="h-3.5 w-3.5" />;
+      case 'project':
+        return <Target className="h-3.5 w-3.5" />;
+      case 'task':
+        return <Activity className="h-3.5 w-3.5" />;
+      case 'user':
+        return <User className="h-3.5 w-3.5" />;
+      case 'view':
+        return <Eye className="h-3.5 w-3.5" />;
+      default:
+        return <Edit className="h-3.5 w-3.5" />;
     }
-
-    try {
-      const parsedUser = JSON.parse(userData);
-      if (!parsedUser || !parsedUser.id || !parsedUser.username) {
-        throw new Error('Invalid user data structure');
-      }
-      setUser(parsedUser);
-    } catch (error) {
-      router.push('/admin');
-      return;
-    }
-
-    fetchAnalyticsData();
-  }, [router, fetchAnalyticsData]);
-
-  const getGrowthPercentage = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
   };
 
-  const getHealthColor = (score: number) => {
-    if (score >= 90) return 'text-green-500';
-    if (score >= 70) return 'text-yellow-500';
-    return 'text-red-500';
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'auth':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'project':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'task':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'user':
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
   };
 
-  const getHealthBgColor = (score: number) => {
-    if (score >= 90) return 'bg-green-50 border-green-200';
-    if (score >= 70) return 'bg-yellow-50 border-yellow-200';
-    return 'bg-red-50 border-red-200';
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('he-IL').format(num);
+  };
+
+  const formatDateTime = (date: Date | string) => {
+    return new Date(date).toLocaleString('he-IL', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">טוען נתוני אנליטיקה...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!analyticsData) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center p-8">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className={`text-xl font-bold mb-2 ${hebrewHeading.fontClass}`}>שגיאה בטעינת הנתונים</h2>
-          <p className="text-muted-foreground mb-6">לא הצלחנו להביא את נתוני האנליטיקה. ייתכן שיש בעיה בשרת.</p>
-          <button
-            onClick={() => fetchAnalyticsData()}
-            className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            disabled={refreshing}
-          >
-            <RefreshCw className={`ml-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>נסה שוב</span>
-          </button>
+      <div className="min-h-screen bg-background">
+        <div className="p-4 md:p-6 space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <Skeleton className="h-64" />
         </div>
       </div>
     );
@@ -244,463 +182,498 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/admin/dashboard"
-                className="p-2 rounded-lg hover:bg-accent transition-colors"
-                aria-label="חזור ללוח הבקרה"
-              >
-                <ArrowRight className="h-5 w-5" />
+      {/* Mobile-Optimized Header */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex h-16 items-center justify-between">
+            {/* Left Section */}
+            <div className="flex items-center gap-2 md:gap-4">
+              <Link href="/admin/dashboard" className="md:hidden">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
               </Link>
-              <div className="flex items-center gap-3">
-                <BarChart3 className="h-6 w-6 text-primary" />
+              <Link href="/admin/dashboard" className="hidden md:inline-flex">
+                <Button variant="ghost" size="sm">
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  חזרה
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary hidden sm:block" />
                 <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>פאנל ניהול משימות</span>
-                    <ChevronRight className="h-4 w-4" />
-                    <span>אנליטיקה מתקדמת</span>
-                  </div>
-                  <h1 className={`text-lg font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                    דאשבורד אנליטיקה
-                  </h1>
+                  <h1 className="text-base md:text-lg font-bold">אנליטיקה</h1>
+                  <p className="text-xs text-muted-foreground hidden md:block">ניתוח נתוני המערכת</p>
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Time Range Selector */}
-              <select
-                value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as any)}
-                className="px-2 py-1.5 sm:px-3 sm:py-2 border border-border rounded-md sm:rounded-lg bg-background text-foreground text-xs sm:text-sm"
-              >
-                <option value="7d">7 ימים</option>
-                <option value="30d">30 ימים</option>
-                <option value="90d">90 ימים</option>
-              </select>
-              
-              <button
-                onClick={fetchAnalyticsData}
-                disabled={refreshing}
-                className="p-1.5 sm:p-2 rounded-md sm:rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
-                title="רענן נתונים"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
+
+            {/* Right Section - Mobile Optimized */}
+            <div className="flex items-center gap-2">
+              {/* Desktop Controls */}
+              <div className="hidden md:flex items-center gap-2">
+                <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+                  <SelectTrigger className="w-32 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1d">היום</SelectItem>
+                    <SelectItem value="7d">7 ימים</SelectItem>
+                    <SelectItem value="30d">30 ימים</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAnalytics}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+
+              {/* Mobile Controls */}
+              <Sheet>
+                <SheetTrigger asChild className="md:hidden">
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-64">
+                  <div className="space-y-4 mt-6">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">תקופת זמן</label>
+                      <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1d">היום</SelectItem>
+                          <SelectItem value="7d">7 ימים</SelectItem>
+                          <SelectItem value="30d">30 ימים</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={fetchAnalytics}
+                      disabled={refreshing}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                      רענן נתונים
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {analyticsData ? (
-          <div className="space-y-8">
-            {/* Key Performance Indicators */}
-            <section>
-              <h2 className={`text-2xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                מדדי ביצועים עיקריים
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Total Tasks */}
-                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <Target className="h-8 w-8 text-primary" />
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-foreground">{analyticsData.totalTasks}</p>
-                      <p className="text-sm text-muted-foreground">סה״כ משימות</p>
-                    </div>
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-4 md:py-6">
+        {analytics && (
+          <div className="space-y-4 md:space-y-6">
+            {/* Today's Visits - Big Featured Card */}
+            <Card className="mb-4 p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-500 text-white rounded-lg">
+                    <Activity className="h-6 w-6" />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-green-600">{analyticsData.visibleTasks} גלויות</span>
-                    <span className="text-muted-foreground">{analyticsData.hiddenTasks} מוסתרות</span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">ביקורים היום</h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      {new Date().toLocaleDateString('he-IL')}
+                    </p>
                   </div>
                 </div>
-
-                {/* Projects */}
-                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <Users className="h-8 w-8 text-blue-500" />
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-foreground">{analyticsData.totalProjects}</p>
-                      <p className="text-sm text-muted-foreground">פרויקטים פעילים</p>
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    ממוצע {analyticsData.averageTasksPerProject.toFixed(1)} משימות לפרויקט
-                  </div>
+                <Badge variant="default" className="bg-blue-500 text-white">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  חי
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/50 dark:bg-black/20 rounded-lg p-4">
+                  <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                    {formatNumber(analytics.dailyStats[new Date().toISOString().split('T')[0]]?.visits || 0)}
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">סה"כ ביקורים</p>
                 </div>
-
-                {/* Visits */}
-                <div className="bg-card rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <Activity className="h-8 w-8 text-green-500" />
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-foreground">{analyticsData.totalVisits}</p>
-                      <p className="text-sm text-muted-foreground">ביקורים</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    {analyticsData.visitsThisWeek > analyticsData.visitsLastWeek ? (
-                      <TrendingUp className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className={`${analyticsData.visitsThisWeek > analyticsData.visitsLastWeek ? 'text-green-500' : 'text-red-500'}`}>
-                      {getGrowthPercentage(analyticsData.visitsThisWeek, analyticsData.visitsLastWeek)}%
-                    </span>
-                    <span className="text-muted-foreground">מהשבוע הקודם</span>
-                  </div>
-                </div>
-
-                {/* System Health */}
-                <div className={`rounded-lg border border-border/40 p-6 shadow-md shadow-black/5 dark:shadow-black/20 hover:shadow-lg hover:shadow-black/10 dark:hover:shadow-black/30 transition-all duration-300 ${getHealthBgColor(analyticsData.systemHealth.score)}`}>
-                  <div className="flex items-center justify-between mb-4">
-                    <Zap className={`h-8 w-8 ${getHealthColor(analyticsData.systemHealth.score)}`} />
-                    <div className="text-right">
-                      <p className={`text-2xl font-bold ${getHealthColor(analyticsData.systemHealth.score)}`}>
-                        {analyticsData.systemHealth.score}%
-                      </p>
-                      <p className="text-sm text-muted-foreground">בריאות המערכת</p>
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    זמן תגובה: {analyticsData.systemHealth.responseTime}ms
-                  </div>
+                <div className="bg-white/50 dark:bg-black/20 rounded-lg p-4">
+                  <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                    {formatNumber(analytics.dailyStats[new Date().toISOString().split('T')[0]]?.uniqueVisitors?.length || 0)}
+                  </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300">משתמשים ייחודיים</p>
                 </div>
               </div>
-            </section>
-
-            {/* Task Distribution */}
-            <section>
-              <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                פיזור משימות
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* By Priority */}
-                <div className="bg-card rounded-lg border border-border p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">לפי עדיפות</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                        <span>עדיפות גבוהה</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByPriority.high}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
-                        <span>עדיפות בינונית</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByPriority.medium}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                        <span>עדיפות נמוכה</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByPriority.low}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-muted"></div>
-                        <span>ללא עדיפות</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByPriority.none}</span>
-                    </div>
-                  </div>
+              
+              {/* Visit Stats by Period */}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="text-center p-2 bg-white/30 dark:bg-black/10 rounded">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">היום</p>
+                  <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                    {formatNumber(analytics.dailyStats[new Date().toISOString().split('T')[0]]?.visits || 0)}
+                  </p>
                 </div>
-
-                {/* By Type */}
-                <div className="bg-card rounded-lg border border-border p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">לפי סוג</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-blue-500" />
-                        <span>אירועים (Events)</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByType.events}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Clock className="h-4 w-4 text-green-500" />
-                        <span>שעות (Hours)</span>
-                      </div>
-                      <span className="font-semibold">{analyticsData.tasksByType.hours}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="text-sm text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>סה״כ תת-משימות:</span>
-                        <span className="font-semibold">{analyticsData.totalSubtasks}</span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span>ממוצע תת-משימות למשימה:</span>
-                        <span className="font-semibold">{analyticsData.averageSubtasksPerTask.toFixed(1)}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div className="text-center p-2 bg-white/30 dark:bg-black/10 rounded">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">7 ימים</p>
+                  <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                    {formatNumber((() => {
+                      let count = 0;
+                      const endDate = new Date();
+                      const startDate = new Date();
+                      startDate.setDate(startDate.getDate() - 7);
+                      
+                      Object.entries(analytics.dailyStats).forEach(([date, stats]) => {
+                        const dateObj = new Date(date);
+                        if (dateObj >= startDate && dateObj <= endDate) {
+                          count += stats.visits || 0;
+                        }
+                      });
+                      return count;
+                    })())}
+                  </p>
+                </div>
+                <div className="text-center p-2 bg-white/30 dark:bg-black/10 rounded">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">30 יום</p>
+                  <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                    {formatNumber((() => {
+                      let count = 0;
+                      const endDate = new Date();
+                      const startDate = new Date();
+                      startDate.setDate(startDate.getDate() - 30);
+                      
+                      Object.entries(analytics.dailyStats).forEach(([date, stats]) => {
+                        const dateObj = new Date(date);
+                        if (dateObj >= startDate && dateObj <= endDate) {
+                          count += stats.visits || 0;
+                        }
+                      });
+                      return count;
+                    })())}
+                  </p>
                 </div>
               </div>
-            </section>
+            </Card>
 
-            {/* Project Performance */}
-            <section>
-              <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                ביצועי פרויקטים
-              </h2>
-              <div className="bg-card rounded-lg border border-border overflow-hidden">
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {analyticsData.tasksByProject?.slice(0, 5).map((project) => (
-                      <div key={project.projectName} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-foreground">{project.projectName}</h4>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>{project.taskCount} משימות</span>
-                            <span>{project.subtaskCount} תת-משימות</span>
-                            {project.highPriorityCount > 0 && (
-                              <span className="text-red-500 font-medium">
-                                {project.highPriorityCount} עדיפות גבוהה
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-foreground">
-                            {project.taskCount > 0 ? Math.round((project.subtaskCount / project.taskCount) * 100) / 100 : 0}
-                          </div>
-                          <div className="text-xs text-muted-foreground">ממוצע תת-משימות</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+            {/* Compact Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* Period Visits */}
+              <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+                <div className="flex items-center justify-between mb-2">
+                  <Activity className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs text-purple-700 dark:text-purple-300">
+                    {timeRange === '1d' ? 'היום' : timeRange === '7d' ? '7 ימים' : '30 יום'}
+                  </span>
                 </div>
-              </div>
-            </section>
-
-            {/* Most Viewed Tasks */}
-            <section>
-              <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                משימות נצפות ביותר
-              </h2>
-              <div className="bg-card rounded-lg border border-border overflow-hidden">
-                <div className="p-6">
-                  <div className="space-y-3">
-                    {analyticsData.mostViewedTasks?.slice(0, 5).map((task) => (
-                      <div key={task.taskId} className="flex items-center gap-4 p-3 hover:bg-muted/50 rounded-lg transition-colors">
-                        <div className="flex items-center justify-center w-8 h-8 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                          {task.views}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{task.taskTitle}</h4>
-                          <p className="text-sm text-muted-foreground">{task.projectName}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{formatNumber(analytics.visits)}</p>
+                  <p className="text-xs text-purple-700 dark:text-purple-300">ביקורים</p>
                 </div>
-              </div>
-            </section>
+              </Card>
 
-            {/* Recent Activity */}
-            <section>
-              <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                פעילות אחרונה
-              </h2>
-              <div className="bg-card rounded-lg border border-border p-6">
-                <div className="space-y-4">
-                  {analyticsData.recentActivity?.slice(0, 7).map((day: {date: string; visits: number; tasksCreated: number; subtasksCreated: number}, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{new Date(day.date).toLocaleDateString('he-IL')}</span>
-                      </div>
-                      <div className="flex items-center gap-6 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-green-500" />
-                          <span>{day.visits} ביקורים</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-blue-500" />
-                          <span>{day.tasksCreated} משימות חדשות</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-purple-500" />
-                          <span>{day.subtasksCreated} תת-משימות חדשות</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {/* Unique Visitors */}
+              <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between mb-2">
+                  <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Badge variant="secondary" className="text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
+                    {analytics.activeSessions} פעילים
+                  </Badge>
                 </div>
-              </div>
-            </section>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-green-900 dark:text-green-100">{formatNumber(analytics.uniqueVisitors)}</p>
+                  <p className="text-xs text-green-700 dark:text-green-300">משתמשים ייחודיים</p>
+                </div>
+              </Card>
 
-            {/* Last Actions - Real Activity Log */}
-            {analyticsData.lastActions && analyticsData.lastActions.length > 0 ? (
-              <section>
-                <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                  פעולות אחרונות (רישום פעילות)
-                </h2>
-                <div className="bg-card rounded-lg border border-border overflow-hidden">
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {analyticsData.lastActions?.slice(0, 10).map((action) => {
-                        const getSeverityIcon = (severity: string) => {
-                          switch (severity) {
-                            case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
-                            case 'warning': return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-                            case 'error': return <AlertTriangle className="h-5 w-5 text-red-500" />;
-                            default: return <Info className="h-5 w-5 text-blue-500" />;
-                          }
-                        };
+              {/* Projects */}
+              <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800">
+                <div className="flex items-center justify-between mb-2">
+                  <Layers className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">{formatNumber(analytics.counters?.projects || 0)}</p>
+                  <p className="text-xs text-orange-700 dark:text-orange-300">פרויקטים</p>
+                </div>
+              </Card>
 
-                        const getCategoryIcon = (category: string) => {
-                          switch (category) {
-                            case 'task': return <Target className="h-4 w-4 text-muted-foreground" />;
-                            case 'project': return <BarChart3 className="h-4 w-4 text-muted-foreground" />;
-                            case 'user': return <Users className="h-4 w-4 text-muted-foreground" />;
-                            case 'system': return <Zap className="h-4 w-4 text-muted-foreground" />;
-                            default: return <Activity className="h-4 w-4 text-muted-foreground" />;
-                          }
-                        };
+              {/* Tasks */}
+              <Card className="p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-950 dark:to-cyan-900 border-cyan-200 dark:border-cyan-800">
+                <div className="flex items-center justify-between mb-2">
+                  <CheckSquare className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-cyan-900 dark:text-cyan-100">{formatNumber(analytics.counters?.tasks || 0)}</p>
+                  <p className="text-xs text-cyan-700 dark:text-cyan-300">משימות</p>
+                </div>
+              </Card>
 
-                        const formatDateTime = (timestamp: Date) => {
-                          const date = new Date(timestamp);
-                          return `${date.toLocaleDateString('he-IL')} ${date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
-                        };
+              {/* Subtasks */}
+              <Card className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950 dark:to-pink-900 border-pink-200 dark:border-pink-800">
+                <div className="flex items-center justify-between mb-2">
+                  <Target className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-pink-900 dark:text-pink-100">{formatNumber(analytics.counters?.subtasks || 0)}</p>
+                  <p className="text-xs text-pink-700 dark:text-pink-300">תת-משימות</p>
+                </div>
+              </Card>
 
-                        return (
-                          <div key={action.id} className="flex items-start gap-3 p-3 rounded-lg bg-background hover:bg-accent transition-colors">
-                            <div className="flex-shrink-0 mt-1">
-                              {getSeverityIcon(action.severity)}
-                            </div>
-                            <div className="flex-grow">
-                              <p className="text-sm text-foreground">{action.action}</p>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1">
-                                  {getCategoryIcon(action.category)}
-                                  {action.category}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {formatDateTime(action.timestamp)}
-                                </span>
+              {/* Users */}
+              <Card className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
+                <div className="flex items-center justify-between mb-2">
+                  <User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{formatNumber(analytics.counters?.users || 0)}</p>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300">משתמשים</p>
+                </div>
+              </Card>
+
+              {/* Active Users */}
+              <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center justify-between mb-2">
+                  <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{formatNumber(analytics.counters?.activeUsers || 0)}</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">משתמשים פעילים</p>
+                </div>
+              </Card>
+
+              {/* Total Actions */}
+              <Card className="p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900 border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center justify-between mb-2">
+                  <Activity className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
+                    {formatNumber(analytics.recentActivities?.length || 0)}
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">פעולות אחרונות</p>
+                </div>
+              </Card>
+            </div>
+
+            {/* Main Content Tabs */}
+            <Tabs defaultValue="overview" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+                <TabsTrigger value="overview">סקירה</TabsTrigger>
+                <TabsTrigger value="activities">פעילות</TabsTrigger>
+                <TabsTrigger value="users">משתמשים</TabsTrigger>
+                <TabsTrigger value="daily">יומי</TabsTrigger>
+              </TabsList>
+
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Activity by Category */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">פעילות לפי קטגוריה</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {analytics.activityByCategory && Object.entries(analytics.activityByCategory)
+                          .sort((a, b) => b[1] - a[1])
+                          .slice(0, 5)
+                          .map(([category, count]) => {
+                            const total = Object.values(analytics.activityByCategory).reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                            
+                            return (
+                              <div key={category} className="flex items-center gap-3">
+                                <div className={`p-1.5 rounded ${getCategoryColor(category)}`}>
+                                  {getCategoryIcon(category)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium capitalize">{category}</span>
+                                    <span className="text-muted-foreground">{count}</span>
+                                  </div>
+                                  <div className="mt-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-primary transition-all"
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Users */}
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">משתמשים מובילים</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {analytics.topUsers && analytics.topUsers.slice(0, 5).map((user, index) => (
+                          <div
+                            key={user.userId}
+                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium">{user.username}</p>
+                                <p className="text-sm text-muted-foreground">{user.role}</p>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    
-                    {analyticsData.activityStats && analyticsData.activityStats?.totalActions > 0 && (
-                      <div className="mt-4 pt-4 border-t border-border">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">{analyticsData.activityStats?.totalActions}</div>
-                            <div className="text-muted-foreground">סה״כ פעולות</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">
-                              {Object.keys(analyticsData.activityStats?.actionsByCategory || {}).length}
+                            <div className="text-right">
+                              <p className="font-bold text-lg">{formatNumber(user.actionCount)}</p>
+                              <p className="text-xs text-muted-foreground">פעולות</p>
                             </div>
-                            <div className="text-muted-foreground">קטגוריות</div>
                           </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">
-                              {analyticsData.activityStats?.topUsers?.length}
-                            </div>
-                            <div className="text-muted-foreground">משתמשים פעילים</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-foreground">
-                              {Math.round(analyticsData.activityStats?.totalActions / Math.max(1, Object.keys(analyticsData.activityStats?.actionsByCategory || {}).length))}
-                            </div>
-                            <div className="text-muted-foreground">ממוצע פעולות</div>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </section>
-            ) : null}
+              </TabsContent>
 
-            {/* Activity Stats Summary */}
-            {analyticsData.activityStats && (
-              <section>
-                <h2 className={`text-xl font-bold text-foreground mb-6 ${hebrewHeading.fontClass}`}>
-                  סיכום פעילות מערכת
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Actions by Category */}
-                  <div className="bg-card rounded-lg border border-border p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">פעולות לפי קטגוריה</h3>
-                    <div className="space-y-3">
-                      {Object.entries(analyticsData.activityStats?.actionsByCategory || {}).map(([category, count]) => {
-                        const categoryNames: Record<string, string> = {
-                          task: 'משימות',
-                          subtask: 'תת-משימות', 
-                          project: 'פרויקטים',
-                          auth: 'אימות',
-                          system: 'מערכת',
-                          daily_update: 'עדכונים יומיים',
-                          user: 'משתמשים',
-                          view: 'צפיות'
-                        };
-                        
-                        return (
-                          <div key={category} className="flex items-center justify-between">
-                            <span>{categoryNames[category] || category}</span>
-                            <span className="font-semibold">{count}</span>
+              {/* Activities Tab */}
+              <TabsContent value="activities" className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">פעילות אחרונה</CardTitle>
+                    <CardDescription>20 הפעולות האחרונות במערכת</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {analytics.recentActivities && analytics.recentActivities.slice(0, 20).map((activity) => (
+                        <div
+                          key={activity._id}
+                          className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className={`p-1.5 rounded ${getCategoryColor(activity.category)} flex-shrink-0`}>
+                            {getCategoryIcon(activity.category)}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Top Active Users */}
-                  <div className="bg-card rounded-lg border border-border p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">משתמשים פעילים</h3>
-                    <div className="space-y-3">
-                      {analyticsData.activityStats?.topUsers?.slice(0, 5).map((user) => (
-                        <div key={user.userId} className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-medium">
-                              {user.actionCount}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-sm">{activity.action}</p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                {activity.username}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDateTime(activity.timestamp)}
+                              </span>
+                              {activity.target && (
+                                <span className="truncate max-w-[200px]">
+                                  {activity.target.type}: {activity.target.name || activity.target.id}
+                                </span>
+                              )}
                             </div>
-                            <span>{user.username || `משתמש ${user.userId ? user.userId.slice(-6) : 'unknown'}`}</span>
+                          </div>
+                          <Badge 
+                            variant={activity.severity === 'success' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {activity.severity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Users Tab */}
+              <TabsContent value="users" className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">רשימת משתמשים פעילים</CardTitle>
+                    <CardDescription>דירוג לפי מספר פעולות</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analytics.topUsers && analytics.topUsers.map((user, index) => (
+                        <div
+                          key={user.userId}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium">{user.username}</p>
+                              <p className="text-sm text-muted-foreground">{user.role}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg">{formatNumber(user.actionCount)}</p>
+                            <p className="text-xs text-muted-foreground">פעולות</p>
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
-              </section>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <AlertTriangle className="h-16 w-16 text-orange-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">שגיאה בטעינת נתוני אנליטיקה</h3>
-            <p className="text-muted-foreground mb-4">לא ניתן לטעון את נתוני האנליטיקה כרגע</p>
-            <button
-              onClick={fetchAnalyticsData}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <RefreshCw className="h-4 w-4" />
-              נסה שוב
-            </button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Daily Stats Tab */}
+              <TabsContent value="daily" className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">סטטיסטיקה יומית</CardTitle>
+                    <CardDescription>נתונים מצטברים לפי יום</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {analytics.dailyStats && Object.entries(analytics.dailyStats)
+                        .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+                        .slice(0, 10)
+                        .map(([date, stats]) => (
+                          <div
+                            key={date}
+                            className="p-3 rounded-lg bg-muted/50 space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-sm">
+                                  {new Date(date).toLocaleDateString('he-IL')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                              <div>
+                                <p className="text-lg font-bold">{stats?.visits || 0}</p>
+                                <p className="text-xs text-muted-foreground">ביקורים</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-bold">
+                                  {Array.isArray(stats?.uniqueVisitors) ? stats.uniqueVisitors.length : 0}
+                                </p>
+                                <p className="text-xs text-muted-foreground">ייחודיים</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-bold">{stats?.actions || 0}</p>
+                                <p className="text-xs text-muted-foreground">פעולות</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-bold">{stats?.loginCount || 0}</p>
+                                <p className="text-xs text-muted-foreground">התחברויות</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </main>

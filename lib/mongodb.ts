@@ -2,7 +2,7 @@ import { MongoClient, Db, Collection, ObjectId, Document, ServerApiVersion, Mong
 import { logger } from './logger';
 import { cache } from './cache';
 
-export interface DatabaseCollections {
+export interface Collections {
   projects: Collection;
   tasks: Collection;
   subtasks: Collection;
@@ -12,39 +12,85 @@ export interface DatabaseCollections {
   dailyUpdatesSettings: Collection;
   activities: Collection;
   feedbackTickets: Collection;
+  userSessions: Collection;
+  activityLogs: Collection;
 }
 
-interface CachedConnection {
-  client: MongoClient | null;
-  db: Db | null;
-  isConnecting: boolean;
-  collections: Partial<DatabaseCollections>;
-}
 
-// Global to track MongoDB connection
-let cached: CachedConnection = {
-  client: null,
-  db: null,
-  isConnecting: false,
-  collections: {}
-};
 
-// Connection pool configuration
-const CONNECTION_OPTIONS: MongoClientOptions = {
-  maxPoolSize: 10,
-  minPoolSize: 5,
-  connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-  waitQueueTimeoutMS: 5000,
-  maxConnecting: 2,
-  maxIdleTimeMS: 300000,
-  compressors: ['zlib'],
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
+// Enhanced MongoDB connection with retry logic
+let cachedClient: MongoClient | null = null;
+let cachedDb: Db | null = null;
+let connectionPromise: Promise<{ client: MongoClient; db: Db }> | null = null;
+let retryCount = 0;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+
+async function connectWithRetry(): Promise<{ client: MongoClient; db: Db }> {
+  const uri = process.env.MONGODB_URI;
+  const dbName = process.env.MONGODB_DB_NAME || 'drivershub';
+
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
   }
-};
+
+  try {
+    logger.info('Attempting MongoDB connection...', 'MONGODB_CONNECTION', { 
+      attempt: retryCount + 1,
+      maxRetries: MAX_RETRIES 
+    });
+
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      retryWrites: true,
+      w: 'majority'
+    });
+
+    await client.connect();
+    const db = client.db(dbName);
+    
+    // Test the connection
+    await db.admin().ping();
+    
+    logger.info('MongoDB connected successfully', 'MONGODB_CONNECTION', {
+      database: dbName,
+      poolSize: 10
+    });
+
+    retryCount = 0; // Reset retry count on success
+    return { client, db };
+  } catch (error) {
+    const err = error as Error;
+    logger.error('MongoDB connection attempt failed', 'MONGODB_CONNECTION', {
+      attempt: retryCount + 1,
+      error: err.message,
+      errorCode: (error as any).code
+    });
+
+    if (err.message.includes('ENOTFOUND') || err.message.includes('getaddrinfo')) {
+      logger.error('DNS resolution error detected', 'MONGODB_CONNECTION', {
+        troubleshooting: [
+          'Check internet connection',
+          'Verify MongoDB Atlas cluster name',
+          'Check firewall/proxy settings',
+          'Try alternative DNS servers'
+        ]
+      });
+    }
+
+    if (retryCount < MAX_RETRIES) {
+      retryCount++;
+      logger.info(`Retrying MongoDB connection in ${RETRY_DELAY}ms...`, 'MONGODB_CONNECTION');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return connectWithRetry();
+    }
+
+    throw new Error(`MongoDB connection failed after ${MAX_RETRIES} attempts: ${err.message}`);
+  }
+}
 
 /**
  * Connect to the MongoDB database
@@ -53,111 +99,83 @@ export async function connectToDatabase(): Promise<{
   client: MongoClient | null;
   db: Db | null;
 }> {
-  try {
-    // If we already have a connection, reuse it
-    if (cached && cached.client && cached.db) {
-      return {
-        client: cached.client,
-        db: cached.db
-      };
+  // In production, always create new connections
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { client, db } = await connectWithRetry();
+      return { db, client };
+    } catch (error) {
+      logger.error('Production MongoDB connection failed', 'MONGODB_CONNECTION', { 
+        errorMessage: (error as Error).message 
+      });
+      throw error;
     }
-
-    // If another connection is in progress, wait for it
-    if (cached && cached.isConnecting) {
-      // Wait for the connection to complete
-      let attempts = 0;
-      while (cached.isConnecting && attempts < 50) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-      
-      // If still connecting after 5 seconds, proceed with new connection
-      if (cached.isConnecting || !cached.client || !cached.db) {
-        cached.isConnecting = false; // Reset the flag
-      } else {
-        // Connection completed, return it
-        return {
-          client: cached.client,
-          db: cached.db
-        };
-      }
-    }
-
-    // Create a new connection
-    return await createNewConnection();
-  } catch (error) {
-    logger.error('MongoDB connection failed', 'MONGODB_CONNECTION', { errorMessage: (error as Error).message });
-    throw error;
   }
-}
 
-/**
- * Create a new MongoDB connection
- */
-async function createNewConnection(): Promise<{
-  client: MongoClient | null;
-  db: Db | null;
-}> {
+  // In development, use connection pooling
+  if (cachedClient && cachedDb) {
+    try {
+      // Verify the connection is still alive
+      await cachedDb.admin().ping();
+      return { db: cachedDb, client: cachedClient };
+    } catch (error) {
+      logger.warn('Cached MongoDB connection lost, reconnecting...', 'MONGODB_CONNECTION');
+      cachedClient = null;
+      cachedDb = null;
+      connectionPromise = null;
+    }
+  }
+
+  // If a connection is already in progress, wait for it
+  if (connectionPromise) {
+    try {
+      const result = await connectionPromise;
+      return { db: result.db, client: result.client };
+    } catch (error) {
+      // Connection failed, will retry below
+      connectionPromise = null;
+    }
+  }
+
+  // Create a new connection promise to prevent duplicate connections
+  connectionPromise = connectWithRetry();
+
   try {
-    const MONGODB_URI = process.env.MONGODB_URI;
-    const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME;
+    const { client, db } = await connectionPromise;
+    cachedClient = client;
+    cachedDb = db;
 
-    if (!MONGODB_URI) {
-      throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
-    }
+    // Handle connection events
+    client.on('close', () => {
+      logger.warn('MongoDB connection closed', 'MONGODB_CONNECTION');
+      cachedClient = null;
+      cachedDb = null;
+      connectionPromise = null;
+    });
 
-    if (!MONGODB_DB_NAME) {
-      throw new Error('Please define the MONGODB_DB_NAME environment variable inside .env.local');
-    }
-
-    if (cached) {
-      cached.isConnecting = true;
-    }
-    
-    const client = new MongoClient(MONGODB_URI, CONNECTION_OPTIONS);
-    await client.connect();
-    const db = client.db(MONGODB_DB_NAME);
-
-    // Set up basic error handling  
-    client.on('connectionCheckOutFailed', (event) => {
-      logger.error('MongoDB connection checkout failed', 'MONGODB_CONNECTION', {
-        reason: event.reason
+    client.on('error', (error) => {
+      logger.error('MongoDB connection error', 'MONGODB_CONNECTION', { 
+        errorMessage: error.message 
       });
     });
-    
-    client.on('connectionPoolCleared', (event) => {
-      logger.error('MongoDB connection pool cleared', 'MONGODB_CONNECTION');
-    });
 
-    // Update connection info
-    const updatedCache: CachedConnection = { 
-      client, 
-      db, 
-      isConnecting: false,
-      collections: {}
-    };
-    
-    // Store the updated cache globally
-    cached = updatedCache;
-
-    return {
-      client,
-      db
-    };
+    return { db: cachedDb, client: cachedClient };
   } catch (error) {
-    if (cached) {
-      cached.isConnecting = false;
-    }
-    logger.error('MongoDB connection failed', 'MONGODB_CONNECTION', { errorMessage: (error as Error).message });
+    logger.error('MongoDB connection failed', 'MONGODB_CONNECTION', { 
+      errorMessage: (error as Error).message 
+    });
+    connectionPromise = null;
     throw error;
   }
 }
+
+
 
 /**
  * Get a MongoDB collection by name
  */
 export async function getCollection<T extends Document = Document>(
-  collectionName: keyof DatabaseCollections
+  collectionName: keyof Collections
 ): Promise<Collection<T>> {
   const { db } = await connectToDatabase();
   
@@ -165,25 +183,13 @@ export async function getCollection<T extends Document = Document>(
     throw new Error('Database connection not available');
   }
 
-  // Check if we already have the collection cached
-  if (cached && cached.collections[collectionName]) {
-    return cached.collections[collectionName] as unknown as Collection<T>;
-  }
-
-  // Get the collection and cache it
-  const collection = db.collection<T>(collectionName as string);
-  
-  if (cached) {
-    cached.collections[collectionName] = collection as unknown as Collection;
-  }
-
-  return collection;
+  return db.collection<T>(collectionName as string);
 }
 
 /**
  * Get all collections as an object
  */
-export async function getCollections(): Promise<DatabaseCollections> {
+export async function getCollections(): Promise<Collections> {
   const { db } = await connectToDatabase();
   
   if (!db) {
@@ -199,7 +205,9 @@ export async function getCollections(): Promise<DatabaseCollections> {
     dailyUpdates: db.collection('dailyUpdates'),
     dailyUpdatesSettings: db.collection('dailyUpdatesSettings'),
     activities: db.collection('activities'),
-    feedbackTickets: db.collection('feedbackTickets')
+    feedbackTickets: db.collection('feedbackTickets'),
+    userSessions: db.collection('userSessions'),
+    activityLogs: db.collection('activityLogs')
   };
 }
 
@@ -209,7 +217,7 @@ export async function getCollections(): Promise<DatabaseCollections> {
 export function getConnectionStatus(): {
   isConnected: boolean;
 } {
-  if (!cached || !cached.client || !cached.db) {
+  if (!cachedClient || !cachedDb) {
     return {
       isConnected: false
     };
@@ -220,21 +228,7 @@ export function getConnectionStatus(): {
   };
 }
 
-/**
- * Close the MongoDB connection
- */
-export async function closeConnection(): Promise<void> {
-  try {
-    if (cached && cached.client) {
-      await cached.client.close();
-      cached.client = null;
-      cached.db = null;
-      cached.isConnecting = false;
-    }
-  } catch (error) {
-    logger.error('Error closing MongoDB connection', 'MONGODB_CONNECTION', { errorMessage: (error as Error).message });
-  }
-}
+
 
 // Utility functions for ObjectId handling
 export { ObjectId } from 'mongodb';
@@ -245,4 +239,38 @@ export function isValidObjectId(id: string): boolean {
 
 export function createObjectId(id?: string): ObjectId {
   return new ObjectId(id);
+}
+
+// Connection health check
+export async function checkConnection(): Promise<boolean> {
+  try {
+    const { db } = await connectToDatabase();
+    if (!db) {
+      throw new Error('Database connection not established');
+    }
+    await db.admin().ping();
+    return true;
+  } catch (error) {
+    logger.error('MongoDB health check failed', 'MONGODB_CONNECTION', {
+      error: (error as Error).message
+    });
+    return false;
+  }
+}
+
+// Graceful shutdown
+export async function closeConnection(): Promise<void> {
+  if (cachedClient) {
+    try {
+      await cachedClient.close();
+      logger.info('MongoDB connection closed gracefully', 'MONGODB_CONNECTION');
+    } catch (error) {
+      logger.error('Error closing MongoDB connection', 'MONGODB_CONNECTION', {
+        error: (error as Error).message
+      });
+    } finally {
+      cachedClient = null;
+      cachedDb = null;
+    }
+  }
 } 

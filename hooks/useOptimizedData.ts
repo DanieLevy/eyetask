@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithCache, cache, invalidateCache } from '@/lib/cache';
 import { logger } from '@/lib/logger';
+import { deduplicatedFetch } from '@/lib/request-deduplication';
 
 // Performance tracking utilities
 const performanceTracker = {

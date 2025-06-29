@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { deduplicatedFetch } from './request-deduplication';
 
 export interface CacheOptions {
   ttl?: number;
@@ -278,7 +279,7 @@ export async function fetchWithCache<T>(
   return cache.getOrSet<T>(
     url,
     async () => {
-      const response = await fetch(url, fetchOptions);
+      const response = await deduplicatedFetch(url, fetchOptions);
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
       }

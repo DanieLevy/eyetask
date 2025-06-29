@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { UpdateFeedbackRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
+import { ObjectId } from 'mongodb';
 
 // GET - Get specific ticket by ID
 export async function GET(
@@ -9,6 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    requireAdmin(user);
+    
     const { id } = await params;
     const ticket = await feedbackService.getTicketById(id);
     
@@ -40,8 +46,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TODO: Add admin authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
     const body = await request.json();
@@ -58,9 +65,9 @@ export async function PUT(
     if (body.tags !== undefined) updateData.tags = body.tags;
     if (body.isUrgent !== undefined) updateData.isUrgent = body.isUrgent;
 
-    // TODO: Get actual admin info from session
-    const adminId = 'admin-temp-id';
-    const adminName = 'Admin User';
+    // Get actual admin info from session
+    const adminId = authenticatedUser.id;
+    const adminName = authenticatedUser.username;
 
     const success = await feedbackService.updateTicket(
       id,
@@ -101,14 +108,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TODO: Add admin authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
     
-    // TODO: Get actual admin info from session
-    const adminId = 'admin-temp-id';
-    const adminName = 'Admin User';
+    // Get actual admin info from session
+    const adminId = authenticatedUser.id;
+    const adminName = authenticatedUser.username;
 
     const success = await feedbackService.deleteTicket(
       id,

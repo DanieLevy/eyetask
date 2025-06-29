@@ -36,74 +36,78 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/projects - Create new project (admin only)
+// POST /api/projects - Create a new project
 export async function POST(request: NextRequest) {
   try {
-    // Extract and verify user authentication
+    // Check authentication
     const user = auth.extractUserFromRequest(request);
-    requireAdmin(user);
+    const adminUser = requireAdmin(user);
+
+    const data = await request.json();
     
-    const body = await request.json();
-    
-    // Validate required fields (description is optional)
-    if (!body.name) {
-      return NextResponse.json(
-        { error: 'Missing required field: name', success: false },
-        { status: 400 }
-      );
+    if (!data.name) {
+      return NextResponse.json({
+        error: 'Project name is required',
+        success: false
+      }, { status: 400 });
     }
+
+    const projectData = {
+      name: data.name,
+      description: data.description || '',
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      color: data.color || '#3B82F6',
+      priority: data.priority || 1,
+      clientName: data.clientName || '',
+      clientEmail: data.clientEmail || '',
+      clientPhone: data.clientPhone || '',
+      notes: data.notes || '',
+      image: data.image || ''
+    };
+
+    const projectId = await db.createProject(projectData);
     
-    const projectId = await db.createProject({
-      name: body.name,
-      description: body.description || '',
-      isActive: body.isActive !== undefined ? body.isActive : true,
-      color: body.color || '#3B82F6',
-      priority: body.priority || 1,
-      clientName: body.clientName || '',
-      clientEmail: body.clientEmail || '',
-      clientPhone: body.clientPhone || '',
-      notes: body.notes || '',
-      image: body.image || ''
+    // Clear caches
+    db.invalidateHomepageCache();
+    db.clearAllCaches();
+    
+    // Log the action
+    await db.logAction({
+      userId: adminUser.id,
+      username: adminUser.username,
+      userRole: adminUser.role,
+      action: `יצר פרויקט חדש: ${data.name}`,
+      category: 'project',
+      target: {
+        id: projectId,
+        type: 'project',
+        name: data.name
+      },
+      severity: 'success'
     });
-    
-    const newProject = await db.getProjectById(projectId);
-    
+
     logger.info('Project created successfully', 'PROJECTS_API', { 
-      projectId,
-      name: body.name,
-      userId: user?.id 
+      projectId, 
+      userId: adminUser.id,
+      projectName: data.name 
     });
-    
-    return NextResponse.json({ 
-      project: {
-        _id: newProject?._id?.toString(),
-        name: newProject?.name,
-        description: newProject?.description,
-        isActive: newProject?.isActive,
-        color: newProject?.color,
-        priority: newProject?.priority,
-        clientName: newProject?.clientName,
-        clientEmail: newProject?.clientEmail,
-        clientPhone: newProject?.clientPhone,
-        notes: newProject?.notes,
-        image: newProject?.image,
-        createdAt: newProject?.createdAt.toISOString(),
-        updatedAt: newProject?.updatedAt.toISOString()
-      }, 
-      success: true 
-    }, { status: 201 });
+
+    return NextResponse.json({
+      success: true,
+      projectId
+    });
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
-      return NextResponse.json(
-        { error: error.message, success: false },
-        { status: 401 }
-      );
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
     }
-    
-    logger.error('Error creating project', 'PROJECTS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to create project', success: false },
-      { status: 500 }
-    );
+
+    logger.error('Project creation error', 'PROJECTS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to create project',
+      success: false
+    }, { status: 500 });
   }
 } 

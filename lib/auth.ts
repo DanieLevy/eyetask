@@ -252,6 +252,32 @@ export class AuthService {
     return user?.role === 'admin';
   }
 
+  // Check if user is data manager
+  isDataManager(user: AuthUser | null): boolean {
+    return user?.role === 'data_manager';
+  }
+
+  // Check if user is driver manager
+  isDriverManager(user: AuthUser | null): boolean {
+    return user?.role === 'driver_manager';
+  }
+
+  // Check if user has access to data management features
+  canManageData(user: AuthUser | null): boolean {
+    return user?.role === 'admin' || user?.role === 'data_manager';
+  }
+
+  // Check if user can manage daily updates only
+  canManageDailyUpdates(user: AuthUser | null): boolean {
+    return user?.role === 'admin' || user?.role === 'driver_manager';
+  }
+
+  // Check if user has access to restricted admin features
+  hasRestrictedAccess(user: AuthUser | null): boolean {
+    // Only admins can access: analytics, cache management, feedback management, user management
+    return user?.role === 'admin';
+  }
+
   // Generate cookie string for setting auth token
   generateAuthCookie(token: string): string {
     const maxAge = 24 * 60 * 60; // 24 hours

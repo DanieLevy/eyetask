@@ -70,6 +70,32 @@ function FeedbackPageCore() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Track page visit
+  useEffect(() => {
+    const trackVisit = async () => {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        try {
+          await fetch('/api/analytics', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              page: 'feedback',
+              action: 'page_view'
+            })
+          });
+        } catch (error) {
+          console.error('Failed to track visit:', error);
+        }
+      }
+    };
+
+    trackVisit();
+  }, []);
+
   // Load subtasks on component mount and handle URL parameters
   useEffect(() => {
     loadSubtasks();

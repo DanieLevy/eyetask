@@ -6,7 +6,8 @@ import {
   LogOut, 
   Settings,
   ChevronDown,
-  UserCircle
+  UserCircle,
+  UserCog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,11 +70,20 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
                 {user.username}
               </p>
               <p className="text-xs font-normal text-muted-foreground">
-                {user.role === 'admin' ? 'מנהל מערכת' : 'משתמש רגיל'}
+                {user.role === 'admin' ? 'מנהל מערכת' : 
+                 user.role === 'data_manager' ? 'מנהל נתונים' :
+                 user.role === 'driver_manager' ? 'מנהל נהגים' : 
+                 'משתמש רגיל'}
               </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/admin/profile" className="cursor-pointer flex">
+              <UserCog className="w-4 h-4 mr-2" />
+              <span>הפרופיל שלי</span>
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/admin/dashboard" className="cursor-pointer flex">
               <Settings className="w-4 h-4 mr-2" />

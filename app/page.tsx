@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
@@ -24,16 +24,13 @@ function HomePageCore() {
   const { preloadProject } = useDataPreloader();
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
+  const router = useRouter();
   
   // URL parameters
   const isPWALaunch = searchParams.get('utm_medium') === 'pwa' || pwaStatus.status.isStandalone;
   const launchSource = searchParams.get('utm_source') || 'direct';
   
-  // Effect tracking
-  const effectTracker = useRef({
-    analytics: 0,
-    serviceWorker: 0
-  });
+
 
   // Memoized data processing
   const projects = useMemo(() => {
@@ -57,35 +54,37 @@ function HomePageCore() {
     await refetch();
   });
 
-  // Analytics tracking
+  // Combined analytics tracking - only track if user is authenticated
   useEffect(() => {
-    effectTracker.current.analytics++;
-
-    if (homepageData && offlineStatus.isOnline) {
-      fetch('/api/analytics', {
+    const token = localStorage.getItem('adminToken');
+    
+    // Only track analytics if user is authenticated
+    if (token && offlineStatus.isOnline) {
+      fetch('/api/analytics/track', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
+          page: 'homepage',
+          action: 'page_view',
           isUniqueVisitor: true,
           isPWALaunch,
           launchSource,
           displayMode: pwaStatus.status.displayMode,
           isStandalone: pwaStatus.status.isStandalone
-        }),
+        })
       })
       .catch(() => {
-        // Silent error handling
+        // Silent error handling - analytics is not critical
       });
     }
-  }, [homepageData, offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.status.displayMode, pwaStatus.status.isStandalone]);
+  }, [offlineStatus.isOnline, isPWALaunch, launchSource, pwaStatus.status.displayMode, pwaStatus.status.isStandalone]);
 
   // Register service worker for offline functionality
   useEffect(() => {
-    effectTracker.current.serviceWorker++;
-
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .catch(() => {
@@ -123,6 +122,8 @@ function HomePageCore() {
     ).length;
     return count;
   }, [projects, tasks]);
+
+
 
   if (loading && !homepageData) {
     return <HomepageLoadingSkeleton />;

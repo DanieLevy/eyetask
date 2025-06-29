@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { AddInternalNoteRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
+import { auth, requireAdmin } from '@/lib/auth';
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
 // POST - Add internal note to ticket (Admin only)
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
-    // TODO: Add admin authentication check here
-    // For now, we'll proceed without auth for development
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
     const body = await request.json();
@@ -27,15 +33,15 @@ export async function POST(
       content: body.content.trim()
     };
 
-    // TODO: Get actual admin info from session
-    const authorName = 'Admin User';
-    const authorId = 'admin-temp-id';
+    // Get actual admin info from session
+    const adminId = authenticatedUser.id;
+    const adminName = authenticatedUser.username;
 
     const success = await feedbackService.addInternalNote(
       id,
       noteData,
-      authorName,
-      authorId
+      adminName,
+      adminId
     );
 
     if (!success) {
@@ -59,6 +65,61 @@ export async function POST(
     logger.error('Failed to add internal note', 'FEEDBACK_API', { ticketId: id }, error as Error);
     return NextResponse.json(
       { error: 'Failed to add internal note' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Update internal notes for a feedback ticket (Admin only)
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    // Check admin authentication
+    const user = auth.extractUserFromRequest(request);
+    const authenticatedUser = requireAdmin(user);
+    
+    const { id } = await params;
+    const body = await request.json();
+    
+    // Validate request
+    if (body.notes === undefined) {
+      return NextResponse.json(
+        { error: 'Notes field is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Get actual admin info from session
+    const adminId = authenticatedUser.id;
+    const adminName = authenticatedUser.username;
+
+    const success = await feedbackService.addInternalNote(
+      id,
+      body.notes,
+      adminName,
+      adminId
+    );
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Ticket not found' },
+        { status: 404 }
+      );
+    }
+
+    // Return updated ticket with notes
+    const updatedTicket = await feedbackService.getTicketById(id);
+
+    return NextResponse.json({
+      success: true,
+      ticket: updatedTicket,
+      message: 'Internal notes updated successfully'
+    });
+
+  } catch (error) {
+    const { id } = await params;
+    logger.error('Failed to update internal notes', 'FEEDBACK_API', { ticketId: id }, error as Error);
+    return NextResponse.json(
+      { error: 'Failed to update internal notes' },
       { status: 500 }
     );
   }
