@@ -2,7 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, LogOut, Sun, Moon, Bug, Info, User as UserIcon, Share, User, Settings, Home, CheckSquare, Users } from 'lucide-react';
+import {
+  Menu,
+  LogOut,
+  Sun,
+  Moon,
+  Bug,
+  Info,
+  User as UserIcon,
+  Share,
+  User,
+  Settings,
+  Home,
+  CheckSquare,
+  Users,
+  Bell,
+  BellOff
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MobileMenuProps, HeaderAction, NavigationItem } from './types';
@@ -21,6 +37,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { toast } from 'sonner';
 
 // Type to support more flexible action variants for the mobile menu
 type FlexibleHeaderAction = HeaderAction | Omit<HeaderAction, 'variant'> & { variant: string };
@@ -62,6 +80,33 @@ export const MobileMenu = ({
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const hebrewFont = useHebrewFont('heading');
   const { theme, setTheme, resolvedTheme } = useTheme();
+  
+  // Push notifications
+  const { 
+    isSupported, 
+    permission, 
+    isSubscribed, 
+    isLoading: pushLoading,
+    subscribe,
+    unsubscribe,
+    showIOSInstallPrompt
+  } = usePushNotifications();
+  
+  // Check if push notifications need attention
+  const hasToken = typeof window !== 'undefined' && !!(localStorage.getItem('adminToken') || localStorage.getItem('token'));
+  const needsPushAttention = hasToken && isSupported && !isSubscribed && permission !== 'denied';
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[MobileMenu] Push state:', {
+      hasToken,
+      isSupported,
+      isSubscribed,
+      permission,
+      needsPushAttention,
+      pushLoading
+    });
+  }, [hasToken, isSupported, isSubscribed, permission, needsPushAttention, pushLoading]);
   
   // Detect if running as PWA
   const [isPWA, setIsPWA] = useState(false);
@@ -125,11 +170,16 @@ export const MobileMenu = ({
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 w-9 p-0 relative rounded-full"
+            className="h-9 w-9 p-0 relative rounded-full z-50"
             aria-label="תפריט"
           >
             {isAdmin && (
-              <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background" />
+              <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-background z-10" />
+            )}
+            {needsPushAttention && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-orange-500 ring-2 ring-background flex items-center justify-center z-20">
+                <span className="text-white text-[10px] font-bold leading-none">!</span>
+              </span>
             )}
             <Menu className="h-5 w-5" />
           </Button>
@@ -216,6 +266,72 @@ export const MobileMenu = ({
                   <Bug className="h-4 w-4 text-orange-500" />
                   <span>דיווח על בעיה</span>
                 </div>
+              </DropdownMenuItem>
+            )}
+            
+            {/* Push Notifications Button */}
+            {hasToken && (
+              <DropdownMenuItem
+                className={cn(
+                  "cursor-pointer flex justify-between items-center py-2.5 px-4",
+                  hebrewFont.fontClass,
+                  !isSupported && "opacity-50 cursor-not-allowed"
+                )}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  
+                  if (!isSupported) {
+                    toast.error('הדפדפן שלך לא תומך בהתראות');
+                    return;
+                  }
+                  
+                  console.log('[MobileMenu] Push notification clicked, current state:', {
+                    isSubscribed,
+                    permission
+                  });
+                  
+                  if (isSubscribed) {
+                    console.log('[MobileMenu] Unsubscribing...');
+                    await unsubscribe();
+                  } else {
+                    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                                       (window.navigator as any).standalone === true;
+                    
+                    console.log('[MobileMenu] Device check:', { isIOS, isStandalone });
+                    
+                    if (isIOS && !isStandalone) {
+                      console.log('[MobileMenu] Showing iOS install prompt');
+                      showIOSInstallPrompt();
+                    } else {
+                      console.log('[MobileMenu] Subscribing...');
+                      await subscribe();
+                    }
+                  }
+                }}
+                disabled={pushLoading || !isSupported}
+              >
+                <div className="flex items-center gap-2">
+                  {pushLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      <span>מעבד...</span>
+                    </>
+                  ) : isSubscribed ? (
+                    <>
+                      <BellOff className="h-4 w-4 text-muted-foreground" />
+                      <span>בטל התראות</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="h-4 w-4 text-primary" />
+                      <span>הפעל התראות</span>
+                    </>
+                  )}
+                </div>
+                {!isSubscribed && needsPushAttention && (
+                  <span className="h-2 w-2 rounded-full bg-orange-500" />
+                )}
               </DropdownMenuItem>
             )}
           </div>

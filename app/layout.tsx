@@ -95,6 +95,28 @@ const iosDetectionScript = `
 })();
 `;
 
+// Service worker registration script
+const serviceWorkerScript = `
+(function() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js')
+        .then(function(registration) {
+          console.log('[SW] Registration successful, scope:', registration.scope);
+          // Ensure service worker is ready
+          return navigator.serviceWorker.ready;
+        })
+        .then(function(registration) {
+          console.log('[SW] Service worker is active and ready');
+        })
+        .catch(function(error) {
+          console.error('[SW] Registration failed:', error);
+        });
+    });
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -115,6 +137,11 @@ export default function RootLayout({
         {/* iOS detection script */}
         <Script id="ios-detection" strategy="beforeInteractive">
           {iosDetectionScript}
+        </Script>
+        
+        {/* Service worker registration */}
+        <Script id="service-worker" strategy="afterInteractive">
+          {serviceWorkerScript}
         </Script>
       </head>
       <body className="antialiased font-sans" suppressHydrationWarning>

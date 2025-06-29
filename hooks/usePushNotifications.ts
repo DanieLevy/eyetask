@@ -90,260 +90,179 @@ export function usePushNotifications() {
 
   // Request permission and subscribe
   const subscribe = useCallback(async () => {
-    console.log('[Push] Starting subscription process...');
-    
-    if (!state.isSupported) {
-      console.error('[Push] Push notifications not supported');
-      toast.error('Push notifications are not supported in this browser');
-      return { success: false, error: 'Push notifications are not supported in this browser' };
-    }
+    if (state.isLoading || state.isSubscribed) return;
 
+    console.log('[Push Client] Starting subscription process...');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-
+    
     try {
-      // Request permission if not granted
-      let permission = Notification.permission;
-      console.log('[Push] Current permission:', permission);
-      
-      if (permission === 'default') {
-        console.log('[Push] Requesting permission...');
-        permission = await Notification.requestPermission();
-        console.log('[Push] Permission result:', permission);
+      // Check for service worker support
+      if (!('serviceWorker' in navigator)) {
+        console.error('[Push Client] Service Worker not supported');
+        toast.error('Push notifications are not supported in this browser');
+        return;
       }
 
+      // Check for push API support
+      if (!('PushManager' in window)) {
+        console.error('[Push Client] Push API not supported');
+        toast.error('Push notifications are not supported in this browser');
+        return;
+      }
+
+      // iOS/Safari specific checks
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      console.log('[Push Client] Device detection:', { isIOS, isSafari });
+
+      // Request notification permission
+      console.log('[Push Client] Requesting permission...');
+      const permission = await Notification.requestPermission();
+      console.log('[Push Client] Permission result:', permission);
+      
       if (permission !== 'granted') {
-        console.error('[Push] Permission denied');
-        setState(prev => ({
-          ...prev,
-          permission,
-          isLoading: false,
-          error: 'Permission denied'
-        }));
-        toast.error('נדרשת הרשאה לשליחת התראות');
-        return { success: false, error: 'נדרשת הרשאה לשליחת התראות' };
+        console.warn('[Push Client] Permission denied');
+        toast.error('צריך לאשר התראות כדי להפעיל את השירות');
+        return;
       }
 
-      // Register service worker if not already registered
-      console.log('[Push] Checking service worker registration...');
-      let registration = await navigator.serviceWorker.getRegistration();
-      
-      if (!registration) {
-        console.log('[Push] Registering service worker...');
-        registration = await navigator.serviceWorker.register('/sw.js');
-        await navigator.serviceWorker.ready;
-        console.log('[Push] Service worker registered:', registration);
-      } else {
-        console.log('[Push] Service worker already registered:', registration);
-      }
+      setState(prev => ({ ...prev, permission }));
 
-      // Get VAPID public key
-      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-      console.log('[Push] Fetching VAPID key...');
-      
-      const response = await fetch('/api/push/vapid-key');
+      // Register service worker
+      console.log('[Push Client] Registering service worker...');
+      const registration = await navigator.serviceWorker.ready;
+      console.log('[Push Client] Service worker ready');
 
-      if (!response.ok) {
-        console.error('[Push] Failed to fetch VAPID key:', response.status);
+      // Get VAPID key
+      console.log('[Push Client] Fetching VAPID key...');
+      const vapidResponse = await fetch('/api/push/vapid-key');
+      if (!vapidResponse.ok) {
         throw new Error('Failed to fetch VAPID key');
       }
+      const { publicKey } = await vapidResponse.json();
+      console.log('[Push Client] VAPID key received, length:', publicKey?.length);
 
-      const { publicKey } = await response.json();
-      console.log('[Push] VAPID public key received, length:', publicKey?.length);
+      // Convert VAPID key with enhanced iOS support
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
+      console.log('[Push Client] Converted key, byte length:', applicationServerKey.byteLength);
 
-      // Detect if we're on iOS
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                          (navigator as any).standalone === true;
-      
-      console.log('[Push] Platform detection:', { isIOS, isStandalone });
-      
-      // iOS-specific validation
-      if (isIOS && !publicKey) {
-        throw new Error('VAPID key is required for iOS push notifications');
+      // Subscribe to push
+      console.log('[Push Client] Creating push subscription...');
+      const pushSubscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+      console.log('[Push Client] Push subscription created');
+
+      // Get token
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+      if (!token) {
+        console.error('[Push Client] No auth token found');
+        toast.error('צריך להתחבר כדי להפעיל התראות');
+        return;
       }
 
-      // Subscribe to push notifications
-      console.log('[Push] Subscribing to push notifications...');
-      
-      // Check if user is admin for detailed logging
-      const isAdmin = localStorage.getItem('adminToken') !== null;
-      
-      let subscription;
-      try {
-        // Log detailed VAPID key info for admin users
-        if (isAdmin) {
-          console.log('[Push Admin] Raw VAPID key:', publicKey);
-          console.log('[Push Admin] VAPID key type:', typeof publicKey);
-          console.log('[Push Admin] VAPID key first 50 chars:', publicKey?.substring(0, 50));
-          
-          try {
-            const convertedKey = urlBase64ToUint8Array(publicKey);
-            console.log('[Push Admin] Converted key byte length:', convertedKey.length);
-            console.log('[Push Admin] First 10 bytes:', Array.from(convertedKey.slice(0, 10)));
-          } catch (conversionError) {
-            console.error('[Push Admin] VAPID key conversion error:', conversionError);
-          }
-        }
-        
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey)
-        });
-        
-        console.log('[Push] Subscription created:', subscription);
-        console.log('[Push] Endpoint:', subscription.endpoint);
-        
-        // iOS-specific: Verify the subscription is valid
-        if (isIOS && !subscription.endpoint) {
-          throw new Error('Invalid subscription: no endpoint received');
-        }
-      } catch (subscribeError) {
-        // Enhanced admin logging
-        if (isAdmin) {
-          console.error('[Push Admin] Full subscription error:', subscribeError);
-          console.error('[Push Admin] Error name:', (subscribeError as Error).name);
-          console.error('[Push Admin] Error message:', (subscribeError as Error).message);
-          console.error('[Push Admin] Error stack:', (subscribeError as Error).stack);
-          
-          // Log DOMException details if available
-          if (subscribeError instanceof DOMException) {
-            console.error('[Push Admin] DOMException code:', subscribeError.code);
-            console.error('[Push Admin] DOMException name:', subscribeError.name);
-          }
-        }
-        
-        console.error('[Push] Subscription error:', subscribeError);
-        
-        // Provide more specific error messages for iOS
-        if (isIOS && subscribeError instanceof Error) {
-          if (subscribeError.message.includes('applicationServerKey')) {
-            throw new Error('iOS push notification setup failed: Invalid VAPID key format. Please contact support.');
-          } else if (subscribeError.message.includes('permission')) {
-            throw new Error('Push notification permission denied. Please enable notifications in iOS Settings.');
-          }
-        }
-        
-        throw subscribeError;
-      }
-
-      // Send subscription to server
-      console.log('[Push] Sending subscription to server...');
-      
-      // Ensure we have a valid token
-      if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
-        console.error('[Push] No valid authentication token found');
-        throw new Error('Authentication required');
-      }
-      
-      const saveResponse = await fetch('/api/push/subscribe', {
+      // Save subscription to server
+      console.log('[Push Client] Saving subscription to server...');
+      const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          subscription: subscription.toJSON()
+          subscription: pushSubscription.toJSON()
         })
       });
 
-      if (!saveResponse.ok) {
-        console.error('[Push] Failed to save subscription:', saveResponse.status);
-        const errorText = await saveResponse.text();
-        console.error('[Push] Error response:', errorText);
-        throw new Error('Failed to save subscription');
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('[Push Client] Server response error:', response.status, error);
+        throw new Error(`Failed to save subscription: ${response.status}`);
       }
 
-      const result = await saveResponse.json();
-      console.log('[Push] Subscription saved:', result);
+      const result = await response.json();
+      console.log('[Push Client] Subscription saved successfully:', result);
 
       setState(prev => ({
         ...prev,
-        permission: 'granted',
         isSubscribed: true,
         isLoading: false
       }));
 
-      toast.success('הרשמת בהצלחה לקבלת התראות');
-      return { success: true };
+      toast.success('התראות הופעלו בהצלחה! 🔔');
+      
+      // Test notification after 2 seconds
+      setTimeout(() => {
+        console.log('[Push Client] Sending test notification...');
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            title: 'ברוכים הבאים!',
+            body: 'התראות הופעלו בהצלחה',
+            icon: '/icons/icon-192x192.png',
+            test: true
+          })
+        }).catch(err => console.error('[Push Client] Test notification failed:', err));
+      }, 2000);
+
     } catch (error) {
-      console.error('[Push] Error subscribing to push:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage
-      }));
-      
-      // Don't show generic toast here, let the component handle it
-      return { success: false, error: errorMessage };
+      console.error('[Push Client] Subscription error:', error);
+      toast.error('שגיאה בהפעלת התראות: ' + (error as Error).message);
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
     }
-  }, [state.isSupported]);
+  }, [state.isLoading, state.isSubscribed]);
 
   // Unsubscribe from push notifications
   const unsubscribe = useCallback(async () => {
-    console.log('[Push] Starting unsubscribe process...');
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    if (state.isLoading || !state.isSubscribed) return;
 
+    console.log('[Push Client] Starting unsubscribe process...');
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      console.log('[Push] Current subscription:', subscription);
-
-      if (!subscription) {
-        setState(prev => ({
-          ...prev,
-          isSubscribed: false,
-          isLoading: false
-        }));
-        return true;
-      }
-
-      // Unsubscribe from push
-      console.log('[Push] Unsubscribing from push...');
-      await subscription.unsubscribe();
-
-      // Remove from server
-      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-      console.log('[Push] Removing subscription from server...');
       
-      // Ensure we have a valid token
-      if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
-        console.error('[Push] No valid authentication token found');
-        throw new Error('Authentication required');
+      if (subscription) {
+        console.log('[Push Client] Found subscription, unsubscribing...');
+        await subscription.unsubscribe();
+        
+        const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        if (token) {
+          console.log('[Push Client] Removing subscription from server...');
+          await fetch('/api/push/subscribe', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              endpoint: subscription.endpoint
+            })
+          });
+        }
       }
       
-      await fetch('/api/push/subscribe', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint
-        })
-      });
-
-      console.log('[Push] Unsubscribed successfully');
       setState(prev => ({
         ...prev,
         isSubscribed: false,
         isLoading: false
       }));
-
-      toast.success('ביטלת את ההרשמה להתראות');
-      return true;
+      toast.success('התראות בוטלו בהצלחה');
+      console.log('[Push Client] Unsubscribe completed');
     } catch (error) {
-      console.error('[Push] Error unsubscribing from push:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: (error as Error).message
-      }));
-      toast.error('שגיאה בביטול ההרשמה');
-      return false;
+      console.error('[Push Client] Unsubscribe error:', error);
+      toast.error('שגיאה בביטול התראות');
+    } finally {
+      setState(prev => ({ ...prev, isLoading: false }));
     }
-  }, []);
+  }, [state.isLoading, state.isSubscribed]);
 
   // Show iOS install prompt
   const showIOSInstallPrompt = useCallback(() => {
@@ -370,78 +289,54 @@ export function usePushNotifications() {
     return false;
   }, []);
 
+  // Helper setters
+  const setIsLoading = (loading: boolean) => {
+    setState(prev => ({ ...prev, isLoading: loading }));
+  };
+
+  const setIsSubscribed = (subscribed: boolean) => {
+    setState(prev => ({ ...prev, isSubscribed: subscribed }));
+  };
+
+  const setPermission = (permission: NotificationPermission) => {
+    setState(prev => ({ ...prev, permission }));
+  };
+
   return {
-    ...state,
+    isSupported: state.isSupported,
+    permission: state.permission,
+    isSubscribed: state.isSubscribed,
+    isLoading: state.isLoading,
+    error: state.error,
     subscribe,
     unsubscribe,
     showIOSInstallPrompt
   };
 }
 
-// Helper function to convert VAPID key - iOS compatible version
+// Enhanced VAPID key conversion with iOS support
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const isAdmin = localStorage.getItem('adminToken') !== null;
-  
-  if (isAdmin) {
-    console.log('[Push Admin] urlBase64ToUint8Array input:', base64String);
-    console.log('[Push Admin] Input length:', base64String?.length);
-    console.log('[Push Admin] Input type:', typeof base64String);
-  }
-  
-  // Validate input
-  if (!base64String || typeof base64String !== 'string') {
-    throw new Error('Invalid VAPID key: empty or not a string');
-  }
-  
-  // Remove any whitespace that might have been added
+  // Clean the input string
   base64String = base64String.trim();
   
-  // iOS requires proper padding - ensure we have the right padding
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  // Handle URL-safe base64
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
     .replace(/\-/g, '+')
     .replace(/_/g, '/');
-  
-  if (isAdmin) {
-    console.log('[Push Admin] After padding:', base64);
-    console.log('[Push Admin] Padded length:', base64.length);
+
+  // Decode base64
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
   }
-  
-  try {
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    
-    // Validate the key length for P-256 curve (iOS requirement)
-    // P-256 public keys should be 65 bytes (uncompressed) or 33 bytes (compressed)
-    if (outputArray.length !== 65 && outputArray.length !== 33) {
-      console.warn('[Push] VAPID key length unusual:', outputArray.length, 'bytes');
-      if (isAdmin) {
-        console.error('[Push Admin] Invalid key length! Expected 65 or 33 bytes, got:', outputArray.length);
-        console.error('[Push Admin] This may cause issues on iOS devices');
-      }
-    }
-    
-    if (isAdmin) {
-      console.log('[Push Admin] Conversion successful, byte array length:', outputArray.length);
-      console.log('[Push Admin] Key format:', outputArray.length === 65 ? 'uncompressed' : outputArray.length === 33 ? 'compressed' : 'unknown');
-      
-      // Check for uncompressed key format (should start with 0x04)
-      if (outputArray.length === 65) {
-        console.log('[Push Admin] First byte (should be 0x04 for uncompressed):', '0x' + outputArray[0].toString(16).padStart(2, '0'));
-      }
-    }
-    
-    return outputArray;
-  } catch (error) {
-    if (isAdmin) {
-      console.error('[Push Admin] atob conversion failed:', error);
-      console.error('[Push Admin] Base64 string that failed:', base64);
-    }
-    console.error('[Push] Error converting VAPID key:', error);
-    throw new Error('Failed to convert VAPID key: ' + (error instanceof Error ? error.message : 'Unknown error'));
+
+  // Validate P-256 key for iOS (65 bytes uncompressed or 33 bytes compressed)
+  if (outputArray.length !== 65 && outputArray.length !== 33) {
+    console.warn('[Push] VAPID key length:', outputArray.length, 'bytes - may not be compatible with iOS');
   }
+
+  return outputArray;
 } 

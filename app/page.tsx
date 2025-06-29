@@ -13,7 +13,6 @@ import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
 import { LoadingSpinner } from '@/components/LoadingSystem';
 import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
-import { PushNotificationModal } from '@/components/PushNotificationModal';
 
 // Project and Task interfaces moved to shared types
 
@@ -215,9 +214,6 @@ function HomePageCore() {
           </div>
         )}
       </div>
-      
-      {/* Push Notification Modal */}
-      <PushNotificationModal />
     </div>
   );
 }
