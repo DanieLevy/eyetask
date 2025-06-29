@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, Suspense, useRef, useMemo } from 'react';
+import { useEffect, useCallback, Suspense, useRef, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
@@ -11,6 +11,7 @@ import ProjectCard from '@/components/ProjectCard';
 import { useHomepageData, useDataPreloader } from '@/hooks/useOptimizedData';
 import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
 import { LoadingSpinner } from '@/components/LoadingSystem';
+import { PushNotificationModal } from '@/components/PushNotificationModal';
 
 // Project and Task interfaces moved to shared types
 
@@ -25,6 +26,14 @@ function HomePageCore() {
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
   const router = useRouter();
+  
+  // Check if user is authenticated
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+  }, []);
   
   // URL parameters
   const isPWALaunch = searchParams.get('utm_medium') === 'pwa' || pwaStatus.status.isStandalone;
@@ -212,6 +221,11 @@ function HomePageCore() {
           </div>
         )}
       </div>
+      
+      {/* Push Notification Modal */}
+      {isAuthenticated && (
+        <PushNotificationModal />
+      )}
     </div>
   );
 }

@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface NotificationHistory {
   _id: string;
@@ -85,6 +86,17 @@ export default function PushNotificationsPage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
   const router = useRouter();
+
+  // Add push notifications hook
+  const {
+    isSupported,
+    permission,
+    isSubscribed,
+    isLoading: pushLoading,
+    subscribe,
+    unsubscribe,
+    showIOSInstallPrompt
+  } = usePushNotifications();
 
   useEffect(() => {
     checkAuthAndLoadData();
@@ -302,6 +314,45 @@ export default function PushNotificationsPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
+        {/* Quick Subscribe Alert */}
+        {!isSubscribed && isSupported && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+            <Bell className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>עליך להירשם להתראות כדי לשלוח הודעות</span>
+              <Button 
+                size="sm" 
+                onClick={async () => {
+                  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                                     (window.navigator as any).standalone === true;
+                  
+                  if (isIOS && !isStandalone) {
+                    showIOSInstallPrompt();
+                  } else {
+                    await subscribe();
+                    // Reload subscriptions after subscribing
+                    await loadSubscriptions();
+                  }
+                }}
+                disabled={pushLoading}
+              >
+                {pushLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    מתחבר...
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4 mr-2" />
+                    הרשם להתראות
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-4 mb-6">
           <Card>

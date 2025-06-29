@@ -1,23 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { pushService } from '@/lib/services/pushNotificationService';
+import { NextRequest, NextResponse } from "next/server";
+import { pushService } from "@/lib/services/pushNotificationService";
 
-// GET /api/push/vapid-key - Get VAPID public key
+// GET /api/push/vapid-key - Get VAPID public key (public endpoint)
 export async function GET(request: NextRequest) {
   try {
-    const user = auth.extractUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json({
-        error: 'Authentication required',
-        success: false
-      }, { status: 401 });
-    }
-
+    // VAPID public key is public information, no auth needed
     const publicKey = pushService.getPublicKey();
 
     if (!publicKey) {
       return NextResponse.json({
-        error: 'VAPID keys not configured',
+        error: "VAPID keys not configured",
         success: false
       }, { status: 500 });
     }
@@ -28,7 +20,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json({
-      error: 'Failed to fetch VAPID key',
+      error: "Failed to fetch VAPID key",
       success: false
     }, { status: 500 });
   }
