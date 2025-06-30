@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/database';
 import { logger } from '@/lib/logger';
 import { pushService } from '@/lib/services/pushNotificationService';
+import { v4 as uuidv4 } from 'uuid';
 
 // POST /api/push/subscribe - Subscribe to push notifications
 export async function POST(request: NextRequest) {
@@ -20,35 +21,35 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-    // Verify authentication
+    // Check for authentication (optional)
     const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      logger.warn('[Push Subscribe] No authorization header', 'PUSH_SUBSCRIBE', { userAgent, isIOS });
-      return NextResponse.json({ error: 'No authorization header' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const user = auth.verifyToken(token);
+    let user = null;
     
-    if (!user) {
-      logger.warn('[Push Subscribe] Invalid token', 'PUSH_SUBSCRIBE', { userAgent, isIOS });
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      user = auth.verifyToken(token);
+      
+      if (user) {
+        logger.info('[Push Subscribe] User authenticated', 'PUSH_SUBSCRIBE', {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+          isIOS
+        });
+      } else {
+        logger.warn('[Push Subscribe] Invalid token provided', 'PUSH_SUBSCRIBE', { userAgent, isIOS });
+      }
+    } else {
+      logger.info('[Push Subscribe] Unauthenticated subscription request', 'PUSH_SUBSCRIBE', { userAgent, isIOS });
     }
-
-    logger.info('[Push Subscribe] User authenticated', 'PUSH_SUBSCRIBE', {
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-      isIOS
-    });
 
     // Parse subscription data
     const body = await request.json();
-    const { subscription } = body;
+    const { subscription, userName } = body;
 
     if (!subscription || !subscription.endpoint) {
       logger.error('[Push Subscribe] Invalid subscription data', 'PUSH_SUBSCRIBE', {
-        userId: user.id,
+        userId: user?.id || 'anonymous',
         hasSubscription: !!subscription,
         hasEndpoint: !!(subscription?.endpoint),
         isIOS
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Deep log subscription details for iOS
     logger.info('[Push Subscribe] Subscription details', 'PUSH_SUBSCRIBE', {
-      userId: user.id,
+      userId: user?.id || 'anonymous',
       endpoint: subscription.endpoint.substring(0, 50) + '...',
       hasKeys: !!subscription.keys,
       hasP256dh: !!(subscription.keys?.p256dh),
@@ -66,7 +67,8 @@ export async function POST(request: NextRequest) {
       p256dhLength: subscription.keys?.p256dh?.length,
       authLength: subscription.keys?.auth?.length,
       isIOS,
-      userAgent
+      userAgent,
+      providedUserName: userName || 'Not provided'
     });
 
     // Detect device type
@@ -78,17 +80,23 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('[Push Subscribe] Device type detected', 'PUSH_SUBSCRIBE', {
-      userId: user.id,
+      userId: user?.id || 'anonymous',
       deviceType,
       userAgent: userAgent.substring(0, 100)
     });
 
+    // Generate unique ID for anonymous users
+    const userId = user?.id || `anon_${uuidv4()}`;
+    const username = userName || user?.username || 'Anonymous User';
+    const email = user?.email || '';
+    const role = user?.role || 'guest';
+
     // Save subscription
     await db.savePushSubscription({
-      userId: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
+      userId,
+      username,
+      email,
+      role,
       subscription,
       deviceType,
       userAgent,
@@ -96,23 +104,27 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info('[Push Subscribe] Subscription saved successfully', 'PUSH_SUBSCRIBE', {
-      userId: user.id,
-      username: user.username,
+      userId,
+      username,
       deviceType,
-      isIOS
+      isIOS,
+      isAnonymous: !user
     });
     
-    // Send welcome notification to this user only
+    // Send welcome notification to the subscriber
     try {
       logger.info('[Push Subscribe] Sending welcome notification', 'PUSH_SUBSCRIBE', {
-        userId: user.id
+        userId,
+        isAnonymous: !user
       });
 
       const welcomeResult = await pushService.sendToUser(
-        user.id,
+        userId,
         {
-          title: 'ברוכים הבאים! 🎉',
-          body: 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
+          title: 'ההרשמה הושלמה! 🔔',
+          body: username !== 'Anonymous User' 
+            ? `שלום ${username}, ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.`
+            : 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
           icon: '/icons/icon-192x192.png',
           badge: '/icons/icon-72x72.png',
           url: '/'
@@ -122,19 +134,22 @@ export async function POST(request: NextRequest) {
 
       if (welcomeResult.success) {
         logger.info('[Push Subscribe] Welcome notification sent', 'PUSH_SUBSCRIBE', {
-          userId: user.id,
-          sent: welcomeResult.sent
+          userId,
+          sent: welcomeResult.sent,
+          isAnonymous: !user
         });
       } else {
         logger.warn('[Push Subscribe] Failed to send welcome notification', 'PUSH_SUBSCRIBE', {
-          userId: user.id,
-          errors: welcomeResult.errors
+          userId,
+          errors: welcomeResult.errors,
+          isAnonymous: !user
         });
       }
     } catch (err) {
       logger.error('[Push Subscribe] Error sending welcome notification', 'PUSH_SUBSCRIBE', {
-        userId: user.id,
-        error: (err as Error).message
+        userId,
+        error: (err as Error).message,
+        isAnonymous: !user
       });
       // Don't fail the subscription if welcome message fails
     }
@@ -169,17 +184,19 @@ export async function DELETE(request: NextRequest) {
       timestamp: new Date().toISOString()
     });
 
-    // Verify authentication
+    // Check for authentication (optional for unsubscribe)
     const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const user = auth.verifyToken(token);
+    let user = null;
     
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      user = auth.verifyToken(token);
+      
+      if (!user) {
+        logger.warn('[Push Unsubscribe] Invalid token provided', 'PUSH_UNSUBSCRIBE', { userAgent, isIOS });
+      }
+    } else {
+      logger.info('[Push Unsubscribe] Unauthenticated unsubscribe request', 'PUSH_UNSUBSCRIBE', { userAgent, isIOS });
     }
 
     // Parse endpoint
@@ -188,14 +205,14 @@ export async function DELETE(request: NextRequest) {
 
     if (!endpoint) {
       logger.error('[Push Unsubscribe] No endpoint provided', 'PUSH_UNSUBSCRIBE', {
-        userId: user.id,
+        userId: user?.id || 'anonymous',
         isIOS
       });
       return NextResponse.json({ error: 'No endpoint provided' }, { status: 400 });
     }
 
     logger.info('[Push Unsubscribe] Removing subscription', 'PUSH_UNSUBSCRIBE', {
-      userId: user.id,
+      userId: user?.id || 'anonymous',
       endpoint: endpoint.substring(0, 50) + '...',
       isIOS
     });
@@ -204,8 +221,9 @@ export async function DELETE(request: NextRequest) {
     await db.removePushSubscription(endpoint);
 
     logger.info('[Push Unsubscribe] Subscription removed successfully', 'PUSH_UNSUBSCRIBE', {
-      userId: user.id,
-      isIOS
+      userId: user?.id || 'anonymous',
+      isIOS,
+      wasAnonymous: !user
     });
 
     return NextResponse.json({ 

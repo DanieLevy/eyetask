@@ -1,44 +1,75 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-  ArrowRight,
   Bell,
   Send,
   History,
+  Users,
+  UserX,
+  BellRing,
+  Smartphone,
+  Monitor,
+  Shield,
+  Loader2,
   RefreshCw,
-  AlertCircle,
   CheckCircle2,
   XCircle,
-  Image as ImageIcon,
-  Link as LinkIcon,
+  ArrowRight,
+  Search,
+  Filter,
+  User,
   Clock,
-  Users,
-  Loader2,
-  Upload,
-  Home,
-  FolderOpen,
-  X,
-  ChevronDown
+  TrendingUp,
+  Wifi,
+  WifiOff,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { apiClient } from '@/lib/api-client';
+import { formatDistanceToNow } from 'date-fns';
+import { he } from 'date-fns/locale';
+import { logger } from '@/lib/logger';
+
+interface PushSubscription {
+  _id: string;
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  deviceType: 'ios' | 'android' | 'desktop';
+  createdAt: string;
+  lastActive: string;
+  isActive: boolean;
+}
 
 interface NotificationHistory {
   _id: string;
@@ -52,677 +83,884 @@ interface NotificationHistory {
     failed: number;
     clicked: number;
   };
-  status: string;
+  status: 'pending' | 'sending' | 'sent' | 'failed';
   targetRoles?: string[];
   targetUsers?: string[];
-  icon?: string;
-  image?: string;
-  url?: string;
-}
-
-interface Project {
-  _id: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
 }
 
 export default function PushNotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<PushSubscription[]>([]);
   const [history, setHistory] = useState<NotificationHistory[]>([]);
-  const [activeSubscribers, setActiveSubscribers] = useState(0);
-  const [projects, setProjects] = useState<Project[]>([]);
   
   // Form state
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [linkType, setLinkType] = useState<'home' | 'project'>('home');
-  const [selectedProject, setSelectedProject] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
-  const [requireInteraction, setRequireInteraction] = useState(false);
-  const [targetType, setTargetType] = useState<'all' | 'roles'>('all');
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [targetType, setTargetType] = useState<'all' | 'authenticated' | 'anonymous' | 'specific' | 'byName'>('all');
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterDevice, setFilterDevice] = useState<string>('all');
+  const [filterActive, setFilterActive] = useState<string>('all');
   
   const router = useRouter();
 
   useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
-  const checkAuthAndLoadData = async () => {
-    console.log('[Push Admin] Checking auth and loading data...');
-    if (!apiClient.isAuthenticated()) {
-      console.log('[Push Admin] Not authenticated, redirecting...');
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
       router.push('/admin');
       return;
     }
+    loadData();
+  }, [router]);
 
+  const loadData = async () => {
+    setLoading(true);
     try {
-      console.log('[Push Admin] Verifying auth...');
-      const verifyResponse = await apiClient.get<any>('/api/auth/verify');
-      console.log('[Push Admin] Auth verified:', verifyResponse);
-      
-      console.log('[Push Admin] Loading data in parallel...');
       await Promise.all([
-        loadHistory(),
-        loadSubscriberCount(),
-        loadProjects()
+        loadSubscriptions(),
+        loadHistory()
       ]);
-      console.log('[Push Admin] All data loaded successfully');
-    } catch (error: any) {
-      console.error('[Push Admin] Error loading data:', error);
-      if (error.status === 401) {
-        router.push('/admin');
-      } else {
-        toast.error('שגיאה בטעינת הנתונים');
-      }
+    } catch (error) {
+      logger.error('Error loading data:', 'PUSH_ADMIN', error as Error);
+      toast.error('שגיאה בטעינת הנתונים');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadHistory = async () => {
+  const loadSubscriptions = async () => {
     try {
-      console.log('[Push Admin] Loading notification history...');
-      const data = await apiClient.get<any>('/api/push/history');
-      console.log('[Push Admin] History loaded:', data.history?.length || 0, 'notifications');
-      setHistory(data.history || []);
-    } catch (error) {
-      console.error('[Push Admin] Error loading history:', error);
-    }
-  };
-
-  const loadSubscriberCount = async () => {
-    try {
-      console.log('[Push Admin] Loading subscriber count...');
-      const data = await apiClient.get<any>('/api/push/subscriptions');
-      console.log('[Push Admin] Subscribers loaded:', data.subscriptions?.length || 0);
-      setActiveSubscribers(data.subscriptions?.length || 0);
-    } catch (error) {
-      console.error('[Push Admin] Error loading subscribers:', error);
-    }
-  };
-
-  const loadProjects = async () => {
-    try {
-      console.log('[Push Admin] Loading projects...');
-      const data = await apiClient.get<any>('/api/projects');
-      console.log('[Push Admin] Projects loaded:', data.projects?.length || 0);
-      console.log('[Push Admin] Projects data:', data.projects);
-      setProjects(data.projects || []);
-    } catch (error) {
-      console.error('[Push Admin] Error loading projects:', error);
-    }
-  };
-
-  const handleImageUpload = async (file: File) => {
-    console.log('[Push Admin] Starting image upload...');
-    console.log('[Push Admin] File details:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
-    
-    setUploadingImage(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      console.log('[Push Admin] Uploading to /api/upload/image...');
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        body: formData,
+      const response = await fetch('/api/push/subscriptions', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
-
-      console.log('[Push Admin] Upload response status:', response.status);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[Push Admin] Upload failed:', errorText);
-        throw new Error('Upload failed');
-      }
-
       const data = await response.json();
-      console.log('[Push Admin] Upload successful:', data);
-      const imageUrl = data.data?.publicUrl || data.data?.filePath || data.url;
-      if (!imageUrl) {
-        console.error('[Push Admin] No URL in response:', data);
-        throw new Error('No image URL in response');
-      }
-      setImageUrl(imageUrl);
-      setUploadedImage(file);
-      toast.success('התמונה הועלתה בהצלחה');
+      setSubscriptions(data.subscriptions || []);
     } catch (error) {
-      console.error('[Push Admin] Error uploading image:', error);
-      toast.error('שגיאה בהעלאת התמונה');
-    } finally {
-      setUploadingImage(false);
+      logger.error('Error loading subscriptions:', 'PUSH_ADMIN', error as Error);
     }
   };
 
+  const loadHistory = async () => {
+    try {
+      const response = await fetch('/api/push/history', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        }
+      });
+      const data = await response.json();
+      setHistory(data.history || []);
+    } catch (error) {
+      logger.error('Error loading history:', 'PUSH_ADMIN', error as Error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+    toast.success('הנתונים רועננו');
+  };
+
   const handleSend = async () => {
-    console.log('[Push Admin] Starting send process...');
     if (!title || !body) {
-      console.log('[Push Admin] Missing required fields');
       toast.error('כותרת ותוכן הם שדות חובה');
       return;
     }
 
     setSending(true);
     try {
-      // Build URL based on selection
-      let url = '/';
-      if (linkType === 'project' && selectedProject) {
-        const project = projects.find(p => p._id === selectedProject);
-        console.log('[Push Admin] Selected project:', project);
-        if (project) {
-          url = `/project/${project.name}`;
-          console.log('[Push Admin] Built project URL:', url);
-        }
+      interface NotificationPayload {
+        title: string;
+        body: string;
+        icon: string;
+        badge: string;
+        url: string;
+        targetUsers?: string[];
       }
-
-      const payload: any = {
+      
+      const payload: NotificationPayload = {
         title,
         body,
-        url,
-        requireInteraction,
         icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-72x72.png'
+        badge: '/icons/icon-72x72.png',
+        url: '/'
       };
 
-      if (imageUrl) {
-        payload.image = imageUrl;
-        console.log('[Push Admin] Including image:', imageUrl);
+      // Set target based on selection
+      if (targetType === 'authenticated') {
+        payload.targetUsers = subscriptions
+          .filter(sub => !sub.userId.startsWith('anon_'))
+          .map(sub => sub.userId);
+      } else if (targetType === 'anonymous') {
+        payload.targetUsers = subscriptions
+          .filter(sub => sub.userId.startsWith('anon_'))
+          .map(sub => sub.userId);
+      } else if (targetType === 'specific' && selectedUsers.length > 0) {
+        payload.targetUsers = selectedUsers;
+      } else if (targetType === 'byName' && selectedUsers.length > 0) {
+        payload.targetUsers = selectedUsers;
       }
 
-      // Set target
-      if (targetType === 'roles' && selectedRoles.length > 0) {
-        payload.targetRoles = selectedRoles;
-        console.log('[Push Admin] Target roles:', selectedRoles);
-      }
+      const response = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(payload)
+      });
 
-      console.log('[Push Admin] Sending notification with payload:', payload);
-      const result = await apiClient.post<any>('/api/push/send', payload);
-      console.log('[Push Admin] Send result:', result);
+      const result = await response.json();
 
       if (result.success) {
-        toast.success(result.message || 'התראה נשלחה בהצלחה');
+        toast.success(`התראה נשלחה בהצלחה ל-${result.sent} משתמשים`);
         // Reset form
         setTitle('');
         setBody('');
-        setLinkType('home');
-        setSelectedProject('');
-        setImageUrl('');
-        setUploadedImage(null);
-        setRequireInteraction(false);
         setTargetType('all');
-        setSelectedRoles([]);
+        setSelectedUsers([]);
         // Reload history
         await loadHistory();
       } else {
-        console.error('[Push Admin] Send failed:', result);
         toast.error(result.error || 'שגיאה בשליחת ההתראה');
       }
-    } catch (error: any) {
-      console.error('[Push Admin] Error sending notification:', error);
-      toast.error(error.message || 'שגיאה בשליחת ההתראה');
+    } catch (error) {
+      logger.error('Error sending notification:', 'PUSH_ADMIN', error as Error);
+      toast.error('שגיאה בשליחת ההתראה');
     } finally {
       setSending(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'לפני רגע';
-    if (diffMins < 60) return `לפני ${diffMins} דקות`;
-    if (diffHours < 24) return `לפני ${diffHours} שעות`;
-    if (diffDays < 7) return `לפני ${diffDays} ימים`;
-    
-    return date.toLocaleDateString('he-IL', {
-      day: 'numeric',
-      month: 'short',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  // Filtered subscriptions
+  const filteredSubscriptions = useMemo(() => {
+    return subscriptions.filter(sub => {
+      // Search filter
+      if (searchQuery && !sub.username.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Role filter
+      if (filterRole !== 'all' && sub.role !== filterRole) {
+        return false;
+      }
+      
+      // Device filter
+      if (filterDevice !== 'all' && sub.deviceType !== filterDevice) {
+        return false;
+      }
+      
+      // Active filter
+      if (filterActive === 'active' && !sub.isActive) {
+        return false;
+      } else if (filterActive === 'inactive' && sub.isActive) {
+        return false;
+      }
+      
+      return true;
     });
+  }, [subscriptions, searchQuery, filterRole, filterDevice, filterActive]);
+
+  // Stats calculations
+  const stats = {
+    total: subscriptions.length,
+    authenticated: subscriptions.filter(s => !s.userId.startsWith('anon_')).length,
+    anonymous: subscriptions.filter(s => s.userId.startsWith('anon_')).length,
+    active: subscriptions.filter(s => s.isActive).length,
+    byDevice: {
+      ios: subscriptions.filter(s => s.deviceType === 'ios').length,
+      android: subscriptions.filter(s => s.deviceType === 'android').length,
+      desktop: subscriptions.filter(s => s.deviceType === 'desktop').length
+    },
+    recentlyActive: subscriptions.filter(s => {
+      const lastActive = new Date(s.lastActive);
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      return lastActive > dayAgo;
+    }).length
   };
+
+  const getDeviceIcon = (deviceType: string) => {
+    switch (deviceType) {
+      case 'ios':
+        return <Smartphone className="h-4 w-4 text-blue-500" />;
+      case 'android':
+        return <Smartphone className="h-4 w-4 text-green-500" />;
+      default:
+        return <Monitor className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Badge variant="destructive" className="text-xs bg-red-500">מנהל</Badge>;
+      case 'guest':
+        return <Badge variant="secondary" className="text-xs bg-gray-200">אורח</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{role}</Badge>;
+    }
+  };
+
+  // Unique names for dropdown
+  const uniqueNames = useMemo(() => {
+    const names = new Set<string>();
+    subscriptions.forEach(sub => {
+      if (sub.username && sub.username !== 'Anonymous User') {
+        names.add(sub.username);
+      }
+    });
+    return Array.from(names).sort();
+  }, [subscriptions]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="container max-w-6xl mx-auto px-4 py-8 space-y-6">
-          <Skeleton className="h-16 w-full" />
-          <div className="grid gap-6 md:grid-cols-2">
-            <Skeleton className="h-[500px]" />
-            <Skeleton className="h-[500px]" />
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Minimal Header */}
-      <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-        <div className="container max-w-6xl mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/admin/dashboard">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <ArrowRight className="h-4 w-4" />
-                  <span className="hidden sm:inline">חזרה</span>
-                </Button>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800" dir="rtl">
+      <div className="container max-w-7xl mx-auto p-4 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/admin/dashboard')}
+              className="shrink-0"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <Bell className="h-6 w-6 text-purple-600" />
+                ניהול התראות
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                שלח התראות Push למשתמשי האפליקציה
+              </p>
+            </div>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+            רענן נתונים
+          </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    מערכת התראות
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {activeSubscribers} משתמשים פעילים
-                  </p>
+                  <p className="text-sm opacity-90">סהכ מנויים</p>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </div>
+                <Users className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">פעילים</p>
+                  <p className="text-2xl font-bold">{stats.active}</p>
+                </div>
+                <Wifi className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">רשומים</p>
+                  <p className="text-2xl font-bold">{stats.authenticated}</p>
+                </div>
+                <Shield className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">אורחים</p>
+                  <p className="text-2xl font-bold">{stats.anonymous}</p>
+                </div>
+                <UserX className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">פעילים ב-24h</p>
+                  <p className="text-2xl font-bold">{stats.recentlyActive}</p>
+                </div>
+                <Clock className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-0">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm opacity-90">התראות נשלחו</p>
+                  <p className="text-2xl font-bold">{history.length}</p>
+                </div>
+                <BellRing className="h-8 w-8 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Device Stats */}
+        <Card className="bg-white dark:bg-gray-800">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">התפלגות מכשירים</h3>
+              <div className="flex gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                  <span>iOS ({stats.byDevice.ios})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full" />
+                  <span>Android ({stats.byDevice.android})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-500 rounded-full" />
+                  <span>Desktop ({stats.byDevice.desktop})</span>
                 </div>
               </div>
             </div>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                loadHistory();
-                loadSubscriberCount();
-              }}
-              className="rounded-lg"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+            <div className="mt-4 w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div className="flex h-full">
+                <div 
+                  className="bg-blue-500" 
+                  style={{ width: `${(stats.byDevice.ios / stats.total) * 100}%` }}
+                />
+                <div 
+                  className="bg-green-500" 
+                  style={{ width: `${(stats.byDevice.android / stats.total) * 100}%` }}
+                />
+                <div 
+                  className="bg-gray-500" 
+                  style={{ width: `${(stats.byDevice.desktop / stats.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Main Content */}
-      <main className="container max-w-6xl mx-auto px-4 py-6">
-        <Tabs defaultValue="send" className="space-y-6">
-          <TabsList className="grid w-full max-w-[400px] grid-cols-2 p-1 h-11">
-            <TabsTrigger value="send" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-              <Send className="h-4 w-4 mr-2" />
+        {/* Main Content */}
+        <Tabs defaultValue="send" className="space-y-4">
+          <TabsList className="grid w-full max-w-[400px] grid-cols-3 bg-white dark:bg-gray-800">
+            <TabsTrigger value="send" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700">
+              <Send className="h-4 w-4 ml-2" />
               שליחה
             </TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800">
-              <History className="h-4 w-4 mr-2" />
+            <TabsTrigger value="subscribers" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700">
+              <Users className="h-4 w-4 ml-2" />
+              מנויים
+            </TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700">
+              <History className="h-4 w-4 ml-2" />
               היסטוריה
             </TabsTrigger>
           </TabsList>
 
           {/* Send Tab */}
-          <TabsContent value="send" className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Notification Form */}
-              <Card className="border-gray-200 dark:border-gray-800">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-medium">יצירת התראה</CardTitle>
-                  <CardDescription className="text-sm">
-                    מלא את הפרטים ושלח התראה למשתמשים
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Title */}
+          <TabsContent value="send" className="space-y-4">
+            <Card className="bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle>שליחת התראה חדשה</CardTitle>
+                <CardDescription>
+                  מלא את הפרטים ובחר למי לשלוח את ההתראה
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Notification Content */}
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title" className="text-sm font-medium">
-                      כותרת *
-                    </Label>
+                    <Label htmlFor="title">כותרת</Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="לדוגמה: משימה חדשה נוספה"
-                      className="h-10"
+                      placeholder="כותרת ההתראה"
                       maxLength={50}
+                      className="text-lg"
                     />
-                    <p className="text-xs text-gray-500 text-left">
+                    <p className="text-xs text-muted-foreground text-left">
                       {title.length}/50
                     </p>
                   </div>
 
-                  {/* Body */}
                   <div className="space-y-2">
-                    <Label htmlFor="body" className="text-sm font-medium">
-                      תוכן ההודעה *
-                    </Label>
+                    <Label htmlFor="body">תוכן ההודעה</Label>
                     <Textarea
                       id="body"
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                       placeholder="תוכן ההודעה שתופיע למשתמשים..."
-                      rows={3}
-                      className="resize-none"
+                      rows={4}
                       maxLength={200}
+                      className="resize-none"
                     />
-                    <p className="text-xs text-gray-500 text-left">
+                    <p className="text-xs text-muted-foreground text-left">
                       {body.length}/200
                     </p>
                   </div>
+                </div>
 
-                  {/* Link Destination */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">
-                      לאן תוביל ההתראה?
-                    </Label>
+                <Separator />
+
+                {/* Target Selection */}
+                <div className="space-y-4">
+                  <Label>קהל יעד</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className={cn(
+                      "relative flex cursor-pointer rounded-lg border-2 p-4 hover:bg-accent transition-colors",
+                      targetType === 'all' && "border-purple-500 bg-purple-50"
+                    )}>
+                      <input
+                        type="radio"
+                        value="all"
+                        checked={targetType === 'all'}
+                        onChange={() => setTargetType('all')}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center gap-3">
+                        <Users className="h-5 w-5 text-purple-600" />
+                        <div>
+                          <p className="font-medium">כל המשתמשים</p>
+                          <p className="text-sm text-muted-foreground">{stats.total} משתמשים</p>
+                        </div>
+                      </div>
+                      {targetType === 'all' && (
+                        <CheckCircle2 className="absolute top-2 left-2 h-5 w-5 text-purple-600" />
+                      )}
+                    </label>
+
+                    <label className={cn(
+                      "relative flex cursor-pointer rounded-lg border-2 p-4 hover:bg-accent transition-colors",
+                      targetType === 'authenticated' && "border-green-500 bg-green-50"
+                    )}>
+                      <input
+                        type="radio"
+                        value="authenticated"
+                        checked={targetType === 'authenticated'}
+                        onChange={() => setTargetType('authenticated')}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center gap-3">
+                        <Shield className="h-5 w-5 text-green-600" />
+                        <div>
+                          <p className="font-medium">רשומים בלבד</p>
+                          <p className="text-sm text-muted-foreground">{stats.authenticated} משתמשים</p>
+                        </div>
+                      </div>
+                      {targetType === 'authenticated' && (
+                        <CheckCircle2 className="absolute top-2 left-2 h-5 w-5 text-green-600" />
+                      )}
+                    </label>
+
+                    <label className={cn(
+                      "relative flex cursor-pointer rounded-lg border-2 p-4 hover:bg-accent transition-colors",
+                      targetType === 'anonymous' && "border-orange-500 bg-orange-50"
+                    )}>
+                      <input
+                        type="radio"
+                        value="anonymous"
+                        checked={targetType === 'anonymous'}
+                        onChange={() => setTargetType('anonymous')}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center gap-3">
+                        <UserX className="h-5 w-5 text-orange-600" />
+                        <div>
+                          <p className="font-medium">אנונימיים בלבד</p>
+                          <p className="text-sm text-muted-foreground">{stats.anonymous} משתמשים</p>
+                        </div>
+                      </div>
+                      {targetType === 'anonymous' && (
+                        <CheckCircle2 className="absolute top-2 left-2 h-5 w-5 text-orange-600" />
+                      )}
+                    </label>
+
+                    <label className={cn(
+                      "relative flex cursor-pointer rounded-lg border-2 p-4 hover:bg-accent transition-colors",
+                      targetType === 'byName' && "border-blue-500 bg-blue-50"
+                    )}>
+                      <input
+                        type="radio"
+                        value="byName"
+                        checked={targetType === 'byName'}
+                        onChange={() => {
+                          setTargetType('byName');
+                          setSelectedUsers([]);
+                        }}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <p className="font-medium">לפי שם</p>
+                          <p className="text-sm text-muted-foreground">בחר משתמשים</p>
+                        </div>
+                      </div>
+                      {targetType === 'byName' && (
+                        <CheckCircle2 className="absolute top-2 left-2 h-5 w-5 text-blue-600" />
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Name Selection Dropdown */}
+                  {targetType === 'byName' && (
                     <div className="space-y-2">
-                      <label className="flex items-center space-x-3 space-x-reverse cursor-pointer">
-                        <input
-                          type="radio"
-                          value="home"
-                          checked={linkType === 'home'}
-                          onChange={() => {
-                            console.log('[Push Admin] Link type changed to: home');
-                            setLinkType('home');
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="flex items-center gap-2 text-sm">
-                          <Home className="h-4 w-4 text-gray-500" />
-                          דף הבית
-                        </span>
-                      </label>
-                      <label className="flex items-center space-x-3 space-x-reverse cursor-pointer">
-                        <input
-                          type="radio"
-                          value="project"
-                          checked={linkType === 'project'}
-                          onChange={() => {
-                            console.log('[Push Admin] Link type changed to: project');
-                            setLinkType('project');
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="flex items-center gap-2 text-sm">
-                          <FolderOpen className="h-4 w-4 text-gray-500" />
-                          פרויקט ספציפי
-                        </span>
-                      </label>
-                    </div>
-
-                    {linkType === 'project' && (
+                      <Label>בחר משתמשים לפי שם</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedUsers.map(userId => {
+                          const user = subscriptions.find(s => s.userId === userId);
+                          return (
+                            <Badge key={userId} variant="secondary" className="gap-1">
+                              {user?.username}
+                              <X 
+                                className="h-3 w-3 cursor-pointer" 
+                                onClick={() => setSelectedUsers(prev => prev.filter(id => id !== userId))}
+                              />
+                            </Badge>
+                          );
+                        })}
+                      </div>
                       <Select 
-                        value={selectedProject} 
+                        value=""
                         onValueChange={(value) => {
-                          console.log('[Push Admin] Project selected:', value);
-                          setSelectedProject(value);
+                          const userIds = subscriptions
+                            .filter(s => s.username === value)
+                            .map(s => s.userId);
+                          setSelectedUsers(prev => [...new Set([...prev, ...userIds])]);
                         }}
                       >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="בחר פרויקט" />
+                        <SelectTrigger>
+                          <SelectValue placeholder="בחר משתמש..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {projects.map(project => (
-                            <SelectItem key={project._id} value={project._id}>
-                              {project.name}
+                          {uniqueNames.map(name => (
+                            <SelectItem key={name} value={name}>
+                              {name} ({subscriptions.filter(s => s.username === name).length} מכשירים)
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    )}
-                  </div>
-
-                  {/* Image Upload */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      תמונה (אופציונלי)
-                    </Label>
-                    
-                    {!imageUrl ? (
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              console.log('[Push Admin] File selected:', file.name);
-                              handleImageUpload(file);
-                            }
-                          }}
-                          className="hidden"
-                          id="image-upload"
-                        />
-                        <label
-                          htmlFor="image-upload"
-                          className={cn(
-                            "flex flex-col items-center justify-center w-full h-24",
-                            "border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg",
-                            "cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors",
-                            "bg-gray-50 dark:bg-gray-900",
-                            uploadingImage && "opacity-50 cursor-not-allowed"
-                          )}
-                        >
-                          {uploadingImage ? (
-                            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                          ) : (
-                            <>
-                              <Upload className="h-6 w-6 text-gray-400 mb-1" />
-                              <span className="text-xs text-gray-500">
-                                לחץ להעלאת תמונה
-                              </span>
-                            </>
-                          )}
-                        </label>
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <img
-                          src={imageUrl}
-                          alt="Uploaded"
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
-                        <button
-                          onClick={() => {
-                            console.log('[Push Admin] Removing image');
-                            setImageUrl('');
-                            setUploadedImage(null);
-                          }}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Options & Send */}
-              <div className="space-y-6">
-                {/* Target Audience */}
-                <Card className="border-gray-200 dark:border-gray-800">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-medium flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      קהל יעד
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-3 space-x-reverse cursor-pointer">
-                        <input
-                          type="radio"
-                          value="all"
-                          checked={targetType === 'all'}
-                          onChange={() => setTargetType('all')}
-                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="text-sm">כל המשתמשים</span>
-                      </label>
-                      <label className="flex items-center space-x-3 space-x-reverse cursor-pointer">
-                        <input
-                          type="radio"
-                          value="roles"
-                          checked={targetType === 'roles'}
-                          onChange={() => setTargetType('roles')}
-                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span className="text-sm">לפי תפקיד</span>
-                      </label>
                     </div>
-
-                    {targetType === 'roles' && (
-                      <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                        {['admin', 'data_manager', 'driver_manager'].map(role => (
-                          <div key={role} className="flex items-center space-x-2 space-x-reverse">
-                            <Checkbox
-                              id={role}
-                              checked={selectedRoles.includes(role)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedRoles([...selectedRoles, role]);
-                                } else {
-                                  setSelectedRoles(selectedRoles.filter(r => r !== role));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={role} className="text-sm font-normal cursor-pointer">
-                              {role === 'admin' ? 'מנהל מערכת' : 
-                               role === 'data_manager' ? 'מנהל נתונים' : 
-                               'מנהל נהגים'}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Advanced Options */}
-                <Card className="border-gray-200 dark:border-gray-800">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-medium">
-                      אפשרויות מתקדמות
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="requireInteraction"
-                        checked={requireInteraction}
-                        onCheckedChange={(checked) => setRequireInteraction(checked as boolean)}
-                      />
-                      <Label htmlFor="requireInteraction" className="text-sm font-normal cursor-pointer">
-                        ההתראה תישאר על המסך עד שהמשתמש יסגור אותה
-                      </Label>
-                    </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
 
                 {/* Send Button */}
                 <Button
                   onClick={handleSend}
-                  disabled={sending || !title || !body}
+                  disabled={sending || !title || !body || (targetType === 'byName' && selectedUsers.length === 0)}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
                   size="lg"
-                  className="w-full h-12 text-base bg-gray-900 hover:bg-gray-800 dark:bg-gray-100 dark:hover:bg-gray-200 dark:text-gray-900"
                 >
                   {sending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
                       שולח...
                     </>
                   ) : (
                     <>
-                      <Send className="mr-2 h-4 w-4" />
+                      <Send className="ml-2 h-4 w-4" />
                       שלח התראה
                     </>
                   )}
                 </Button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Subscribers Tab */}
+          <TabsContent value="subscribers" className="space-y-4">
+            <Card className="bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle>רשימת מנויים</CardTitle>
+                <CardDescription>
+                  כל המשתמשים שנרשמו לקבלת התראות
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="חיפוש לפי שם..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pr-10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="gap-2">
+                        <Filter className="h-4 w-4" />
+                        סינון
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>סנן לפי</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">תפקיד</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filterRole === 'all'}
+                        onCheckedChange={() => setFilterRole('all')}
+                      >
+                        הכל
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterRole === 'admin'}
+                        onCheckedChange={() => setFilterRole('admin')}
+                      >
+                        מנהלים
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterRole === 'guest'}
+                        onCheckedChange={() => setFilterRole('guest')}
+                      >
+                        אורחים
+                      </DropdownMenuCheckboxItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">מכשיר</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filterDevice === 'all'}
+                        onCheckedChange={() => setFilterDevice('all')}
+                      >
+                        הכל
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterDevice === 'ios'}
+                        onCheckedChange={() => setFilterDevice('ios')}
+                      >
+                        iOS
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterDevice === 'android'}
+                        onCheckedChange={() => setFilterDevice('android')}
+                      >
+                        Android
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterDevice === 'desktop'}
+                        onCheckedChange={() => setFilterDevice('desktop')}
+                      >
+                        Desktop
+                      </DropdownMenuCheckboxItem>
+                      
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">סטטוס</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filterActive === 'all'}
+                        onCheckedChange={() => setFilterActive('all')}
+                      >
+                        הכל
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterActive === 'active'}
+                        onCheckedChange={() => setFilterActive('active')}
+                      >
+                        פעילים
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterActive === 'inactive'}
+                        onCheckedChange={() => setFilterActive('inactive')}
+                      >
+                        לא פעילים
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  מציג {filteredSubscriptions.length} מתוך {subscriptions.length} משתמשים
+                </div>
+
+                <ScrollArea className="h-[500px] w-full rounded-md border">
+                  <div className="p-4 space-y-3">
+                    {filteredSubscriptions.map((sub) => (
+                      <div
+                        key={sub._id}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-lg border bg-card hover:shadow-md transition-all",
+                          !sub.isActive && "opacity-60"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            {getDeviceIcon(sub.deviceType)}
+                            {sub.isActive ? (
+                              <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                            ) : (
+                              <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-gray-400 rounded-full" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium flex items-center gap-2">
+                              {sub.username}
+                              {sub.userId.startsWith('anon_') && (
+                                <Badge variant="outline" className="text-xs">
+                                  אנונימי
+                                </Badge>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {getRoleBadge(sub.role)}
+                              <span className="text-xs text-muted-foreground">
+                                נרשם {formatDistanceToNow(new Date(sub.createdAt), { 
+                                  locale: he,
+                                  addSuffix: true 
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {sub.isActive ? (
+                            <Badge variant="default" className="text-xs bg-green-100 text-green-700">
+                              <Wifi className="h-3 w-3 ml-1" />
+                              פעיל
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              <WifiOff className="h-3 w-3 ml-1" />
+                              לא פעיל
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="history">
-            <Card className="border-gray-200 dark:border-gray-800">
+          <TabsContent value="history" className="space-y-4">
+            <Card className="bg-white dark:bg-gray-800">
               <CardHeader>
-                <CardTitle>היסטוריית התראות</CardTitle>
+                <CardTitle>היסטוריית שליחות</CardTitle>
                 <CardDescription>
-                  כל ההתראות שנשלחו ב-30 הימים האחרונים
+                  כל ההתראות שנשלחו למשתמשים
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-[600px]">
-                  {history.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <Bell className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                      <p>אין התראות בהיסטוריה</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                      {history.map((item) => (
-                        <div
-                          key={item._id}
-                          className="p-4 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                {item.status === 'sent' ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                ) : item.status === 'failed' ? (
-                                  <XCircle className="h-4 w-4 text-red-500" />
-                                ) : (
-                                  <AlertCircle className="h-4 w-4 text-gray-500" />
-                                )}
-                                <h4 className="font-medium text-sm">{item.title}</h4>
-                              </div>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                                {item.body}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {formatDate(item.sentAt)}
-                                </span>
-                                <span>נשלח ע"י {item.sentBy}</span>
-                                {item.deliveryStats && (
-                                  <>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {item.deliveryStats.sent} נשלחו
-                                    </Badge>
-                                    {item.deliveryStats.failed > 0 && (
-                                      <Badge variant="destructive" className="text-xs">
-                                        {item.deliveryStats.failed} נכשלו
-                                      </Badge>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            {item.image && (
-                              <img
-                                src={item.image}
-                                alt=""
-                                className="w-12 h-12 rounded object-cover"
-                              />
-                            )}
+              <CardContent>
+                <ScrollArea className="h-[500px] w-full rounded-md border">
+                  <div className="p-4 space-y-3">
+                    {history.map((notification) => (
+                      <div
+                        key={notification._id}
+                        className="p-4 rounded-lg border bg-card space-y-3 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <p className="font-medium text-lg">{notification.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {notification.body}
+                            </p>
                           </div>
+                          <Badge
+                            variant={notification.status === 'sent' ? 'default' : 
+                                    notification.status === 'failed' ? 'destructive' : 
+                                    'secondary'}
+                            className={cn(
+                              notification.status === 'sent' && "bg-green-100 text-green-700",
+                              notification.status === 'failed' && "bg-red-100 text-red-700"
+                            )}
+                          >
+                            {notification.status === 'sent' ? 'נשלח' :
+                             notification.status === 'failed' ? 'נכשל' :
+                             notification.status === 'sending' ? 'בשליחה' : 'ממתין'}
+                          </Badge>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            נשלח {formatDistanceToNow(new Date(notification.sentAt), { 
+                              locale: he,
+                              addSuffix: true 
+                            })}
+                          </span>
+                          <Separator orientation="vertical" className="h-4" />
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            עי {notification.sentBy}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Send className="h-3 w-3 text-blue-500" />
+                            <span>{notification.deliveryStats.sent} נשלחו</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            <span>{notification.deliveryStats.delivered} התקבלו</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <XCircle className="h-3 w-3 text-red-500" />
+                            <span>{notification.deliveryStats.failed} נכשלו</span>
+                          </div>
+                          {notification.deliveryStats.clicked > 0 && (
+                            <div className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3 text-purple-500" />
+                              <span>{notification.deliveryStats.clicked} נלחצו</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
-} 
+}

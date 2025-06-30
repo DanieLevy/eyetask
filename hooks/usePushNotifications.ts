@@ -1,5 +1,8 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 interface PushManagerState {
   isSupported: boolean;
@@ -21,14 +24,19 @@ export function usePushNotifications() {
   // Check if push notifications are supported
   useEffect(() => {
     const checkSupport = async () => {
-      console.log('[Push] Checking push notification support...');
+      logger.info('[Push] Checking push notification support...', 'PUSH_NOTIFICATIONS', {
+        serviceWorker: 'serviceWorker' in navigator,
+        PushManager: 'PushManager' in window,
+        Notification: 'Notification' in window
+      });
+
       try {
         const isSupported = 
           'serviceWorker' in navigator &&
           'PushManager' in window &&
           'Notification' in window;
 
-        console.log('[Push] Support check:', {
+        logger.info('[Push] Support check:', 'PUSH_NOTIFICATIONS', {
           serviceWorker: 'serviceWorker' in navigator,
           PushManager: 'PushManager' in window,
           Notification: 'Notification' in window,
@@ -47,15 +55,15 @@ export function usePushNotifications() {
 
         // Check current permission
         const permission = Notification.permission;
-        console.log('[Push] Current permission:', permission);
+        logger.info('[Push] Current permission:', 'PUSH_NOTIFICATIONS', { permission });
 
         // Check if already subscribed
         if ('serviceWorker' in navigator && permission === 'granted') {
           const registration = await navigator.serviceWorker.ready;
-          console.log('[Push] Service worker ready:', registration);
+          logger.info('[Push] Service worker ready:', 'PUSH_NOTIFICATIONS', { registration });
           
           const subscription = await registration.pushManager.getSubscription();
-          console.log('[Push] Current subscription:', subscription);
+          logger.info('[Push] Current subscription:', 'PUSH_NOTIFICATIONS', { subscription });
           
           setState(prev => ({
             ...prev,
@@ -64,7 +72,10 @@ export function usePushNotifications() {
             isSubscribed: !!subscription,
             isLoading: false
           }));
-          console.log('[Push] Initial check complete - isLoading: false, isSubscribed:', !!subscription);
+          logger.info('[Push] Initial check complete', 'PUSH_NOTIFICATIONS', {
+            isLoading: false,
+            isSubscribed: !!subscription
+          });
         } else {
           setState(prev => ({
             ...prev,
@@ -73,10 +84,10 @@ export function usePushNotifications() {
             isSubscribed: false,
             isLoading: false
           }));
-          console.log('[Push] Initial check complete - isLoading: false, permission:', permission);
+          logger.info('[Push] Initial check complete - isLoading: false, permission:', permission, 'PUSH_NOTIFICATIONS');
         }
       } catch (error) {
-        console.error('[Push] Error checking push support:', error);
+        logger.error('[Push] Error checking push support:', 'PUSH_NOTIFICATIONS', undefined, error as Error);
         setState(prev => ({
           ...prev,
           isLoading: false,
@@ -92,36 +103,36 @@ export function usePushNotifications() {
   const subscribe = useCallback(async () => {
     if (state.isLoading || state.isSubscribed) return;
 
-    console.log('[Push Client] Starting subscription process...');
+    logger.info('[Push Client] Starting subscription process...', 'PUSH_NOTIFICATIONS');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
       // Check for service worker support
       if (!('serviceWorker' in navigator)) {
-        console.error('[Push Client] Service Worker not supported');
+        logger.error('[Push Client] Service Worker not supported', 'PUSH_NOTIFICATIONS');
         toast.error('Push notifications are not supported in this browser');
         return;
       }
 
       // Check for push API support
       if (!('PushManager' in window)) {
-        console.error('[Push Client] Push API not supported');
+        logger.error('[Push Client] Push API not supported', 'PUSH_NOTIFICATIONS');
         toast.error('Push notifications are not supported in this browser');
         return;
       }
 
       // iOS/Safari specific checks
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      console.log('[Push Client] Device detection:', { isIOS, isSafari });
+      logger.info('[Push Client] Device detection:', 'PUSH_NOTIFICATIONS', { isIOS, isSafari });
 
       // Request notification permission
-      console.log('[Push Client] Requesting permission...');
+      logger.info('[Push Client] Requesting permission...', 'PUSH_NOTIFICATIONS');
       const permission = await Notification.requestPermission();
-      console.log('[Push Client] Permission result:', permission);
+      logger.info('[Push Client] Permission result:', 'PUSH_NOTIFICATIONS', { permission });
       
       if (permission !== 'granted') {
-        console.warn('[Push Client] Permission denied');
+        logger.warn('[Push Client] Permission denied', 'PUSH_NOTIFICATIONS');
         toast.error('צריך לאשר התראות כדי להפעיל את השירות');
         return;
       }
@@ -129,60 +140,70 @@ export function usePushNotifications() {
       setState(prev => ({ ...prev, permission }));
 
       // Register service worker
-      console.log('[Push Client] Registering service worker...');
+      logger.info('[Push Client] Registering service worker...', 'PUSH_NOTIFICATIONS');
       const registration = await navigator.serviceWorker.ready;
-      console.log('[Push Client] Service worker ready');
+      logger.info('[Push Client] Service worker ready', 'PUSH_NOTIFICATIONS');
 
       // Get VAPID key
-      console.log('[Push Client] Fetching VAPID key...');
+      logger.info('[Push Client] Fetching VAPID key...', 'PUSH_NOTIFICATIONS');
       const vapidResponse = await fetch('/api/push/vapid-key');
       if (!vapidResponse.ok) {
         throw new Error('Failed to fetch VAPID key');
       }
       const { publicKey } = await vapidResponse.json();
-      console.log('[Push Client] VAPID key received, length:', publicKey?.length);
+      logger.info('[Push Client] VAPID key received, length:', 'PUSH_NOTIFICATIONS', { length: publicKey?.length });
 
       // Convert VAPID key with enhanced iOS support
       const applicationServerKey = urlBase64ToUint8Array(publicKey);
-      console.log('[Push Client] Converted key, byte length:', applicationServerKey.byteLength);
+      logger.info('[Push Client] Converted key, byte length:', 'PUSH_NOTIFICATIONS', { byteLength: applicationServerKey.byteLength });
 
       // Subscribe to push
-      console.log('[Push Client] Creating push subscription...');
+      logger.info('[Push Client] Creating push subscription...', 'PUSH_NOTIFICATIONS');
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey
       });
-      console.log('[Push Client] Push subscription created');
+      logger.info('[Push Client] Push subscription created', 'PUSH_NOTIFICATIONS');
 
-      // Get token
+      // Get token (optional - not required for subscription)
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-      if (!token) {
-        console.error('[Push Client] No auth token found');
-        toast.error('צריך להתחבר כדי להפעיל התראות');
-        return;
-      }
+      logger.info('[Push Client] Auth token status:', 'PUSH_NOTIFICATIONS', { hasToken: !!token });
 
+      // Get user name from session storage
+      const userName = sessionStorage.getItem('push-subscribe-name') || '';
+      
       // Save subscription to server
-      console.log('[Push Client] Saving subscription to server...');
+      logger.info('[Push Client] Saving subscription to server...', 'PUSH_NOTIFICATIONS');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify({
-          subscription: pushSubscription.toJSON()
+          subscription: pushSubscription.toJSON(),
+          userName: userName
         })
       });
+      
+      // Clear the name from session storage after use
+      sessionStorage.removeItem('push-subscribe-name');
 
       if (!response.ok) {
         const error = await response.text();
-        console.error('[Push Client] Server response error:', response.status, error);
+        logger.error('[Push Client] Server response error:', 'PUSH_NOTIFICATIONS', {
+          status: response.status,
+          error
+        });
         throw new Error(`Failed to save subscription: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('[Push Client] Subscription saved successfully:', result);
+      logger.info('[Push Client] Subscription saved successfully:', 'PUSH_NOTIFICATIONS', result);
 
       setState(prev => ({
         ...prev,
@@ -192,26 +213,28 @@ export function usePushNotifications() {
 
       toast.success('התראות הופעלו בהצלחה! 🔔');
       
-      // Test notification after 2 seconds
-      setTimeout(() => {
-        console.log('[Push Client] Sending test notification...');
-        fetch('/api/push/send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            title: 'ברוכים הבאים!',
-            body: 'התראות הופעלו בהצלחה',
-            icon: '/icons/icon-192x192.png',
-            test: true
-          })
-        }).catch(err => console.error('[Push Client] Test notification failed:', err));
-      }, 2000);
+      // Test notification after 2 seconds (only if user is authenticated)
+      if (token) {
+        setTimeout(() => {
+          logger.info('[Push Client] Sending test notification...', 'PUSH_NOTIFICATIONS');
+          fetch('/api/push/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: 'ברוכים הבאים!',
+              body: 'התראות הופעלו בהצלחה',
+              icon: '/icons/icon-192x192.png',
+              test: true
+            })
+          }).catch(err => logger.error('[Push Client] Test notification failed:', 'PUSH_NOTIFICATIONS', undefined, err));
+        }, 2000);
+      }
 
     } catch (error) {
-      console.error('[Push Client] Subscription error:', error);
+      logger.error('[Push Client] Subscription error:', 'PUSH_NOTIFICATIONS', undefined, error as Error);
       toast.error('שגיאה בהפעלת התראות: ' + (error as Error).message);
     } finally {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -222,7 +245,7 @@ export function usePushNotifications() {
   const unsubscribe = useCallback(async () => {
     if (state.isLoading || !state.isSubscribed) return;
 
-    console.log('[Push Client] Starting unsubscribe process...');
+    logger.info('[Push Client] Starting unsubscribe process...', 'PUSH_NOTIFICATIONS');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
@@ -230,23 +253,26 @@ export function usePushNotifications() {
       const subscription = await registration.pushManager.getSubscription();
       
       if (subscription) {
-        console.log('[Push Client] Found subscription, unsubscribing...');
+        logger.info('[Push Client] Found subscription, unsubscribing...', 'PUSH_NOTIFICATIONS');
         await subscription.unsubscribe();
         
+        // Remove from server (with or without auth)
+        logger.info('[Push Client] Removing subscription from server...', 'PUSH_NOTIFICATIONS');
         const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json'
+        };
         if (token) {
-          console.log('[Push Client] Removing subscription from server...');
-          await fetch('/api/push/subscribe', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              endpoint: subscription.endpoint
-            })
-          });
+          headers['Authorization'] = `Bearer ${token}`;
         }
+        
+        await fetch('/api/push/subscribe', {
+          method: 'DELETE',
+          headers,
+          body: JSON.stringify({
+            endpoint: subscription.endpoint
+          })
+        });
       }
       
       setState(prev => ({
@@ -255,9 +281,9 @@ export function usePushNotifications() {
         isLoading: false
       }));
       toast.success('התראות בוטלו בהצלחה');
-      console.log('[Push Client] Unsubscribe completed');
+      logger.info('[Push Client] Unsubscribe completed', 'PUSH_NOTIFICATIONS');
     } catch (error) {
-      console.error('[Push Client] Unsubscribe error:', error);
+      logger.error('[Push Client] Unsubscribe error:', 'PUSH_NOTIFICATIONS', undefined, error as Error);
       toast.error('שגיאה בביטול התראות');
     } finally {
       setState(prev => ({ ...prev, isLoading: false }));
@@ -266,10 +292,11 @@ export function usePushNotifications() {
 
   // Show iOS install prompt
   const showIOSInstallPrompt = useCallback(() => {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isInStandaloneMode = ('standalone' in navigator) && (navigator as any).standalone;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || 
+                               ((window.navigator as unknown) as { standalone?: boolean }).standalone === true;
     
-    console.log('[Push] iOS install prompt check:', { isIOS, isInStandaloneMode });
+    logger.info('[Push] iOS install prompt check:', 'PUSH_NOTIFICATIONS', { isIOS, isInStandaloneMode });
     
     if (isIOS && !isInStandaloneMode) {
       const message = `התקן את האפליקציה כדי לקבל התראות:
@@ -288,19 +315,6 @@ export function usePushNotifications() {
     }
     return false;
   }, []);
-
-  // Helper setters
-  const setIsLoading = (loading: boolean) => {
-    setState(prev => ({ ...prev, isLoading: loading }));
-  };
-
-  const setIsSubscribed = (subscribed: boolean) => {
-    setState(prev => ({ ...prev, isSubscribed: subscribed }));
-  };
-
-  const setPermission = (permission: NotificationPermission) => {
-    setState(prev => ({ ...prev, permission }));
-  };
 
   return {
     isSupported: state.isSupported,
@@ -335,7 +349,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
   // Validate P-256 key for iOS (65 bytes uncompressed or 33 bytes compressed)
   if (outputArray.length !== 65 && outputArray.length !== 33) {
-    console.warn('[Push] VAPID key length:', outputArray.length, 'bytes - may not be compatible with iOS');
+    logger.warn('[Push] VAPID key length may not be compatible with iOS', 'PUSH_NOTIFICATIONS', {
+      length: outputArray.length,
+      expectedLengths: [33, 65]
+    });
   }
 
   return outputArray;

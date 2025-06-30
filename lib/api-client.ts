@@ -99,7 +99,7 @@ class ApiClient {
       return await fn();
     } catch (error: any) {
       if (retries > 0 && error.status !== 401 && error.status !== 403) {
-        console.log(`[API Client] Retrying request... (${this.maxRetries - retries + 1}/${this.maxRetries})`);
+                  // Retry attempt silently
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         return this.retryRequest(fn, retries - 1);
       }

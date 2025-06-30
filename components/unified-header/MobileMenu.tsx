@@ -35,6 +35,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -79,6 +89,9 @@ export const MobileMenu = ({
   const [open, setOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showPushTooltip, setShowPushTooltip] = useState(false);
+  const [showNameDialog, setShowNameDialog] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const hebrewFont = useHebrewFont('heading');
   const { theme, setTheme, resolvedTheme } = useTheme();
   
@@ -95,19 +108,9 @@ export const MobileMenu = ({
   
   // Check if push notifications need attention
   const hasToken = typeof window !== 'undefined' && !!(localStorage.getItem('adminToken') || localStorage.getItem('token'));
-  const needsPushAttention = hasToken && isSupported && !isSubscribed && permission !== 'denied';
+  const needsPushAttention = isSupported && !isSubscribed && permission !== 'denied';
   
-  // Debug logging
-  useEffect(() => {
-    console.log('[MobileMenu] Push state:', {
-      hasToken,
-      isSupported,
-      isSubscribed,
-      permission,
-      needsPushAttention,
-      pushLoading
-    });
-  }, [hasToken, isSupported, isSubscribed, permission, needsPushAttention, pushLoading]);
+  // Push state tracking effect removed - no longer needed
   
   // Show tooltip if user dismissed banner but hasn't subscribed
   useEffect(() => {
@@ -303,42 +306,43 @@ export const MobileMenu = ({
             )}
             
             {/* Push Notifications Button */}
-            {hasToken && (
-              <DropdownMenuItem
+            <DropdownMenuItem
                 className={cn(
                   "cursor-pointer flex justify-between items-center py-2.5 px-4",
                   hebrewFont.fontClass,
-                  !isSupported && "opacity-50 cursor-not-allowed"
+                  !isSupported && "opacity-50"
                 )}
                 onClick={async (e) => {
                   e.preventDefault();
                   
                   if (!isSupported) {
-                    toast.error('הדפדפן שלך לא תומך בהתראות');
+                    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                                       (window.navigator as any).standalone === true;
+                    
+                    if (isIOS && !isStandalone) {
+                      toast.info('התקן את האפליקציה כדי להפעיל התראות', {
+                        description: 'לחץ על כפתור השיתוף ⬆️ ובחר "הוסף למסך הבית"',
+                        duration: 8000
+                      });
+                    } else {
+                      toast.error('הדפדפן שלך לא תומך בהתראות');
+                    }
                     return;
                   }
                   
-                  console.log('[MobileMenu] Push notification clicked, current state:', {
-                    isSubscribed,
-                    permission
-                  });
-                  
                   if (isSubscribed) {
-                    console.log('[MobileMenu] Unsubscribing...');
                     await unsubscribe();
                   } else {
                     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
                                        (window.navigator as any).standalone === true;
                     
-                    console.log('[MobileMenu] Device check:', { isIOS, isStandalone });
-                    
                     if (isIOS && !isStandalone) {
-                      console.log('[MobileMenu] Showing iOS install prompt');
                       showIOSInstallPrompt();
                     } else {
-                      console.log('[MobileMenu] Subscribing...');
-                      await subscribe();
+                      // Show name dialog before subscribing
+                      setShowNameDialog(true);
                     }
                   }
                 }}
@@ -355,6 +359,11 @@ export const MobileMenu = ({
                       <BellOff className="h-4 w-4 text-muted-foreground" />
                       <span>בטל התראות</span>
                     </>
+                  ) : !isSupported && /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches ? (
+                    <>
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs">התקן כאפליקציה להתראות</span>
+                    </>
                   ) : (
                     <>
                       <Bell className="h-4 w-4 text-primary" />
@@ -366,7 +375,6 @@ export const MobileMenu = ({
                   <span className="h-2 w-2 rounded-full bg-orange-500" />
                 )}
               </DropdownMenuItem>
-            )}
           </div>
           
           {functionalActions.length > 0 && (
@@ -436,6 +444,70 @@ export const MobileMenu = ({
           pageContext={capturePageContext()}
         />
       )}
+      
+      {/* Name Dialog for Push Notifications */}
+      <Dialog open={showNameDialog} onOpenChange={setShowNameDialog}>
+        <DialogContent className="sm:max-w-[425px]" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>הרשמה להתראות</DialogTitle>
+            <DialogDescription>
+              אנא הכנס את שמך כדי שנוכל לשלוח לך התראות מותאמות אישית
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                שם
+              </Label>
+              <Input
+                id="name"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="הכנס את שמך"
+                className="col-span-3"
+                disabled={isSubscribing}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowNameDialog(false);
+                setUserName('');
+              }}
+              disabled={isSubscribing}
+            >
+              ביטול
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!userName.trim()) {
+                  toast.error('אנא הכנס את שמך');
+                  return;
+                }
+                
+                setIsSubscribing(true);
+                try {
+                  // Store the name temporarily
+                  sessionStorage.setItem('push-subscribe-name', userName.trim());
+                  await subscribe();
+                  setShowNameDialog(false);
+                  setUserName('');
+                } catch (error) {
+                  console.error('Subscription error:', error);
+                  toast.error('שגיאה בהרשמה להתראות');
+                } finally {
+                  setIsSubscribing(false);
+                }
+              }}
+              disabled={!userName.trim() || isSubscribing}
+            >
+              {isSubscribing ? 'מתחבר...' : 'הרשמה'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

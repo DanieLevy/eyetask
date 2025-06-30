@@ -102,15 +102,14 @@ const serviceWorkerScript = `
     window.addEventListener('load', function() {
       navigator.serviceWorker.register('/sw.js')
         .then(function(registration) {
-          console.log('[SW] Registration successful, scope:', registration.scope);
-          // Ensure service worker is ready
+          // Service worker registered successfully
           return navigator.serviceWorker.ready;
         })
         .then(function(registration) {
-          console.log('[SW] Service worker is active and ready');
+          // Service worker is active and ready
         })
         .catch(function(error) {
-          console.error('[SW] Registration failed:', error);
+          // Service worker registration failed silently
         });
     });
   }
