@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { AuthService, extractTokenFromHeader } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { extractTokenFromHeader } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
-
-const authService = new AuthService();
 
 export const dynamic = 'force-dynamic'; // Never cache this route
 

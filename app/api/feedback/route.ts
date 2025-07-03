@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { feedbackService } from '@/lib/services/feedbackService';
-import { CreateFeedbackRequest, FeedbackFilterOptions } from '@/lib/types/feedback';
+import { CreateFeedbackRequest, FeedbackFilterOptions, FeedbackTicket } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
+import { v4 as uuidv4 } from 'uuid';
 
 // POST - Create new feedback ticket (Public endpoint - no auth required)
 export async function POST(request: NextRequest) {
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
     
     const searchParams = request.nextUrl.searchParams;

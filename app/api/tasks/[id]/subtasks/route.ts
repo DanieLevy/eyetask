@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { createObjectId } from '@/lib/mongodb';
+import { createObjectId } from '@/lib/supabase';
 import { updateTaskAmount } from '@/lib/taskUtils';
 
 const subtaskSchema = {
@@ -63,7 +63,7 @@ export async function GET(
     
     // For public access, only show subtasks if the parent task is visible
     // For admin access, show all subtasks regardless of visibility
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const isAdmin = user && user.role === 'admin';
     
     if (!task.isVisible && !isAdmin) {
@@ -130,7 +130,7 @@ export async function POST(
     }
     
     // Check authentication and admin status
-    user = auth.extractUserFromRequest(request);
+    user = authService.extractUserFromRequest(request);
     if (!user || user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Unauthorized access - Admin required', success: false },

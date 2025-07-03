@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 
 // POST /api/push/track - Track push notification events

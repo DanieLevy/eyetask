@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, type Subtask } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
+
+// Define Subtask interface locally
+interface Subtask {
+  _id?: string;
+  id?: string;
+  taskId: string | any;
+  [key: string]: any;
+}
 
 // GET /api/admin/dashboard - Get dashboard statistics
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
 
     // Get all data

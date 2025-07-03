@@ -1,7 +1,5 @@
-import { ObjectId } from 'mongodb';
-
 export interface FeedbackTicket {
-  _id?: ObjectId;
+  _id?: string;
   ticketNumber: string; // Auto-generated unique identifier (e.g., "FB-2024-001")
   
   // User Information
@@ -47,7 +45,7 @@ export interface FeedbackTicket {
 }
 
 export interface FeedbackResponse {
-  _id?: ObjectId;
+  _id?: string;
   responseId: string;
   authorType: 'admin' | 'user';
   authorName: string;
@@ -60,7 +58,7 @@ export interface FeedbackResponse {
 }
 
 export interface FeedbackInternalNote {
-  _id?: ObjectId;
+  _id?: string;
   noteId: string;
   authorName: string;
   authorId: string; // Admin ID
@@ -165,10 +163,13 @@ export interface FeedbackStats {
   byCategory: Record<FeedbackCategory, number>;
   byPriority: Record<FeedbackPriority, number>;
   avgResolutionTime: number; // in hours
-  customerSatisfactionAvg: number;
-  newToday: number;
-  resolvedToday: number;
-  overdueTickets: number;
+  avgResponseTime?: number; // in hours
+  customerSatisfactionAvg?: number;
+  newToday?: number;
+  resolvedToday?: number;
+  overdueTickets?: number;
+  unassignedCount?: number;
+  overdueCount?: number;
 }
 
 // Helper type for frontend display

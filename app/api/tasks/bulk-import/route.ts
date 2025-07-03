@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
+import { createObjectId } from '@/lib/supabase';
+import { pushService } from '@/lib/services/pushNotificationService';
 import { updateTaskAmount } from '@/lib/taskUtils';
 import { activityLogger } from '@/lib/activityLogger';
-import { createObjectId } from '@/lib/mongodb';
+
 
 // Define interfaces based on the JSON structure
 interface JiraSubtask {
@@ -154,7 +157,7 @@ async function verifyParentTasks(parentIssues: JiraParentIssue[]): Promise<{
 
 // POST /api/tasks/bulk-import - Handle bulk import from JIRA JSON
 export async function POST(request: NextRequest) {
-  const user = auth.extractUserFromRequest(request);
+  const user = authService.extractUserFromRequest(request);
   
   try {
     // Check authentication and admin status

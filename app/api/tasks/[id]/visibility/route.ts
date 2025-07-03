@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
 
 interface RouteParams {
@@ -13,10 +13,9 @@ async function handleVisibilityToggle(
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
+        const user = await requireAuthEnhanced(authHeader);
     
-    if (!authorized || !isAdminEnhanced(user)) {
+    if (!user || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
@@ -72,8 +71,8 @@ async function handleVisibilityToggle(
       dayTime: updatedTask.dayTime,
       priority: updatedTask.priority,
       isVisible: updatedTask.isVisible,
-      createdAt: updatedTask.createdAt.toISOString(),
-      updatedAt: updatedTask.updatedAt.toISOString()
+      createdAt: updatedTask.createdAt || new Date().toISOString(),
+      updatedAt: updatedTask.updatedAt || new Date().toISOString()
     };
     
     return NextResponse.json({

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 import { pushService } from '@/lib/services/pushNotificationService';
-import { v4 as uuidv4 } from 'uuid';
 
 // POST /api/push/subscribe - Subscribe to push notifications
 export async function POST(request: NextRequest) {
@@ -27,7 +26,7 @@ export async function POST(request: NextRequest) {
     
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      user = auth.verifyToken(token);
+      user = await authService.getUserFromToken(token);
       
       if (user) {
         logger.info('[Push Subscribe] User authenticated', 'PUSH_SUBSCRIBE', {
@@ -86,10 +85,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate unique ID for anonymous users
-    const userId = user?.id || `anon_${uuidv4()}`;
+    const userId = user?.id || null;
     const username = userName || user?.username || 'Anonymous User';
     const email = user?.email || '';
     const role = user?.role || 'guest';
+    const isAnonymous = !user;
 
     // Save subscription
     await db.savePushSubscription({
@@ -108,14 +108,16 @@ export async function POST(request: NextRequest) {
       username,
       deviceType,
       isIOS,
-      isAnonymous: !user
+      isAnonymous
     });
     
     // Send welcome notification to the subscriber
     try {
+      // Only send welcome notification if we have a valid userId
+      if (userId) {
       logger.info('[Push Subscribe] Sending welcome notification', 'PUSH_SUBSCRIBE', {
         userId,
-        isAnonymous: !user
+        isAnonymous
       });
 
       const welcomeResult = await pushService.sendToUser(
@@ -136,20 +138,26 @@ export async function POST(request: NextRequest) {
         logger.info('[Push Subscribe] Welcome notification sent', 'PUSH_SUBSCRIBE', {
           userId,
           sent: welcomeResult.sent,
-          isAnonymous: !user
+          isAnonymous
         });
       } else {
         logger.warn('[Push Subscribe] Failed to send welcome notification', 'PUSH_SUBSCRIBE', {
           userId,
           errors: welcomeResult.errors,
-          isAnonymous: !user
+            isAnonymous
+          });
+        }
+      } else {
+        logger.info('[Push Subscribe] Skipping welcome notification for anonymous user', 'PUSH_SUBSCRIBE', {
+          username,
+          isAnonymous
         });
       }
     } catch (err) {
       logger.error('[Push Subscribe] Error sending welcome notification', 'PUSH_SUBSCRIBE', {
         userId,
         error: (err as Error).message,
-        isAnonymous: !user
+        isAnonymous
       });
       // Don't fail the subscription if welcome message fails
     }
@@ -157,7 +165,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true,
       message: 'Subscription saved successfully',
-      deviceType
+      deviceType,
+      userId
     });
   } catch (error) {
     logger.error('[Push Subscribe] Error', 'PUSH_SUBSCRIBE', {
@@ -190,7 +199,7 @@ export async function DELETE(request: NextRequest) {
     
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      user = auth.verifyToken(token);
+      user = await authService.getUserFromToken(token);
       
       if (!user) {
         logger.warn('[Push Unsubscribe] Invalid token provided', 'PUSH_UNSUBSCRIBE', { userAgent, isIOS });
@@ -217,8 +226,8 @@ export async function DELETE(request: NextRequest) {
       isIOS
     });
 
-    // Remove subscription
-    await db.removePushSubscription(endpoint);
+    // Remove subscription - pass the actual userId which could be null
+    await db.removePushSubscription(endpoint, user?.id || null);
 
     logger.info('[Push Unsubscribe] Subscription removed successfully', 'PUSH_UNSUBSCRIBE', {
       userId: user?.id || 'anonymous',

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
+import { requireAdmin } from '@/lib/auth-utils';
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +38,7 @@ export async function PUT(
 ) {
   try {
     // Check authentication - admin required for updating settings
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
 
     const { key } = await params;

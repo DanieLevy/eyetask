@@ -1,118 +1,150 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
-import { createObjectId } from '@/lib/mongodb';
-import bcrypt from 'bcryptjs';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const user = auth.extractUserFromRequest(request);
-    requireAdmin(user);
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    const adminUser = requireAdmin(user);
     
     const users = await db.getAllUsers();
     
-    // Remove password hashes from response
-    const sanitizedUsers = users.map(u => ({
-      _id: u._id?.toString(),
-      username: u.username,
-      email: u.email,
-      role: u.role,
-      isActive: u.isActive,
-      createdAt: u.createdAt.toISOString(),
-      lastLogin: u.lastLogin?.toISOString(),
-      createdBy: u.createdBy?.toString(),
-      lastModifiedBy: u.lastModifiedBy?.toString(),
-      lastModifiedAt: u.lastModifiedAt?.toISOString()
-    }));
-    
     return NextResponse.json({
-      users: sanitizedUsers,
+      users: users.map(user => ({
+        _id: user.id || user._id?.toString(),
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+        createdBy: user.createdBy,
+        lastModifiedBy: user.lastModifiedBy,
+        lastModifiedAt: user.lastModifiedAt
+      })),
       total: users.length,
       success: true
     });
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
     logger.error('Error fetching users', 'USERS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to fetch users', success: false },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: 'Failed to fetch users',
+      success: false
+    }, { status: 500 });
   }
 }
 
 // POST /api/users - Create new user (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const user = auth.extractUserFromRequest(request);
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
     const adminUser = requireAdmin(user);
     
-    const body = await request.json();
+    const data = await request.json();
     
     // Validate required fields
-    if (!body.username || !body.email || !body.password || !body.role) {
-      return NextResponse.json(
-        { error: 'Missing required fields', success: false },
-        { status: 400 }
-      );
+    const requiredFields = ['username', 'email', 'password', 'role'];
+    
+    for (const field of requiredFields) {
+      if (!(field in data)) {
+        return NextResponse.json({
+          error: `Missing required field: ${field}`,
+          success: false
+        }, { status: 400 });
+      }
     }
     
     // Validate role
-    if (!['admin', 'data_manager'].includes(body.role)) {
-      return NextResponse.json(
-        { error: 'Invalid role', success: false },
-        { status: 400 }
-      );
+    if (!['admin', 'data_manager', 'driver_manager'].includes(data.role)) {
+      return NextResponse.json({
+        error: 'Invalid role. Must be admin, data_manager, or driver_manager',
+        success: false
+      }, { status: 400 });
     }
     
     // Check if user already exists
-    const existingUserByEmail = await db.getUserByEmail(body.email);
-    if (existingUserByEmail) {
-      return NextResponse.json(
-        { error: 'Email already exists', success: false },
-        { status: 400 }
-      );
+    const existingUserByUsername = await db.getUserByUsername(data.username);
+    if (existingUserByUsername) {
+      return NextResponse.json({
+        error: 'Username already exists',
+        success: false
+      }, { status: 409 });
     }
     
-    const existingUserByUsername = await db.getUserByUsername(body.username);
-    if (existingUserByUsername) {
-      return NextResponse.json(
-        { error: 'Username already exists', success: false },
-        { status: 400 }
-      );
+    const existingUserByEmail = await db.getUserByEmail(data.email);
+    if (existingUserByEmail) {
+      return NextResponse.json({
+        error: 'Email already exists',
+        success: false
+      }, { status: 409 });
     }
     
     // Hash password
-    const passwordHash = await bcrypt.hash(body.password, 12);
+    const passwordHash = await authService.hashPassword(data.password);
     
     // Create user
     const userId = await db.createUser({
-      username: body.username,
-      email: body.email,
+      username: data.username,
+      email: data.email,
       passwordHash,
-      role: body.role,
-      isActive: body.isActive !== undefined ? body.isActive : true,
-      createdBy: createObjectId(adminUser.id)
+      role: data.role,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      createdBy: adminUser.id,
+      lastModifiedBy: adminUser.id
+    });
+    
+    // Log the action
+    await db.logAction({
+      userId: adminUser.id,
+      username: adminUser.username,
+      userRole: adminUser.role,
+      action: `יצר משתמש חדש: ${data.username} (${data.role})`,
+      category: 'user',
+      target: {
+        id: userId,
+        type: 'user',
+        name: data.username
+      },
+      severity: 'success'
     });
     
     logger.info('User created successfully', 'USERS_API', {
-      userId,
-      username: body.username,
-      role: body.role,
+      newUserId: userId,
+      username: data.username,
+      role: data.role,
       createdBy: adminUser.id
     });
     
     return NextResponse.json({
+      success: true,
       userId,
-      message: 'User created successfully',
-      success: true
-    }, { status: 201 });
-    
+      message: 'User created successfully'
+    });
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
     logger.error('Error creating user', 'USERS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to create user', success: false },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      error: 'Failed to create user',
+      success: false
+    }, { status: 500 });
   }
 } 

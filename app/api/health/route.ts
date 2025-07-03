@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, getConnectionStatus } from '@/lib/mongodb';
+import { getSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    // Basic database connection check
-    const connectionStatus = getConnectionStatus();
+    // Check Supabase connection
+    const supabase = getSupabaseClient();
     
-    // Try to connect to verify database is accessible
-    const { db } = await connectToDatabase();
-    const isDbConnected = !!db;
+    // Try a simple query to verify database is accessible
+    const { data, error } = await supabase
+      .from('projects')
+      .select('count')
+      .limit(1)
+      .single();
+    
+    const isDbConnected = !error;
     
     const health = {
       status: isDbConnected ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       database: {
-        connected: isDbConnected
+        connected: isDbConnected,
+        type: 'supabase'
       },
       uptime: process.uptime(),
       version: process.version

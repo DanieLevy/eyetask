@@ -205,6 +205,11 @@ export function usePushNotifications() {
       const result = await response.json();
       logger.info('[Push Client] Subscription saved successfully:', 'PUSH_NOTIFICATIONS', result);
 
+      // Store the userId in sessionStorage for later use
+      if (result.userId) {
+        sessionStorage.setItem('push-subscription-user-id', result.userId);
+      }
+
       setState(prev => ({
         ...prev,
         isSubscribed: true,
@@ -274,6 +279,9 @@ export function usePushNotifications() {
           })
         });
       }
+      
+      // Clear stored userId
+      sessionStorage.removeItem('push-subscription-user-id');
       
       setState(prev => ({
         ...prev,

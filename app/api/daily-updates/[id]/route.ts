@@ -1,305 +1,214 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createObjectId } from '@/lib/mongodb';
-import { db } from '@/lib/database';
-import { requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
-import { cache } from '@/lib/cache';
-import { extractTokenFromHeader } from '@/lib/auth';
-import { requireAuthEnhanced } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth-utils';
 
-const CACHE_NAMESPACE = 'daily_updates';
-
+// GET /api/daily-updates/[id] - Get a single daily update
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const update = await db.getDailyUpdateById(id);
     
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Daily update ID is required' },
-        { status: 400 }
-      );
+    if (!update) {
+      return NextResponse.json({
+        error: 'Daily update not found',
+        success: false
+      }, { status: 404 });
     }
-
-    const dailyUpdateResult = await db.getDailyUpdateById(id);
     
-    if (!dailyUpdateResult) {
-      return NextResponse.json(
-        { error: 'Daily update not found' },
-        { status: 404 }
-      );
+    // Check if user can view hidden updates
+    const user = authService.extractUserFromRequest(request);
+    const canManageData = authService.canManageData(user);
+    
+    // If update is hidden and user cannot manage data, return 404
+    if (update.isHidden && !canManageData) {
+      return NextResponse.json({
+        error: 'Daily update not found',
+        success: false
+      }, { status: 404 });
     }
-
-    // Format the response
-    const formattedDailyUpdate = {
-      id: dailyUpdateResult._id?.toString(),
-      title: dailyUpdateResult.title,
-      content: dailyUpdateResult.content,
-      type: dailyUpdateResult.type,
-      priority: dailyUpdateResult.priority,
-      durationType: dailyUpdateResult.durationType,
-      durationValue: dailyUpdateResult.durationValue,
-      expiresAt: dailyUpdateResult.expiresAt,
-      isActive: dailyUpdateResult.isActive,
-      isPinned: dailyUpdateResult.isPinned,
-      isHidden: dailyUpdateResult.isHidden,
-      targetAudience: dailyUpdateResult.targetAudience,
-      projectId: dailyUpdateResult.projectId ? dailyUpdateResult.projectId.toString() : null,
-      isGeneral: dailyUpdateResult.isGeneral,
-      createdBy: dailyUpdateResult.createdBy ? dailyUpdateResult.createdBy.toString() : null,
-      createdAt: dailyUpdateResult.createdAt,
-      updatedAt: dailyUpdateResult.updatedAt
-    };
-
-    return NextResponse.json(formattedDailyUpdate);
+    
+    return NextResponse.json({
+      update: {
+        _id: update.id || update._id?.toString(),
+        title: update.title,
+        content: update.content,
+        type: update.type,
+        priority: update.priority,
+        durationType: update.durationType,
+        durationValue: update.durationValue,
+        expiresAt: update.expiresAt,
+        isActive: update.isActive,
+        isPinned: update.isPinned,
+        isHidden: update.isHidden,
+        targetAudience: update.targetAudience,
+        projectId: update.projectId,
+        isGeneral: update.isGeneral,
+        createdBy: update.createdBy,
+        createdAt: update.createdAt,
+        updatedAt: update.updatedAt
+      },
+      success: true
+    });
   } catch (error) {
-    logger.error('Error fetching daily update', 'DAILY_UPDATE_GET', { error: (error as Error).message });
-    return NextResponse.json(
-      { error: 'Failed to fetch daily update' },
-      { status: 500 }
-    );
+    logger.error('Error fetching daily update', 'DAILY_UPDATES_API', { updateId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to fetch daily update',
+      success: false
+    }, { status: 500 });
   }
 }
 
+// PUT /api/daily-updates/[id] - Update a daily update
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Extract token and authenticate user
-    const authHeader = request.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader);
-    
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const authResult = await requireAuthEnhanced(token);
-    if (!authResult.authorized || !authResult.user) {
-      return NextResponse.json(
-        { error: authResult.error || 'Authentication failed' },
-        { status: 401 }
-      );
-    }
-
-    // Require admin access
-    const user = requireAdmin(authResult.user);
-
     const { id } = await params;
     
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Daily update ID is required' },
-        { status: 400 }
-      );
-    }
-
-    const body = await request.json();
-    const { 
-      title, 
-      content, 
-      type, 
-      priority, 
-      durationType, 
-      durationValue,
-      isActive,
-      isPinned,
-      isHidden,
-      targetAudience,
-      projectId
-    } = body;
-
-    // Validation
-    if (title && typeof title !== 'string') {
-      return NextResponse.json(
-        { error: 'Title must be a string' },
-        { status: 400 }
-      );
-    }
-
-    if (content && typeof content !== 'string') {
-      return NextResponse.json(
-        { error: 'Content must be a string' },
-        { status: 400 }
-      );
-    }
-
-    if (type && !['info', 'warning', 'success', 'error', 'announcement'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid type' },
-        { status: 400 }
-      );
-    }
-
-    if (durationType && !['hours', 'days', 'permanent'].includes(durationType)) {
-      return NextResponse.json(
-        { error: 'Invalid duration type' },
-        { status: 400 }
-      );
-    }
-
-    // Prepare update data
-    const updateData: any = {};
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    const adminUser = requireAdmin(user);
     
-    if (title !== undefined) updateData.title = title;
-    if (content !== undefined) updateData.content = content;
-    if (type !== undefined) updateData.type = type;
-    if (priority !== undefined) updateData.priority = parseInt(priority, 10);
-    if (durationType !== undefined) updateData.durationType = durationType;
-    if (durationValue !== undefined) updateData.durationValue = parseInt(durationValue, 10);
-    if (isActive !== undefined) updateData.isActive = isActive;
-    if (isPinned !== undefined) updateData.isPinned = isPinned;
-    if (isHidden !== undefined) updateData.isHidden = isHidden;
-    if (targetAudience !== undefined) updateData.targetAudience = targetAudience;
+    const data = await request.json();
     
-    // Handle project ID
-    if (projectId !== undefined) {
-      if (projectId === null || projectId === '') {
-        updateData.projectId = null;
-        updateData.isGeneral = true;
-      } else {
-        try {
-          updateData.projectId = createObjectId(projectId);
-          updateData.isGeneral = false;
-        } catch (error) {
-          return NextResponse.json(
-            { error: 'Invalid project ID format' },
-            { status: 400 }
-          );
-        }
-      }
+    // Get existing update to verify it exists
+    const existingUpdate = await db.getDailyUpdateById(id);
+    if (!existingUpdate) {
+      return NextResponse.json({
+        error: 'Daily update not found',
+        success: false
+      }, { status: 404 });
     }
-
-    // Calculate expiration if duration fields are provided
-    if (updateData.durationType || updateData.durationValue) {
-      const durType = updateData.durationType || 'permanent';
-      const durValue = updateData.durationValue || 0;
+    
+    // Calculate new expiration date if duration changed
+    let expiresAt = undefined;
+    if (data.durationType !== undefined || data.durationValue !== undefined) {
+      const durationType = data.durationType || existingUpdate.durationType;
+      const durationValue = data.durationValue || existingUpdate.durationValue;
       
-      if (durType === 'permanent') {
-        updateData.expiresAt = null;
-      } else {
+      if (durationType !== 'permanent' && durationValue) {
         const now = new Date();
-        const multiplier = durType === 'hours' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-        updateData.expiresAt = new Date(now.getTime() + (durValue * multiplier));
+        if (durationType === 'hours') {
+          expiresAt = new Date(now.getTime() + durationValue * 60 * 60 * 1000).toISOString();
+        } else if (durationType === 'days') {
+          expiresAt = new Date(now.getTime() + durationValue * 24 * 60 * 60 * 1000).toISOString();
+        }
+      } else if (durationType === 'permanent') {
+        expiresAt = null;
       }
     }
-
+    
+    // Create update object with only the fields that are provided
+    const updateData: any = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.type !== undefined) updateData.type = data.type;
+    if (data.priority !== undefined) updateData.priority = data.priority;
+    if (data.durationType !== undefined) updateData.durationType = data.durationType;
+    if (data.durationValue !== undefined) updateData.durationValue = data.durationValue;
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.isPinned !== undefined) updateData.isPinned = data.isPinned;
+    if (data.isHidden !== undefined) updateData.isHidden = data.isHidden;
+    if (data.targetAudience !== undefined) updateData.targetAudience = data.targetAudience;
+    if (data.projectId !== undefined) updateData.projectId = data.projectId;
+    if (data.isGeneral !== undefined) updateData.isGeneral = data.isGeneral;
+    
     const success = await db.updateDailyUpdate(id, updateData);
     
     if (!success) {
-      return NextResponse.json(
-        { error: 'Daily update not found or failed to update' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        error: 'Failed to update daily update',
+        success: false
+      }, { status: 500 });
     }
-
-    // Fetch the updated daily update
-    const dailyUpdateResult = await db.getDailyUpdateById(id);
     
-    if (!dailyUpdateResult) {
-      return NextResponse.json(
-        { error: 'Updated daily update not found' },
-        { status: 404 }
-      );
-    }
-
-    // Format the response
-    const formattedDailyUpdate = {
-      id: dailyUpdateResult._id?.toString(),
-      title: dailyUpdateResult.title,
-      content: dailyUpdateResult.content,
-      type: dailyUpdateResult.type,
-      priority: dailyUpdateResult.priority,
-      durationType: dailyUpdateResult.durationType,
-      durationValue: dailyUpdateResult.durationValue,
-      expiresAt: dailyUpdateResult.expiresAt,
-      isActive: dailyUpdateResult.isActive,
-      isPinned: dailyUpdateResult.isPinned,
-      isHidden: dailyUpdateResult.isHidden,
-      targetAudience: dailyUpdateResult.targetAudience,
-      projectId: dailyUpdateResult.projectId ? dailyUpdateResult.projectId.toString() : null,
-      isGeneral: dailyUpdateResult.isGeneral,
-      createdBy: dailyUpdateResult.createdBy ? dailyUpdateResult.createdBy.toString() : null,
-      createdAt: dailyUpdateResult.createdAt,
-      updatedAt: dailyUpdateResult.updatedAt
-    };
-
-    logger.info('Daily update updated successfully', 'DAILY_UPDATE_UPDATE', {
-      id,
-      updatedFields: Object.keys(updateData)
+    logger.info('Daily update updated successfully', 'DAILY_UPDATES_API', {
+      updateId: id,
+      userId: adminUser.id,
+      changes: Object.keys(updateData)
     });
-
-    return NextResponse.json(formattedDailyUpdate);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Daily update updated successfully'
+    });
   } catch (error) {
-    logger.error('Error updating daily update', 'DAILY_UPDATE_UPDATE', { error: (error as Error).message });
-    return NextResponse.json(
-      { error: 'Failed to update daily update' },
-      { status: 500 }
-    );
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
+    logger.error('Daily update error', 'DAILY_UPDATES_API', { updateId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to update daily update',
+      success: false
+    }, { status: 500 });
   }
 }
 
+// DELETE /api/daily-updates/[id] - Delete a daily update
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Extract token and authenticate user
-    const authHeader = request.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader);
-    
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const authResult = await requireAuthEnhanced(token);
-    if (!authResult.authorized || !authResult.user) {
-      return NextResponse.json(
-        { error: authResult.error || 'Authentication failed' },
-        { status: 401 }
-      );
-    }
-
-    // Require admin access
-    const user = requireAdmin(authResult.user);
-
     const { id } = await params;
     
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Daily update ID is required' },
-        { status: 400 }
-      );
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    const adminUser = requireAdmin(user);
+    
+    // Get update details before deletion
+    const update = await db.getDailyUpdateById(id);
+    if (!update) {
+      return NextResponse.json({
+        error: 'Daily update not found',
+        success: false
+      }, { status: 404 });
     }
-
+    
+    // Delete the daily update
     const success = await db.deleteDailyUpdate(id);
     
     if (!success) {
-      return NextResponse.json(
-        { error: 'Daily update not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        error: 'Failed to delete daily update',
+        success: false
+      }, { status: 500 });
     }
-
-    logger.info('Daily update deleted successfully', 'DAILY_UPDATE_DELETE', { id });
-
-    return NextResponse.json({ 
+    
+    logger.info('Daily update deleted successfully', 'DAILY_UPDATES_API', {
+      updateId: id,
+      updateTitle: update.title,
+      deletedBy: adminUser.id
+    });
+    
+    return NextResponse.json({
       success: true,
-      message: 'Daily update deleted successfully' 
+      message: 'Daily update deleted successfully'
     });
   } catch (error) {
-    logger.error('Error deleting daily update', 'DAILY_UPDATE_DELETE', { error: (error as Error).message });
-    return NextResponse.json(
-      { error: 'Failed to delete daily update' },
-      { status: 500 }
-    );
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
+    logger.error('Daily update deletion error', 'DAILY_UPDATES_API', { updateId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to delete daily update',
+      success: false
+    }, { status: 500 });
   }
 } 

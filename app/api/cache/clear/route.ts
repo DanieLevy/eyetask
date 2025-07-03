@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cache } from '@/lib/cache';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
+import { requireAdmin } from '@/lib/auth-utils';
 
 /**
  * POST /api/cache/clear - Clear all or specific caches
@@ -16,7 +18,7 @@ import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     // Require admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
     
     // Get namespace(s) to clear from request body
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Require admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
     
     // Get cache statistics

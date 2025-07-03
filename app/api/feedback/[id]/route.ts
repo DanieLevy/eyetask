@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { UpdateFeedbackRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
-import { ObjectId } from 'mongodb';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // GET - Get specific ticket by ID
 export async function GET(
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
     
     const { id } = await params;
@@ -47,7 +47,7 @@ export async function PUT(
 ) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
@@ -109,7 +109,7 @@ export async function DELETE(
 ) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;

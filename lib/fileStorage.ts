@@ -1,58 +1,106 @@
 import { logger } from './logger';
 import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryUrl, extractPublicIdFromUrl, type CloudinaryUploadResult } from './cloudinary-server';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Enhanced file storage service using Cloudinary
  */
 
 /**
- * Save a file using Cloudinary
- * @param file The file to upload
- * @param options Upload options including folder, tags, etc.
- * @returns Cloudinary URL and metadata
+ * Save a file to storage (local for development, Cloudinary for production)
  */
 export async function saveFile(
-  file: File, 
+  file: File,
   options: {
     folder?: string;
     tags?: string[];
-    context?: Record<string, string>;
   } = {}
-): Promise<string> {
+): Promise<{ success: boolean; url?: string; publicId?: string; error?: string }> {
   try {
     logger.info('Starting file upload to Cloudinary', 'FILE_STORAGE', {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
-      folder: options.folder || 'drivertasks'
+      folder: options.folder || 'drivertasks/uploads'
     });
 
-    const result = await uploadToCloudinary(file, {
-      folder: options.folder || 'drivertasks',
-      tags: options.tags || ['file-upload'],
-      context: options.context || {}
-    });
-
-    if (!result.success || !result.secureUrl) {
-      throw new Error(result.error || 'Upload failed');
+    // Check if Cloudinary is configured
+    const isCloudinaryConfigured = !!process.env.CLOUDINARY_URL;
+    
+    if (!isCloudinaryConfigured) {
+      // Fallback to local storage in development
+      logger.warn('Cloudinary not configured, using local storage fallback', 'FILE_STORAGE');
+      
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      await fs.mkdir(uploadsDir, { recursive: true });
+      
+      // Generate unique filename
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(7);
+      const extension = path.extname(file.name);
+      const filename = `${timestamp}-${randomString}${extension}`;
+      const filepath = path.join(uploadsDir, filename);
+      
+      // Convert File to Buffer and save
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(filepath, buffer);
+      
+      // Return local URL
+      const url = `/uploads/${filename}`;
+      
+      logger.info('File saved locally', 'FILE_STORAGE', {
+        fileName: file.name,
+        savedAs: filename,
+        url
+      });
+      
+      return {
+        success: true,
+        url,
+        publicId: filename
+      };
     }
 
-    logger.info('File uploaded successfully to Cloudinary', 'FILE_STORAGE', {
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(file, {
+      folder: options.folder || 'drivertasks/uploads',
+      tags: options.tags || ['drivertasks', 'user-upload'],
+      quality: 'auto:good',
+      eager: [
+        { width: 150, height: 150, crop: 'fill', quality: 'auto' },
+        { width: 500, height: 500, crop: 'limit', quality: 'auto' }
+      ]
+    });
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Upload failed');
+    }
+    
+    logger.info('File uploaded to Cloudinary successfully', 'FILE_STORAGE', {
       fileName: file.name,
       publicId: result.publicId,
-      secureUrl: result.secureUrl,
-      bytes: result.bytes,
-      format: result.format
+      url: result.secureUrl
     });
-
-    return result.secureUrl;
+    
+    return {
+      success: true,
+      url: result.secureUrl,
+      publicId: result.publicId
+    };
   } catch (error) {
-    logger.error('Failed to upload file to Cloudinary', 'FILE_STORAGE', {
+    logger.error('Failed to upload file', 'FILE_STORAGE', {
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type
     }, error as Error);
-    throw error;
+    
+    return {
+      success: false,
+      error: (error as Error).message
+    };
   }
 }
 
@@ -108,48 +156,42 @@ export async function saveMultipleFiles(
 
 /**
  * Delete a file from storage
- * Handles Cloudinary URLs
- * @param fileUrl The URL of the file to delete
  */
-export async function deleteFile(fileUrl: string): Promise<void> {
+export async function deleteFile(publicIdOrUrl: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Handle Cloudinary URLs
-    if (isCloudinaryUrl(fileUrl)) {
-      const publicId = extractPublicIdFromUrl(fileUrl);
-      if (publicId) {
-        logger.info('Deleting file from Cloudinary', 'FILE_STORAGE_DELETE', { 
-          fileUrl, 
-          publicId 
+    // Check if it's a local file
+    if (publicIdOrUrl.startsWith('/uploads/')) {
+      // Local file deletion
+      const filename = publicIdOrUrl.replace('/uploads/', '');
+      const filepath = path.join(process.cwd(), 'public', 'uploads', filename);
+      
+      try {
+        await fs.unlink(filepath);
+        logger.info('Local file deleted', 'FILE_STORAGE', { filename });
+        return { success: true };
+      } catch (error) {
+        logger.warn('Failed to delete local file', 'FILE_STORAGE', { 
+          filename, 
+          error: (error as Error).message 
         });
-
-        const result = await deleteFromCloudinary(publicId);
-        
-        if (!result.success) {
-          logger.warn('Failed to delete file from Cloudinary', 'FILE_STORAGE_DELETE', {
-            fileUrl,
-            publicId,
-            error: result.error
-          });
-        } else {
-          logger.info('File deleted successfully from Cloudinary', 'FILE_STORAGE_DELETE', {
-            publicId
-          });
-        }
-      } else {
-        logger.warn('Could not extract public ID from Cloudinary URL', 'FILE_STORAGE_DELETE', {
-          fileUrl
-        });
+        return { success: false, error: 'File not found' };
       }
-    } else {
-      logger.warn('Unknown file URL format for deletion', 'FILE_STORAGE_DELETE', {
-        fileUrl
-      });
     }
+    
+    // Cloudinary deletion
+    const result = await deleteFromCloudinary(publicIdOrUrl);
+    
+    if (result.success) {
+      logger.info('File deleted from Cloudinary', 'FILE_STORAGE', { publicId: publicIdOrUrl });
+    }
+    
+    return result;
   } catch (error) {
-    logger.error('Error deleting file', 'FILE_STORAGE_DELETE', {
-      fileUrl
-    }, error as Error);
-    // Don't throw error for deletion failures to avoid breaking the application
+    logger.error('Failed to delete file', 'FILE_STORAGE', { publicIdOrUrl }, error as Error);
+    return {
+      success: false,
+      error: (error as Error).message
+    };
   }
 }
 
@@ -205,9 +247,9 @@ export { saveFile as saveFileToCloudinary };
 
 // Export all functions as default
 export default {
-  saveFile,
+  save: saveFile,
   saveMultipleFiles,
-  deleteFile,
+  delete: deleteFile,
   deleteMultipleFiles,
   getFileInfo,
   saveFileToCloudinary: saveFile

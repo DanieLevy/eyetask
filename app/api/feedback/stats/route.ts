@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
+
 
 // GET - Get feedback statistics (Admin only)
 export async function GET(request: NextRequest) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
     
     const searchParams = request.nextUrl.searchParams;

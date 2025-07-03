@@ -1,229 +1,236 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
-import bcrypt from 'bcryptjs';
+import { requireAdmin } from '@/lib/auth-utils';
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
-
-// GET /api/users/[id] - Get specific user (admin only or user fetching own profile)
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET /api/users/[id] - Get a single user
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const user = auth.extractUserFromRequest(request);
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-    
     const { id } = await params;
     
-    // Check if user is fetching their own profile
-    const isOwnProfile = user.id === id;
-    
-    // If not fetching own profile, require admin
-    if (!isOwnProfile) {
-      requireAdmin(user);
-    }
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    requireAdmin(user);
     
     const targetUser = await db.getUserById(id);
     
     if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found', success: false },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        error: 'User not found',
+        success: false
+      }, { status: 404 });
     }
     
-    // Remove password hash from response
-    const sanitizedUser = {
-      _id: targetUser._id?.toString(),
-      username: targetUser.username,
-      email: targetUser.email,
-      role: targetUser.role,
-      isActive: targetUser.isActive,
-      createdAt: targetUser.createdAt.toISOString(),
-      lastLogin: targetUser.lastLogin?.toISOString(),
-      createdBy: targetUser.createdBy?.toString(),
-      lastModifiedBy: targetUser.lastModifiedBy?.toString(),
-      lastModifiedAt: targetUser.lastModifiedAt?.toISOString()
-    };
-    
     return NextResponse.json({
-      user: sanitizedUser,
+      user: {
+        _id: targetUser.id || targetUser._id?.toString(),
+        username: targetUser.username,
+        email: targetUser.email,
+        role: targetUser.role,
+        isActive: targetUser.isActive,
+        createdAt: targetUser.createdAt,
+        lastLogin: targetUser.lastLogin,
+        createdBy: targetUser.createdBy,
+        lastModifiedBy: targetUser.lastModifiedBy,
+        lastModifiedAt: targetUser.lastModifiedAt
+      },
       success: true
     });
   } catch (error) {
-    logger.error('Error fetching user', 'USERS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user', success: false },
-      { status: 500 }
-    );
+    logger.error('Error fetching user', 'USERS_API', { userId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to fetch user',
+      success: false
+    }, { status: 500 });
   }
 }
 
-// PUT /api/users/[id] - Update user (admin only or user updating own profile)
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+// PUT /api/users/[id] - Update a user
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const currentUser = auth.extractUserFromRequest(request);
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: 'Authentication required', success: false },
-        { status: 401 }
-      );
-    }
-    
     const { id } = await params;
-    const body = await request.json();
     
-    // Check if user is updating their own profile
-    const isOwnProfile = body.updateOwnProfile && currentUser.id === id;
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    const adminUser = requireAdmin(user);
     
-    // If not updating own profile, require admin
-    if (!isOwnProfile) {
-      requireAdmin(currentUser);
+    const data = await request.json();
+    
+    // Get existing user to verify it exists
+    const existingUser = await db.getUserById(id);
+    if (!existingUser) {
+      return NextResponse.json({
+        error: 'User not found',
+        success: false
+      }, { status: 404 });
     }
     
-    // Check if user exists
-    const targetUser = await db.getUserById(id);
-    if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found', success: false },
-        { status: 404 }
-      );
+    // Prepare update data
+    const updateData: any = {};
+    
+    // Update role if provided
+    if (data.role && ['admin', 'data_manager', 'driver_manager'].includes(data.role)) {
+      updateData.role = data.role;
     }
     
-    // Prepare updates
-    const updates: any = {};
-    
-    if (isOwnProfile) {
-      // Users can only update their own username, email, and password
-      if (body.username) updates.username = body.username;
-      if (body.email) updates.email = body.email;
-      
-      // If changing password, verify current password
-      if (body.password && body.currentPassword) {
-        const isValidPassword = await bcrypt.compare(body.currentPassword, targetUser.passwordHash);
-        if (!isValidPassword) {
-          return NextResponse.json(
-            { error: 'Current password is incorrect', success: false },
-            { status: 400 }
-          );
-        }
-        updates.passwordHash = await bcrypt.hash(body.password, 12);
-      } else if (body.password && !body.currentPassword) {
-        return NextResponse.json(
-          { error: 'Current password is required to change password', success: false },
-          { status: 400 }
-        );
-      }
-    } else {
-      // Admin updates
-      if (body.username) updates.username = body.username;
-      if (body.email) updates.email = body.email;
-      if (body.role && ['admin', 'data_manager', 'driver_manager'].includes(body.role)) {
-        // Prevent self-demotion
-        if (id === currentUser.id && body.role !== 'admin') {
-          return NextResponse.json(
-            { error: 'Cannot change your own role', success: false },
-            { status: 400 }
-          );
-        }
-        updates.role = body.role;
-      }
-      if (body.isActive !== undefined) updates.isActive = body.isActive;
-      
-      // If password is provided, hash it (no current password check for admin)
-      if (body.password) {
-        updates.passwordHash = await bcrypt.hash(body.password, 12);
-      }
+    // Update active status if provided
+    if (data.isActive !== undefined) {
+      updateData.isActive = data.isActive;
     }
     
-    // Update user
-    const success = await db.updateUser(id, updates, currentUser.id);
+    // Update email if provided and different
+    if (data.email && data.email !== existingUser.email) {
+      // Check if email is already taken
+      const emailExists = await db.getUserByEmail(data.email);
+      if (emailExists) {
+        return NextResponse.json({
+          error: 'Email already exists',
+          success: false
+        }, { status: 400 });
+      }
+      updateData.email = data.email;
+    }
+    
+    // Update password if provided
+    if (data.password) {
+      updateData.passwordHash = await authService.hashPassword(data.password);
+    }
+    
+    const success = await db.updateUser(id, updateData, adminUser.id);
     
     if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to update user', success: false },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        error: 'Failed to update user',
+        success: false
+      }, { status: 500 });
     }
+    
+    // Log the action
+    await db.logAction({
+      userId: adminUser.id,
+      username: adminUser.username,
+      userRole: adminUser.role,
+      action: `עדכן משתמש: ${existingUser.username}`,
+      category: 'user',
+      target: {
+        id: id,
+        type: 'user',
+        name: existingUser.username
+      },
+      metadata: { changedFields: Object.keys(updateData) },
+      severity: 'info'
+    });
     
     logger.info('User updated successfully', 'USERS_API', {
       userId: id,
-      updatedBy: currentUser.id,
-      isOwnProfile,
-      changes: Object.keys(updates)
+      updatedBy: adminUser.id,
+      changes: Object.keys(updateData)
     });
     
     return NextResponse.json({
-      message: 'User updated successfully',
-      success: true
+      success: true,
+      message: 'User updated successfully'
     });
-    
   } catch (error) {
-    logger.error('Error updating user', 'USERS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to update user', success: false },
-      { status: 500 }
-    );
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
+    logger.error('User update error', 'USERS_API', { userId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to update user',
+      success: false
+    }, { status: 500 });
   }
 }
 
-// DELETE /api/users/[id] - Delete user (admin only)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+// DELETE /api/users/[id] - Delete a user
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const user = auth.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
-    
     const { id } = await params;
+    
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
+    const adminUser = requireAdmin(user);
     
     // Prevent self-deletion
     if (id === adminUser.id) {
-      return NextResponse.json(
-        { error: 'Cannot delete your own account', success: false },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        error: 'Cannot delete your own account',
+        success: false
+      }, { status: 400 });
     }
     
-    // Check if user exists
+    // Get user details before deletion
     const targetUser = await db.getUserById(id);
     if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found', success: false },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        error: 'User not found',
+        success: false
+      }, { status: 404 });
     }
     
-    // Delete user
+    // Delete the user
     const success = await db.deleteUser(id);
     
     if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to delete user', success: false },
-        { status: 500 }
-      );
+      return NextResponse.json({
+        error: 'Failed to delete user',
+        success: false
+      }, { status: 500 });
     }
+    
+    // Log the action
+    await db.logAction({
+      userId: adminUser.id,
+      username: adminUser.username,
+      userRole: adminUser.role,
+      action: `מחק משתמש: ${targetUser.username}`,
+      category: 'user',
+      target: {
+        id: id,
+        type: 'user',
+        name: targetUser.username
+      },
+      severity: 'warning'
+    });
     
     logger.info('User deleted successfully', 'USERS_API', {
       userId: id,
-      deletedBy: adminUser.id,
-      username: targetUser.username
+      username: targetUser.username,
+      deletedBy: adminUser.id
     });
     
     return NextResponse.json({
-      message: 'User deleted successfully',
-      success: true
+      success: true,
+      message: 'User deleted successfully'
     });
-    
   } catch (error) {
-    logger.error('Error deleting user', 'USERS_API', undefined, error as Error);
-    return NextResponse.json(
-      { error: 'Failed to delete user', success: false },
-      { status: 500 }
-    );
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
+    }
+    
+    logger.error('User deletion error', 'USERS_API', { userId: (await params).id }, error as Error);
+    return NextResponse.json({
+      error: 'Failed to delete user',
+      success: false
+    }, { status: 500 });
   }
 } 

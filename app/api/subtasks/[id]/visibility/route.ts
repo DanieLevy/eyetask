@@ -1,6 +1,7 @@
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { NextRequest, NextResponse } from 'next/server';
-import { updateSubtaskVisibility } from '@/lib/database';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -9,14 +10,13 @@ interface RouteParams {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-    if (!authorized || !isAdminEnhanced(user)) {
+        const user = await requireAuthEnhanced(authHeader);
+    if (!user || !isAdminEnhanced(user)) {
       return NextResponse.json({ error: 'Unauthorized access', success: false }, { status: 401 });
     }
     const { id } = await params;
     const { isVisible } = await request.json();
-    const updated = await updateSubtaskVisibility(id, isVisible);
+    const updated = await db.updateSubtaskVisibility(id, isVisible);
     if (!updated) {
       return NextResponse.json({ error: 'Failed to update subtask visibility', success: false }, { status: 500 });
     }

@@ -6,6 +6,7 @@ import FeedbackList from '@/components/admin/FeedbackList';
 import FeedbackFilters from '@/components/admin/FeedbackFilters';
 import FeedbackStatsComponent from '@/components/admin/FeedbackStatsComponent';
 import TicketModal from '@/components/admin/TicketModal';
+import AdminClientLayout from '@/components/AdminClientLayout';
 
 export default function FeedbackManagementPage() {
   const [tickets, setTickets] = useState<FeedbackTicket[]>([]);
@@ -30,6 +31,13 @@ export default function FeedbackManagementPage() {
     try {
       setLoading(true);
       
+      // Get auth token
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+      
       // Build query parameters
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -53,8 +61,16 @@ export default function FeedbackManagementPage() {
       }
 
       const [ticketsResponse, statsResponse] = await Promise.all([
-        fetch(`/api/feedback?${params}`),
-        fetch('/api/feedback/stats')
+        fetch(`/api/feedback?${params}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+        fetch('/api/feedback/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
       ]);
 
       const ticketsData = await ticketsResponse.json();
@@ -94,66 +110,70 @@ export default function FeedbackManagementPage() {
 
   if (loading && tickets.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white p-6 rounded-lg h-24"></div>
-              ))}
+      <AdminClientLayout>
+        <div className="min-h-screen bg-gray-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-white p-6 rounded-lg h-24"></div>
+                ))}
+              </div>
+              <div className="bg-white rounded-lg h-96"></div>
             </div>
-            <div className="bg-white rounded-lg h-96"></div>
           </div>
         </div>
-      </div>
+      </AdminClientLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-3 md:p-6">
-        {/* Mobile-Optimized Header */}
-        <div className="mb-4">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-900">ניהול פניות ותמיכה</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">
-            נהל, עקב ותענה על פניות משתמשים במערכת
-          </p>
-        </div>
+    <AdminClientLayout>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-6xl mx-auto p-3 md:p-6">
+          {/* Mobile-Optimized Header */}
+          <div className="mb-4">
+            <h1 className="text-xl md:text-3xl font-bold text-gray-900">ניהול פניות ותמיכה</h1>
+            <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">
+              נהל, עקב ותענה על פניות משתמשים במערכת
+            </p>
+          </div>
 
-        {/* Stats Section */}
-        {stats && <FeedbackStatsComponent stats={stats} />}
+          {/* Stats Section */}
+          {stats && <FeedbackStatsComponent stats={stats} />}
 
-        {/* Filters Section */}
-        <FeedbackFilters 
-          filters={filters}
-          onFiltersChange={handleFilterChange}
-          onRefresh={loadData}
-        />
-
-        {/* Tickets List */}
-        <FeedbackList
-          tickets={tickets}
-          loading={loading}
-          onTicketClick={handleTicketClick}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-
-        {/* Ticket Modal */}
-        {isModalOpen && selectedTicket && (
-          <TicketModal
-            ticket={selectedTicket}
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false);
-              setSelectedTicket(null);
-            }}
-            onUpdate={handleTicketUpdate}
+          {/* Filters Section */}
+          <FeedbackFilters 
+            filters={filters}
+            onFiltersChange={handleFilterChange}
+            onRefresh={loadData}
           />
-        )}
+
+          {/* Tickets List */}
+          <FeedbackList
+            tickets={tickets}
+            loading={loading}
+            onTicketClick={handleTicketClick}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+
+          {/* Ticket Modal */}
+          {isModalOpen && selectedTicket && (
+            <TicketModal
+              ticket={selectedTicket}
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedTicket(null);
+              }}
+              onUpdate={handleTicketUpdate}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </AdminClientLayout>
   );
 } 

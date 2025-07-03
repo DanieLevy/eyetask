@@ -1,7 +1,22 @@
 import webpush from 'web-push';
-import { db } from '@/lib/database';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
-import { PushSubscription } from '@/lib/database';
+
+// Define PushSubscription interface locally
+interface PushSubscription {
+  _id?: string;
+  id?: string;
+  userId?: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  userAgent?: string;
+  createdAt: Date;
+  lastUsed?: Date;
+  isActive: boolean;
+}
 
 // Initialize web-push with VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -150,9 +165,16 @@ class PushNotificationService {
       if (options.saveToHistory !== false) {
         try {
           notificationId = await db.createPushNotification({
-            ...payload,
-            targetRoles: options.targetRoles,
-            targetUsers: options.targetUsers,
+            title: payload.title,
+            body: payload.body,
+            icon: payload.icon || '/icons/icon-192x192.png',
+            badge: payload.badge || '/icons/icon-72x72.png',
+            image: payload.image || '',
+            url: payload.url || '/',
+            tag: payload.tag || 'default',
+            requireInteraction: payload.requireInteraction || false,
+            targetRoles: options.targetRoles || [],
+            targetUsers: options.targetUsers || [],
             sentBy
           });
           logger.info('Notification record created', 'PUSH_SERVICE', { notificationId });
@@ -331,7 +353,13 @@ class PushNotificationService {
   /**
    * Test notification sending
    */
-  async sendTestNotification(subscription: PushSubscription['subscription']) {
+  async sendTestNotification(subscription: {
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  }) {
     try {
       logger.info('Sending test notification', 'PUSH_SERVICE', {
         endpoint: subscription.endpoint.substring(0, 50) + '...'

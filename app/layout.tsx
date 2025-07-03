@@ -7,7 +7,6 @@ import OfflineBanner from "@/components/OfflineBanner";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
 import DeepLinkHandler from "@/components/DeepLinkHandler";
-import AdminClientLayout from "@/components/AdminClientLayout";
 import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
 import CSSFailsafe from "@/components/CSSFailsafe";
 import { RefreshProvider } from "@/hooks/usePageRefresh";
@@ -153,19 +152,17 @@ export default function RootLayout({
                 <SmartAppBanner />
                 <OfflineBanner />
                 <GlobalLoadingIndicator position="top" showProgress={true} />
-                <AdminClientLayout>
-                  <RefreshProvider>
-                    <GlobalPullToRefresh>
-                      <div className="flex flex-col min-h-[100dvh] bg-background">
-                        <ConditionalHeader />
-                        <main className="flex-1 overflow-auto bg-background">
-                          {children}
-                        </main>
-                        <Footer />
-                      </div>
-                    </GlobalPullToRefresh>
-                  </RefreshProvider>
-                </AdminClientLayout>
+                <RefreshProvider>
+                  <GlobalPullToRefresh>
+                    <div className="flex flex-col min-h-[100dvh] bg-background">
+                      <ConditionalHeader />
+                      <main className="flex-1 overflow-auto bg-background">
+                        {children}
+                      </main>
+                      <Footer />
+                    </div>
+                  </GlobalPullToRefresh>
+                </RefreshProvider>
               </DeepLinkHandler>
             </NavigationLoadingProvider>
           </LoadingProvider>

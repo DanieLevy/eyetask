@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { db } from './database';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { supabaseDb } from './supabase-database';
 import { logger } from './logger';
+import { getUserPermissions } from './permissions';
+import { getSupabaseClient } from './supabase';
 
 // Enhanced JWT secret configuration for production
 const JWT_SECRET = process.env.JWT_SECRET || 
@@ -11,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET ||
 
 // Ensure we have a proper secret in production
 if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'fallback-secret-key-for-development-only') {
-  logger.error('JWT_SECRET not properly configured for production', 'AUTH');
+  logger.error('JWT_SECRET not properly configured for production', 'AUTH_SUPABASE');
 }
 
 const COOKIE_NAME = 'auth-token';
@@ -34,7 +36,7 @@ export interface RegisterData {
   password: string;
 }
 
-export class AuthService {
+export class SupabaseAuthService {
   // Hash password
   async hashPassword(password: string): Promise<string> {
     return await bcrypt.hash(password, 12);
@@ -55,13 +57,13 @@ export class AuthService {
           email: user.email, 
           role: user.role,
           iat: Math.floor(Date.now() / 1000),
-          iss: 'drivertasks-app'
+          iss: 'eyetask-app'
         },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
     } catch (error) {
-      logger.error('Error generating JWT token', 'AUTH', undefined, error as Error);
+      logger.error('Error generating JWT token', 'AUTH_SUPABASE', undefined, error as Error);
       throw new Error('Failed to generate authentication token');
     }
   }
@@ -77,10 +79,10 @@ export class AuthService {
       
       // Validate required fields
       if (!decoded.id || !decoded.username || !decoded.role) {
-        logger.warn('Invalid token payload - missing required fields', 'AUTH');
+        logger.warn('Invalid token payload - missing required fields', 'AUTH_SUPABASE');
         return null;
       }
-
+      
       return {
         id: decoded.id,
         username: decoded.username,
@@ -89,48 +91,152 @@ export class AuthService {
       };
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
-        logger.warn('Token expired', 'AUTH');
+        logger.warn('Token expired', 'AUTH_SUPABASE');
       } else if (error instanceof jwt.JsonWebTokenError) {
-        logger.warn('Invalid token format', 'AUTH');
+        logger.warn('Invalid token format', 'AUTH_SUPABASE');
       } else {
-        logger.error('Token verification failed', 'AUTH', undefined, error as Error);
+        logger.error('Token verification failed', 'AUTH_SUPABASE', undefined, error as Error);
       }
       return null;
     }
   }
 
-  // Login with credentials
-  async login(credentials: LoginCredentials): Promise<{ user: AuthUser; token: string } | null> {
+  /**
+   * Verify a user's token exists and is active (async)
+   */
+  async verifyTokenAsync(token: string): Promise<boolean> {
     try {
-      const user = await db.getUserByUsername(credentials.username);
+      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+      const supabase = getSupabaseClient(true); // Use admin client
       
-      if (!user) {
-        logger.warn('Login attempt with unknown username', 'AUTH', { username: credentials.username });
-        return null;
-      }
-
-      const isValidPassword = await this.verifyPassword(credentials.password, user.passwordHash);
+      // Check if user still exists and is active
+      const { data: user, error } = await supabase
+        .from('app_users')
+        .select('id, is_active')
+        .eq('id', decoded.id)
+        .single();
       
-      if (!isValidPassword) {
-        logger.warn('Invalid password attempt', 'AUTH', { username: credentials.username });
-        return null;
+      if (error || !user || user.is_active === false) {
+        return false;
       }
-
-      const authUser: AuthUser = {
-        id: user._id!.toString(),
-        username: user.username,
-        email: user.email,
-        role: user.role
-      };
-
-      const token = this.generateToken(authUser);
-
-
-
-      return { user: authUser, token };
+      
+      return true;
     } catch (error) {
-      logger.error('Login error', 'AUTH', undefined, error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * Get user from token with permissions
+   */
+  async getUserFromToken(token: string): Promise<any | null> {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+      const supabase = getSupabaseClient(true); // Use admin client
+      
+      // Get user data
+      const { data: user, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('id', decoded.id)
+        .single();
+      
+      if (error || !user || user.is_active === false) {
+        return null;
+      }
+      
+      // Get permissions
+      const permissions = await getUserPermissions(user.id);
+      
+      return {
+        ...user,
+        permissions
+      };
+    } catch (error) {
       return null;
+    }
+  }
+
+  /**
+   * Login user
+   */
+  async login(
+    username: string, 
+    password: string
+  ): Promise<{ 
+    success: boolean; 
+    error?: string; 
+    token?: string; 
+    user?: any;
+    permissions?: Record<string, boolean>;
+  }> {
+    try {
+      const supabase = getSupabaseClient(true); // Use admin client to bypass RLS
+      
+      // Find user by username
+      const { data: user, error } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('username', username)
+        .single();
+      
+      if (error || !user) {
+        logger.warn('Login failed: User not found', 'AUTH', { username });
+        return { success: false, error: 'שם משתמש או סיסמה שגויים' };
+      }
+      
+      // Check if user is active
+      if (user.is_active === false) {
+        logger.warn('Login failed: User is inactive', 'AUTH', { username });
+        return { success: false, error: 'החשבון אינו פעיל' };
+      }
+      
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      
+      if (!isPasswordValid) {
+        logger.warn('Login failed: Invalid password', 'AUTH', { username });
+        return { success: false, error: 'שם משתמש או סיסמה שגויים' };
+      }
+      
+      // Update last login
+      await supabase
+        .from('app_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      // Get user permissions
+      const permissions = await getUserPermissions(user.id);
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          username: user.username,
+          email: user.email,
+          role: user.role
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      logger.info('User logged in successfully', 'AUTH', { userId: user.id, username: user.username });
+      
+      return {
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          isActive: user.is_active
+        },
+        permissions
+      };
+    } catch (error) {
+      logger.error('Login error', 'AUTH', { error: (error as Error).message });
+      return { success: false, error: 'שגיאה בהתחברות' };
     }
   }
 
@@ -138,15 +244,15 @@ export class AuthService {
   async register(data: RegisterData): Promise<{ user: AuthUser; token: string } | null> {
     try {
       // Check if user already exists
-      const existingUserByUsername = await db.getUserByUsername(data.username);
+      const existingUserByUsername = await supabaseDb.getUserByUsername(data.username);
       if (existingUserByUsername) {
-        logger.warn('Registration attempt with existing username', 'AUTH', { username: data.username });
+        logger.warn('Registration attempt with existing username', 'AUTH_SUPABASE', { username: data.username });
         throw new Error('Username already exists');
       }
 
-      const existingUserByEmail = await db.getUserByEmail(data.email);
+      const existingUserByEmail = await supabaseDb.getUserByEmail(data.email);
       if (existingUserByEmail) {
-        logger.warn('Registration attempt with existing email', 'AUTH', { email: data.email });
+        logger.warn('Registration attempt with existing email', 'AUTH_SUPABASE', { email: data.email });
         throw new Error('Email already exists');
       }
 
@@ -154,7 +260,7 @@ export class AuthService {
       const passwordHash = await this.hashPassword(data.password);
 
       // Create user
-      const userId = await db.createUser({
+      const userId = await supabaseDb.createUser({
         username: data.username,
         email: data.email,
         passwordHash,
@@ -170,39 +276,18 @@ export class AuthService {
 
       const token = this.generateToken(authUser);
 
-
+      logger.info('User registered successfully', 'AUTH_SUPABASE', { userId, username: data.username });
 
       return { user: authUser, token };
     } catch (error) {
-      logger.error('Registration error', 'AUTH', undefined, error as Error);
-      return null;
-    }
-  }
-
-  // Get user from token with database validation
-  async getUserFromToken(token: string): Promise<AuthUser | null> {
-    try {
-      const user = this.verifyToken(token);
-      if (!user) {
-        return null;
-      }
-
-      // Verify user still exists in database
-      const dbUser = await db.getUserByUsername(user.username);
-      if (!dbUser) {
-        logger.warn('Token user no longer exists in database', 'AUTH', { username: user.username });
-        return null;
-      }
-
-      return user;
-    } catch (error) {
-      logger.error('Error getting user from token', 'AUTH', undefined, error as Error);
+      logger.error('Registration error', 'AUTH_SUPABASE', undefined, error as Error);
       return null;
     }
   }
 
   // Logout (client-side will remove token)
   logout(): void {
+    // Client-side operation
   }
 
   // Enhanced middleware helper to extract user from request
@@ -242,13 +327,18 @@ export class AuthService {
 
       return null;
     } catch (error) {
-      logger.error('Error extracting user from request', 'AUTH', undefined, error as Error);
+      logger.error('Error extracting user from request', 'AUTH_SUPABASE', undefined, error as Error);
       return null;
     }
   }
 
   // Check if user is admin
   isAdmin(user: AuthUser | null): boolean {
+    return user?.role === 'admin';
+  }
+
+  // Check if user is admin (alternative method for consistency)
+  checkIsAdmin(user: AuthUser | null): boolean {
     return user?.role === 'admin';
   }
 
@@ -292,7 +382,7 @@ export class AuthService {
 }
 
 // Export singleton instance
-export const auth = new AuthService();
+export const authSupabase = new SupabaseAuthService();
 
 // Helper function for API routes to require authentication
 export function requireAuth(user: AuthUser | null): AuthUser {
@@ -307,7 +397,7 @@ export function requireAdmin(user: AuthUser | null): AuthUser {
   if (!user) {
     throw new Error('Authentication required');
   }
-  if (!auth.isAdmin(user)) {
+  if (!authSupabase.isAdmin(user)) {
     throw new Error('Admin access required');
   }
   return user;
@@ -328,7 +418,7 @@ export async function requireAuthEnhanced(token: string | null): Promise<{ autho
       return { authorized: false, user: null, error: 'No token provided' };
     }
     
-    const user = await auth.getUserFromToken(token);
+    const user = await authSupabase.getUserFromToken(token);
     if (!user) {
       return { authorized: false, user: null, error: 'Invalid or expired token' };
     }
@@ -338,11 +428,11 @@ export async function requireAuthEnhanced(token: string | null): Promise<{ autho
       user 
     };
   } catch (error) {
-    logger.error('Error in requireAuthEnhanced', 'AUTH', undefined, error as Error);
+    logger.error('Error in requireAuthEnhanced', 'AUTH_SUPABASE', undefined, error as Error);
     return { authorized: false, user: null, error: 'Authentication error' };
   }
 }
 
 export function isAdminEnhanced(user: AuthUser | null): boolean {
-  return auth.isAdmin(user);
+  return authSupabase.isAdmin(user);
 } 

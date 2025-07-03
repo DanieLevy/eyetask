@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 
 // POST /api/auth/setup - One-time admin user setup
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     
     logger.info('Setting up admin user in MongoDB', 'SETUP');
     
-    const result = await auth.register({
+    const result = await authService.register({
       username: body.username,
       email: body.email,
       password: body.password
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Set HTTP-only cookie for authentication
-      response.headers.set('Set-Cookie', auth.generateAuthCookie(result.token));
+      response.headers.set('Set-Cookie', authService.generateAuthCookie(result.token));
       
       return response;
     } else {

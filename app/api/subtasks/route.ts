@@ -1,261 +1,251 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
-
-import { updateTaskAmount } from '@/lib/taskUtils';
-import { activityLogger } from '@/lib/activityLogger';
-import { saveFile } from '@/lib/fileStorage';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
+import { activityLogger } from '@/lib/activityLogger';
 
-// GET /api/subtasks - Fetch all subtasks (PUBLIC ACCESS - filtered by visible tasks only)
+// GET /api/subtasks - Get all subtasks (admin) or visible subtasks (public)
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is authenticated admin
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
-    const isAdmin = authorized && isAdminEnhanced(user);
-    
-    // Check for taskId query parameter
     const { searchParams } = new URL(request.url);
-    const taskIdFilter = searchParams.get('taskId');
+    const taskId = searchParams.get('taskId');
+    const taskIds = searchParams.get('taskIds');
+    const countOnly = searchParams.get('countOnly') === 'true';
     
-    let subtasks;
-    if (taskIdFilter) {
-      // Get subtasks for a specific task
-      const subtaskResults = await db.getSubtasksByTask(taskIdFilter);
-              subtasks = subtaskResults.map(subtask => ({
-        id: subtask._id!.toString(),
-        taskId: subtask.taskId.toString(),
-        title: subtask.title,
-        subtitle: subtask.subtitle,
-        images: subtask.images || [],
-        datacoNumber: subtask.datacoNumber,
-        type: subtask.type,
-        amountNeeded: subtask.amountNeeded,
-        labels: subtask.labels,
-        targetCar: subtask.targetCar,
-        weather: subtask.weather,
-        scene: subtask.scene,
-        dayTime: subtask.dayTime || [],
-        createdAt: subtask.createdAt.toISOString(),
-        updatedAt: subtask.updatedAt.toISOString()
-      }));
-    } else {
-      // Get all subtasks (we need to implement this or return error)
-      return NextResponse.json(
-        { error: 'taskId parameter is required', success: false },
-        { status: 400 }
-      );
+    // Handle single taskId or multiple taskIds
+    let taskIdList: string[] = [];
+    if (taskId) {
+      taskIdList = [taskId];
+    } else if (taskIds) {
+      taskIdList = taskIds.split(',').filter(id => id.trim());
     }
     
-    // If not admin, filter to only show subtasks from visible tasks
-    if (!isAdmin) {
-      // Get the task to check if it's visible
-      const task = await db.getTaskById(taskIdFilter!);
-      if (!task || !task.isVisible) {
-        return NextResponse.json({
-          subtasks: [],
-          total: 0,
-          success: true
-        });
+    if (taskIdList.length === 0) {
+      return NextResponse.json({
+        error: 'Task ID(s) required',
+        success: false
+      }, { status: 400 });
+    }
+    
+    const user = authService.extractUserFromRequest(request);
+    const canManageData = authService.canManageData(user);
+    
+    // If countOnly is requested, return counts for each task
+    if (countOnly) {
+      const counts: Record<string, number> = {};
+      
+      for (const tid of taskIdList) {
+        try {
+          const subtasks = await db.getSubtasksByTask(tid, canManageData);
+          counts[tid] = subtasks.length;
+        } catch (error) {
+          // If task doesn't exist or error, count is 0
+          counts[tid] = 0;
+        }
+      }
+      
+      return NextResponse.json({
+        counts,
+        success: true
+      });
+    }
+    
+    // For single task, return subtasks as before
+    if (taskIdList.length === 1) {
+      const subtasks = await db.getSubtasksByTask(taskIdList[0], canManageData);
+      
+      return NextResponse.json({
+        subtasks: subtasks.map(subtask => ({
+          _id: subtask.id || subtask._id?.toString(),
+          taskId: subtask.taskId,
+          title: subtask.title,
+          subtitle: subtask.subtitle,
+          images: subtask.images || [],
+          datacoNumber: subtask.datacoNumber,
+          type: subtask.type,
+          amountNeeded: subtask.amountNeeded,
+          labels: subtask.labels,
+          targetCar: subtask.targetCar,
+          weather: subtask.weather,
+          scene: subtask.scene,
+          dayTime: subtask.dayTime,
+          isVisible: subtask.isVisible,
+          createdAt: subtask.createdAt,
+          updatedAt: subtask.updatedAt
+        })),
+        total: subtasks.length,
+        success: true
+      });
+    }
+    
+    // For multiple tasks, return grouped subtasks
+    const allSubtasks: any[] = [];
+    const subtasksByTask: Record<string, any[]> = {};
+    
+    for (const tid of taskIdList) {
+      try {
+        const subtasks = await db.getSubtasksByTask(tid, canManageData);
+        const mappedSubtasks = subtasks.map(subtask => ({
+          _id: subtask.id || subtask._id?.toString(),
+          taskId: subtask.taskId,
+          title: subtask.title,
+          subtitle: subtask.subtitle,
+          images: subtask.images || [],
+          datacoNumber: subtask.datacoNumber,
+          type: subtask.type,
+          amountNeeded: subtask.amountNeeded,
+          labels: subtask.labels,
+          targetCar: subtask.targetCar,
+          weather: subtask.weather,
+          scene: subtask.scene,
+          dayTime: subtask.dayTime,
+          isVisible: subtask.isVisible,
+          createdAt: subtask.createdAt,
+          updatedAt: subtask.updatedAt
+        }));
+        
+        subtasksByTask[tid] = mappedSubtasks;
+        allSubtasks.push(...mappedSubtasks);
+      } catch (error) {
+        // If task doesn't exist or error, skip it
+        subtasksByTask[tid] = [];
       }
     }
     
     return NextResponse.json({
-      subtasks,
-      total: subtasks.length,
+      subtasks: allSubtasks,
+      subtasksByTask,
+      total: allSubtasks.length,
       success: true
-    }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
     });
   } catch (error) {
-    console.error('Error fetching subtasks:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch subtasks', success: false },
-      { status: 500 }
-    );
+    logger.error('Error fetching subtasks', 'SUBTASKS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to fetch subtasks',
+      success: false
+    }, { status: 500 });
   }
 }
 
-// POST /api/subtasks - Create new subtask (admin only)
+// POST /api/subtasks - Create new subtask (admin and data managers)
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
+    // Check authentication
+    const user = authService.extractUserFromRequest(request);
     
-    if (!authorized || !isAdminEnhanced(user)) {
-      return NextResponse.json(
-        { error: 'Unauthorized access', success: false },
-        { status: 401 }
-      );
+    // Check if user can manage data (admin or data_manager)
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized - Admin or Data Manager access required',
+        success: false
+      }, { status: 401 });
     }
     
-    const formData = await request.formData();
-    const images = formData.getAll('images') as File[];
-    const imageUrls: string[] = [];
-
-    // Save uploaded images to Cloudinary and get their URLs
-    if (images && images.length > 0) {
-      for (const image of images) {
-        // Basic validation for the file
-        if (image.size === 0) continue;
-        
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-        if (!validTypes.includes(image.type)) {
-          logger.warn('Invalid file type in subtask creation', 'SUBTASKS_API', { 
-            fileType: image.type,
-            fileName: image.name 
-          });
-          continue; // Skip invalid files
-        }
-
-        // Validate file size (10MB limit)
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (image.size > maxSize) {
-          logger.warn('File too large in subtask creation', 'SUBTASKS_API', { 
-            fileSize: image.size,
-            fileName: image.name 
-          });
-          continue; // Skip large files
-        }
-        
-        // Upload to Cloudinary
-        const url = await saveFile(image, {
-          folder: 'drivertasks/subtasks',
-          tags: ['subtask', 'new-subtask', user?.username || 'unknown'],
-          context: {
-            uploadedBy: user?.username || 'unknown',
-            uploadedAt: new Date().toISOString(),
-            originalFileName: image.name,
-            context: 'subtask-creation'
-          }
-        });
-        imageUrls.push(url);
-      }
-    }
+    const data = await request.json();
     
-    // Construct subtask data from form fields
-    const body: { [key: string]: any } = {};
-    formData.forEach((value, key) => {
-        if (key.endsWith('[]')) {
-            const cleanKey = key.slice(0, -2);
-            if (!body[cleanKey]) {
-                body[cleanKey] = [];
-            }
-            body[cleanKey].push(value);
-        } else if(key !== 'images') {
-            body[key] = value;
-        }
-    });
-
-    // Add image URLs to the data
-    body.images = imageUrls;
-
-    // Manual validation since we're not using a strict JSON body anymore
-    const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'amountNeeded', 'labels', 'targetCar', 'weather', 'scene'];
+    // Validate required fields
+    const requiredFields = ['taskId', 'title', 'datacoNumber', 'type', 'labels', 'targetCar', 'dayTime'];
+    
     for (const field of requiredFields) {
-      if (!body[field] || (Array.isArray(body[field]) && body[field].length === 0)) {
-        return NextResponse.json(
-          { error: `Missing or empty required field: ${field}`, success: false },
-          { status: 400 }
-        );
+      if (!(field in data)) {
+        return NextResponse.json({
+          error: `Missing required field: ${field}`,
+          success: false
+        }, { status: 400 });
       }
     }
     
-    // Type conversion for numeric fields
-    body.amountNeeded = Number(body.amountNeeded);
-    if (isNaN(body.amountNeeded)) {
-        return NextResponse.json({ error: 'amountNeeded must be a number', success: false }, { status: 400 });
+    // Validate type
+    if (!['events', 'hours'].includes(data.type)) {
+      return NextResponse.json({
+        error: 'Invalid type. Must be either "events" or "hours"',
+        success: false
+      }, { status: 400 });
     }
-
+    
+    // Check if parent task exists
+    const parentTask = await db.getTaskById(data.taskId);
+    if (!parentTask) {
+      return NextResponse.json({
+        error: 'Parent task not found',
+        success: false
+      }, { status: 404 });
+    }
+    
+    // Create subtask
     const subtaskData = {
-      taskId: body.taskId,
-      title: body.title,
-      subtitle: body.subtitle || '',
-      images: body.images || [],
-      datacoNumber: body.datacoNumber,
-      type: body.type,
-      amountNeeded: body.amountNeeded,
-      labels: Array.isArray(body.labels) ? body.labels : [body.labels],
-      targetCar: Array.isArray(body.targetCar) ? body.targetCar : [body.targetCar],
-      weather: body.weather,
-      scene: body.scene,
-      dayTime: Array.isArray(body.dayTime) ? body.dayTime : (body.dayTime ? [body.dayTime] : []),
+      taskId: data.taskId,
+      title: data.title,
+      subtitle: data.subtitle,
+      images: data.images || [],
+      datacoNumber: data.datacoNumber,
+      type: data.type,
+      amountNeeded: data.amountNeeded,
+      labels: data.labels || [],
+      targetCar: data.targetCar || [],
+      weather: data.weather,
+      scene: data.scene,
+      dayTime: data.dayTime || [],
+      isVisible: data.isVisible ?? true
     };
-
-    // Create the subtask
+    
     const subtaskId = await db.createSubtask(subtaskData);
+    const newSubtask = await db.getSubtaskById(subtaskId);
     
     // Log the activity
     await activityLogger.logSubtaskActivity(
       'created',
       subtaskId,
-      subtaskData.title,
-      subtaskData.taskId,
-      user?.id,
-      'admin'
+      data.title,
+      data.taskId,
+      user.id,
+      user.role as 'admin' | 'user',
+      {
+        datacoNumber: data.datacoNumber,
+        type: data.type
+      },
+      request
     );
     
-    // Automatically recalculate task amount
-    await updateTaskAmount(body.taskId.toString());
+    logger.info('Subtask created successfully', 'SUBTASKS_API', {
+      subtaskId,
+      taskId: data.taskId,
+      userId: user.id
+    });
     
-    // Get the created subtask to return
-    const subtaskResult = await db.getSubtaskById(subtaskId);
-    if (!subtaskResult) {
-      return NextResponse.json(
-        { error: 'Failed to retrieve created subtask', success: false },
-        { status: 500 }
-      );
-    }
-
-    // Convert to API format
-    const subtask = {
-      id: subtaskResult._id!.toString(),
-      taskId: subtaskResult.taskId.toString(),
-      title: subtaskResult.title,
-      subtitle: subtaskResult.subtitle,
-      images: subtaskResult.images || [],
-      datacoNumber: subtaskResult.datacoNumber,
-      type: subtaskResult.type,
-      amountNeeded: subtaskResult.amountNeeded,
-      labels: subtaskResult.labels,
-      targetCar: subtaskResult.targetCar,
-      weather: subtaskResult.weather,
-      scene: subtaskResult.scene,
-      dayTime: subtaskResult.dayTime || [],
-      createdAt: new Date(subtaskResult.createdAt).toISOString(),
-      updatedAt: new Date(subtaskResult.updatedAt).toISOString()
-    };
-    
-    return NextResponse.json({ subtask, success: true }, { status: 201 });
+    return NextResponse.json({
+      subtask: newSubtask ? {
+        _id: newSubtask.id || newSubtask._id?.toString(),
+        taskId: newSubtask.taskId,
+        title: newSubtask.title,
+        subtitle: newSubtask.subtitle,
+        images: newSubtask.images || [],
+        datacoNumber: newSubtask.datacoNumber,
+        type: newSubtask.type,
+        amountNeeded: newSubtask.amountNeeded,
+        labels: newSubtask.labels,
+        targetCar: newSubtask.targetCar,
+        weather: newSubtask.weather,
+        scene: newSubtask.scene,
+        dayTime: newSubtask.dayTime,
+        isVisible: newSubtask.isVisible,
+        createdAt: newSubtask.createdAt,
+        updatedAt: newSubtask.updatedAt
+      } : null,
+      success: true
+    }, { status: 201 });
   } catch (error) {
-    console.error('Error creating subtask:', error);
-    
-    // Handle specific error types
-    if (error instanceof Error && error.message.includes('already exists')) {
-      return NextResponse.json(
-        { error: error.message, success: false },
-        { status: 409 }
-      );
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({
+        error: error.message,
+        success: false
+      }, { status: 401 });
     }
     
-    if (error instanceof Error && error.message.includes('not found')) {
-      return NextResponse.json(
-        { error: error.message, success: false },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json(
-      { error: 'Failed to create subtask', success: false },
-      { status: 500 }
-    );
+    logger.error('Error creating subtask', 'SUBTASKS_API', undefined, error as Error);
+    return NextResponse.json({
+      error: 'Failed to create subtask',
+      success: false
+    }, { status: 500 });
   }
 } 

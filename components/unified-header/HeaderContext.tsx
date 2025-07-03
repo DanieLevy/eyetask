@@ -207,6 +207,7 @@ export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Effect to verify auth when navigating to admin routes
   useEffect(() => {
     const checkAuth = async () => {
+      // Only check auth for admin routes, excluding the login page itself
       if (pathname?.startsWith('/admin') && pathname !== '/admin') {
         // If in admin route but not logged in as admin, verify auth
         if (!isAdmin) {
@@ -220,7 +221,10 @@ export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
     
-    checkAuth();
+    // Only run auth check on admin pages
+    if (pathname?.startsWith('/admin')) {
+      checkAuth();
+    }
   }, [pathname, isAdmin, verifyAuth, router]);
   
   const getConfigForCurrentRoute = (): Partial<UnifiedHeaderProps> => {

@@ -1,4 +1,4 @@
-import { connectToDatabase } from './mongodb';
+import { supabaseDb as db } from './supabase-database';
 import { logger } from './logger';
 import { NextRequest } from 'next/server';
 
@@ -38,16 +38,8 @@ export interface ActivityStats {
 }
 
 class ActivityLogger {
-  private async getActivitiesCollection() {
-    const connection = await connectToDatabase();
-    if (!connection || !connection.db) {
-      throw new Error('Failed to get database connection for activity logger.');
-    }
-    return connection.db.collection<ActivityEvent>('activities');
-  }
-  
   /**
-   * Log an activity event
+   * Log an activity event using database selector
    */
   async logActivity(activity: Omit<ActivityEvent, '_id' | 'timestamp'>): Promise<void> {
     try {
@@ -56,14 +48,22 @@ class ActivityLogger {
         return;
       }
       
-      const activities = await this.getActivitiesCollection();
-      
-      const activityEvent: ActivityEvent = {
-        ...activity,
-        timestamp: new Date(),
-      };
-
-      await activities.insertOne(activityEvent as any);
+      // Use the database selector's logAction method
+      if (activity.userId) {
+        await db.logAction({
+          userId: activity.userId,
+          username: activity.target?.title || 'Unknown',
+          userRole: activity.userType,
+          action: activity.action,
+          category: activity.category as any,
+          target: activity.target,
+          metadata: {
+            ...activity.details,
+            ...activity.metadata
+          },
+          severity: activity.severity
+        });
+      }
       
       // Also log to system logger for debugging
       logger.info(`Activity: ${activity.action}`, 'ACTIVITY_LOGGER', {
@@ -282,92 +282,29 @@ class ActivityLogger {
 
   /**
    * Get activity statistics
+   * TODO: Implement with Supabase queries
    */
   async getActivityStats(timeRange?: { start: Date; end: Date }): Promise<ActivityStats> {
-    const activities = await this.getActivitiesCollection();
-    try {
-      const matchCondition = timeRange ? {
-        timestamp: { $gte: timeRange.start, $lte: timeRange.end }
-      } : {};
-
-      const [totalStats, actionsByType, actionsByCategory, recentActions, topUsers] = await Promise.all([
-        // Total actions count
-        activities.countDocuments(matchCondition),
-        
-        // Actions by type
-        activities.aggregate([
-          { $match: matchCondition },
-          { $group: { _id: '$action', count: { $sum: 1 } } },
-          { $sort: { count: -1 } }
-        ]).toArray(),
-        
-        // Actions by category
-        activities.aggregate([
-          { $match: matchCondition },
-          { $group: { _id: '$category', count: { $sum: 1 } } },
-          { $sort: { count: -1 } }
-        ]).toArray(),
-        
-        // Recent actions (last 50)
-        activities.find(matchCondition)
-          .sort({ timestamp: -1 })
-          .limit(50)
-          .toArray(),
-        
-        // Top users by activity
-        activities.aggregate([
-          { $match: { ...matchCondition, userId: { $exists: true } } },
-          { $group: { _id: '$userId', actionCount: { $sum: 1 } } },
-          { $sort: { actionCount: -1 } },
-          { $limit: 10 }
-        ]).toArray()
-      ]);
-
-      return {
-        totalActions: totalStats,
-        actionsByType: Object.fromEntries(actionsByType.map(item => [item._id, item.count])),
-        actionsByCategory: Object.fromEntries(actionsByCategory.map(item => [item._id, item.count])),
-        recentActions: recentActions as unknown as ActivityEvent[],
-        topUsers: topUsers.map(user => ({
-          userId: user._id,
-          actionCount: user.actionCount
-        }))
-      };
-      
-    } catch (error) {
-      logger.error('Failed to get activity stats', 'ACTIVITY_LOGGER', undefined, error as Error);
-      return {
-        totalActions: 0,
-        actionsByType: {},
-        actionsByCategory: {},
-        recentActions: [],
-        topUsers: []
-      };
-    }
+    // TODO: Implement activity stats with Supabase
+    // This would require reimplementing the aggregation queries
+    logger.warn('Activity stats not implemented for Supabase yet', 'ACTIVITY_LOGGER');
+    return {
+      totalActions: 0,
+      actionsByType: {},
+      actionsByCategory: {},
+      recentActions: [],
+      topUsers: []
+    };
   }
 
   /**
    * Get recent activities for public display
+   * TODO: Implement with Supabase
    */
   async getRecentActivities(limit: number = 20, includeViews: boolean = false): Promise<ActivityEvent[]> {
-    const activities = await this.getActivitiesCollection();
-    try {
-      const filter = includeViews ? { isVisible: true } : { 
-        isVisible: true,
-        action: { $not: /צפה ב/ } // Exclude view actions
-      };
-
-      const result = await activities.find(filter)
-        .sort({ timestamp: -1 })
-        .limit(limit)
-        .toArray();
-
-      return result as unknown as ActivityEvent[];
-      
-    } catch (error) {
-      logger.error('Failed to get recent activities', 'ACTIVITY_LOGGER', undefined, error as Error);
-      return [];
-    }
+    // TODO: Implement with Supabase queries
+    logger.warn('Recent activities not implemented for Supabase yet', 'ACTIVITY_LOGGER');
+    return [];
   }
 
   /**

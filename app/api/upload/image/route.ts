@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth';
+import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
 import { saveFile } from '@/lib/fileStorage';
 
@@ -16,14 +16,14 @@ export async function POST(request: NextRequest) {
 
     // Enhanced authentication check
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user, error } = await requireAuthEnhanced(token);
     
-    if (!authorized || !user) {
+    let user;
+    try {
+      user = await requireAuthEnhanced(authHeader);
+    } catch (authError) {
       logger.warn('Unauthorized upload attempt', 'UPLOAD_API', { 
         authHeader: authHeader ? 'Present' : 'Missing',
-        token: token ? 'Present' : 'Missing',
-        error 
+        error: authError instanceof Error ? authError.message : 'Unknown error'
       });
       
       return NextResponse.json(
@@ -32,8 +32,7 @@ export async function POST(request: NextRequest) {
           success: false,
           debug: {
             hasAuthHeader: !!authHeader,
-            hasToken: !!token,
-            authError: error,
+            authError: authError instanceof Error ? authError.message : 'Unknown error',
             timestamp: new Date().toISOString()
           }
         },
@@ -87,15 +86,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Cloudinary
-    const cloudinaryUrl = await saveFile(file, {
+    const uploadResult = await saveFile(file, {
       folder: 'drivertasks/uploads',
-      tags: ['api-upload', user.username],
-      context: {
-        uploadedBy: user.username,
-        uploadedAt: new Date().toISOString(),
-        originalFileName: file.name
-      }
+      tags: ['api-upload', user.username]
     });
+
+    if (!uploadResult.success) {
+      logger.error('Upload to storage failed', 'UPLOAD_API', {
+        fileName: file.name,
+        error: uploadResult.error
+      });
+      
+      return NextResponse.json(
+        { 
+          error: uploadResult.error || 'Upload failed', 
+          success: false 
+        },
+        { status: 500 }
+      );
+    }
 
     // Generate unique filename for compatibility (though not used for storage)
     const fileExt = file.name.split('.').pop();
@@ -106,8 +115,9 @@ export async function POST(request: NextRequest) {
       fileName,
       fileSize: file.size,
       fileType: file.type,
-      method: 'cloudinary',
-      cloudinaryUrl,
+      method: process.env.CLOUDINARY_URL ? 'cloudinary' : 'local',
+      url: uploadResult.url,
+      publicId: uploadResult.publicId,
       username: user.username,
       executionTime: `${executionTime}ms`
     });
@@ -116,13 +126,15 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         fileName: fileName,
-        filePath: cloudinaryUrl, // Return Cloudinary URL as filePath
-        publicUrl: cloudinaryUrl, // Return Cloudinary URL as publicUrl
+        filePath: uploadResult.url!, // Return storage URL as filePath
+        publicUrl: uploadResult.url!, // Return storage URL as publicUrl
         fileSize: file.size,
         fileType: file.type,
-        method: 'cloudinary'
+        method: process.env.CLOUDINARY_URL ? 'cloudinary' : 'local'
       },
-      message: 'Image uploaded successfully to Cloudinary'
+      message: process.env.CLOUDINARY_URL 
+        ? 'Image uploaded successfully to Cloudinary' 
+        : 'Image uploaded successfully to local storage'
     });
 
   } catch (error) {

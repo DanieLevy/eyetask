@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
 
@@ -10,8 +11,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
     
-    const user = auth.extractUserFromRequest(request);
-    const canManageData = auth.canManageData(user);
+    const user = authService.extractUserFromRequest(request);
+    const canManageData = authService.canManageData(user);
     
     let tasks;
     
@@ -27,17 +28,15 @@ export async function GET(request: NextRequest) {
       tasks = await db.getAllTasks(canManageData);
     }
     
-
-    
     return NextResponse.json({
       tasks: tasks.map(task => ({
-        _id: task._id?.toString(),
+        _id: task.id || task._id?.toString(),
         title: task.title,
         subtitle: task.subtitle,
         images: task.images || [],
         datacoNumber: task.datacoNumber,
         description: task.description,
-        projectId: task.projectId.toString(),
+        projectId: task.projectId,
         type: task.type,
         locations: task.locations,
         amountNeeded: task.amountNeeded,
@@ -46,8 +45,8 @@ export async function GET(request: NextRequest) {
         dayTime: task.dayTime,
         priority: task.priority,
         isVisible: task.isVisible,
-        createdAt: task.createdAt.toISOString(),
-        updatedAt: task.updatedAt.toISOString()
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt
       })),
       total: tasks.length,
       success: true,
@@ -71,10 +70,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Extract and verify user authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     
     // Check if user can manage data (admin or data_manager)
-    if (!user || !auth.canManageData(user)) {
+    if (!user || !authService.canManageData(user)) {
       return NextResponse.json(
         { error: 'Unauthorized - Admin or Data Manager access required', success: false },
         { status: 401 }
@@ -146,28 +145,26 @@ export async function POST(request: NextRequest) {
       request
     );
     
-
-    
     return NextResponse.json({ 
-      task: {
-        _id: newTask?._id?.toString(),
-        title: newTask?.title,
-        subtitle: newTask?.subtitle,
-        images: newTask?.images || [],
-        datacoNumber: newTask?.datacoNumber,
-        description: newTask?.description,
-        projectId: newTask?.projectId.toString(),
-        type: newTask?.type,
-        locations: newTask?.locations,
-        amountNeeded: newTask?.amountNeeded,
-        targetCar: newTask?.targetCar,
-        lidar: newTask?.lidar,
-        dayTime: newTask?.dayTime,
-        priority: newTask?.priority,
-        isVisible: newTask?.isVisible,
-        createdAt: newTask?.createdAt.toISOString(),
-        updatedAt: newTask?.updatedAt.toISOString()
-      }, 
+      task: newTask ? {
+        _id: newTask.id || newTask._id?.toString(),
+        title: newTask.title,
+        subtitle: newTask.subtitle,
+        images: newTask.images || [],
+        datacoNumber: newTask.datacoNumber,
+        description: newTask.description,
+        projectId: newTask.projectId,
+        type: newTask.type,
+        locations: newTask.locations,
+        amountNeeded: newTask.amountNeeded,
+        targetCar: newTask.targetCar,
+        lidar: newTask.lidar,
+        dayTime: newTask.dayTime,
+        priority: newTask.priority,
+        isVisible: newTask.isVisible,
+        createdAt: newTask.createdAt,
+        updatedAt: newTask.updatedAt
+      } : null, 
       success: true 
     }, { status: 201 });
   } catch (error) {

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, requireAdmin } from '@/lib/auth';
-import { db } from '@/lib/database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/push/history - Get push notification history (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
 
     const history = await db.getPushNotificationHistory(50);

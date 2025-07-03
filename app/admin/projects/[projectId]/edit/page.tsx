@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowRight } from 'lucide-react';
@@ -22,21 +22,11 @@ interface FormData {
   image: string;
 }
 
-// Define the page props type for Next.js 15+
-interface PageProps {
-  params: Promise<{ projectId: string }>;
-}
-
-export default async function EditProjectPage({ params }: PageProps) {
-  // Await the params to get the projectId
-  const { projectId } = await params;
-  
-  return <EditProjectClient projectId={projectId} />;
-}
-
-// Client component that handles the actual functionality
-function EditProjectClient({ projectId }: { projectId: string }) {
+export default function EditProjectPage() {
   const router = useRouter();
+  const params = useParams();
+  const projectId = params.projectId as string;
+  
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',

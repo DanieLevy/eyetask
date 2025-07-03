@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { AddInternalNoteRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
+
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,7 +17,7 @@ export async function POST(
 ) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
@@ -37,17 +39,17 @@ export async function POST(
     const adminId = authenticatedUser.id;
     const adminName = authenticatedUser.username;
 
-    const success = await feedbackService.addInternalNote(
+    const noteId = await feedbackService.addInternalNote(
       id,
       noteData,
       adminName,
       adminId
     );
 
-    if (!success) {
+    if (!noteId) {
       return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
+        { error: 'Failed to add note' },
+        { status: 500 }
       );
     }
 
@@ -74,7 +76,7 @@ export async function POST(
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
@@ -92,17 +94,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const adminId = authenticatedUser.id;
     const adminName = authenticatedUser.username;
 
-    const success = await feedbackService.addInternalNote(
+    const noteData: AddInternalNoteRequest = {
+      content: body.notes
+    };
+
+    const noteId = await feedbackService.addInternalNote(
       id,
-      body.notes,
+      noteData,
       adminName,
       adminId
     );
 
-    if (!success) {
+    if (!noteId) {
       return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
+        { error: 'Failed to add note' },
+        { status: 500 }
       );
     }
 

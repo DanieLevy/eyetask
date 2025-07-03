@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
 import { cache } from '@/lib/cache';
+import { requireAdmin } from '@/lib/auth-utils';
 
 const SETTING_KEY = 'main-page-carousel-fallback-message';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache for settings
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Check authentication - admin required for updating settings
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     requireAdmin(user);
 
     const body = await request.json();

@@ -97,14 +97,31 @@ export default function NewDailyUpdatePage() {
     setSubmitting(true);
 
     try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        toast.error('אנא התחבר מחדש למערכת');
+        router.push('/');
+        return;
+      }
+
+      const submitData = {
+        ...form,
+        projectId: form.isGeneral ? null : form.projectId,
+        targetAudience: form.isGeneral ? ['all'] : [`project:${form.projectId}`]
+      };
+
       const response = await fetch('/api/daily-updates', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(submitData)
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create daily update');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create daily update');
       }
       
       if (createAnother) {
@@ -117,11 +134,12 @@ export default function NewDailyUpdatePage() {
         }));
         toast.success('עדכון יומי נוצר בהצלחה! אתה יכול ליצור עדכון נוסף.');
       } else {
+        toast.success('עדכון יומי נוצר בהצלחה');
         router.push('/admin/daily-updates');
       }
     } catch (error) {
       console.error('❌ Error submitting form:', error);
-      toast.error('שגיאה בשמירת העדכון');
+      toast.error(error instanceof Error ? error.message : 'שגיאה בשמירת העדכון');
     } finally {
       setSubmitting(false);
     }

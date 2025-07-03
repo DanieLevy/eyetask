@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { updateTaskAmount } from '@/lib/taskUtils';
 
 interface RouteParams {
@@ -13,10 +13,9 @@ export async function POST(
 ) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
+    const user = await requireAuthEnhanced(authHeader);
 
-    if (!authorized || !isAdminEnhanced(user)) {
+    if (!user || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }

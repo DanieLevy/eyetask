@@ -28,6 +28,7 @@ import { renderIcon, getIconForItem } from './utils';
 import { useAuth } from './AuthContext';
 import { useTheme } from 'next-themes';
 import BugReportModal from '../BugReportModal';
+import PushNotificationNameModal from '../PushNotificationNameModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,16 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -90,8 +82,6 @@ export const MobileMenu = ({
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showPushTooltip, setShowPushTooltip] = useState(false);
   const [showNameDialog, setShowNameDialog] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [isSubscribing, setIsSubscribing] = useState(false);
   const hebrewFont = useHebrewFont('heading');
   const { theme, setTheme, resolvedTheme } = useTheme();
   
@@ -445,69 +435,18 @@ export const MobileMenu = ({
         />
       )}
       
-      {/* Name Dialog for Push Notifications */}
-      <Dialog open={showNameDialog} onOpenChange={setShowNameDialog}>
-        <DialogContent className="sm:max-w-[425px]" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>הרשמה להתראות</DialogTitle>
-            <DialogDescription>
-              אנא הכנס את שמך כדי שנוכל לשלוח לך התראות מותאמות אישית
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                שם
-              </Label>
-              <Input
-                id="name"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="הכנס את שמך"
-                className="col-span-3"
-                disabled={isSubscribing}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowNameDialog(false);
-                setUserName('');
-              }}
-              disabled={isSubscribing}
-            >
-              ביטול
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!userName.trim()) {
-                  toast.error('אנא הכנס את שמך');
-                  return;
-                }
-                
-                setIsSubscribing(true);
-                try {
-                  // Store the name temporarily
-                  sessionStorage.setItem('push-subscribe-name', userName.trim());
-                  await subscribe();
-                  setShowNameDialog(false);
-                  setUserName('');
-                } catch (error) {
-                  console.error('Subscription error:', error);
-                  toast.error('שגיאה בהרשמה להתראות');
-                } finally {
-                  setIsSubscribing(false);
-                }
-              }}
-              disabled={!userName.trim() || isSubscribing}
-            >
-              {isSubscribing ? 'מתחבר...' : 'הרשמה'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Name Modal for Push Notifications */}
+      <PushNotificationNameModal 
+        isOpen={showNameDialog}
+        onClose={() => {
+          setShowNameDialog(false);
+        }}
+        onConfirm={async (name) => {
+          // Store the name temporarily
+          sessionStorage.setItem('push-subscribe-name', name);
+          await subscribe();
+        }}
+      />
     </>
   );
 };

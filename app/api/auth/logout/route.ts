@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthService, extractTokenFromHeader } from '@/lib/auth';
+import { authSupabase as auth } from '@/lib/auth-supabase';
+import { extractTokenFromHeader } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
 
 // Never cache this route
 export const dynamic = 'force-dynamic';
-
-// Initialize AuthService
-const auth = new AuthService();
 
 // POST /api/auth/logout - User logout
 export async function POST(request: NextRequest) {

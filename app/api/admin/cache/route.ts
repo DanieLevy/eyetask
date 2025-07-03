@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // Cache version management
 const CACHE_VERSION_KEY = 'cache-version';
@@ -17,15 +18,8 @@ let cacheVersionStore: { [key: string]: any } = {
 export async function GET(req: NextRequest) {
   try {
     // Check authentication - Only admins can manage cache
-    const user = auth.extractUserFromRequest(req);
+    const user = authService.extractUserFromRequest(req);
     requireAdmin(user);
-    
-    if (!auth.hasRestrictedAccess(user)) {
-      return NextResponse.json({
-        error: 'Access denied - Admin only feature',
-        success: false
-      }, { status: 403 });
-    }
     
     const searchParams = req.nextUrl.searchParams;
     const action = searchParams.get('action');
@@ -77,15 +71,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Check authentication - Only admins can manage cache
-    const user = auth.extractUserFromRequest(req);
+    const user = authService.extractUserFromRequest(req);
     requireAdmin(user);
-    
-    if (!auth.hasRestrictedAccess(user)) {
-      return NextResponse.json({
-        error: 'Access denied - Admin only feature',
-        success: false
-      }, { status: 403 });
-    }
     
     const body = await req.json();
     const { action, reason } = body;

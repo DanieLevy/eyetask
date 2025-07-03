@@ -18,21 +18,21 @@ const FeedbackStatsComponent: React.FC<Props> = ({ stats }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <div className="text-xs text-gray-500 mb-1">סה"כ פניות</div>
           <div className="text-lg font-bold text-gray-900">{stats.total}</div>
-          <div className="text-xs text-blue-600">+{stats.newToday} היום</div>
+          <div className="text-xs text-blue-600">+{stats.newToday || 0} היום</div>
         </div>
 
         {/* Active Tickets */}
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <div className="text-xs text-gray-500 mb-1">פעילות</div>
           <div className="text-lg font-bold text-orange-600">{activeTickets}</div>
-          <div className="text-xs text-red-600">{stats.overdueTickets} דחופות</div>
+          <div className="text-xs text-red-600">{stats.overdueTickets || 0} דחופות</div>
         </div>
 
         {/* Resolution Rate */}
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           <div className="text-xs text-gray-500 mb-1">אחוז פתרון</div>
           <div className="text-lg font-bold text-green-600">{resolutionRate.toFixed(0)}%</div>
-          <div className="text-xs text-green-600">{stats.resolvedToday} נפתרו</div>
+          <div className="text-xs text-green-600">{stats.resolvedToday || 0} נפתרו</div>
         </div>
 
         {/* Avg Resolution Time */}
@@ -42,7 +42,7 @@ const FeedbackStatsComponent: React.FC<Props> = ({ stats }) => {
             {stats.avgResolutionTime > 0 ? `${stats.avgResolutionTime.toFixed(0)}ש` : 'N/A'}
           </div>
           <div className="text-xs text-purple-600">
-            {stats.customerSatisfactionAvg > 0 ? `${stats.customerSatisfactionAvg.toFixed(1)}/5` : 'N/A'}
+            {stats.customerSatisfactionAvg && stats.customerSatisfactionAvg > 0 ? `${stats.customerSatisfactionAvg.toFixed(1)}/5` : 'N/A'}
           </div>
         </div>
       </div>

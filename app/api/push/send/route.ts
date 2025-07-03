@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { pushService } from '@/lib/services/pushNotificationService';
 import { logger } from '@/lib/logger';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // POST /api/push/send - Send push notification (admin only)
 export async function POST(request: NextRequest) {
   try {
-    const authUser = auth.extractUserFromRequest(request);
+    const authUser = authService.extractUserFromRequest(request);
     const user = requireAdmin(authUser);
 
     const {

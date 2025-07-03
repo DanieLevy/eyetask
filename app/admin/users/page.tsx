@@ -10,10 +10,13 @@ import {
   UserX,
   Shield,
   User,
-  Car
+  Car,
+  Key,
+  Settings,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/LoadingSystem';
@@ -45,6 +48,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { PERMISSION_GROUPS } from '@/lib/permissions';
 
 interface User {
   _id: string;
@@ -56,16 +64,26 @@ interface User {
   lastLogin?: string;
 }
 
+interface UserPermission {
+  key: string;
+  value: boolean;
+  description: string;
+  source: 'role' | 'user';
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userPermissions, setUserPermissions] = useState<Record<string, UserPermission>>({});
+  const [originalPermissions, setOriginalPermissions] = useState<Record<string, UserPermission>>({});
   
   // Form state
   const [formData, setFormData] = useState({
@@ -147,6 +165,94 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchUserPermissions = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/users/${userId}/permissions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch permissions');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setUserPermissions(data.permissions);
+        setOriginalPermissions(JSON.parse(JSON.stringify(data.permissions)));
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error);
+      toast.error('Failed to load permissions');
+    }
+  };
+
+  const handleUpdatePermissions = async () => {
+    if (!selectedUser) return;
+
+    setOperationLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      // Only send changed permissions
+      const changedPermissions: Record<string, boolean> = {};
+      Object.entries(userPermissions).forEach(([key, perm]) => {
+        if (originalPermissions[key]?.value !== perm.value) {
+          changedPermissions[key] = perm.value;
+        }
+      });
+
+      if (Object.keys(changedPermissions).length === 0) {
+        toast.info('לא בוצעו שינויים בהרשאות');
+        setShowPermissionsDialog(false);
+        return;
+      }
+
+      const response = await fetch(`/api/users/${selectedUser._id}/permissions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ permissions: changedPermissions })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        toast.success('הרשאות עודכנו בהצלחה');
+        setShowPermissionsDialog(false);
+        setSelectedUser(null);
+      } else {
+        toast.error(data.error || 'Failed to update permissions');
+      }
+    } catch (error) {
+      console.error('Error updating permissions:', error);
+      toast.error('Failed to update permissions');
+    } finally {
+      setOperationLoading(false);
+    }
+  };
+
+  const togglePermission = (key: string) => {
+    setUserPermissions(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        value: !prev[key].value,
+        source: 'user' // Mark as user override
+      }
+    }));
+  };
+
+  const openPermissionsDialog = async (user: User) => {
+    setSelectedUser(user);
+    setShowPermissionsDialog(true);
+    await fetchUserPermissions(user._id);
   };
 
   const handleCreateUser = async () => {
@@ -298,6 +404,32 @@ export default function UsersPage() {
     setShowEditDialog(true);
   };
 
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Shield className="h-3 w-3" />;
+      case 'data_manager':
+        return <User className="h-3 w-3" />;
+      case 'driver_manager':
+        return <Car className="h-3 w-3" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'מנהל';
+      case 'data_manager':
+        return 'מנהל נתונים';
+      case 'driver_manager':
+        return 'מנהל נהגים';
+      default:
+        return role;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -312,7 +444,10 @@ export default function UsersPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>ניהול משתמשים</CardTitle>
+              <div>
+                <CardTitle>ניהול משתמשים</CardTitle>
+                <CardDescription>ניהול משתמשים, תפקידים והרשאות</CardDescription>
+              </div>
               <Button 
                 onClick={() => {
                   resetForm();
@@ -355,13 +490,8 @@ export default function UsersPage() {
                             variant={user.role === 'admin' ? 'default' : user.role === 'driver_manager' ? 'outline' : 'secondary'}
                             className="gap-1"
                           >
-                            {user.role === 'admin' ? (
-                              <><Shield className="h-3 w-3" /> מנהל</>
-                            ) : user.role === 'data_manager' ? (
-                              <><User className="h-3 w-3" /> מנהל נתונים</>
-                            ) : (
-                              <><Car className="h-3 w-3" /> מנהל נהגים</>
-                            )}
+                            {getRoleIcon(user.role)}
+                            {getRoleLabel(user.role)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -389,14 +519,25 @@ export default function UsersPage() {
                               size="icon"
                               onClick={() => openEditDialog(user)}
                               disabled={user._id === currentUser?.id}
+                              title="ערוך משתמש"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
+                              onClick={() => openPermissionsDialog(user)}
+                              disabled={user._id === currentUser?.id}
+                              title="נהל הרשאות"
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={() => setDeleteUserId(user._id)}
                               disabled={user._id === currentUser?.id}
+                              title="מחק משתמש"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -510,7 +651,7 @@ export default function UsersPage() {
           <DialogHeader>
             <DialogTitle>עריכת משתמש</DialogTitle>
             <DialogDescription>
-              עדכן את פרטי המשתמש
+              ערוך את פרטי המשתמש
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -532,32 +673,28 @@ export default function UsersPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-password">סיסמה חדשה (אופציונלי)</Label>
+              <Label htmlFor="edit-password">סיסמה חדשה (השאר ריק אם לא רוצה לשנות)</Label>
               <Input
                 id="edit-password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="השאר ריק אם לא רוצה לשנות"
               />
             </div>
-            {formData.password && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-confirmPassword">אימות סיסמה</Label>
-                <Input
-                  id="edit-confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                />
-              </div>
-            )}
+            <div className="grid gap-2">
+              <Label htmlFor="edit-confirmPassword">אימות סיסמה חדשה</Label>
+              <Input
+                id="edit-confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-role">תפקיד</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value) => setFormData({ ...formData, role: value as any })}
-                disabled={selectedUser?._id === currentUser?.id}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -583,10 +720,7 @@ export default function UsersPage() {
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => {
-                setShowEditDialog(false);
-                setSelectedUser(null);
-              }}
+              onClick={() => setShowEditDialog(false)}
               disabled={operationLoading}
             >
               ביטול
@@ -601,6 +735,99 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Permissions Dialog */}
+      <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>ניהול הרשאות - {selectedUser?.username}</DialogTitle>
+            <DialogDescription>
+              התאם אישית את ההרשאות עבור המשתמש. הרשאות ברירת מחדל נקבעות לפי התפקיד.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="flex items-center gap-2 mb-4">
+              <Badge variant="outline" className="gap-1">
+                {getRoleIcon(selectedUser.role)}
+                {getRoleLabel(selectedUser.role)}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                הרשאות המסומנות ב-
+                <Badge variant="secondary" className="mx-1 text-xs">תפקיד</Badge>
+                הן ברירת המחדל לתפקיד זה
+              </span>
+            </div>
+          )}
+
+          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+            <div className="space-y-6">
+              {Object.entries(PERMISSION_GROUPS).map(([groupName, permissions]) => (
+                <div key={groupName}>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    {groupName}
+                  </h3>
+                  <div className="space-y-2 mr-6">
+                    {permissions.map(({ key, label }) => {
+                      const permission = userPermissions[key];
+                      if (!permission) return null;
+                      
+                      return (
+                        <div key={key} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50">
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              id={key}
+                              checked={permission.value}
+                              onCheckedChange={() => togglePermission(key)}
+                            />
+                            <Label 
+                              htmlFor={key} 
+                              className="cursor-pointer flex items-center gap-2"
+                            >
+                              {label}
+                              {permission.source === 'role' && (
+                                <Badge variant="secondary" className="text-xs">תפקיד</Badge>
+                              )}
+                              {permission.source === 'user' && (
+                                <Badge variant="default" className="text-xs">מותאם</Badge>
+                              )}
+                            </Label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Separator className="mt-4" />
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              שינויים בהרשאות ייכנסו לתוקף בהתחברות הבאה של המשתמש
+            </AlertDescription>
+          </Alert>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPermissionsDialog(false)}
+              disabled={operationLoading}
+            >
+              ביטול
+            </Button>
+            <Button 
+              onClick={handleUpdatePermissions}
+              disabled={operationLoading}
+            >
+              {operationLoading ? 'שומר...' : 'שמור שינויים'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation */}
       <DeleteConfirmationDialog
         open={!!deleteUserId}
@@ -608,7 +835,6 @@ export default function UsersPage() {
         onConfirm={() => deleteUserId && handleDeleteUser(deleteUserId)}
         title="מחיקת משתמש"
         description="האם אתה בטוח שברצונך למחוק משתמש זה? פעולה זו אינה ניתנת לביטול."
-        confirmText="מחק משתמש"
         loading={operationLoading}
       />
     </div>

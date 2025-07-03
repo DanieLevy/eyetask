@@ -12,13 +12,23 @@ import {
   ArrowRight,
   Settings,
   Clock,
-  Calendar
+  Calendar,
+  Eye,
+  EyeOff,
+  Filter,
+  X,
+  Loader2
 } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { toast } from 'sonner';
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from '@/lib/utils';
 
 interface DailyUpdate {
   id: string;
+  _id?: string; // Support for legacy data
   title: string;
   content: string;
   type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
@@ -136,6 +146,12 @@ export default function DailyUpdatesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!id) {
+      console.error('Update ID is undefined');
+      toast.error('שגיאה: מזהה העדכון חסר');
+      return;
+    }
+    
     if (!confirm('האם אתה בטוח שברצונך למחוק את העדכון?')) return;
     
     try {
@@ -148,7 +164,7 @@ export default function DailyUpdatesPage() {
       });
       
       if (response.ok) {
-        setUpdates(prev => prev.filter(update => update.id !== id));
+        setUpdates(prev => prev.filter(update => update.id !== id && update._id !== id));
       } else {
         toast.error('שגיאה במחיקת העדכון');
       }
@@ -159,6 +175,12 @@ export default function DailyUpdatesPage() {
   };
 
   const handleTogglePin = async (id: string, currentPinned: boolean) => {
+    if (!id) {
+      console.error('Update ID is undefined');
+      toast.error('שגיאה: מזהה העדכון חסר');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/daily-updates/${id}`, {
@@ -172,7 +194,7 @@ export default function DailyUpdatesPage() {
       
       if (response.ok) {
         setUpdates(prev => prev.map(update => 
-          update.id === id 
+          (update.id === id || update._id === id)
             ? { ...update, is_pinned: !currentPinned }
             : update
         ));
@@ -219,8 +241,45 @@ export default function DailyUpdatesPage() {
     if (a.is_pinned && !b.is_pinned) return -1;
     if (!a.is_pinned && b.is_pinned) return 1;
     if (a.priority !== b.priority) return a.priority - b.priority;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    
+    // Add date validation
+    const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+    const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+    
+    // Check if dates are valid
+    const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+    const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+    
+    return timeB - timeA;
   });
+
+  // Type badges configuration
+  const typeBadges = {
+    info: { label: 'מידע', icon: '💬', className: 'bg-blue-500 text-white' },
+    warning: { label: 'אזהרה', icon: '⚠️', className: 'bg-yellow-500 text-white' },
+    success: { label: 'הצלחה', icon: '✅', className: 'bg-green-500 text-white' },
+    error: { label: 'שגיאה', icon: '❌', className: 'bg-red-500 text-white' },
+    announcement: { label: 'הכרזה', icon: '📢', className: 'bg-purple-500 text-white' }
+  };
+
+  const getUpdateLocation = (update: DailyUpdate) => {
+    if (update.isGeneral) return '🏠 כללי';
+    const project = projects.find(p => p._id === update.projectId);
+    return `📁 ${project?.name || 'פרויקט'}`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'תאריך לא ידוע';
+    
+    return date.toLocaleDateString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   if (loading) {
     return (
@@ -240,242 +299,222 @@ export default function DailyUpdatesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5" dir="rtl">
+      {/* Mobile-friendly header */}
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Megaphone className="h-6 w-6 text-primary" />
-              <div>
-                <h1 className={`text-xl font-bold text-foreground ${hebrewHeading.fontClass}`}>
-                  עדכונים יומיים
-                </h1>
-                <p className="text-sm text-muted-foreground">ניהול עדכונים יומיים למשתמשים</p>
-              </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className={`text-xl md:text-2xl font-bold ${hebrewHeading.fontClass}`}>
+                ניהול עדכונים יומיים
+              </h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                {updates.length} עדכונים פעילים
+              </p>
             </div>
-            <Link
-              href="/admin/daily-updates/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span className={mixedBody.fontClass}>עדכון חדש</span>
+            <Link href="/admin/daily-updates/new">
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">עדכון חדש</span>
+              </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Quick Stats */}
-          <div className="flex items-center gap-6 text-xs text-muted-foreground mb-4 p-3 bg-muted/30 rounded-md border border-border/30">
-            <span className="flex items-center gap-1">
-              <span className="font-medium text-foreground">{updates.length}</span>
-              סך הכול
-            </span>
-            <span className="flex items-center gap-1">
-              <Pin className="w-3 h-3" />
-              <span className="font-medium text-primary">{updates.filter(u => u.is_pinned).length}</span>
-              מוצמדים
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="font-medium text-blue-600">{updates.filter(u => u.isGeneral === true || (!u.projectId && u.isGeneral !== false)).length}</span>
-              כלליים
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="font-medium text-green-600">{updates.filter(u => u.projectId && u.isGeneral === false).length}</span>
-              ספציפיים
-            </span>
-          </div>
-
-          {/* Fallback Message Settings */}
-          <div className="bg-card rounded-lg border border-border mb-8">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                <h3 className={`text-sm font-medium ${hebrewHeading.fontClass}`}>הודעת ברירת מחדל</h3>
+      <main className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">סה"כ</p>
+                  <p className="text-2xl font-bold">{updates.length}</p>
+                </div>
+                <Calendar className="h-8 w-8 text-blue-500 opacity-50" />
               </div>
-              {!isEditingFallback ? (
-                <button
-                  onClick={() => setIsEditingFallback(true)}
-                  className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md"
-                >
-                  ערוך
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSaveFallbackMessage}
-                    disabled={isSavingFallback}
-                    className="text-xs px-2 py-1 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md disabled:opacity-50"
-                  >
-                    {isSavingFallback ? 'שומר...' : 'שמור'}
-                  </button>
-                  <button
-                    onClick={() => setIsEditingFallback(false)}
-                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded-md"
-                  >
-                    בטל
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="p-4">
-              <p className="text-sm text-muted-foreground mb-2">הודעה שתוצג כאשר אין עדכונים זמינים</p>
-              {isEditingFallback ? (
-                <textarea
-                  value={fallbackMessage}
-                  onChange={(e) => setFallbackMessage(e.target.value)}
-                  className="w-full border border-input rounded-md p-2 h-24"
-                  placeholder="הזן הודעת ברירת מחדל"
-                  dir="rtl"
-                />
-              ) : (
-                <div className="bg-muted/30 p-3 rounded-md border border-border">
-                  <p className="text-sm" dir="rtl">{fallbackMessage}</p>
-                </div>
-              )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
           
-          {updates.length === 0 ? (
-            <div className="text-center py-12">
-              <Megaphone className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className={`text-lg font-semibold text-foreground mb-2 ${hebrewHeading.fontClass}`}>
-                אין עדכונים יומיים
-              </h3>
-              <p className="text-muted-foreground mb-6">צור עדכון יומי ראשון כדי להתחיל</p>
-              <Link
-                href="/admin/daily-updates/new"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                <span className={mixedBody.fontClass}>צור עדכון ראשון</span>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sortedUpdates.map((update) => (
-                <div
-                  key={update.id}
-                  className={`
-                    bg-card rounded-lg border transition-all hover:shadow-sm hover:border-border/60
-                    ${update.is_pinned 
-                      ? 'border-primary/30 bg-primary/5 shadow-sm' 
-                      : 'border-border/40'
-                    }
-                  `}
-                >
-                  {/* Header Bar */}
-                  <div className={`px-4 py-3 border-b border-border/20 ${update.is_pinned ? 'bg-primary/10' : 'bg-muted/20'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {/* Priority Badge */}
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
-                          update.priority <= 3 ? 'bg-red-500' : 
-                          update.priority <= 6 ? 'bg-yellow-500' : 
-                          'bg-green-500'
-                        }`}>
-                          {update.priority}
-                        </div>
-                        
-                        {/* Title */}
-                        <h3 className={`text-base font-semibold text-foreground ${hebrewHeading.fontClass}`}>
-                          {update.title}
-                        </h3>
-                        
-                        {/* Type Badge */}
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
-                          update.type === 'error' ? 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400' :
-                          update.type === 'warning' ? 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400' :
-                          update.type === 'success' ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400' :
-                          update.type === 'announcement' ? 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' :
-                          'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
-                        }`}>
-                          <div className={`w-2 h-2 rounded-full ${getTypeColor(update.type)}`}></div>
-                          {getTypeLabel(update.type)}
-                        </span>
-                        
-                        {/* Pinned Badge */}
-                        {update.is_pinned && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-                            <Pin className="h-3 w-3" />
-                            מוצמד
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleTogglePin(update.id, update.is_pinned)}
-                          className={`flex items-center justify-center p-1.5 rounded-md transition-colors ${
-                            update.is_pinned 
-                              ? 'text-primary hover:bg-primary/20' 
-                              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                          }`}
-                          title={update.is_pinned ? 'בטל הצמדה' : 'הצמד'}
-                        >
-                          {update.is_pinned ? (
-                            <PinOff className="h-4 w-4" />
-                          ) : (
-                            <Pin className="h-4 w-4" />
-                          )}
-                        </button>
-                        <Link
-                          href={`/admin/daily-updates/${update.id}/edit`}
-                          className="flex items-center justify-center p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                          title="ערוך"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(update.id)}
-                          className="flex items-center justify-center p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
-                          title="מחק"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Area */}
-                  <div className="px-4 py-3">
-                    {/* Meta Information */}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDuration(update.duration_type, update.duration_value)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(update.created_at).toLocaleDateString('he-IL')}
-                      </span>
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${
-                        (update.isGeneral === true || (!update.projectId && update.isGeneral !== false))
-                          ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/30'
-                          : 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border-green-200/50 dark:border-green-800/30'
-                      }`}>
-                        {(update.isGeneral === true || (!update.projectId && update.isGeneral !== false)) 
-                          ? <>🏠 כללי</> 
-                          : <>📁 {loadingProjects ? '...' : getProjectName(update.projectId)}</>}
-                      </span>
-                    </div>
-                    
-                    {/* Update Content */}
-                    <div className="text-foreground">
-                      <p className={`text-sm leading-relaxed ${mixedBody.fontClass}`}>
-                        {update.content}
-                      </p>
-                    </div>
-                  </div>
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-purple-600 dark:text-purple-400">נעוצים</p>
+                  <p className="text-2xl font-bold">{updates.filter(u => u.is_pinned).length}</p>
                 </div>
-              ))}
-            </div>
-          )}
+                <Pin className="h-8 w-8 text-purple-500 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-green-600 dark:text-green-400">פעילים</p>
+                  <p className="text-2xl font-bold">{updates.filter(u => u.is_active).length}</p>
+                </div>
+                <Eye className="h-8 w-8 text-green-500 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">זמניים</p>
+                  <p className="text-2xl font-bold">{updates.filter(u => u.duration_type !== 'permanent').length}</p>
+                </div>
+                <Clock className="h-8 w-8 text-orange-500 opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Updates List */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h2 className={`text-lg font-semibold ${hebrewHeading.fontClass}`}>
+                רשימת עדכונים
+              </h2>
+              <div className="flex items-center gap-2">
+                {/* Future: Add filters here */}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 md:p-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : sortedUpdates.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-4">אין עדכונים יומיים</p>
+                <Link href="/admin/daily-updates/new">
+                  <Button variant="outline">
+                    <Plus className="mr-2 h-4 w-4" />
+                    צור עדכון ראשון
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3 p-4 md:p-0">
+                {sortedUpdates.map((update) => {
+                  const updateId = update.id || update._id;
+                  const typeBadge = typeBadges[update.type as keyof typeof typeBadges] || typeBadges.info;
+                  
+                  return (
+                    <div
+                      key={updateId || `update-${update.created_at}`}
+                      className={cn(
+                        "bg-card rounded-lg border transition-all hover:shadow-sm hover:border-border/60 group",
+                        update.is_pinned 
+                          ? 'border-primary/30 bg-primary/5 shadow-sm' 
+                          : 'border-border/40'
+                      )}
+                    >
+                      <div className="p-4 md:p-5">
+                        {/* Mobile: Stack layout, Desktop: Row layout */}
+                        <div className="flex flex-col md:flex-row md:items-start gap-4">
+                          {/* Main Content */}
+                          <div className="flex-1 space-y-2">
+                            {/* Title and badges */}
+                            <div className="flex items-start gap-2 flex-wrap">
+                              <h3 className="font-semibold text-base md:text-lg">
+                                {update.title}
+                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge className={cn("text-xs", typeBadge.className)}>
+                                  {typeBadge.icon} {typeBadge.label}
+                                </Badge>
+                                {update.is_pinned && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Pin className="h-3 w-3 mr-1" />
+                                    נעוץ
+                                  </Badge>
+                                )}
+                                {!update.is_active && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <EyeOff className="h-3 w-3 mr-1" />
+                                    מוסתר
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Content preview */}
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {update.content}
+                            </p>
+                            
+                            {/* Metadata */}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(update.created_at)}
+                              </span>
+                              <span>•</span>
+                              <span>עדיפות: {update.priority}</span>
+                              <span>•</span>
+                              <span>{getUpdateLocation(update)}</span>
+                              {update.duration_type !== 'permanent' && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {update.duration_value} {update.duration_type === 'hours' ? 'שעות' : 'ימים'}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 self-end md:self-start">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateId && handleTogglePin(updateId, update.is_pinned)}
+                              className="h-8 px-2"
+                              title={update.is_pinned ? 'בטל נעיצה' : 'נעץ'}
+                            >
+                              <Pin className={cn("h-4 w-4", update.is_pinned && "fill-current")} />
+                            </Button>
+                            <Link href={`/admin/daily-updates/${updateId}/edit`}>
+                              <Button variant="ghost" size="sm" className="h-8 px-2">
+                                ערוך
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (!updateId) {
+                                  console.error('Update ID is undefined:', update);
+                                  toast.error('שגיאה: מזהה העדכון חסר');
+                                  return;
+                                }
+                                handleDelete(updateId);
+                              }}
+                              className="h-8 px-2 text-destructive hover:text-destructive"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

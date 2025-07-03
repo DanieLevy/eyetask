@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProjectPageData } from '@/lib/database';
-import { db } from '@/lib/database';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 
 interface RouteParams {
@@ -14,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { projectName } = await params;
-    const data = await getProjectPageData(projectName);
+    const data = await db.getProjectPageData(projectName);
     
     if (!data) {
       return NextResponse.json(

@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth, requireAdmin } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+
 import { logger } from '@/lib/logger';
+import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/projects - Fetch all projects
 export async function GET(request: NextRequest) {
   try {
     const projects = await db.getAllProjects();
     
-
-    
     return NextResponse.json({
       projects: projects.map(project => ({
-        _id: project._id?.toString(),
+        _id: project.id || project._id?.toString(),
         name: project.name,
         description: project.description,
-        createdAt: project.createdAt.toISOString(),
-        updatedAt: project.updatedAt.toISOString()
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt
       })),
       total: projects.length,
       success: true
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const adminUser = requireAdmin(user);
 
     const data = await request.json();

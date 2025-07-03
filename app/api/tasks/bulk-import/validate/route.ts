@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { auth } from '@/lib/auth';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
 
 // Define interfaces based on the JSON structure
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
   
   try {
     // Check authentication and admin status
-    user = auth.extractUserFromRequest(request);
+    user = authService.extractUserFromRequest(request);
     if (!user || user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Unauthorized access - Admin required', success: false },

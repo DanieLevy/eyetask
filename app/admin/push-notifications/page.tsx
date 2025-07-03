@@ -72,7 +72,7 @@ interface PushSubscription {
 }
 
 interface NotificationHistory {
-  _id: string;
+  id: string;
   title: string;
   body: string;
   sentAt: string;
@@ -892,7 +892,7 @@ export default function PushNotificationsPage() {
                   <div className="p-4 space-y-3">
                     {history.map((notification) => (
                       <div
-                        key={notification._id}
+                        key={notification.id}
                         className="p-4 rounded-lg border bg-card space-y-3 hover:shadow-md transition-all"
                       >
                         <div className="flex items-start justify-between">

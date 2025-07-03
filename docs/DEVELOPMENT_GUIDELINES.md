@@ -269,4 +269,136 @@ If infinite loops are detected in production:
 
 ---
 
-**Remember: Prevention is better than cure. Follow these guidelines religiously to maintain a stable, performant application.** 
+**Remember: Prevention is better than cure. Follow these guidelines religiously to maintain a stable, performant application.**
+
+# Development Guidelines
+
+This document outlines best practices and guidelines for development on the EyeTask project.
+
+## Table of Contents
+- [Code Organization](#code-organization)
+- [Client Component Best Practices](#client-component-best-practices)
+- [TypeScript Guidelines](#typescript-guidelines)
+- [Styling Guidelines](#styling-guidelines)
+- [Performance Optimization](#performance-optimization)
+- [Testing](#testing)
+- [Security Considerations](#security-considerations)
+
+## Code Organization
+
+- Keep components small and focused on a single responsibility
+- Use custom hooks for reusable logic
+- Organize files by feature rather than by type when appropriate
+- Use barrel exports (index.ts) for cleaner imports
+
+## Client Component Best Practices
+
+### ❌ Common Mistake: Async/Await in Client Components
+
+**NEVER** use async/await at the component level in Client Components:
+
+```typescript
+// ❌ WRONG - This will cause an error
+"use client";
+
+export default async function MyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; // This will fail!
+  return <div>{id}</div>;
+}
+```
+
+### ✅ Correct Approach: Using useParams Hook
+
+**ALWAYS** use the `useParams` hook from `next/navigation` in Client Components:
+
+```typescript
+// ✅ CORRECT
+"use client";
+
+import { useParams } from 'next/navigation';
+
+export default function MyPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
+  return <div>{id}</div>;
+}
+```
+
+### ✅ Alternative: Server Components
+
+If you need to use async/await at the component level, make it a Server Component:
+
+```typescript
+// ✅ CORRECT - No "use client" directive
+export default async function MyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const data = await fetchData(id);
+  
+  return <div>{data.title}</div>;
+}
+```
+
+### Data Fetching in Client Components
+
+For data fetching in Client Components, use one of these approaches:
+
+1. **useEffect Hook**:
+```typescript
+"use client";
+
+export default function MyPage() {
+  const [data, setData] = useState(null);
+  
+  useEffect(() => {
+    async function fetchData() {
+      const response = await fetch('/api/data');
+      const result = await response.json();
+      setData(result);
+    }
+    fetchData();
+  }, []);
+  
+  return <div>{data?.title}</div>;
+}
+```
+
+2. **Custom Hook**:
+```typescript
+"use client";
+
+import { useSafeDataFetching } from '@/hooks/useSafeDataFetching';
+
+export default function MyPage() {
+  const { data, error, loading } = useSafeDataFetching('/api/data');
+  
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorDisplay error={error} />;
+  
+  return <div>{data?.title}</div>;
+}
+```
+
+### Quick Reference: Client vs Server Components
+
+| Feature | Client Component | Server Component |
+|---------|-----------------|------------------|
+| `"use client"` directive | Required | Not allowed |
+| async/await at component level | ❌ Not supported | ✅ Supported |
+| useState, useEffect | ✅ Supported | ❌ Not supported |
+| onClick, onChange handlers | ✅ Supported | ❌ Not supported |
+| Direct database queries | ❌ Not recommended | ✅ Supported |
+| useParams, useRouter | ✅ Supported | ❌ Not supported |
+
+### Preventing Build Errors
+
+To prevent async/await errors systematically:
+
+1. **Use TypeScript** - It will catch many of these errors at compile time
+2. **Lint Rules** - Consider adding ESLint rules to catch async Client Components
+3. **Code Reviews** - Always check for proper Client/Server Component usage
+4. **Testing** - Run `npm run build` before committing to catch these errors early
+
+## TypeScript Guidelines
+
+// ... existing code ... 

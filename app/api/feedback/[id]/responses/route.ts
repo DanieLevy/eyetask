@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { feedbackService } from '@/lib/services/feedbackService';
 import { AddResponseRequest } from '@/lib/types/feedback';
 import { logger } from '@/lib/logger';
-import { auth, requireAdmin } from '@/lib/auth';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { requireAdmin } from '@/lib/auth-utils';
+
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -12,7 +14,7 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     // Check admin authentication
-    const user = auth.extractUserFromRequest(request);
+    const user = authService.extractUserFromRequest(request);
     const authenticatedUser = requireAdmin(user);
     
     const { id } = await params;
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const adminId = authenticatedUser.id;
     const adminName = authenticatedUser.username;
 
-    const success = await feedbackService.addResponse(
+    const responseId = await feedbackService.addResponse(
       id,
       responseData,
       'admin',
@@ -51,10 +53,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       adminId
     );
 
-    if (!success) {
+    if (!responseId) {
       return NextResponse.json(
-        { error: 'Ticket not found' },
-        { status: 404 }
+        { error: 'Failed to add response' },
+        { status: 500 }
       );
     }
 

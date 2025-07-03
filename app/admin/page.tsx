@@ -72,10 +72,16 @@ export default function AdminLoginPage() {
         // Handle both direct response and nested data structure
         const token = data.token || data.data?.token;
         const user = data.user || data.data?.user;
+        const permissions = data.permissions || data.data?.permissions || {};
         
         if (token && user) {
           localStorage.setItem('adminToken', token);
           localStorage.setItem('adminUser', JSON.stringify(user));
+          
+          // Store permissions if available
+          if (permissions && Object.keys(permissions).length > 0) {
+            localStorage.setItem('userPermissions', JSON.stringify(permissions));
+          }
           
           // Set a brief loading state for smooth transition
           setChecking(true);

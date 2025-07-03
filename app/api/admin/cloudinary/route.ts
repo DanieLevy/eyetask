@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth';
+import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
 import { getCloudinaryStats, cloudinary } from '@/lib/cloudinary-server';
 
@@ -7,10 +7,9 @@ import { getCloudinaryStats, cloudinary } from '@/lib/cloudinary-server';
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
+    const user = await requireAuthEnhanced(authHeader);
     
-    if (!authorized || !isAdminEnhanced(user)) {
+    if (!user || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }
@@ -50,10 +49,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
-    const token = extractTokenFromHeader(authHeader);
-    const { authorized, user } = await requireAuthEnhanced(token);
+    const user = await requireAuthEnhanced(authHeader);
     
-    if (!authorized || !isAdminEnhanced(user)) {
+    if (!user || !isAdminEnhanced(user)) {
       return NextResponse.json(
         { error: 'Unauthorized access', success: false },
         { status: 401 }

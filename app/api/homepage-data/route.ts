@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHomepageData } from '@/lib/database';
-import { db } from '@/lib/database';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 
 // GET /api/homepage-data - Fetch all homepage data in a single optimized query
 export async function GET(request: NextRequest) {
   try {
-    const data = await getHomepageData();
+    const data = await db.getHomepageData();
     
     return NextResponse.json(data);
   } catch (error) {
