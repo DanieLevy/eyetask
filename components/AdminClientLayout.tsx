@@ -11,8 +11,6 @@ import {
   MessageSquare,
   BarChart3,
   Bell,
-  Menu,
-  X,
   LogOut,
   Calendar,
   ChevronRight,
@@ -37,7 +35,6 @@ interface MenuItem {
 }
 
 function AdminLayoutContent({ children }: AdminClientLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -213,83 +210,10 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="flex-1 flex flex-col">
-        <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          >
-            {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-          <h1 className={`text-lg font-semibold ${hebrewHeading.fontClass}`}>
-            פאנל ניהול
-          </h1>
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            size="icon"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </header>
-
-        {/* Mobile Sidebar */}
-        {isSidebarOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
-            <aside className="fixed inset-y-0 right-0 w-64 bg-card border-l shadow-lg">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className={`text-xl font-bold ${hebrewHeading.fontClass}`}>
-                    תפריט ניהול
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsSidebarOpen(false)}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-              
-              <nav className="p-4">
-                <ul className="space-y-2">
-                  {visibleMenuItems.map((item) => (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsSidebarOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                          "hover:bg-accent hover:text-accent-foreground",
-                          pathname === item.href && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        {item.icon}
-                        <span className={mixedBody.fontClass}>{item.title}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-
-              <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-                <div className="px-3 py-2 text-sm text-muted-foreground mb-2">
-                  <div className="font-medium">{currentUser?.username}</div>
-                  <div className="text-xs">{getRoleLabel(currentUser?.role)}</div>
-                </div>
-              </div>
-            </aside>
-          </div>
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          {children}
-        </main>
-      </div>
+      {/* Main Content - Now takes full width on mobile */}
+      <main className="flex-1 overflow-y-auto bg-background">
+        {children}
+      </main>
     </div>
   );
 }

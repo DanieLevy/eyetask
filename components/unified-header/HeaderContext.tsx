@@ -92,6 +92,16 @@ const routeConfigs: RouteConfig[] = [
     backLabel: 'עמוד הבית'
   },
   {
+    pattern: '/admin/analytics',
+    variant: 'admin',
+    title: 'ניתוח נתונים',
+    subtitle: 'מעקב אחר פעילות המערכת',
+    showSearch: false,
+    navigationItems: [], // Will be populated dynamically
+    backHref: '/admin/dashboard',
+    backLabel: 'חזרה ללוח בקרה'
+  },
+  {
     pattern: '/admin/tasks',
     variant: 'admin',
     title: 'ניהול משימות',

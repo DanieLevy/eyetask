@@ -13,7 +13,13 @@ import {
   Car,
   Key,
   Settings,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Calendar,
+  Clock,
+  MoreVertical,
+  Search,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,14 +28,6 @@ import { toast } from 'sonner';
 import { LoadingSpinner } from '@/components/LoadingSystem';
 import { EmptyState } from '@/components/EmptyState';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +47,16 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { PERMISSION_GROUPS } from '@/lib/permissions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface User {
   _id: string;
@@ -84,6 +88,8 @@ export default function UsersPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userPermissions, setUserPermissions] = useState<Record<string, UserPermission>>({});
   const [originalPermissions, setOriginalPermissions] = useState<Record<string, UserPermission>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -407,11 +413,11 @@ export default function UsersPage() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Shield className="h-3 w-3" />;
+        return <Shield className="h-4 w-4" />;
       case 'data_manager':
-        return <User className="h-3 w-3" />;
+        return <User className="h-4 w-4" />;
       case 'driver_manager':
-        return <Car className="h-3 w-3" />;
+        return <Car className="h-4 w-4" />;
       default:
         return null;
     }
@@ -430,23 +436,48 @@ export default function UsersPage() {
     }
   };
 
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+      case 'data_manager':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      case 'driver_manager':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300 border-gray-200 dark:border-gray-800';
+    }
+  };
+
+  // Filter users based on search and role
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = searchQuery === '' || 
+      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    
+    return matchesSearch && matchesRole;
+  });
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <LoadingSpinner showText text="טוען משתמשים..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-        <Card>
-          <CardHeader>
+    <div className="min-h-screen bg-background" dir="rtl">
+      {/* Header Section */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>ניהול משתמשים</CardTitle>
-                <CardDescription>ניהול משתמשים, תפקידים והרשאות</CardDescription>
+                <h1 className="text-2xl font-bold tracking-tight">ניהול משתמשים</h1>
+                <p className="text-sm text-muted-foreground">ניהול משתמשים, תפקידים והרשאות</p>
               </div>
               <Button 
                 onClick={() => {
@@ -454,103 +485,158 @@ export default function UsersPage() {
                   setShowCreateDialog(true);
                 }}
                 size="sm"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 ml-2" />
-                משתמש חדש
+                <span className="hidden sm:inline">משתמש חדש</span>
+                <span className="sm:hidden">חדש</span>
               </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            {users.length === 0 ? (
-              <EmptyState
-                icon={<User className="h-12 w-12" />}
-                title="אין משתמשים"
-                description="לחץ על 'משתמש חדש' כדי להוסיף משתמש ראשון"
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">שם משתמש</TableHead>
-                      <TableHead className="text-right">אימייל</TableHead>
-                      <TableHead className="text-right">תפקיד</TableHead>
-                      <TableHead className="text-right">סטטוס</TableHead>
-                      <TableHead className="text-right">התחברות אחרונה</TableHead>
-                      <TableHead className="text-right">פעולות</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user._id}>
-                        <TableCell className="font-medium">{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={user.role === 'admin' ? 'default' : user.role === 'driver_manager' ? 'outline' : 'secondary'}
-                            className="gap-1"
-                          >
-                            {getRoleIcon(user.role)}
-                            {getRoleLabel(user.role)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={user.isActive !== false ? 'default' : 'destructive'}
-                            className={`gap-1 ${user.isActive !== false ? 'bg-green-50 text-green-700 hover:bg-green-50' : ''}`}
-                          >
-                            {user.isActive !== false ? (
-                              <><UserCheck className="h-3 w-3" /> פעיל</>
-                            ) : (
-                              <><UserX className="h-3 w-3" /> לא פעיל</>
-                            )}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {user.lastLogin 
-                            ? new Date(user.lastLogin).toLocaleString('he-IL')
-                            : 'טרם התחבר'
-                          }
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(user)}
-                              disabled={user._id === currentUser?.id}
-                              title="ערוך משתמש"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openPermissionsDialog(user)}
-                              disabled={user._id === currentUser?.id}
-                              title="נהל הרשאות"
-                            >
-                              <Key className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteUserId(user._id)}
-                              disabled={user._id === currentUser?.id}
-                              title="מחק משתמש"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+            
+            {/* Search and Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="חיפוש לפי שם או אימייל..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-9"
+                />
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <Filter className="h-4 w-4 ml-2" />
+                  <SelectValue placeholder="סנן לפי תפקיד" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">כל התפקידים</SelectItem>
+                  <SelectItem value="admin">מנהלים</SelectItem>
+                  <SelectItem value="data_manager">מנהלי נתונים</SelectItem>
+                  <SelectItem value="driver_manager">מנהלי נהגים</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-4 sm:p-6 lg:p-8">
+        {filteredUsers.length === 0 ? (
+          <EmptyState
+            icon={<User className="h-12 w-12" />}
+            title={searchQuery || roleFilter !== 'all' ? "לא נמצאו משתמשים" : "אין משתמשים"}
+            description={searchQuery || roleFilter !== 'all' ? "נסה לשנות את החיפוש או הסינון" : "לחץ על 'משתמש חדש' כדי להוסיף משתמש ראשון"}
+          />
+        ) : (
+          <div className="grid gap-4 md:gap-6">
+            {/* User Cards - Mobile First Design */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredUsers.map((user) => (
+                <Card 
+                  key={user._id} 
+                  className="overflow-hidden hover:shadow-lg transition-all duration-200 border-border/50"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                          {user.username}
+                          {user._id === currentUser?.id && (
+                            <Badge variant="secondary" className="text-xs">אתה</Badge>
+                          )}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Action Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={user._id === currentUser?.id}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                            <Pencil className="h-4 w-4 ml-2" />
+                            ערוך פרטים
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openPermissionsDialog(user)}>
+                            <Key className="h-4 w-4 ml-2" />
+                            נהל הרשאות
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => setDeleteUserId(user._id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 ml-2" />
+                            מחק משתמש
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    {/* Role and Status */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge 
+                        variant="outline"
+                        className={`gap-1 border ${getRoleColor(user.role)}`}
+                      >
+                        {getRoleIcon(user.role)}
+                        {getRoleLabel(user.role)}
+                      </Badge>
+                      
+                      <Badge 
+                        variant={user.isActive !== false ? 'default' : 'destructive'}
+                        className={`gap-1 ${
+                          user.isActive !== false 
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100' 
+                            : ''
+                        }`}
+                      >
+                        {user.isActive !== false ? (
+                          <><UserCheck className="h-3 w-3" /> פעיל</>
+                        ) : (
+                          <><UserX className="h-3 w-3" /> לא פעיל</>
+                        )}
+                      </Badge>
+                    </div>
+                    
+                    {/* Meta Information */}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>נוצר: {new Date(user.createdAt).toLocaleDateString('he-IL')}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          התחברות אחרונה: {
+                            user.lastLogin 
+                              ? new Date(user.lastLogin).toLocaleDateString('he-IL')
+                              : 'טרם התחבר'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create User Dialog */}
@@ -735,10 +821,10 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Permissions Dialog */}
+      {/* Permissions Dialog - Improved for Mobile */}
       <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-6 pb-0">
             <DialogTitle>ניהול הרשאות - {selectedUser?.username}</DialogTitle>
             <DialogDescription>
               התאם אישית את ההרשאות עבור המשתמש. הרשאות ברירת מחדל נקבעות לפי התפקיד.
@@ -746,21 +832,23 @@ export default function UsersPage() {
           </DialogHeader>
           
           {selectedUser && (
-            <div className="flex items-center gap-2 mb-4">
-              <Badge variant="outline" className="gap-1">
-                {getRoleIcon(selectedUser.role)}
-                {getRoleLabel(selectedUser.role)}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                הרשאות המסומנות ב-
-                <Badge variant="secondary" className="mx-1 text-xs">תפקיד</Badge>
-                הן ברירת המחדל לתפקיד זה
-              </span>
+            <div className="px-6 pb-4">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1">
+                  {getRoleIcon(selectedUser.role)}
+                  {getRoleLabel(selectedUser.role)}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  הרשאות המסומנות ב-
+                  <Badge variant="secondary" className="mx-1 text-xs">תפקיד</Badge>
+                  הן ברירת המחדל לתפקיד זה
+                </span>
+              </div>
             </div>
           )}
 
-          <ScrollArea className="h-[400px] w-full rounded-md border p-4">
-            <div className="space-y-6">
+          <ScrollArea className="h-[400px] w-full px-6">
+            <div className="space-y-6 pb-6">
               {Object.entries(PERMISSION_GROUPS).map(([groupName, permissions]) => (
                 <div key={groupName}>
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
@@ -803,28 +891,30 @@ export default function UsersPage() {
             </div>
           </ScrollArea>
 
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              שינויים בהרשאות ייכנסו לתוקף בהתחברות הבאה של המשתמש
-            </AlertDescription>
-          </Alert>
+          <div className="p-6 pt-4 space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                שינויים בהרשאות ייכנסו לתוקף בהתחברות הבאה של המשתמש
+              </AlertDescription>
+            </Alert>
 
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPermissionsDialog(false)}
-              disabled={operationLoading}
-            >
-              ביטול
-            </Button>
-            <Button 
-              onClick={handleUpdatePermissions}
-              disabled={operationLoading}
-            >
-              {operationLoading ? 'שומר...' : 'שמור שינויים'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPermissionsDialog(false)}
+                disabled={operationLoading}
+              >
+                ביטול
+              </Button>
+              <Button 
+                onClick={handleUpdatePermissions}
+                disabled={operationLoading}
+              >
+                {operationLoading ? 'שומר...' : 'שמור שינויים'}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
