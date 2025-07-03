@@ -137,11 +137,7 @@ The feedback system uses a separate service (`feedbackService`) that directly co
 #### Current Setup
 ```env
 # Database Selection
-USE_SUPABASE=true  # Set to 'false' to use MongoDB
-
-# MongoDB (backup)
-MONGODB_URI=<connection_string>
-MONGODB_DB_NAME=drivershub
+USE_SUPABASE=true  # Always use Supabase
 
 # Supabase (primary)
 NEXT_PUBLIC_SUPABASE_URL=<url>
@@ -149,10 +145,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<key>
 SUPABASE_SERVICE_ROLE=<service_key>
 ```
 
-#### How to Switch Databases
-1. To use Supabase: `USE_SUPABASE=true`
-2. To use MongoDB: `USE_SUPABASE=false`
-3. No code changes needed - the database selector handles it
+#### Database Architecture
+The application now uses Supabase exclusively. The database selector infrastructure remains in place for potential future database migrations.
 
 ### 📊 Data Migration Results
 - app_users: 2 records ✅

@@ -36,8 +36,6 @@
 # Go to Site settings → Environment variables to configure:
 # 
 # Required variables:
-# MONGODB_URI
-# MONGODB_DB_NAME  
 # JWT_SECRET
 # NEXTAUTH_SECRET
 # NEXTAUTH_URL
@@ -46,6 +44,9 @@
 # MDB_MCP_API_CLIENT_ID
 # MDB_MCP_API_CLIENT_SECRET
 # LOG_LEVEL
+# SUPABASE_URL
+# SUPABASE_ANON_KEY
+# SUPABASE_SERVICE_ROLE_KEY
 
 # The @netlify/plugin-nextjs plugin automatically handles:
 # - API routes (/api/*)
