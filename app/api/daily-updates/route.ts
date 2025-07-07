@@ -14,30 +14,33 @@ export async function GET(request: NextRequest) {
     const user = authService.extractUserFromRequest(request);
     const canManageData = user ? authService.canManageData(user) : false;
     
-    // Get updates based on scope
-    const updates = await db.getActiveDailyUpdatesByScope(
-      projectId || undefined,
-      canManageData && includeHidden
-    );
+    // Get updates based on scope - if admin wants to see all updates, use getAllDailyUpdates
+    const updates = canManageData && includeHidden && !projectId 
+      ? await db.getAllDailyUpdates()
+      : await db.getActiveDailyUpdatesByScope(
+          projectId || undefined,
+          canManageData && includeHidden
+        );
     
     const updatesWithIds = updates.map(update => ({
+      id: update.id || update._id?.toString(),
       _id: update.id || update._id?.toString(),
       title: update.title,
       content: update.content,
       type: update.type,
       priority: update.priority,
-      durationType: update.durationType,
-      durationValue: update.durationValue,
-      expiresAt: update.expiresAt,
-      isActive: update.isActive,
-      isPinned: update.isPinned,
-      isHidden: update.isHidden,
-      targetAudience: update.targetAudience,
+      duration_type: update.durationType,
+      duration_value: update.durationValue,
+      expires_at: update.expiresAt,
+      is_active: update.isActive,
+      is_pinned: update.isPinned,
+      is_hidden: update.isHidden,
+      target_audience: update.targetAudience,
       projectId: update.projectId,
       isGeneral: update.isGeneral,
-      createdBy: update.createdBy,
-      createdAt: update.createdAt,
-      updatedAt: update.updatedAt
+      created_by: update.createdBy,
+      created_at: update.createdAt,
+      updated_at: update.updatedAt
     }));
     
     return NextResponse.json({

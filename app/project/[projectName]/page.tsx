@@ -182,10 +182,17 @@ export default function ProjectPage() {
       return true;
     }
 
-    // Check if task has any of the selected day times
-    return activeFilters.dayTime.some((selectedTime) =>
-      task.dayTime.includes(selectedTime)
-    );
+    // Check if task has any visible subtasks for the selected day times
+    const taskSubtasks = subtasks[task._id] || [];
+    const visibleSubtasks = taskSubtasks.filter((subtask) => subtask.isVisible !== false);
+    
+    // Only show task if it has at least one visible subtask for the selected day time
+    return activeFilters.dayTime.some((selectedTime) => {
+      return visibleSubtasks.some((subtask) =>
+        subtask.dayTime && subtask.dayTime.length > 0 && 
+        subtask.dayTime.includes(selectedTime)
+      );
+    });
   });
 
   // Filter subtasks based on active day time filters

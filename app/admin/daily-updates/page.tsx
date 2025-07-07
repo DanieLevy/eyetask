@@ -68,7 +68,13 @@ export default function DailyUpdatesPage() {
 
   const fetchUpdates = async () => {
     try {
-      const response = await fetch('/api/daily-updates?includeHidden=true');
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/daily-updates?includeHidden=true', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
+      });
       const result = await response.json();
       
       if (result.success) {
