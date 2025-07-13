@@ -4,107 +4,28 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LayoutDashboard, 
-  Users, 
-  FolderOpen,
-  ListTodo,
-  MessageSquare,
-  BarChart3,
-  Bell,
   LogOut,
-  Calendar,
   ChevronRight,
-  HardDrive,
   Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { PermissionProvider, usePermissions } from '@/contexts/PermissionContext';
-import { PERMISSIONS } from '@/lib/permissions';
+import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 
 interface AdminClientLayoutProps {
   children: React.ReactNode;
-}
-
-interface MenuItem {
-  title: string;
-  icon: React.ReactNode;
-  href: string;
-  permission?: string;
 }
 
 function AdminLayoutContent({ children }: AdminClientLayoutProps) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const { hasPermission, loading: permissionsLoading } = usePermissions();
+  const { navigationItems, isLoading: navLoading } = useAdminNavigation();
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
-
-  const menuItems: MenuItem[] = [
-    { 
-      title: 'לוח בקרה', 
-      icon: <LayoutDashboard className="h-5 w-5" />, 
-      href: '/admin/dashboard',
-      permission: PERMISSIONS.ACCESS_ADMIN_DASHBOARD
-    },
-    { 
-      title: 'משתמשים', 
-      icon: <Users className="h-5 w-5" />, 
-      href: '/admin/users',
-      permission: PERMISSIONS.ACCESS_USERS_MANAGEMENT
-    },
-    { 
-      title: 'פרויקטים', 
-      icon: <FolderOpen className="h-5 w-5" />, 
-      href: '/admin/projects',
-      permission: PERMISSIONS.ACCESS_PROJECTS_MANAGEMENT
-    },
-    { 
-      title: 'משימות', 
-      icon: <ListTodo className="h-5 w-5" />, 
-      href: '/admin/tasks',
-      permission: PERMISSIONS.ACCESS_TASKS_MANAGEMENT
-    },
-    { 
-      title: 'עדכונים יומיים', 
-      icon: <Calendar className="h-5 w-5" />, 
-      href: '/admin/daily-updates',
-      permission: PERMISSIONS.ACCESS_DAILY_UPDATES
-    },
-    { 
-      title: 'משוב', 
-      icon: <MessageSquare className="h-5 w-5" />, 
-      href: '/admin/feedback',
-      permission: PERMISSIONS.ACCESS_FEEDBACK
-    },
-    { 
-      title: 'אנליטיקה', 
-      icon: <BarChart3 className="h-5 w-5" />, 
-      href: '/admin/analytics',
-      permission: PERMISSIONS.ACCESS_ANALYTICS
-    },
-    { 
-      title: 'התראות Push', 
-      icon: <Bell className="h-5 w-5" />, 
-      href: '/admin/push-notifications',
-      permission: PERMISSIONS.ACCESS_PUSH_NOTIFICATIONS
-    },
-    { 
-      title: 'ניהול מטמון', 
-      icon: <HardDrive className="h-5 w-5" />, 
-      href: '/admin/cache',
-      permission: PERMISSIONS.ACCESS_CACHE_MANAGEMENT
-    },
-  ];
-
-  // Filter menu items based on permissions
-  const visibleMenuItems = menuItems.filter(item => 
-    !item.permission || hasPermission(item.permission)
-  );
 
   useEffect(() => {
     // Check if user is authenticated
@@ -144,7 +65,7 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
     }
   };
 
-  if (!currentUser || permissionsLoading) {
+  if (!currentUser || navLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -170,7 +91,7 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
         
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {visibleMenuItems.map((item) => (
+            {navigationItems.filter(item => item.id !== 'home').map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}
@@ -180,8 +101,8 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
                     pathname === item.href && "bg-accent text-accent-foreground"
                   )}
                 >
-                  {item.icon}
-                  <span className={mixedBody.fontClass}>{item.title}</span>
+                  {<item.icon className="h-5 w-5" />}
+                  <span className={mixedBody.fontClass}>{item.label}</span>
                   {pathname === item.href && (
                     <ChevronRight className="h-4 w-4 mr-auto" />
                   )}
@@ -219,9 +140,5 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
 }
 
 export default function AdminClientLayout({ children }: AdminClientLayoutProps) {
-  return (
-    <PermissionProvider>
-      <AdminLayoutContent>{children}</AdminLayoutContent>
-    </PermissionProvider>
-  );
+  return <AdminLayoutContent>{children}</AdminLayoutContent>;
 } 

@@ -79,6 +79,12 @@ export const PERMISSION_GROUPS = {
 
 /**
  * Get user permissions from the database
+ * 
+ * Permission resolution order:
+ * 1. Role defaults from role_permissions table
+ * 2. User-specific overrides from user_permissions table
+ * 
+ * Note: permission_overrides field in app_users is deprecated
  */
 export async function getUserPermissions(userId: string): Promise<UserPermissions> {
   try {
@@ -87,7 +93,7 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
     // Get user with role
     const { data: userData, error: userError } = await supabase
       .from('app_users')
-      .select('role, permission_overrides')
+      .select('role')
       .eq('id', userId)
       .single();
       
@@ -135,14 +141,13 @@ export async function getUserPermissions(userId: string): Promise<UserPermission
       });
     }
     
-    // Apply permission_overrides
-    if (userData.permission_overrides) {
-      Object.entries(userData.permission_overrides).forEach(([key, value]) => {
-        if (typeof value === 'boolean') {
-          permissions[key] = value;
-        }
-      });
-    }
+    // Note: permission_overrides field is deprecated and no longer used
+    
+    logger.info('Permissions loaded', 'PERMISSIONS', {
+      userId,
+      role: userData.role,
+      permissionCount: Object.keys(permissions).length
+    });
     
     return permissions;
   } catch (error) {

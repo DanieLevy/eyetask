@@ -449,7 +449,7 @@ export default function TaskManagement() {
                      <div className="flex items-center justify-between flex-wrap gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{subtask.title}</p>
+                        <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{subtask.title}</p>
                           {/* Show calibration/stability badges */}
                           {subtask.labels?.includes('calibration') && (
                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full font-medium">

@@ -14,6 +14,10 @@ import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
 import { LoadingSpinner } from '@/components/LoadingSystem';
 import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
+import { useVisitor } from '@/contexts/VisitorContext';
+import { VisitorNameModal } from '@/components/VisitorNameModal';
+import { trackPageView, trackAction, getVisitorInfo } from '@/lib/visitor-utils';
+import { logger } from '@/lib/logger';
 
 // Project and Task interfaces moved to shared types
 
@@ -28,12 +32,126 @@ function HomePageCore() {
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
   const router = useRouter();
+  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor } = useVisitor();
+  
+  // State for visitor modal
+  const [showVisitorModal, setShowVisitorModal] = useState(false);
+  const [hasCheckedVisitor, setHasCheckedVisitor] = useState(false);
+  const [shouldShowModalForVisitor, setShouldShowModalForVisitor] = useState(false);
+  const modalTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // URL parameters
   const isPWALaunch = searchParams.get('utm_medium') === 'pwa' || pwaStatus.status.isStandalone;
   const launchSource = searchParams.get('utm_source') || 'direct';
   
+  // Check if visitor needs to register
+  useEffect(() => {
+    // Log visitor check state
+    logger.info('[Visitor] Homepage visitor check', 'HOMEPAGE', {
+      visitorLoading,
+      hasCheckedVisitor,
+      visitorId: visitor?.visitorId,
+      isRegistered: visitor?.isRegistered,
+      name: visitor?.name,
+      showVisitorModal,
+      hasTimer: !!modalTimerRef.current
+    });
+    
+    if (!visitorLoading && !hasCheckedVisitor) {
+      setHasCheckedVisitor(true);
+      
+      if (visitor && !visitor.isRegistered) {
+        logger.info('[Visitor] Unregistered visitor detected', 'HOMEPAGE', {
+          visitorId: visitor.visitorId,
+          willShowModal: true
+        });
+        
+        // Set flag to show modal
+        setShouldShowModalForVisitor(true);
+      } else if (visitor && visitor.isRegistered) {
+        logger.info('[Visitor] Registered visitor detected', 'HOMEPAGE', {
+          visitorId: visitor.visitorId,
+          name: visitor.name,
+          sessionId: visitor.sessionId
+        });
+        // Make sure we don't show modal for registered visitors
+        setShouldShowModalForVisitor(false);
+      }
+    }
+  }, [visitor, visitorLoading, hasCheckedVisitor]);
 
+  // Separate effect for handling the modal timer
+  useEffect(() => {
+    if (shouldShowModalForVisitor && !showVisitorModal && visitor && !visitor.isRegistered) {
+      logger.info('[Visitor] Setting up modal timer', 'HOMEPAGE', {
+        visitorId: visitor?.visitorId,
+        delayMs: 1500
+      });
+      
+      // Clear any existing timer
+      if (modalTimerRef.current) {
+        clearTimeout(modalTimerRef.current);
+      }
+      
+      // Set new timer
+      modalTimerRef.current = setTimeout(() => {
+        // Double-check registration status before showing modal
+        const currentVisitor = getVisitorInfo();
+        if (!currentVisitor.isRegistered) {
+          logger.info('[Visitor] Timer fired - showing registration modal', 'HOMEPAGE', {
+            visitorId: visitor?.visitorId
+          });
+          setShowVisitorModal(true);
+        } else {
+          logger.info('[Visitor] Timer fired but visitor is now registered - skipping modal', 'HOMEPAGE', {
+            visitorId: visitor?.visitorId,
+            name: currentVisitor.name
+          });
+        }
+        modalTimerRef.current = null;
+      }, 1500);
+      
+      // Cleanup
+      return () => {
+        if (modalTimerRef.current) {
+          logger.info('[Visitor] Modal timer cleanup', 'HOMEPAGE', {
+            visitorId: visitor?.visitorId
+          });
+          clearTimeout(modalTimerRef.current);
+          modalTimerRef.current = null;
+        }
+      };
+        }
+  }, [shouldShowModalForVisitor, showVisitorModal, visitor]);
+
+  // Watch for visitor registration changes
+  useEffect(() => {
+    if (visitor?.isRegistered && shouldShowModalForVisitor) {
+      logger.info('[Visitor] Visitor became registered - clearing modal flag', 'HOMEPAGE', {
+        visitorId: visitor.visitorId,
+        name: visitor.name
+      });
+      setShouldShowModalForVisitor(false);
+      
+      // Clear any pending timer
+      if (modalTimerRef.current) {
+        clearTimeout(modalTimerRef.current);
+        modalTimerRef.current = null;
+      }
+    }
+  }, [visitor?.isRegistered, shouldShowModalForVisitor, visitor?.visitorId, visitor?.name]);
+  
+  // Track page view for registered visitors
+  useEffect(() => {
+    if (visitor?.isRegistered) {
+      logger.info('[Visitor] Tracking homepage view', 'HOMEPAGE', {
+        visitorId: visitor.visitorId,
+        name: visitor.name,
+        page: 'דף הבית'
+      });
+      trackPageView('דף הבית');
+    }
+  }, [visitor?.isRegistered]);
 
   // Memoized data processing
   const projects = useMemo(() => {
@@ -104,6 +222,19 @@ function HomePageCore() {
       });
   }, [preloadProject]);
 
+  const handleProjectClick = useCallback((projectName: string) => {
+    // Track visitor action
+    if (visitor?.isRegistered) {
+      logger.info('[Visitor] Project clicked', 'HOMEPAGE', {
+        visitorId: visitor.visitorId,
+        name: visitor.name,
+        projectName,
+        action: `לחץ על פרויקט: ${projectName}`
+      });
+      trackAction(`לחץ על פרויקט: ${projectName}`, 'project');
+    }
+  }, [visitor?.isRegistered, visitor?.visitorId, visitor?.name]);
+
   const getTaskCountForProject = useCallback((projectId: string) => {
     const project = projects.find(p => p._id === projectId);
     if (project && project.taskCount !== undefined) {
@@ -126,7 +257,47 @@ function HomePageCore() {
     return count;
   }, [projects, tasks]);
 
-
+  const handleVisitorRegistration = async (name: string): Promise<boolean> => {
+    logger.info('[Visitor] Registration attempt', 'HOMEPAGE', {
+      visitorId: visitor?.visitorId,
+      name,
+      attemptTime: new Date().toISOString()
+    });
+    
+    const success = await registerVisitor(name);
+    
+    if (success) {
+      logger.info('[Visitor] Registration successful', 'HOMEPAGE', {
+        visitorId: visitor?.visitorId,
+        name,
+        registeredAt: new Date().toISOString()
+      });
+      
+      toast.success(`שלום ${name}! 👋`, {
+        description: 'נרשמת בהצלחה למערכת',
+        duration: 4000,
+      });
+      setShowVisitorModal(false);
+      setShouldShowModalForVisitor(false); // Reset the flag to prevent modal from showing again
+      
+      // Track the homepage view after registration
+      setTimeout(() => {
+        logger.info('[Visitor] Tracking initial page view after registration', 'HOMEPAGE', {
+          visitorId: visitor?.visitorId,
+          name
+        });
+        trackPageView('דף הבית');
+      }, 500);
+    } else {
+      logger.error('[Visitor] Registration failed', 'HOMEPAGE', {
+        visitorId: visitor?.visitorId,
+        name,
+        failedAt: new Date().toISOString()
+      });
+    }
+    
+    return success;
+  };
 
   if (loading && !homepageData) {
     return <HomepageLoadingSkeleton />;
@@ -157,6 +328,24 @@ function HomePageCore() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6">
+        
+        {/* Visitor Name Modal */}
+        <VisitorNameModal
+          isOpen={showVisitorModal}
+          onClose={() => setShowVisitorModal(false)}
+          onSubmit={handleVisitorRegistration}
+          isSubmitting={isRegistering}
+        />
+
+        {/* Welcome message for registered visitors */}
+        {visitor?.isRegistered && visitor.name && (
+          <div className="mb-4 text-center">
+            <p className={`text-sm text-muted-foreground ${mixedBody}`}>
+              שלום {visitor.name} 👋
+            </p>
+          </div>
+        )}
+
         {/* Push Notification Banner */}
         <PushNotificationBanner />
         
@@ -195,6 +384,7 @@ function HomePageCore() {
                 <div 
                   key={project._id || project.name}
                   onMouseEnter={() => handleProjectHover(project.name)}
+                  onClick={() => handleProjectClick(project.name)}
                 >
                   <ProjectCard 
                     project={project}

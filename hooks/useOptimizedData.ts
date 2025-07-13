@@ -378,21 +378,29 @@ export function useProjectData(projectName: string, enabled = true) {
 }
 
 export function useDataPreloader() {
+  const projectCache = useRef<Map<string, any>>(new Map());
+
   const preloadProject = useCallback(async (projectName: string) => {
     if (!projectName) return;
 
     try {
-      const url = `/api/project-data/${encodeURIComponent(projectName)}`;
-      await fetchWithCache(url, {
+      // Properly encode the project name for the URL
+      const encodedProjectName = encodeURIComponent(projectName);
+      const url = `/api/project-data/${encodedProjectName}`;
+      
+      const response = await fetchWithCache(url, {
         ttl: 5 * 60 * 1000, // 5 minutes
-        namespace: 'client_cache',
+        namespace: 'projects',
         headers: {
           'Cache-Control': 'max-age=300',
           'X-Preload': 'true'
         }
       });
+      
+      // Cache the response locally for immediate access
+      projectCache.current.set(projectName, response);
     } catch (error) {
-      // Silent preload error
+      console.error(`Failed to preload project ${projectName}:`, error);
     }
   }, []);
 

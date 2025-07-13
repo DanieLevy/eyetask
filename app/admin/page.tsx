@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, User, AlertCircle } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { toast } from 'sonner';
 
 export default function AdminLoginPage() {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -11,34 +13,51 @@ export default function AdminLoginPage() {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
   const router = useRouter();
+  
+  // Get auth context
+  const authContext = useAuth();
+  const { user: currentUser, isLoading: authLoading } = authContext || {};
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    if (!authLoading && currentUser) {
+      console.log('User already authenticated, redirecting...');
+      router.push('/admin/dashboard');
+    } else if (!authLoading) {
+      // Auth check complete, no user found
+      setChecking(false);
+    }
+  }, [authLoading, currentUser, router]);
+
+  useEffect(() => {
+    // Fallback: Check localStorage for existing authentication
+    if (!authContext) {
+      const token = localStorage.getItem('adminToken');
+      const userData = localStorage.getItem('adminUser');
+      
+      if (token && userData && userData !== 'undefined' && userData !== 'null') {
+        try {
+          const parsedUser = JSON.parse(userData);
+          if (parsedUser && parsedUser.id && parsedUser.username) {
+            // User is already authenticated, redirect immediately
+            console.log('Found existing auth in localStorage, redirecting...');
+            router.replace('/admin/dashboard');
+            return;
+          }
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          // Clear invalid data
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+        }
+      }
+      setChecking(false);
+    }
+  }, [authContext, router]);
 
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
   const mixedBody = useMixedFont('body');
-
-  useEffect(() => {
-    // Immediate synchronous check for existing authentication
-    const token = localStorage.getItem('adminToken');
-    const userData = localStorage.getItem('adminUser');
-    
-    if (token && userData && userData !== 'undefined' && userData !== 'null') {
-      try {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser && parsedUser.id && parsedUser.username) {
-          // User is already authenticated, redirect immediately
-          router.replace('/admin/dashboard');
-          return; // Don't set checking to false, keep showing loader
-        }
-      } catch (error) {
-        // Invalid data, clear it
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-      }
-    }
-    
-    // No valid authentication found, show login form
-    setChecking(false);
-  }, [router]);
 
   // Show loader while checking authentication or during login
   if (checking) {
@@ -56,8 +75,11 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    let loginSuccessful = false;
 
     try {
+      console.log('Starting login process...');
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -67,6 +89,7 @@ export default function AdminLoginPage() {
       });
 
       const data = await response.json();
+      console.log('Login response:', data);
 
       if (data.success) {
         // Handle both direct response and nested data structure
@@ -75,27 +98,52 @@ export default function AdminLoginPage() {
         const permissions = data.permissions || data.data?.permissions || {};
         
         if (token && user) {
-          localStorage.setItem('adminToken', token);
-          localStorage.setItem('adminUser', JSON.stringify(user));
+          console.log('Login successful, calling auth context login...');
+          loginSuccessful = true;
+          toast.success('התחברת בהצלחה');
           
-          // Store permissions if available
-          if (permissions && Object.keys(permissions).length > 0) {
-            localStorage.setItem('userPermissions', JSON.stringify(permissions));
+          if (authContext?.login) {
+            // Use the auth context login method which handles redirect
+            authContext.login(token, user, permissions);
+          } else {
+            // Fallback: manual redirect if auth context is not available
+            console.warn('Auth context not available, using fallback redirect');
+            localStorage.setItem('adminToken', token);
+            localStorage.setItem('adminUser', JSON.stringify(user));
+            if (permissions) {
+              localStorage.setItem('userPermissions', JSON.stringify(permissions));
+            }
+            
+            // Redirect based on permissions
+            if (permissions?.['access.admin_dashboard']) {
+              router.push('/admin/dashboard');
+            } else if (permissions?.['access.tasks_management']) {
+              router.push('/admin/tasks');
+            } else if (permissions?.['access.projects_management']) {
+              router.push('/admin/projects');
+            } else {
+              router.push('/admin/dashboard');
+            }
           }
-          
-          // Set a brief loading state for smooth transition
-          setChecking(true);
-          router.replace('/admin/dashboard');
+          // Don't set loading to false here, let the redirect happen
+          return;
         } else {
           setError('שגיאה בתגובת השרת');
+          toast.error('שגיאה בתגובת השרת');
         }
       } else {
-        setError(data.error || 'פרטי התחברות שגויים');
+        setError(data.error || 'שם משתמש או סיסמה שגויים');
+        toast.error(data.error || 'שם משתמש או סיסמה שגויים');
       }
     } catch (error) {
-      setError('שגיאה בהתחברות לשרת');
+      console.error('Login error:', error);
+      setError('שגיאה בהתחברות למערכת');
+      toast.error('שגיאה בהתחברות למערכת');
     } finally {
-      setLoading(false);
+      // Only set loading to false if we didn't successfully login
+      if (!loginSuccessful) {
+        setLoading(false);
+      }
     }
   };
 

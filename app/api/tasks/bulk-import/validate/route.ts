@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       taskMap: taskVerification.taskMap,
       warnings: structureValidation.warnings,
       success: true
-    }, {
+    }, { 
       status: 200,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',

@@ -3,6 +3,8 @@ import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
 import { getSupabaseClient } from '@/lib/supabase';
+import { hasPermission } from '@/lib/auth-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 interface ActivityLog {
   id: string;
@@ -24,19 +26,51 @@ interface ActivityLog {
 // GET /api/analytics - Get analytics dashboard data
 export async function GET(request: NextRequest) {
   try {
-    // Check if user has admin access
+    // Extract user from request
     const user = authService.extractUserFromRequest(request);
     
-    if (!user || !authService.hasRestrictedAccess(user)) {
+    if (!user) {
       return NextResponse.json({
-        error: 'Unauthorized - Admin access required',
+        error: 'Unauthorized - Authentication required',
         success: false
       }, { status: 401 });
     }
+
+    // Check if user has analytics permission
+    const canViewAnalytics = await hasPermission(user, PERMISSIONS.ACCESS_ANALYTICS);
+    
+    if (!canViewAnalytics) {
+      logger.warn('User attempted to access analytics without permission', 'ANALYTICS_API', {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
+      
+      return NextResponse.json({
+        error: 'Forbidden - You do not have permission to view analytics',
+        success: false
+      }, { status: 403 });
+    }
+
+    logger.info('User accessing analytics', 'ANALYTICS_API', {
+      userId: user.id,
+      username: user.username,
+      role: user.role
+    });
     
     // Get time range from query params
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '7d';
+    const rangeParam = searchParams.get('range') || '7';
+    
+    // Parse range - handle both numeric and string formats
+    let rangeDays = 7;
+    if (rangeParam === '1' || rangeParam === '1d') {
+      rangeDays = 1;
+    } else if (rangeParam === '7' || rangeParam === '7d') {
+      rangeDays = 7;
+    } else if (rangeParam === '30' || rangeParam === '30d') {
+      rangeDays = 30;
+    }
     
     // Get analytics data
     const analytics = await db.getAnalytics();
@@ -54,13 +88,7 @@ export async function GET(request: NextRequest) {
     // Calculate date range
     const now = new Date();
     const startDate = new Date();
-    if (range === '1d') {
-      startDate.setDate(startDate.getDate() - 1);
-    } else if (range === '7d') {
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (range === '30d') {
-      startDate.setDate(startDate.getDate() - 30);
-    }
+    startDate.setDate(startDate.getDate() - rangeDays);
     
     // Fetch recent activity logs
     const { data: activityLogs, error: logsError } = await supabase
@@ -74,6 +102,13 @@ export async function GET(request: NextRequest) {
       logger.error('Error fetching activity logs', 'ANALYTICS_API', undefined, logsError);
     }
     
+    // Fetch visitor profiles
+    const { data: visitorProfiles } = await supabase
+      .from('visitor_profiles')
+      .select('*')
+      .order('last_seen', { ascending: false })
+      .limit(50);
+    
     // Process activity logs for analytics
     const recentActivities = (activityLogs || []).map((log: any) => ({
       _id: log.id,
@@ -81,6 +116,8 @@ export async function GET(request: NextRequest) {
       userId: log.user_id,
       username: log.username,
       userRole: log.user_role,
+      visitorId: log.visitor_id,
+      visitorName: log.visitor_name,
       action: log.action,
       category: log.category,
       target: log.target,
@@ -96,19 +133,24 @@ export async function GET(request: NextRequest) {
       activityByCategory[activity.category]++;
     });
     
-    // Calculate top users
-    const userActivityMap: Record<string, { count: number; username: string; role: string; userId: string }> = {};
+    // Calculate top users (including visitors)
+    const userActivityMap: Record<string, { count: number; username: string; role: string; userId: string; isVisitor?: boolean }> = {};
+    
     recentActivities.forEach(activity => {
-      if (activity.userId) {
-        if (!userActivityMap[activity.userId]) {
-          userActivityMap[activity.userId] = {
+      const key = activity.userId || activity.visitorId;
+      const name = activity.username || activity.visitorName;
+      
+      if (key && name) {
+        if (!userActivityMap[key]) {
+          userActivityMap[key] = {
             count: 0,
-            username: activity.username,
-            role: activity.userRole,
-            userId: activity.userId
+            username: name,
+            role: activity.userRole || 'visitor',
+            userId: key,
+            isVisitor: !activity.userId
           };
         }
-        userActivityMap[activity.userId].count++;
+        userActivityMap[key].count++;
       }
     });
     
@@ -119,8 +161,24 @@ export async function GET(request: NextRequest) {
         userId: user.userId,
         username: user.username,
         role: user.role,
-        actionCount: user.count
+        actionCount: user.count,
+        isVisitor: user.isVisitor
       }));
+    
+    // Calculate visitor statistics
+    const visitorStats = {
+      totalVisitors: visitorProfiles?.length || 0,
+      activeVisitors: visitorProfiles?.filter((v: any) => {
+        const lastSeen = new Date(v.last_seen);
+        const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return lastSeen > dayAgo;
+      }).length || 0,
+      newVisitors: visitorProfiles?.filter((v: any) => {
+        const firstSeen = new Date(v.first_seen);
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return firstSeen > weekAgo;
+      }).length || 0
+    };
     
     // Calculate visits and unique visitors for the time range
     let periodVisits = 0;
@@ -159,7 +217,9 @@ export async function GET(request: NextRequest) {
         recentActivities: recentActivities.slice(0, 20),
         activityByCategory,
         topUsers,
-        dailyStats: analytics.dailyStats || {}
+        dailyStats: analytics.dailyStats || {},
+        visitorStats,
+        visitorProfiles: visitorProfiles?.slice(0, 10) || []
       },
       success: true
     });
@@ -172,17 +232,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/analytics - Update analytics counters (admin only)
+// POST /api/analytics - Update analytics counters  
 export async function POST(request: NextRequest) {
   try {
-    // Check if user has admin access
+    // Check if user has permission to update analytics
     const user = authService.extractUserFromRequest(request);
     
-    if (!user || !authService.hasRestrictedAccess(user)) {
+    if (!user) {
       return NextResponse.json({
-        error: 'Unauthorized - Admin access required',
+        error: 'Unauthorized - Authentication required',
         success: false
       }, { status: 401 });
+    }
+
+    // Check if user has analytics permission (admin users can always update)
+    const canUpdateAnalytics = user.role === 'admin' || await hasPermission(user, PERMISSIONS.ACCESS_ANALYTICS);
+    
+    if (!canUpdateAnalytics) {
+      logger.warn('User attempted to update analytics without permission', 'ANALYTICS_API', {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
+      
+      return NextResponse.json({
+        error: 'Forbidden - You do not have permission to update analytics',
+        success: false
+      }, { status: 403 });
     }
     
     // Update analytics counters

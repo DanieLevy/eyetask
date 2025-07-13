@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { requireAdmin } from '@/lib/auth-utils';
+import { hasPermission } from '@/lib/auth-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 // Cache version management
 const CACHE_VERSION_KEY = 'cache-version';
@@ -17,9 +18,31 @@ let cacheVersionStore: { [key: string]: any } = {
 // GET /api/admin/cache - Get current cache status
 export async function GET(req: NextRequest) {
   try {
-    // Check authentication - Only admins can manage cache
+    // Check authentication
     const user = authService.extractUserFromRequest(req);
-    requireAdmin(user);
+    
+    if (!user) {
+      return NextResponse.json({
+        error: 'Unauthorized - Authentication required',
+        success: false
+      }, { status: 401 });
+    }
+
+    // Check if user has cache management permission
+    const canManageCache = await hasPermission(user, PERMISSIONS.ACCESS_CACHE_MANAGEMENT);
+    
+    if (!canManageCache) {
+      logger.warn('User attempted to access cache management without permission', 'CACHE_API', {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
+      
+      return NextResponse.json({
+        error: 'Forbidden - You do not have permission to manage cache',
+        success: false
+      }, { status: 403 });
+    }
     
     const searchParams = req.nextUrl.searchParams;
     const action = searchParams.get('action');
@@ -70,9 +93,31 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/cache - Trigger cache clearing
 export async function POST(req: NextRequest) {
   try {
-    // Check authentication - Only admins can manage cache
+    // Check authentication
     const user = authService.extractUserFromRequest(req);
-    requireAdmin(user);
+    
+    if (!user) {
+      return NextResponse.json({
+        error: 'Unauthorized - Authentication required',
+        success: false
+      }, { status: 401 });
+    }
+
+    // Check if user has cache management permission
+    const canManageCache = await hasPermission(user, PERMISSIONS.ACCESS_CACHE_MANAGEMENT);
+    
+    if (!canManageCache) {
+      logger.warn('User attempted to manage cache without permission', 'CACHE_API', {
+        userId: user.id,
+        username: user.username,
+        role: user.role
+      });
+      
+      return NextResponse.json({
+        error: 'Forbidden - You do not have permission to manage cache',
+        success: false
+      }, { status: 403 });
+    }
     
     const body = await req.json();
     const { action, reason } = body;

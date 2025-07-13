@@ -3,6 +3,8 @@ import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
 import { getSupabaseClient } from '@/lib/supabase';
+import { hasPermission } from '@/lib/auth-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 
 // GET /api/users/[id]/permissions - Get user permissions
 export async function GET(
@@ -12,12 +14,29 @@ export async function GET(
   try {
     const { id: userId } = await params;
     
-    // Check admin auth
+    // Check authentication
     const user = authService.extractUserFromRequest(request);
-    if (!user || !authService.checkIsAdmin(user)) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized', success: false },
         { status: 401 }
+      );
+    }
+    
+    // Check if user has permission to manage users OR is requesting their own permissions
+    const canManageUsers = await hasPermission(user, PERMISSIONS.ACCESS_USERS_MANAGEMENT);
+    const isOwnPermissions = user.id === userId;
+    
+    if (!canManageUsers && !isOwnPermissions) {
+      logger.warn('User attempted to view permissions without authorization', 'PERMISSIONS_API', {
+        requestingUserId: user.id,
+        targetUserId: userId,
+        role: user.role
+      });
+      
+      return NextResponse.json(
+        { error: 'Forbidden - You do not have permission to view user permissions', success: false },
+        { status: 403 }
       );
     }
     
@@ -26,7 +45,7 @@ export async function GET(
     // Get user details
     const { data: userData, error: userError } = await supabase
       .from('app_users')
-      .select('id, username, role, permission_overrides')
+      .select('id, username, role')
       .eq('id', userId)
       .single();
       
@@ -82,18 +101,7 @@ export async function GET(
       });
     }
     
-    // Apply permission_overrides from user record
-    if (userData.permission_overrides) {
-      Object.entries(userData.permission_overrides).forEach(([key, value]) => {
-        if (typeof value === 'boolean') {
-          permissions[key] = {
-            ...permissions[key],
-            value: value,
-            source: 'user'
-          };
-        }
-      });
-    }
+    // Note: permission_overrides field is deprecated and no longer used
     
     return NextResponse.json({
       success: true,
@@ -122,12 +130,28 @@ export async function PUT(
   try {
     const { id: userId } = await params;
     
-    // Check admin auth
+    // Check authentication
     const user = authService.extractUserFromRequest(request);
-    if (!user || !authService.checkIsAdmin(user)) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized', success: false },
         { status: 401 }
+      );
+    }
+    
+    // Check if user has permission to edit users
+    const canEditUsers = await hasPermission(user, PERMISSIONS.EDIT_USERS);
+    
+    if (!canEditUsers) {
+      logger.warn('User attempted to update permissions without authorization', 'PERMISSIONS_API', {
+        requestingUserId: user.id,
+        targetUserId: userId,
+        role: user.role
+      });
+      
+      return NextResponse.json(
+        { error: 'Forbidden - You do not have permission to edit user permissions', success: false },
+        { status: 403 }
       );
     }
     
@@ -158,36 +182,105 @@ export async function PUT(
     }
     
     // Update user permissions
-    const promises = [];
+    const updateResults = [];
+    const errors = [];
     
     for (const [key, value] of Object.entries(permissions)) {
       if (typeof value === 'boolean') {
-        // Upsert permission
-        promises.push(
-          supabase
+        try {
+          // First check if permission exists
+          const { data: existingPerm } = await supabase
             .from('user_permissions')
-            .upsert({
-              user_id: userId,
-              permission_key: key,
-              permission_value: value,
-              updated_at: new Date().toISOString()
-            })
-        );
+            .select('id')
+            .eq('user_id', userId)
+            .eq('permission_key', key)
+            .single();
+
+          if (existingPerm) {
+            // Update existing permission
+            const { error } = await supabase
+              .from('user_permissions')
+              .update({
+                permission_value: value,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', userId)
+              .eq('permission_key', key);
+              
+            if (error) {
+              errors.push({ key, error: error.message });
+              logger.error('Failed to update user permission', 'PERMISSIONS_API', {
+                userId,
+                permissionKey: key,
+                error: error.message
+              });
+            } else {
+              updateResults.push({ key, value, success: true });
+            }
+          } else {
+            // Insert new permission
+            const { error } = await supabase
+              .from('user_permissions')
+              .insert({
+                user_id: userId,
+                permission_key: key,
+                permission_value: value,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+              
+            if (error) {
+              errors.push({ key, error: error.message });
+              logger.error('Failed to insert user permission', 'PERMISSIONS_API', {
+                userId,
+                permissionKey: key,
+                error: error.message
+              });
+            } else {
+              updateResults.push({ key, value, success: true });
+            }
+          }
+        } catch (permError) {
+          const errorMessage = permError instanceof Error ? permError.message : String(permError);
+          errors.push({ key, error: errorMessage });
+          logger.error('Failed to process user permission', 'PERMISSIONS_API', {
+            userId,
+            permissionKey: key,
+            error: permError
+          });
+        }
       }
     }
     
-    // Also update permission_overrides in app_users
-    promises.push(
-      supabase
-        .from('app_users')
-        .update({
-          permission_overrides: permissions
-        })
-        .eq('id', userId)
-    );
+    // Update last_modified fields in app_users (without touching permission_overrides for now)
+    const { error: userUpdateError } = await supabase
+      .from('app_users')
+      .update({
+        last_modified_by: user.id,
+        last_modified_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+      
+    if (userUpdateError) {
+      logger.error('Failed to update app_users timestamps', 'PERMISSIONS_API', {
+        userId,
+        error: userUpdateError.message
+      });
+    }
     
-    // Execute all updates
-    await Promise.all(promises);
+    // Check if any updates failed
+    if (errors.length > 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Some permissions failed to update',
+        errors,
+        successfulUpdates: updateResults
+      }, { status: 500 });
+    }
+    
+    // Clear permission cache for this user
+    const { clearPermissionCache } = await import('@/lib/auth-permissions');
+    clearPermissionCache(userId);
     
     // Log permission change
     await db.logAction({
@@ -201,13 +294,23 @@ export async function PUT(
         type: 'user',
         name: 'permissions'
       },
-      metadata: { updatedPermissions: Object.keys(permissions).length },
+      metadata: { 
+        updatedPermissions: Object.keys(permissions).length,
+        changes: permissions
+      },
       severity: 'warning'
+    });
+    
+    logger.info('User permissions updated successfully', 'PERMISSIONS_API', {
+      targetUserId: userId,
+      updatedBy: user.id,
+      permissionCount: Object.keys(permissions).length
     });
     
     return NextResponse.json({
       success: true,
-      message: 'Permissions updated successfully'
+      message: 'Permissions updated successfully',
+      updatedPermissions: updateResults
     });
     
   } catch (error) {

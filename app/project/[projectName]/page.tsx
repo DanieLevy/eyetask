@@ -21,6 +21,7 @@ import {
   ImageIcon,
   TrendingUp,
   Layers,
+  Search,
 } from "lucide-react";
 import { useHebrewFont, useMixedFont } from "@/hooks/useFont";
 import { capitalizeEnglish, capitalizeEnglishArray } from "@/lib/utils";
@@ -61,6 +62,10 @@ export default function ProjectPage() {
     dayTime: [],
   });
   
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
   // Sorting state
   const [sortBy, setSortBy] = useState<"priority-asc" | "priority-desc">(
     "priority-asc"
@@ -76,6 +81,15 @@ export default function ProjectPage() {
 
   // Register this page's refresh function
   usePageRefresh(refetch);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Track page visit
   useEffect(() => {
@@ -123,6 +137,38 @@ export default function ProjectPage() {
       document.removeEventListener("click", handleClickOutside);
     };
   }, [isFilterDropdownOpen, isSortDropdownOpen]);
+
+  // Keyboard shortcuts for search
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Focus search on "/" or Ctrl+K/Cmd+K
+      if (
+        event.key === "/" ||
+        (event.key === "k" && (event.ctrlKey || event.metaKey))
+      ) {
+        event.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>(
+          'input[type="text"][placeholder*="חיפוש"]'
+        );
+        searchInput?.focus();
+      }
+      
+      // Clear search on Escape when search input is focused
+      if (event.key === "Escape") {
+        const searchInput = document.querySelector<HTMLInputElement>(
+          'input[type="text"][placeholder*="חיפוש"]'
+        );
+        if (document.activeElement === searchInput && searchQuery) {
+          event.preventDefault();
+          setSearchQuery("");
+          setDebouncedSearchQuery("");
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [searchQuery]);
 
   const toggleTaskExpansion = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -175,9 +221,69 @@ export default function ProjectPage() {
     }
   };
 
+  // Search helper function - searches across multiple fields
+  const matchesSearchQuery = (task: any, query: string): boolean => {
+    if (!query || query.trim() === "") return true;
+    
+    const lowerQuery = query.toLowerCase().trim();
+    
+    // Special handling for DATACO numbers
+    const normalizedQuery = lowerQuery.replace(/^dataco-?/i, "");
+    
+    // Search in task fields
+    const taskFields = [
+      task.title,
+      task.datacoNumber,
+      task.datacoNumber?.replace(/^DATACO-?/i, ""), // Search without DATACO prefix
+      task.subtitle,
+      task.description?.main,
+      task.description?.howToExecute,
+      ...(task.type || []),
+      ...(task.locations || []),
+      ...(task.targetCar || [])
+    ];
+    
+    // Check if any task field matches
+    const taskMatches = taskFields.some(field => {
+      if (!field) return false;
+      const fieldLower = field.toString().toLowerCase();
+      return fieldLower.includes(lowerQuery) || 
+             (normalizedQuery && fieldLower.includes(normalizedQuery));
+    });
+    
+    if (taskMatches) return true;
+    
+    // Search in subtasks
+    const taskSubtasks = subtasks[task._id] || [];
+    return taskSubtasks.some(subtask => {
+      const subtaskFields = [
+        subtask.title,
+        subtask.subtitle,
+        subtask.datacoNumber,
+        subtask.datacoNumber?.replace(/^DATACO-?/i, ""), // Search without DATACO prefix
+        subtask.weather,
+        subtask.scene,
+        ...(subtask.labels || []),
+        ...(subtask.targetCar || [])
+      ];
+      
+      return subtaskFields.some(field => {
+        if (!field) return false;
+        const fieldLower = field.toString().toLowerCase();
+        return fieldLower.includes(lowerQuery) || 
+               (normalizedQuery && fieldLower.includes(normalizedQuery));
+      });
+    });
+  };
+
   // Filter tasks based on active filters
   const filteredTasks = tasks.filter((task) => {
-    // If no day time filters are active, show all tasks
+    // First apply search filter
+    if (!matchesSearchQuery(task, debouncedSearchQuery)) {
+      return false;
+    }
+    
+    // If no day time filters are active, show all tasks that match search
     if (activeFilters.dayTime.length === 0) {
       return true;
     }
@@ -246,10 +352,12 @@ export default function ProjectPage() {
     setActiveFilters({
       dayTime: [],
     });
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
   };
 
   // Check if any filters are active
-  const hasActiveFilters = activeFilters.dayTime.length > 0;
+  const hasActiveFilters = activeFilters.dayTime.length > 0 || debouncedSearchQuery.trim() !== "";
 
   // Calculate total subtasks
   const totalSubtasks = Object.values(subtasks).reduce(
@@ -280,6 +388,27 @@ export default function ProjectPage() {
     if (!datacoNumber) return "";
     const cleanNumber = datacoNumber.replace(/^DATACO-?/i, "");
     return `DATACO-${cleanNumber}`;
+  };
+
+  // Highlight search query in text
+  const highlightSearchText = (text: string, query: string): React.ReactNode => {
+    if (!query || !text) return text;
+    
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const index = lowerText.indexOf(lowerQuery);
+    
+    if (index === -1) return text;
+    
+    return (
+      <>
+        {text.substring(0, index)}
+        <mark className="bg-yellow-200 dark:bg-yellow-800/50 text-inherit px-0.5 rounded">
+          {text.substring(index, index + query.length)}
+        </mark>
+        {text.substring(index + query.length)}
+      </>
+    );
   };
 
   const getPriorityColor = (priority: number) => {
@@ -371,12 +500,19 @@ export default function ProjectPage() {
                     >
                   {projectName}
                 </h1>
-                {hasActiveFilters && activeFilters.dayTime.length > 0 && (
+                {hasActiveFilters && (
                       <p
                         className={`text-xs text-muted-foreground/60 mt-0.5 ${mixedBody.fontClass}`}
                       >
-                        מסונן לפי:{" "}
-                        {activeFilters.dayTime.map(getDayTimeLabel).join(", ")}
+                        {debouncedSearchQuery.trim() !== "" && (
+                          <>
+                            חיפוש: &quot;{debouncedSearchQuery}&quot;
+                            {activeFilters.dayTime.length > 0 && " • "}
+                          </>
+                        )}
+                        {activeFilters.dayTime.length > 0 && (
+                          <>זמן: {activeFilters.dayTime.map(getDayTimeLabel).join(", ")}</>
+                        )}
                   </p>
                 )}
               </div>
@@ -435,7 +571,30 @@ export default function ProjectPage() {
           <div className="container mx-auto px-4 py-2">
             <div className="flex items-center justify-between gap-3">
               {/* Filter and Sort Controls */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1">
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="חיפוש משימות... (/ או Ctrl+K)"
+                    className="w-full pr-9 pl-3 py-1.5 bg-background border border-border/60 rounded-md text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setDebouncedSearchQuery("");
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 p-0.5 rounded-sm hover:bg-accent/50 transition-colors"
+                    >
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+
                 {/* Filter Dropdown */}
                 {availableDayTimes.length > 0 && (
                   <div className="relative" data-filter-dropdown>
@@ -641,10 +800,14 @@ export default function ProjectPage() {
           <div className="text-center py-12">
             <Filter className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  אין משימות מתאימות לסינון
+                  {debouncedSearchQuery 
+                    ? `לא נמצאו תוצאות עבור "${debouncedSearchQuery}"`
+                    : "אין משימות מתאימות לסינון"}
                 </h3>
             <p className="text-muted-foreground mb-4">
-              נסה לשנות את הסינון או לנקות את כל המסננים
+              {debouncedSearchQuery
+                ? "נסה לחפש במילים אחרות או לנקות את החיפוש"
+                : "נסה לשנות את הסינון או לנקות את כל המסננים"}
             </p>
             {hasActiveFilters && (
               <button
@@ -652,7 +815,7 @@ export default function ProjectPage() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 <X className="h-4 w-4" />
-                נקה סינון
+                נקה {debouncedSearchQuery ? "חיפוש ו" : ""}סינון
               </button>
             )}
           </div>
@@ -677,7 +840,7 @@ export default function ProjectPage() {
                       
                                                 {/* Dataco indicator fixed at top left */}
                         <span className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10 inline-flex items-center px-1.5 py-0.5 text-[10px] sm:text-xs font-mono text-gray-600 dark:text-gray-400">
-                          {formatDatacoNumber(task.datacoNumber)}
+                          {debouncedSearchQuery ? highlightSearchText(formatDatacoNumber(task.datacoNumber), debouncedSearchQuery) : formatDatacoNumber(task.datacoNumber)}
                         </span>
 
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -694,7 +857,7 @@ export default function ProjectPage() {
                             </div>
                             
                               <h3 className="text-base sm:text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors duration-300 line-clamp-2">
-                                {task.title}
+                                {debouncedSearchQuery ? highlightSearchText(task.title, debouncedSearchQuery) : task.title}
                               </h3>
                           </div>
                           
@@ -952,9 +1115,9 @@ export default function ProjectPage() {
                                               </div>
                                             )}
                                             <div className="min-w-0">
-                                                <h5 className="font-medium text-foreground text-sm truncate">
-                                                  {subtask.title}
-                                                </h5>
+                                                <h5 className="text-sm font-medium text-foreground leading-tight group-hover:text-primary transition-colors duration-300">
+                                          {debouncedSearchQuery ? highlightSearchText(subtask.title, debouncedSearchQuery) : subtask.title}
+                                        </h5>
                                               <div className="flex items-center justify-between gap-2 mt-0.5">
                                                 <span className="text-xs text-primary font-medium">
                                                     {subtask.amountNeeded}{" "}

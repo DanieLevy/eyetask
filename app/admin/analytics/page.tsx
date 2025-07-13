@@ -28,7 +28,9 @@ import {
   MousePointerClick,
   UserCog,
   Shield,
-  Sparkles
+  Sparkles,
+  UserPlus,
+  UsersIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,8 +45,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useRequirePermission } from '@/contexts/PermissionContext';
-import { PERMISSIONS } from '@/lib/permissions';
+import { useCanViewAnalytics } from '@/hooks/usePermission';
+import { useAuth } from '@/components/unified-header/AuthContext';
 import AdminClientLayout from '@/components/AdminClientLayout';
 
 interface AnalyticsData {
@@ -64,6 +66,8 @@ interface AnalyticsData {
     userId: string;
     username: string;
     userRole: string;
+    visitorId?: string;
+    visitorName?: string;
     action: string;
     category: string;
     target?: {
@@ -79,6 +83,7 @@ interface AnalyticsData {
     username: string;
     role: string;
     actionCount: number;
+    isVisitor?: boolean;
   }>;
   dailyStats: Record<string, {
     visits: number;
@@ -86,25 +91,35 @@ interface AnalyticsData {
     actions: number;
     loginCount: number;
   }>;
+  visitorStats?: {
+    totalVisitors: number;
+    activeVisitors: number;
+    newVisitors: number;
+  };
+  visitorProfiles?: Array<{
+    id: string;
+    visitor_id: string;
+    name: string;
+    first_seen: string;
+    last_seen: string;
+    total_visits: number;
+    total_actions: number;
+  }>;
 }
 
 // Inner component that uses the permission hook
 function AnalyticsContent() {
-  const router = useRouter();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [timeRange, setTimeRange] = useState<'1d' | '7d' | '30d'>('7d');
-  
-  // Font configurations
-  const hebrewHeading = useHebrewFont('heading');
-  const mixedBody = useMixedFont('body');
+  const [selectedTimeRange, setSelectedTimeRange] = useState('7');
+  const router = useRouter();
+  const hebrewFont = useHebrewFont('heading');
+  const mixedFont = useMixedFont('body');
 
-  // Check permission - now this is inside the PermissionProvider
-  const { hasPermission, loading: permissionLoading } = useRequirePermission(
-    PERMISSIONS.ACCESS_ANALYTICS,
-    '/admin/dashboard'
-  );
+  // Check permission
+  const canViewAnalytics = useCanViewAnalytics();
+  const { isLoading: authLoading } = useAuth();
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -115,7 +130,7 @@ function AnalyticsContent() {
         return;
       }
 
-      const response = await fetch(`/api/analytics?range=${timeRange}`, {
+      const response = await fetch(`/api/analytics?range=${selectedTimeRange}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Cache-Control': 'no-cache'
@@ -136,13 +151,22 @@ function AnalyticsContent() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [timeRange, router]);
+  }, [selectedTimeRange, router]);
 
   useEffect(() => {
+    if (!authLoading && !canViewAnalytics) {
+      toast.error('אין לך הרשאה לצפות באנליטיקה');
+      router.push('/admin/dashboard');
+    }
+  }, [authLoading, canViewAnalytics, router]);
+
+  useEffect(() => {
+    if (canViewAnalytics) {
     fetchAnalytics();
     const interval = setInterval(fetchAnalytics, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, [fetchAnalytics]);
+    }
+  }, [fetchAnalytics, canViewAnalytics]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -223,20 +247,25 @@ function AnalyticsContent() {
     return `לפני ${days} ימים`;
   };
 
-  if (loading || permissionLoading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="p-4 space-y-4 max-w-7xl mx-auto">
-          <Skeleton className="h-16 w-full rounded-lg" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <Skeleton className="h-10 w-64 mb-8" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
             ))}
           </div>
-          <Skeleton className="h-64 rounded-lg" />
+          <Skeleton className="h-96" />
         </div>
       </div>
     );
+  }
+
+  // Check permission after loading
+  if (!canViewAnalytics) {
+    return null; // Will redirect in useEffect
   }
 
   const calculateTrend = (current: number, previous: number) => {
@@ -264,14 +293,14 @@ function AnalyticsContent() {
           
           {/* Controls */}
           <div className="flex items-center gap-2">
-            <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+            <Select value={selectedTimeRange} onValueChange={(value: any) => setSelectedTimeRange(value)}>
               <SelectTrigger className="w-28 h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1d">היום</SelectItem>
-                <SelectItem value="7d">7 ימים</SelectItem>
-                <SelectItem value="30d">30 ימים</SelectItem>
+                <SelectItem value="1">היום</SelectItem>
+                <SelectItem value="7">7 ימים</SelectItem>
+                <SelectItem value="30">30 ימים</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -296,12 +325,12 @@ function AnalyticsContent() {
                   <div className="flex items-center justify-between mb-2">
                     <Activity className="h-4 w-4 opacity-80" />
                     <Badge className="bg-white/20 text-white border-0 text-xs">
-                      {timeRange === '1d' ? 'היום' : timeRange === '7d' ? '7 ימים' : '30 יום'}
+                      {selectedTimeRange === '1' ? 'היום' : selectedTimeRange === '7' ? '7 ימים' : '30 יום'}
                     </Badge>
                   </div>
                   <p className="text-2xl font-bold">{formatNumber(analytics.visits)}</p>
                   <p className="text-xs opacity-90">ביקורים</p>
-                  {timeRange === '1d' && trend.percentage > 0 && (
+                  {selectedTimeRange === '1' && trend.percentage > 0 && (
                     <div className="flex items-center gap-1 text-xs mt-1">
                       {trend.isUp ? (
                         <TrendingUp className="h-3 w-3" />
@@ -349,9 +378,49 @@ function AnalyticsContent() {
               </Card>
             </div>
 
+            {/* Visitor Stats Cards - Only show if available */}
+            {analytics.visitorStats && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {/* Total Visitors Card */}
+                <Card className="border-0 shadow-sm bg-gradient-to-br from-indigo-500 to-blue-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <UsersIcon className="h-4 w-4 opacity-80" />
+                    </div>
+                    <p className="text-2xl font-bold">{formatNumber(analytics.visitorStats.totalVisitors)}</p>
+                    <p className="text-xs opacity-90">מבקרים רשומים</p>
+                  </CardContent>
+                </Card>
+
+                {/* Active Visitors Card */}
+                <Card className="border-0 shadow-sm bg-gradient-to-br from-teal-500 to-cyan-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <UserCheck className="h-4 w-4 opacity-80" />
+                      <Badge className="bg-white/20 text-white border-0 text-xs">24 שעות</Badge>
+                    </div>
+                    <p className="text-2xl font-bold">{formatNumber(analytics.visitorStats.activeVisitors)}</p>
+                    <p className="text-xs opacity-90">מבקרים פעילים</p>
+                  </CardContent>
+                </Card>
+
+                {/* New Visitors Card */}
+                <Card className="border-0 shadow-sm bg-gradient-to-br from-pink-500 to-rose-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <UserPlus className="h-4 w-4 opacity-80" />
+                      <Badge className="bg-white/20 text-white border-0 text-xs">שבוע</Badge>
+                    </div>
+                    <p className="text-2xl font-bold">{formatNumber(analytics.visitorStats.newVisitors)}</p>
+                    <p className="text-xs opacity-90">מבקרים חדשים</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Main Content Tabs */}
             <Tabs defaultValue="activities" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-10 relative z-10 bg-background">
+              <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-10 relative z-10 bg-background">
                 <TabsTrigger value="activities" className="text-sm">
                   <Activity className="h-3 w-3 mr-1" />
                   פעילות
@@ -359,6 +428,10 @@ function AnalyticsContent() {
                 <TabsTrigger value="users" className="text-sm">
                   <Users className="h-3 w-3 mr-1" />
                   משתמשים
+                </TabsTrigger>
+                <TabsTrigger value="visitors" className="text-sm">
+                  <UsersIcon className="h-3 w-3 mr-1" />
+                  מבקרים
                 </TabsTrigger>
                 <TabsTrigger value="daily" className="text-sm">
                   <Calendar className="h-3 w-3 mr-1" />
@@ -399,8 +472,13 @@ function AnalyticsContent() {
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
-                                {activity.username}
+                                {activity.username || activity.visitorName}
                               </span>
+                              {activity.visitorId && (
+                                <Badge variant="secondary" className="text-xs">
+                                  מבקר
+                                </Badge>
+                              )}
                               <span>{formatTimeAgo(activity.timestamp)}</span>
                               {activity.target && (
                                 <Badge variant="outline" className="text-xs">
@@ -462,6 +540,57 @@ function AnalyticsContent() {
                         );
                       })}
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Visitors Tab */}
+              <TabsContent value="visitors">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">מבקרים רשומים</CardTitle>
+                    <CardDescription>רשימת המבקרים שנרשמו למערכת</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {analytics.visitorProfiles && analytics.visitorProfiles.length > 0 ? (
+                      <div className="space-y-2">
+                        {analytics.visitorProfiles.map((visitor) => (
+                          <div
+                            key={visitor.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                                {visitor.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className={cn("font-medium", mixedFont)}>{visitor.name}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>נרשם: {formatDateTime(visitor.first_seen)}</span>
+                                  <span>•</span>
+                                  <span>ביקור אחרון: {formatTimeAgo(visitor.last_seen)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-center">
+                                <p className="text-lg font-bold">{visitor.total_visits}</p>
+                                <p className="text-xs text-muted-foreground">ביקורים</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-lg font-bold">{visitor.total_actions}</p>
+                                <p className="text-xs text-muted-foreground">פעולות</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <UsersIcon className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                        <p className="text-muted-foreground">אין מבקרים רשומים עדיין</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

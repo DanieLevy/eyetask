@@ -1,79 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { extractTokenFromHeader } from '@/lib/auth-utils';
+import { getUserPermissions } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic'; // Never cache this route
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] /api/auth/verify called`);
+  
   try {
-    // Extract token from Authorization header
-    const authHeader = request.headers.get('authorization');
-    const token = extractTokenFromHeader(authHeader);
-    
-    if (!token) {
-      logger.warn('Token verification failed: No token provided', 'AUTH');
-      return NextResponse.json(
-        { success: false, error: 'No token provided' }, 
-        { 
-          status: 401,
-          headers: {
-            'Cache-Control': 'no-store, max-age=0, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
-      );
-    }
-    
-    // Verify token
-    const user = await authService.getUserFromToken(token);
+    const user = authService.extractUserFromRequest(request);
     
     if (!user) {
-      logger.warn('Token verification failed: Invalid token', 'AUTH');
       return NextResponse.json(
-        { success: false, error: 'Invalid token' }, 
         { 
-          status: 401,
-          headers: {
-            'Cache-Control': 'no-store, max-age=0, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
+          success: false, 
+          error: 'Invalid or expired token',
+          user: null
+        }, 
+        { status: 401 }
       );
     }
+
+    // Get fresh permissions from database
+    const permissions = await getUserPermissions(user.id);
     
-    logger.info('Token verification successful', 'AUTH', { userId: user.id });
-    return NextResponse.json(
-      { 
-        success: true, 
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.role
-        }
-      },
-      {
-        headers: {
-          'Cache-Control': 'no-store, max-age=0, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
-    );
+    return NextResponse.json({
+      success: true,
+      user,
+      permissions
+    });
+    
   } catch (error) {
-    logger.error('Error during token verification', 'AUTH', undefined, error as Error);
+    logger.error('Token verification error', 'AUTH_API', { error: (error as Error).message });
     return NextResponse.json(
-      { success: false, error: 'Server error during authentication' }, 
       { 
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-store, max-age=0, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
+        success: false, 
+        error: 'Invalid token',
+        user: null
+      }, 
+      { status: 401 }
     );
   }
 } 

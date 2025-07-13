@@ -1,442 +1,353 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Key, Save, CheckCircle, XCircle, Bell, X, RefreshCw, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import AdminClientLayout from '@/components/AdminClientLayout';
+import { useAuth } from '@/components/unified-header/AuthContext';
 import { toast } from 'sonner';
-import { LoadingSpinner } from '@/components/LoadingSystem';
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { PushNotificationSettings } from '@/components/PushNotificationSettings';
-
-interface UserProfile {
-  _id: string;
-  username: string;
-  email: string;
-  role: 'admin' | 'data_manager' | 'driver_manager';
-  isActive: boolean;
-  createdAt: string;
-  lastLogin?: string;
-}
+import { User, Mail, Lock, Save, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 export default function ProfilePage() {
+  const { user, refreshPermissions } = useAuth();
   const router = useRouter();
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const hebrewHeading = useHebrewFont('heading');
+  const mixedBody = useMixedFont('body');
   
-  // Form states
-  const [profileData, setProfileData] = useState({
-    username: '',
-    email: ''
-  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   
-  const [passwordData, setPasswordData] = useState({
+  const [formData, setFormData] = useState({
+    username: user?.username || '',
+    email: user?.email || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
   
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.username.trim()) {
+      newErrors.username = 'שם משתמש הוא שדה חובה';
+    } else if (formData.username.length < 3) {
+      newErrors.username = 'שם המשתמש חייב להכיל לפחות 3 תווים';
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'אימייל הוא שדה חובה';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'כתובת אימייל לא חוקית';
+    }
+    
+    if (showPasswordChange) {
+      if (!formData.currentPassword) {
+        newErrors.currentPassword = 'נדרשת הסיסמה הנוכחית';
+      }
+      
+      if (!formData.newPassword) {
+        newErrors.newPassword = 'נדרשת סיסמה חדשה';
+      } else if (formData.newPassword.length < 6) {
+        newErrors.newPassword = 'הסיסמה חייבת להכיל לפחות 6 תווים';
+      }
+      
+      if (formData.newPassword !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'הסיסמאות אינן תואמות';
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-  const fetchUserProfile = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSaving(true);
+    
     try {
       const token = localStorage.getItem('adminToken');
-      const userData = localStorage.getItem('adminUser');
-      
-      if (!token || !userData) {
+      if (!token) {
         router.push('/admin');
         return;
       }
-
-      const parsedUser = JSON.parse(userData);
       
-      // Fetch full user details from API
-      const response = await fetch(`/api/users/${parsedUser.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user profile');
+      const updateData: any = {
+        username: formData.username,
+        email: formData.email
+      };
+      
+      if (showPasswordChange && formData.currentPassword && formData.newPassword) {
+        updateData.currentPassword = formData.currentPassword;
+        updateData.password = formData.newPassword;
       }
-
-      const data = await response.json();
-      if (data.success) {
-        setUser(data.user);
-        setProfileData({
-          username: data.user.username,
-          email: data.user.email
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast.error('Failed to load profile');
-      router.push('/admin/dashboard');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!user) return;
-    
-    if (!profileData.username || !profileData.email) {
-      toast.error('נא למלא את כל השדות');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/users/${user._id}`, {
+      
+      const response = await fetch('/api/users/me', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          username: profileData.username,
-          email: profileData.email,
-          updateOwnProfile: true // Flag to indicate user is updating their own profile
-        })
+        body: JSON.stringify(updateData)
       });
-
+      
       const data = await response.json();
       
-      if (response.ok && data.success) {
+      if (data.success) {
         toast.success('הפרופיל עודכן בהצלחה');
         
-        // Update local storage with new user data
-        const currentUserData = JSON.parse(localStorage.getItem('adminUser') || '{}');
-        localStorage.setItem('adminUser', JSON.stringify({
-          ...currentUserData,
-          username: profileData.username,
-          email: profileData.email
-        }));
+        // Refresh permissions and user data
+        await refreshPermissions();
         
-        fetchUserProfile();
-      } else {
-        toast.error(data.error || 'Failed to update profile');
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!user) return;
-    
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      toast.error('נא למלא את כל השדות');
-      return;
-    }
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('הסיסמאות אינן תואמות');
-      return;
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      toast.error('הסיסמה חייבת להכיל לפחות 6 תווים');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/users/${user._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          password: passwordData.newPassword,
-          updateOwnProfile: true
-        })
-      });
-
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        toast.success('הסיסמה שונתה בהצלחה');
-        setPasswordData({
+        // Reset form
+        setIsEditing(false);
+        setShowPasswordChange(false);
+        setFormData(prev => ({
+          ...prev,
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
-        });
-        setShowPasswordForm(false);
+        }));
       } else {
-        toast.error(data.error || 'Failed to change password');
+        toast.error(data.error || 'שגיאה בעדכון הפרופיל');
       }
     } catch (error) {
-      console.error('Error changing password:', error);
-      toast.error('Failed to change password');
+      console.error('Failed to update profile:', error);
+      toast.error('שגיאה בעדכון הפרופיל');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setShowPasswordChange(false);
+    setErrors({});
+    setFormData({
+      username: user?.username || '',
+      email: user?.email || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
   };
 
   const getRoleName = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'מנהל מערכת';
-      case 'data_manager':
-        return 'מנהל נתונים';
-      case 'driver_manager':
-        return 'מנהל נהגים';
-      default:
-        return role;
-    }
+    const roleNames: Record<string, string> = {
+      admin: 'מנהל מערכת',
+      data_manager: 'מנהל נתונים',
+      driver_manager: 'מנהל נהגים'
+    };
+    return roleNames[role] || role;
   };
-
-  const getRoleDescription = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'גישה מלאה לכל חלקי המערכת';
-      case 'data_manager':
-        return 'ניהול פרויקטים, משימות ותת-משימות';
-      case 'driver_manager':
-        return 'ניהול עדכונים יומיים בלבד';
-      default:
-        return '';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <LoadingSpinner showText text="טוען פרופיל..." />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-8">הפרופיל שלי</h1>
-
-        <div className="grid gap-6">
-          {/* User Info Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>פרטי משתמש</CardTitle>
-              <CardDescription>מידע כללי על החשבון שלך</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">תפקיד</Label>
-                  <div className="mt-1">
-                    <Badge variant="default" className="text-sm">
-                      {getRoleName(user.role)}
-                    </Badge>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {getRoleDescription(user.role)}
-                    </p>
+    <AdminClientLayout>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <h1 className={`text-3xl font-bold text-gray-900 dark:text-white mb-8 ${hebrewHeading.fontClass}`}>
+            הפרופיל שלי
+          </h1>
+          
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary" />
                   </div>
-                </div>
-                
-                <div>
-                  <Label className="text-muted-foreground">סטטוס</Label>
-                  <div className="mt-1">
-                    <Badge 
-                      variant={user.isActive ? "default" : "destructive"}
-                      className={`gap-1 ${user.isActive ? 'bg-green-50 text-green-700 hover:bg-green-50' : ''}`}
-                    >
-                      {user.isActive ? (
-                        <><CheckCircle className="h-3 w-3" /> פעיל</>
-                      ) : (
-                        <><XCircle className="h-3 w-3" /> לא פעיל</>
-                      )}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-muted-foreground">תאריך הצטרפות</Label>
-                  <p className="text-sm mt-1">
-                    {new Date(user.createdAt).toLocaleDateString('he-IL')}
-                  </p>
-                </div>
-                
-                {user.lastLogin && (
                   <div>
-                    <Label className="text-muted-foreground">התחברות אחרונה</Label>
-                    <p className="text-sm mt-1">
-                      {new Date(user.lastLogin).toLocaleString('he-IL')}
-                    </p>
+                    <h2 className={`text-2xl font-semibold text-gray-900 dark:text-white ${hebrewHeading.fontClass}`}>
+                      {user?.username}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Shield className="w-4 h-4 text-gray-500" />
+                      <span className={`text-sm text-gray-600 dark:text-gray-400 ${mixedBody.fontClass}`}>
+                        {getRoleName(user?.role || '')}
+                      </span>
+                    </div>
                   </div>
+                </div>
+                
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    ערוך פרופיל
+                  </button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Edit Profile Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>עריכת פרופיל</CardTitle>
-              <CardDescription>עדכן את פרטי החשבון שלך</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">
-                    <User className="inline h-4 w-4 ml-1" />
-                    שם משתמש
-                  </Label>
-                  <Input
-                    id="username"
-                    value={profileData.username}
-                    onChange={(e) => setProfileData({ ...profileData, username: e.target.value })}
-                    placeholder="הכנס שם משתמש"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="email">
-                    <Mail className="inline h-4 w-4 ml-1" />
-                    כתובת אימייל
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    placeholder="user@example.com"
-                  />
-                </div>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Username Field */}
+              <div>
+                <label className={`flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${mixedBody.fontClass}`}>
+                  <User className="w-4 h-4" />
+                  שם משתמש
+                </label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  disabled={!isEditing}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
+                    isEditing 
+                      ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700' 
+                      : 'border-transparent bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed'
+                  } ${errors.username ? 'border-red-500' : ''}`}
+                />
+                {errors.username && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.username}
+                  </p>
+                )}
               </div>
               
-              <div className="flex justify-end pt-4">
-                <Button
-                  onClick={handleUpdateProfile}
-                  disabled={saving || (profileData.username === user.username && profileData.email === user.email)}
-                >
-                  {saving ? (
-                    <>טוען...</>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 ml-2" />
-                      שמור שינויים
-                    </>
-                  )}
-                </Button>
+              {/* Email Field */}
+              <div>
+                <label className={`flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${mixedBody.fontClass}`}>
+                  <Mail className="w-4 h-4" />
+                  כתובת אימייל
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  disabled={!isEditing}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
+                    isEditing 
+                      ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700' 
+                      : 'border-transparent bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed'
+                  } ${errors.email ? 'border-red-500' : ''}`}
+                />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.email}
+                  </p>
+                )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Change Password Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>שינוי סיסמה</CardTitle>
-              <CardDescription>עדכן את סיסמת החשבון שלך</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!showPasswordForm ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowPasswordForm(true)}
-                  className="w-full sm:w-auto"
-                >
-                  <Key className="h-4 w-4 ml-2" />
-                  שנה סיסמה
-                </Button>
-              ) : (
-                <div className="space-y-4">
-                  <Alert>
-                    <AlertDescription>
-                      הסיסמה חייבת להכיל לפחות 6 תווים
-                    </AlertDescription>
-                  </Alert>
+              
+              {/* Password Change Section */}
+              {isEditing && (
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordChange(!showPasswordChange)}
+                    className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors mb-4"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span className={mixedBody.fontClass}>
+                      {showPasswordChange ? 'ביטול שינוי סיסמה' : 'שנה סיסמה'}
+                    </span>
+                  </button>
                   
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="currentPassword">סיסמה נוכחית</Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        placeholder="הכנס סיסמה נוכחית"
-                      />
+                  {showPasswordChange && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${mixedBody.fontClass}`}>
+                          סיסמה נוכחית
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.currentPassword}
+                          onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 ${
+                            errors.currentPassword ? 'border-red-500' : ''
+                          }`}
+                        />
+                        {errors.currentPassword && (
+                          <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.currentPassword}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${mixedBody.fontClass}`}>
+                          סיסמה חדשה
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.newPassword}
+                          onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 ${
+                            errors.newPassword ? 'border-red-500' : ''
+                          }`}
+                        />
+                        {errors.newPassword && (
+                          <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.newPassword}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${mixedBody.fontClass}`}>
+                          אימות סיסמה חדשה
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.confirmPassword}
+                          onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 ${
+                            errors.confirmPassword ? 'border-red-500' : ''
+                          }`}
+                        />
+                        {errors.confirmPassword && (
+                          <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.confirmPassword}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    
-                    <Separator />
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="newPassword">סיסמה חדשה</Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        placeholder="הכנס סיסמה חדשה"
-                      />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                      <Label htmlFor="confirmPassword">אימות סיסמה חדשה</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        placeholder="הכנס שוב את הסיסמה החדשה"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 justify-end pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowPasswordForm(false);
-                        setPasswordData({
-                          currentPassword: '',
-                          newPassword: '',
-                          confirmPassword: ''
-                        });
-                      }}
-                      disabled={saving}
-                    >
-                      ביטול
-                    </Button>
-                    <Button
-                      onClick={handleChangePassword}
-                      disabled={saving || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                    >
-                      {saving ? 'משנה...' : 'שנה סיסמה'}
-                    </Button>
-                  </div>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Push Notifications Section */}
-          <PushNotificationSettings />
+              
+              {/* Action Buttons */}
+              {isEditing && (
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    <span>{isSaving ? 'שומר...' : 'שמור שינויים'}</span>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
         </div>
       </div>
-    </div>
+    </AdminClientLayout>
   );
 } 

@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useHebrewFont } from '@/hooks/useFont';
+import { useMixedFont } from '@/hooks/useFont';
+import { useAuth } from '@/components/unified-header/AuthContext';
 import { 
   Plus, 
   Pencil, 
@@ -76,20 +79,20 @@ interface UserPermission {
 }
 
 export default function UsersPage() {
-  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [operationLoading, setOperationLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [userPermissions, setUserPermissions] = useState<Record<string, UserPermission>>({});
   const [originalPermissions, setOriginalPermissions] = useState<Record<string, UserPermission>>({});
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const router = useRouter();
+  const { user: currentUser, refreshPermissions } = useAuth();
   
   // Form state
   const [formData, setFormData] = useState({
@@ -97,7 +100,7 @@ export default function UsersPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'data_manager' as 'admin' | 'data_manager' | 'driver_manager',
+    role: 'driver_manager' as 'admin' | 'data_manager' | 'driver_manager',
     isActive: true
   });
 
@@ -118,7 +121,7 @@ export default function UsersPage() {
         router.push('/admin/dashboard');
         return;
       }
-      setCurrentUser(parsedUser);
+      // setCurrentUser(parsedUser); // This line is removed as per new_code
     } catch (error) {
       router.push('/admin');
       return;
@@ -233,6 +236,12 @@ export default function UsersPage() {
         toast.success('הרשאות עודכנו בהצלחה');
         setShowPermissionsDialog(false);
         setSelectedUser(null);
+        
+        // If updating current user's permissions, refresh them in auth context
+        if (currentUser && selectedUser._id === currentUser.id) {
+          console.log('Updated current user permissions, refreshing auth context...');
+          await refreshPermissions();
+        }
       } else {
         toast.error(data.error || 'Failed to update permissions');
       }

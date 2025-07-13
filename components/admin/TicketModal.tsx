@@ -138,19 +138,41 @@ const TicketModal: React.FC<Props> = ({ ticket, isOpen, onClose, onUpdate }) => 
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
+      
+      // Get auth token
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        toast.error('לא נמצא אסימון הזדהות. אנא התחבר מחדש.');
+        return;
+      }
+      
       const response = await fetch(`/api/feedback/${ticket._id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (response.ok) {
+        toast.success('הפניה נמחקה בהצלחה');
         onUpdate();
         onClose();
       } else {
-        throw new Error('Failed to delete ticket');
+        const errorData = await response.json();
+        console.error('Delete error response:', errorData);
+        
+        // Provide specific error messages
+        if (response.status === 401) {
+          toast.error('אין לך הרשאה למחוק פניות. אנא פנה למנהל המערכת.');
+        } else if (response.status === 404) {
+          toast.error('הפניה לא נמצאה. ייתכן שכבר נמחקה.');
+        } else {
+          toast.error(errorData.error || 'שגיאה במחיקת הפניה. אנא נסה שוב.');
+        }
       }
     } catch (error) {
       console.error('Failed to delete ticket:', error);
-      toast.error('שגיאה במחיקת הפניה. אנא נסה שוב.');
+      toast.error('שגיאת רשת. אנא בדוק את החיבור לאינטרנט ונסה שוב.');
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);

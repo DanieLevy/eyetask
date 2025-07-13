@@ -28,6 +28,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+// Import permission hooks
+import { 
+  useCanViewAnalytics,
+  useCanViewFeedback,
+  useCanManageCache,
+  useCanManageUsers,
+  useCanManageProjects,
+  useCanManageTasks,
+  useCanManagePushNotifications
+} from '@/hooks/usePermission';
+
 // Temporary inline hooks to bypass import issue
 const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
 const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
@@ -64,38 +75,55 @@ interface CacheStatus {
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
-  const [userRole, setUserRole] = useState<'admin' | 'data_manager' | 'driver_manager'>('admin');
-  const [user, setUser] = useState(null);
-  
-  const router = useRouter();
-  
-  // Font configurations
-  const hebrewHeading = useHebrewFont('heading');
-  const hebrewBody = useHebrewFont('body');
-  const mixedHeading = useMixedFont('heading');
-  const mixedBody = useMixedFont('body');
+  const [userRole, setUserRole] = useState<'admin' | 'data_manager' | 'driver_manager' | null>(null);
+  const [username, setUsername] = useState<string>('');
 
-  // Fetch cache status
+  // Get permissions
+  const canViewAnalytics = useCanViewAnalytics();
+  const canViewFeedback = useCanViewFeedback();
+  const canManageCache = useCanManageCache();
+  const canManageUsers = useCanManageUsers();
+  const canManageProjects = useCanManageProjects();
+  const canManageTasks = useCanManageTasks();
+  const canManagePushNotifications = useCanManagePushNotifications();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showCachePanel, setShowCachePanel] = useState(false);
+  const router = useRouter();
+  const hebrewFont = useHebrewFont('heading');
+  const mixedFont = useMixedFont('body');
+
   const fetchCacheStatus = useCallback(async () => {
+    // Only fetch cache status if user is actually an admin
+    if (!canManageCache && userRole !== 'admin') {
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
       const response = await fetch('/api/admin/cache?action=status', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         }
       });
-      const data = await response.json();
-      if (data.success) {
-        setCacheStatus(data.data);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCacheStatus(data.data);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch cache status:', error);
     }
-  }, []);
+  }, [canManageCache, userRole]);
 
   // Clear cache function
   const clearCache = useCallback(async (type: 'soft' | 'full' = 'soft') => {
@@ -182,55 +210,60 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       await refreshData();
-      // Only fetch cache status for admins
-      if (userRole === 'admin') {
+      // Only fetch cache status if user has cache management permission
+      if (canManageCache || userRole === 'admin') {
         await fetchCacheStatus();
       }
     };
     
-    loadData();
-  }, [refreshData, fetchCacheStatus, userRole]);
+    // Only load data if userRole has been determined
+    if (userRole !== null) {
+      loadData();
+    }
+  }, [refreshData, fetchCacheStatus, userRole, canManageCache]);
 
   // Register this page's refresh function
   usePageRefresh(refreshData);
 
-  useEffect(() => {
-    const checkAuth = async () => {
+  // Update the checkAuth function to use permissions
+  const checkAuth = async () => {
+    try {
       const token = localStorage.getItem('adminToken');
-      const userData = localStorage.getItem('adminUser');
       
-      if (!token || !userData || userData === 'undefined' || userData === 'null') {
+      if (!token) {
         router.push('/admin');
         return;
       }
 
-      try {
-        const parsedUser = JSON.parse(userData);
-        if (!parsedUser || !parsedUser.id || !parsedUser.username) {
-          throw new Error('Invalid user data structure');
+      const response = await fetch('/api/auth/verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        setUser(parsedUser);
-        
-        // Track page visit
-        await fetch('/api/analytics', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            page: 'admin_dashboard',
-            action: 'page_view'
-          })
-        });
-      } catch (error) {
-        router.push('/admin');
-        return;
+      });
+
+      if (!response.ok) {
+        throw new Error('Authentication failed');
       }
 
-      refreshData();
-    };
+      const data = await response.json();
+      if (data.success && data.user) {
+        setUserRole(data.user.role || 'admin');
+        setUsername(data.user.username || '');
+        
+        // Check if user has access to cache management for loading cache status
+        if (data.user.role === 'admin' || (data.permissions && data.permissions['access.cache_management'])) {
+          fetchCacheStatus();
+        }
+      } else {
+        throw new Error('Invalid response');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      router.push('/admin');
+    }
+  };
 
+  useEffect(() => {
     checkAuth();
   }, [router, refreshData]);
 
@@ -340,30 +373,48 @@ export default function AdminDashboard() {
               </Card>
 
               {/* Cache Status - Admin Only */}
-              {userRole === 'admin' && (
-                <Card>
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs md:text-sm font-medium text-muted-foreground">
-                        מטמון
-                      </p>
-                      <p className="text-sm md:text-lg font-bold mt-1">
-                        {cacheStatus ? (
-                          <Badge variant="outline" className="bg-green-50 text-green-600 hover:bg-green-50">פעיל</Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-yellow-50 text-yellow-600 hover:bg-yellow-50">טוען...</Badge>
-                        )}
-                      </p>
-                      {cacheStatus && (
-                        <p className="text-xs text-muted-foreground">
-                          גרסה: {cacheStatus.currentVersion}
-                        </p>
-                      )}
+              {cacheStatus && canManageCache && (
+                <Card className="border-yellow-200 bg-yellow-50 shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 to-amber-500/10" />
+                  <CardHeader className="relative">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Database className="h-5 w-5 text-yellow-600" />
+                        סטטוס מטמון
+                      </CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCachePanel(!showCachePanel)}
+                        className="text-yellow-700 hover:bg-yellow-100"
+                      >
+                        {showCachePanel ? 'הסתר' : 'הצג פרטים'}
+                      </Button>
                     </div>
-                    <div className="p-2 bg-purple-50 rounded-lg">
-                      <Database className="h-4 md:h-5 w-4 md:w-5 text-purple-600" />
-                    </div>
-                  </CardContent>
+                  </CardHeader>
+                  {showCachePanel && (
+                    <CardContent className="relative">
+                      <div className="p-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm md:text-lg font-bold mt-1">
+                            {cacheStatus ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-600 hover:bg-green-50">פעיל</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-600 hover:bg-yellow-50">טוען...</Badge>
+                            )}
+                          </p>
+                          {cacheStatus && (
+                            <p className="text-xs text-muted-foreground">
+                              גרסה: {cacheStatus.currentVersion}
+                            </p>
+                          )}
+                        </div>
+                        <div className="p-2 bg-purple-50 rounded-lg">
+                          <Database className="h-4 md:h-5 w-4 md:w-5 text-purple-600" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               )}
             </div>
@@ -389,8 +440,8 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Project Management - Not for driver managers */}
-                {userRole !== 'driver_manager' && (
+                {/* Project Management - Check permission */}
+                {canManageProjects && (
                   <Link href="/admin/projects" className="block">
                     <div className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -410,8 +461,8 @@ export default function AdminDashboard() {
                   </Link>
                 )}
 
-                {/* New Task - Not for driver managers */}
-                {userRole !== 'driver_manager' && (
+                {/* New Task - Check permission */}
+                {canManageTasks && (
                   <Link href="/admin/tasks/new" className="block">
                     <div className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 transition-all border border-green-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -431,8 +482,8 @@ export default function AdminDashboard() {
                   </Link>
                 )}
               
-                {/* Bulk Import - Not for driver managers */}
-                {userRole !== 'driver_manager' && (
+                {/* Bulk Import - Check permission */}
+                {canManageTasks && (
                   <Link href="/admin/tasks/bulk-import" className="block">
                     <div className="group p-4 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -452,8 +503,8 @@ export default function AdminDashboard() {
                   </Link>
                 )}
 
-                {/* Analytics - Admin Only */}
-                {userRole === 'admin' && (
+                {/* Analytics - Check permission */}
+                {canViewAnalytics && (
                   <Link href="/admin/analytics" className="block">
                     <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -473,8 +524,8 @@ export default function AdminDashboard() {
                   </Link>
                 )}
 
-                {/* Feedback Management - Admin Only */}
-                {userRole === 'admin' && (
+                {/* Feedback Management - Check permission */}
+                {canViewFeedback && (
                   <Link href="/admin/feedback" className="block">
                     <div className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -513,8 +564,8 @@ export default function AdminDashboard() {
                   </div>
                 </Link>
 
-                {/* Cache Management - Admin Only */}
-                {userRole === 'admin' && (
+                {/* Cache Management - Check permission */}
+                {canManageCache && (
                   <Link href="/admin/cache" className="block">
                     <div className="group p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -534,8 +585,8 @@ export default function AdminDashboard() {
                   </Link>
                 )}
 
-                {/* User Management - Admin Only */}
-                {userRole === 'admin' && (
+                {/* User Management - Check permission */}
+                {canManageUsers && (
                   <Link href="/admin/users" className="block">
                     <div className="group p-4 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all border border-rose-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -555,20 +606,20 @@ export default function AdminDashboard() {
                   </Link>
                 )}
 
-                {/* Push Notifications - Admin Only */}
-                {userRole === 'admin' && (
+                {/* Push Notifications - Check permission */}
+                {canManagePushNotifications && (
                   <Link href="/admin/push-notifications" className="block">
-                    <div className="group p-4 rounded-lg bg-cyan-50 hover:bg-cyan-100 transition-all border border-cyan-200 active:scale-95">
+                    <div className="group p-4 rounded-lg bg-pink-50 hover:bg-pink-100 transition-all border border-pink-200 active:scale-95">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-500 rounded-lg flex-shrink-0">
+                        <div className="p-2 bg-pink-500 rounded-lg">
                           <Bell className="h-4 w-4 text-white" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-cyan-900 text-sm">
+                          <h3 className="font-semibold text-pink-900 text-sm">
                             התראות Push
                           </h3>
-                          <p className="text-xs text-cyan-700 truncate">
-                            שלח התראות למשתמשים
+                          <p className="text-xs text-pink-700 truncate">
+                            ניהול התראות
                           </p>
                         </div>
                       </div>
@@ -584,8 +635,8 @@ export default function AdminDashboard() {
           {/* Recent Items and System Status */}
           <div className="space-y-4">
 
-            {/* Recent Projects - Improved UI - Not for driver managers */}
-            {userRole !== 'driver_manager' && (
+            {/* Recent Projects - Improved UI - Check permission */}
+            {canManageProjects && (
               <Card className="overflow-hidden">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -710,7 +761,7 @@ export default function AdminDashboard() {
                 <CardTitle>מצב המערכת</CardTitle>
               </CardHeader>
               <CardContent>
-                {userRole !== 'driver_manager' ? (
+                {canManageTasks ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="text-lg font-bold text-green-600">{stats.totalTasks}</div>
@@ -734,7 +785,7 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {cacheStatus && userRole === 'admin' && (
+                {cacheStatus && canManageCache && (
                   <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
                     <div className="flex items-center justify-between">
                       <div>

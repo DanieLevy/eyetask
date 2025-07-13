@@ -25,6 +25,7 @@ export interface NavigationItem {
 export interface UserData {
   username: string;
   id: string;
+  email?: string;
   role?: 'admin' | 'user' | 'data_manager' | 'driver_manager';
 }
 

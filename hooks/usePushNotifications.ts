@@ -24,11 +24,7 @@ export function usePushNotifications() {
   // Check if push notifications are supported
   useEffect(() => {
     const checkSupport = async () => {
-      logger.info('[Push] Checking push notification support...', 'PUSH_NOTIFICATIONS', {
-        serviceWorker: 'serviceWorker' in navigator,
-        PushManager: 'PushManager' in window,
-        Notification: 'Notification' in window
-      });
+      // Removed verbose push notification logging
 
       try {
         const isSupported = 
@@ -36,12 +32,7 @@ export function usePushNotifications() {
           'PushManager' in window &&
           'Notification' in window;
 
-        logger.info('[Push] Support check:', 'PUSH_NOTIFICATIONS', {
-          serviceWorker: 'serviceWorker' in navigator,
-          PushManager: 'PushManager' in window,
-          Notification: 'Notification' in window,
-          isSupported
-        });
+        // Support check done silently
 
         if (!isSupported) {
           setState(prev => ({
@@ -55,15 +46,11 @@ export function usePushNotifications() {
 
         // Check current permission
         const permission = Notification.permission;
-        logger.info('[Push] Current permission:', 'PUSH_NOTIFICATIONS', { permission });
 
         // Check if already subscribed
         if ('serviceWorker' in navigator && permission === 'granted') {
           const registration = await navigator.serviceWorker.ready;
-          logger.info('[Push] Service worker ready:', 'PUSH_NOTIFICATIONS', { registration });
-          
           const subscription = await registration.pushManager.getSubscription();
-          logger.info('[Push] Current subscription:', 'PUSH_NOTIFICATIONS', { subscription });
           
           setState(prev => ({
             ...prev,
@@ -72,10 +59,7 @@ export function usePushNotifications() {
             isSubscribed: !!subscription,
             isLoading: false
           }));
-          logger.info('[Push] Initial check complete', 'PUSH_NOTIFICATIONS', {
-            isLoading: false,
-            isSubscribed: !!subscription
-          });
+          // Initial check complete
         } else {
           setState(prev => ({
             ...prev,
@@ -84,7 +68,7 @@ export function usePushNotifications() {
             isSubscribed: false,
             isLoading: false
           }));
-          logger.info('[Push] Initial check complete - isLoading: false, permission:', permission, 'PUSH_NOTIFICATIONS');
+          // Initial check complete
         }
       } catch (error) {
         logger.error('[Push] Error checking push support:', 'PUSH_NOTIFICATIONS', undefined, error as Error);

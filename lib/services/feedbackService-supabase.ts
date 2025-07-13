@@ -16,8 +16,25 @@ import {
 } from '@/lib/types/feedback';
 
 class FeedbackServiceSupabase {
-  private client = getSupabaseClient(true); // Admin client
+  private client;
   
+  constructor() {
+    // Use service role client to bypass RLS
+    this.client = getSupabaseClient(true);
+    
+    if (!this.client) {
+      logger.error('Failed to initialize Supabase service client', 'FEEDBACK_SERVICE', {
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE
+      });
+      throw new Error('Supabase service client not available');
+    }
+    
+    logger.info('FeedbackService initialized', 'FEEDBACK_SERVICE', {
+      clientType: 'service_role',
+      hasClient: !!this.client
+    });
+  }
+
   /**
    * Generate unique ticket number
    */
@@ -336,19 +353,54 @@ class FeedbackServiceSupabase {
    */
   async deleteTicket(ticketId: string, adminId?: string, adminName?: string): Promise<boolean> {
     try {
+      logger.info('Attempting to delete ticket', 'FEEDBACK_SERVICE', { 
+        ticketId, 
+        adminId, 
+        adminName,
+        hasServiceRole: !!this.client
+      });
+
+      // First check if ticket exists
+      const { data: existingTicket, error: checkError } = await this.client
+        .from('feedback_tickets')
+        .select('id')
+        .eq('id', ticketId)
+        .single();
+
+      if (checkError || !existingTicket) {
+        logger.warn('Ticket not found for deletion', 'FEEDBACK_SERVICE', { 
+          ticketId, 
+          error: checkError?.message 
+        });
+        return false;
+      }
+
+      // Delete the ticket (cascades to responses and notes)
       const { error } = await this.client
         .from('feedback_tickets')
         .delete()
         .eq('id', ticketId);
 
       if (error) {
-        logger.error('Failed to delete ticket', 'FEEDBACK_SERVICE', { ticketId }, error);
-        return false;
+        logger.error('Failed to delete ticket', 'FEEDBACK_SERVICE', { 
+          ticketId, 
+          error: error.message,
+          errorCode: error.code,
+          errorDetails: error.details
+        });
+        throw new Error(`Delete failed: ${error.message}`);
       }
 
+      logger.info('Ticket deleted successfully', 'FEEDBACK_SERVICE', { 
+        ticketId, 
+        deletedBy: adminName 
+      });
       return true;
     } catch (error) {
-      logger.error('Failed to delete ticket', 'FEEDBACK_SERVICE', { ticketId }, error as Error);
+      logger.error('Failed to delete ticket', 'FEEDBACK_SERVICE', { 
+        ticketId, 
+        error: (error as Error).message 
+      });
       throw error;
     }
   }

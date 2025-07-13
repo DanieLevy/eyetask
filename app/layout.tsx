@@ -15,6 +15,8 @@ import IOSThemeHandler from "@/components/IOSThemeHandler";
 import { GlobalLoadingIndicator } from "@/components/LoadingSystem";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ConditionalHeader from "@/components/ConditionalHeader";
+import { AuthProvider } from "@/components/unified-header/AuthContext";
+import { VisitorProvider } from "@/contexts/VisitorContext";
 
 export const metadata: Metadata = {
   title: "Driver Tasks",
@@ -153,15 +155,19 @@ export default function RootLayout({
                 <OfflineBanner />
                 <GlobalLoadingIndicator position="top" showProgress={true} />
                 <RefreshProvider>
-                  <GlobalPullToRefresh>
-                    <div className="flex flex-col min-h-[100dvh] bg-background">
-                      <ConditionalHeader />
-                      <main className="flex-1 overflow-auto bg-background">
-                        {children}
-                      </main>
-                      <Footer />
-                    </div>
-                  </GlobalPullToRefresh>
+                  <AuthProvider>
+                    <VisitorProvider>
+                      <GlobalPullToRefresh>
+                        <div className="flex flex-col min-h-[100dvh] bg-background">
+                          <ConditionalHeader />
+                          <main className="flex-1 overflow-auto bg-background">
+                            {children}
+                          </main>
+                          <Footer />
+                        </div>
+                      </GlobalPullToRefresh>
+                    </VisitorProvider>
+                  </AuthProvider>
                 </RefreshProvider>
               </DeepLinkHandler>
             </NavigationLoadingProvider>

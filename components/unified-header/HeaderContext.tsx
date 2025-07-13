@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { BarChart3, CheckSquare, FolderOpen, MessageCircle, Home, PlusCircle } from 'lucide-react';
-import { HeaderVariant, UnifiedHeaderProps, NavigationItem } from './types';
+import { HeaderVariant, UnifiedHeaderProps } from './types';
 import { useAuth } from './AuthContext';
+import { useAdminNavigation, NavigationItem } from '@/hooks/useAdminNavigation';
 
 interface RouteConfig extends Partial<UnifiedHeaderProps> {
   pattern: string | RegExp;
@@ -25,47 +26,6 @@ const matchRoute = (pathname: string, pattern: string | RegExp, exact = false): 
   }
   
   return exact ? pathname === pattern : pathname.startsWith(pattern);
-};
-
-// Get admin navigation items with active state based on current pathname
-const getAdminNavigationItems = (pathname: string): NavigationItem[] => {
-  return [
-    {
-      id: 'dashboard',
-      label: 'לוח בקרה',
-      href: '/admin/dashboard',
-      icon: BarChart3,
-      isActive: pathname.includes('/admin/dashboard')
-    },
-    {
-      id: 'tasks',
-      label: 'משימות',
-      href: '/admin/tasks',
-      icon: CheckSquare,
-      isActive: pathname.includes('/admin/tasks')
-    },
-    {
-      id: 'projects',
-      label: 'פרויקטים',
-      href: '/admin/projects',
-      icon: FolderOpen,
-      isActive: pathname.includes('/admin/projects')
-    },
-    {
-      id: 'feedback',
-      label: 'פניות',
-      href: '/admin/feedback',
-      icon: MessageCircle,
-      isActive: pathname.includes('/admin/feedback')
-    },
-    {
-      id: 'home',
-      label: 'ראשי',
-      href: '/',
-      icon: Home,
-      isActive: false
-    }
-  ];
 };
 
 // Route configuration map - each route pattern maps to header props
@@ -212,20 +172,27 @@ const HeaderContext = createContext<HeaderContextType>({
 export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const { isAdmin, verifyAuth } = useAuth();
+  const { navigationItems: headerNavigationItems } = useAdminNavigation();
   const router = useRouter();
+  const lastPathRef = useRef<string | null>(null);
   
   // Effect to verify auth when navigating to admin routes
   useEffect(() => {
     const checkAuth = async () => {
       // Only check auth for admin routes, excluding the login page itself
       if (pathname?.startsWith('/admin') && pathname !== '/admin') {
-        // If in admin route but not logged in as admin, verify auth
-        if (!isAdmin) {
-          const isAuthenticated = await verifyAuth();
+        // Only check if pathname changed to avoid duplicate checks
+        if (pathname !== lastPathRef.current) {
+          lastPathRef.current = pathname;
           
-          // If still not authenticated after verification, redirect to login
-          if (!isAuthenticated) {
-            router.push('/admin');
+          // If in admin route but not logged in as admin, verify auth
+          if (!isAdmin) {
+            const isAuthenticated = await verifyAuth();
+            
+            // If still not authenticated after verification, redirect to login
+            if (!isAuthenticated) {
+              router.push('/admin');
+            }
           }
         }
       }
@@ -255,7 +222,15 @@ export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     // Add dynamic navigation items for admin routes
     if (isAdminRoute && !matchingConfig.navigationItems) {
-      matchingConfig.navigationItems = getAdminNavigationItems(pathname || '');
+      // Convert our NavigationItem to the expected type
+      matchingConfig.navigationItems = headerNavigationItems.map(item => ({
+        id: item.id,
+        label: item.label,
+        href: item.href,
+        icon: item.icon as any, // Type assertion to handle the icon type difference
+        isActive: item.isActive,
+        isExternal: item.isExternal
+      }));
     }
     
     return {

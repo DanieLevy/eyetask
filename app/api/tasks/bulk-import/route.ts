@@ -294,7 +294,7 @@ export async function POST(request: NextRequest) {
           const isCalibration = isCalibrationTask(parentIssue);
           // Map issue type to our system's type
           const systemIssueType = mapIssueType(jiraSubtask.issue_type, isCalibration);
-
+          
           // Convert weather to appropriate type
           const weatherValue = jiraSubtask.weather as string || 'Clear';
           let validWeather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';

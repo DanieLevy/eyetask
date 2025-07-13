@@ -196,6 +196,51 @@ export interface PushNotification {
   mongodb_id?: string;
 }
 
+export interface VisitorProfile {
+  id?: string;
+  visitorId: string;
+  name: string;
+  firstSeen: string;
+  lastSeen: string;
+  totalVisits: number;
+  totalActions: number;
+  metadata: {
+    location?: string;
+    language?: string;
+    timezone?: string;
+    [key: string]: any;
+  };
+  deviceInfo: {
+    userAgent?: string;
+    browser?: string;
+    os?: string;
+    device?: string;
+    isMobile?: boolean;
+  };
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface VisitorSession {
+  id?: string;
+  visitorId: string;
+  sessionId: string;
+  startedAt: string;
+  endedAt?: string;
+  durationSeconds?: number;
+  pageViews: number;
+  actions: number;
+  pagesVisited: string[];
+  userAgent?: string;
+  ipAddress?: string;
+  referrer?: string;
+  deviceType?: string;
+  browser?: string;
+  os?: string;
+  createdAt?: string;
+}
+
 // Supabase Database Service
 export class SupabaseDatabaseService {
   private client = getSupabaseClient(true); // Use admin client for server operations
@@ -1125,9 +1170,11 @@ export class SupabaseDatabaseService {
 
   // Activity logging
   async logAction(data: {
-    userId: string;
-    username: string;
-    userRole: string;
+    userId?: string;
+    username?: string;
+    userRole?: string;
+    visitorId?: string;
+    visitorName?: string;
     action: string;
     category: 'auth' | 'project' | 'task' | 'subtask' | 'user' | 'system' | 'view';
     target?: {
@@ -1139,27 +1186,65 @@ export class SupabaseDatabaseService {
     severity?: 'info' | 'success' | 'warning' | 'error';
   }): Promise<void> {
     try {
-      // Handle anonymous users
-      const isAnonymous = !data.userId || data.userId === 'anonymous' || data.userId.startsWith('anon_');
-      
+      // Support both authenticated users and visitors
+      const logEntry: any = {
+        action: data.action,
+        category: data.category,
+        target: data.target || null,
+        metadata: data.metadata || null,
+        severity: data.severity || 'info',
+        timestamp: new Date().toISOString()
+      };
+
+      // Add user data if available
+      if (data.userId) {
+        logEntry.user_id = data.userId;
+        logEntry.username = data.username;
+        logEntry.user_role = data.userRole;
+      }
+
+      // Add visitor data if available
+      if (data.visitorId) {
+        logEntry.visitor_id = data.visitorId;
+        logEntry.visitor_name = data.visitorName;
+      }
+
       const { error } = await this.client
         .from('activity_logs')
-        .insert({
-          user_id: isAnonymous ? null : data.userId,
-          username: isAnonymous ? 'Anonymous' : data.username,
-          user_role: isAnonymous ? null : data.userRole,
-          action: data.action,
-          category: data.category,
-          target: data.target || null,
-          metadata: data.metadata || null,
-          severity: data.severity || 'info'
-        });
+        .insert(logEntry);
 
       if (error) {
-        logger.error('Failed to log action', 'DATABASE', { error: error.message });
+        logger.error('Error logging action', 'SUPABASE_DATABASE', { error: error.message });
+      }
+
+      // Also update daily action count in analytics
+      const analytics = await this.getAnalytics();
+      if (analytics) {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Ensure daily stats exist for today
+        if (!analytics.dailyStats[today]) {
+          analytics.dailyStats[today] = {
+            visits: 0,
+            uniqueVisitors: [],
+            actions: 0,
+            loginCount: 0
+          };
+        }
+        
+        // Increment action count
+        analytics.dailyStats[today].actions += 1;
+        
+        await this.client
+          .from('analytics')
+          .update({
+            daily_stats: analytics.dailyStats,
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', analytics.id);
       }
     } catch (error) {
-      logger.error('Failed to log action', 'DATABASE', { error: (error as Error).message });
+      logger.error('Error logging action', 'SUPABASE_DATABASE', { error: (error as Error).message });
     }
   }
 
@@ -1291,25 +1376,154 @@ export class SupabaseDatabaseService {
     }
   }
 
+  async trackVisitorVisit(visitorId: string): Promise<void> {
+    try {
+      const analytics = await this.getAnalytics();
+      if (!analytics) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
+      
+      // Update visits
+      analytics.visits.total += 1;
+      analytics.visits.today += 1;
+      
+      // Update unique visitors
+      if (!analytics.uniqueVisitors.today.includes(visitorId)) {
+        analytics.uniqueVisitors.today.push(visitorId);
+        analytics.uniqueVisitors.total += 1;
+      }
+      
+      // Update daily stats
+      if (!analytics.dailyStats[today]) {
+        analytics.dailyStats[today] = {
+          visits: 0,
+          uniqueVisitors: [],
+          actions: 0,
+          loginCount: 0
+        };
+      }
+      
+      analytics.dailyStats[today].visits += 1;
+      if (!analytics.dailyStats[today].uniqueVisitors.includes(visitorId)) {
+        analytics.dailyStats[today].uniqueVisitors.push(visitorId);
+      }
+      
+      const { error } = await this.client
+        .from('analytics')
+        .update({
+          visits: analytics.visits,
+          unique_visitors: analytics.uniqueVisitors,
+          daily_stats: analytics.dailyStats,
+          last_updated: now
+        })
+        .eq('id', analytics.id);
+
+      if (error) {
+        logger.error('Error tracking visitor visit', 'SUPABASE_DATABASE', { error: error.message });
+      }
+
+      // Also start a visitor session
+      const { data: profile } = await this.client
+        .from('visitor_profiles')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .single();
+
+      if (profile) {
+        // Update visitor profile
+        await this.client
+          .from('visitor_profiles')
+          .update({
+            last_seen: now,
+            total_visits: profile.total_visits + 1
+          })
+          .eq('visitor_id', visitorId);
+      }
+    } catch (error) {
+      logger.error('Error tracking visitor visit', 'SUPABASE_DATABASE', { error: (error as Error).message });
+    }
+  }
+
+  async trackLogin(userId: string): Promise<void> {
+    try {
+      const analytics = await this.getAnalytics();
+      if (!analytics) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
+      
+      // Ensure daily stats exist for today
+      if (!analytics.dailyStats[today]) {
+        analytics.dailyStats[today] = {
+          visits: 0,
+          uniqueVisitors: [],
+          actions: 0,
+          loginCount: 0
+        };
+      }
+      
+      // Increment login count
+      analytics.dailyStats[today].loginCount += 1;
+      
+      const { error } = await this.client
+        .from('analytics')
+        .update({
+          daily_stats: analytics.dailyStats,
+          last_updated: now
+        })
+        .eq('id', analytics.id);
+
+      if (error) {
+        logger.error('Error tracking login', 'SUPABASE_DATABASE', { error: error.message });
+      } else {
+        logger.info('Login tracked successfully', 'SUPABASE_DATABASE', { 
+          userId, 
+          date: today,
+          loginCount: analytics.dailyStats[today].loginCount 
+        });
+      }
+    } catch (error) {
+      logger.error('Error tracking login', 'SUPABASE_DATABASE', { error: (error as Error).message });
+    }
+  }
+
   async updateAnalyticsCounters(): Promise<void> {
     try {
       const analytics = await this.getAnalytics();
       if (!analytics) return;
 
-      // Get counts from database
-      const { data: projectCount } = await this.client.from('projects').select('id', { count: 'exact', head: true });
-      const { data: taskCount } = await this.client.from('tasks').select('id', { count: 'exact', head: true });
-      const { data: subtaskCount } = await this.client.from('subtasks').select('id', { count: 'exact', head: true });
-      const { data: userCount } = await this.client.from('app_users').select('id', { count: 'exact', head: true });
-      const { data: activeUserCount } = await this.client.from('app_users').select('id', { count: 'exact', head: true }).eq('is_active', true);
+      // Get counts from database - Fixed to use correct Supabase count syntax
+      const { count: projectCount } = await this.client
+        .from('projects')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: taskCount } = await this.client
+        .from('tasks')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: subtaskCount } = await this.client
+        .from('subtasks')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: userCount } = await this.client
+        .from('app_users')
+        .select('*', { count: 'exact', head: true });
+      
+      const { count: activeUserCount } = await this.client
+        .from('app_users')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
 
       const counters = {
-        projects: projectCount as any || 0,
-        tasks: taskCount as any || 0,
-        subtasks: subtaskCount as any || 0,
-        users: userCount as any || 0,
-        activeUsers: activeUserCount as any || 0
+        projects: projectCount || 0,
+        tasks: taskCount || 0,
+        subtasks: subtaskCount || 0,
+        users: userCount || 0,
+        activeUsers: activeUserCount || 0
       };
+
+      logger.info('Updating analytics counters', 'SUPABASE_DATABASE', { counters });
 
       const { error } = await this.client
         .from('analytics')
@@ -1321,6 +1535,8 @@ export class SupabaseDatabaseService {
 
       if (error) {
         logger.error('Error updating analytics counters', 'SUPABASE_DATABASE', { error: error.message });
+      } else {
+        logger.info('Analytics counters updated successfully', 'SUPABASE_DATABASE', { counters });
       }
     } catch (error) {
       logger.error('Error updating analytics counters', 'SUPABASE_DATABASE', { error: (error as Error).message });
@@ -2031,6 +2247,306 @@ export class SupabaseDatabaseService {
     } catch (error) {
       logger.error('Error tracking page view', 'DATABASE', { page }, error as Error);
     }
+  }
+
+  // Visitor tracking methods
+  async createOrUpdateVisitorProfile(visitorId: string, name: string, metadata?: any): Promise<VisitorProfile | null> {
+    try {
+      // Check if visitor already exists
+      const { data: existing } = await this.client
+        .from('visitor_profiles')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .single();
+
+      if (existing) {
+        // Update existing visitor
+        const { data, error } = await this.client
+          .from('visitor_profiles')
+          .update({
+            name,
+            last_seen: new Date().toISOString(),
+            total_visits: existing.total_visits + 1,
+            metadata: { ...existing.metadata, ...metadata },
+            updated_at: new Date().toISOString()
+          })
+          .eq('visitor_id', visitorId)
+          .select()
+          .single();
+
+        if (error) {
+          logger.error('Error updating visitor profile', 'SUPABASE_DATABASE', { error: error.message });
+          return null;
+        }
+
+        return this.mapVisitorProfileFromDb(data);
+      } else {
+        // Create new visitor
+        const { data, error } = await this.client
+          .from('visitor_profiles')
+          .insert({
+            visitor_id: visitorId,
+            name,
+            metadata: metadata || {},
+            device_info: {}
+          })
+          .select()
+          .single();
+
+        if (error) {
+          logger.error('Error creating visitor profile', 'SUPABASE_DATABASE', { error: error.message });
+          return null;
+        }
+
+        return this.mapVisitorProfileFromDb(data);
+      }
+    } catch (error) {
+      logger.error('Error in createOrUpdateVisitorProfile', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return null;
+    }
+  }
+
+  async getVisitorProfile(visitorId: string): Promise<VisitorProfile | null> {
+    try {
+      const { data, error } = await this.client
+        .from('visitor_profiles')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .single();
+
+      if (error || !data) {
+        return null;
+      }
+
+      return this.mapVisitorProfileFromDb(data);
+    } catch (error) {
+      logger.error('Error getting visitor profile', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return null;
+    }
+  }
+
+  async getAllVisitorProfiles(limit = 100): Promise<VisitorProfile[]> {
+    try {
+      const { data, error } = await this.client
+        .from('visitor_profiles')
+        .select('*')
+        .order('last_seen', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        logger.error('Error fetching visitor profiles', 'SUPABASE_DATABASE', { error: error.message });
+        return [];
+      }
+
+      return (data || []).map(this.mapVisitorProfileFromDb);
+    } catch (error) {
+      logger.error('Error in getAllVisitorProfiles', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  async startVisitorSession(visitorId: string, sessionId: string, userAgent?: string, referrer?: string): Promise<string | null> {
+    try {
+      const { data, error } = await this.client
+        .from('visitor_sessions')
+        .insert({
+          visitor_id: visitorId,
+          session_id: sessionId,
+          user_agent: userAgent,
+          referrer: referrer
+        })
+        .select()
+        .single();
+
+      if (error) {
+        logger.error('Error starting visitor session', 'SUPABASE_DATABASE', { error: error.message });
+        return null;
+      }
+
+      return data.id;
+    } catch (error) {
+      logger.error('Error in startVisitorSession', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return null;
+    }
+  }
+
+  async updateVisitorSession(sessionId: string, updates: {
+    pageViews?: number;
+    actions?: number;
+    pagesVisited?: string[];
+  }): Promise<boolean> {
+    try {
+      const { error } = await this.client
+        .from('visitor_sessions')
+        .update({
+          page_views: updates.pageViews,
+          actions: updates.actions,
+          pages_visited: updates.pagesVisited
+        })
+        .eq('session_id', sessionId);
+
+      if (error) {
+        logger.error('Error updating visitor session', 'SUPABASE_DATABASE', { error: error.message });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error('Error in updateVisitorSession', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async endVisitorSession(sessionId: string): Promise<boolean> {
+    try {
+      const { data: session } = await this.client
+        .from('visitor_sessions')
+        .select('started_at')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (!session) return false;
+
+      const duration = Math.floor((new Date().getTime() - new Date(session.started_at).getTime()) / 1000);
+
+      const { error } = await this.client
+        .from('visitor_sessions')
+        .update({
+          ended_at: new Date().toISOString(),
+          duration_seconds: duration
+        })
+        .eq('session_id', sessionId);
+
+      if (error) {
+        logger.error('Error ending visitor session', 'SUPABASE_DATABASE', { error: error.message });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error('Error in endVisitorSession', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return false;
+    }
+  }
+
+  async trackVisitorAction(visitorId: string, visitorName: string, action: string, category: string, metadata?: any): Promise<void> {
+    try {
+      // Log to activity_logs with visitor info
+      const { error } = await this.client
+        .from('activity_logs')
+        .insert({
+          visitor_id: visitorId,
+          visitor_name: visitorName,
+          action,
+          category,
+          metadata: metadata || null,
+          severity: 'info',
+          timestamp: new Date().toISOString()
+        });
+
+      if (error) {
+        logger.error('Error tracking visitor action', 'SUPABASE_DATABASE', { error: error.message });
+      }
+
+      // Update visitor profile action count
+      const { data: profile } = await this.client
+        .from('visitor_profiles')
+        .select('total_actions')
+        .eq('visitor_id', visitorId)
+        .single();
+      
+      if (profile) {
+        await this.client
+          .from('visitor_profiles')
+          .update({
+            total_actions: (profile.total_actions || 0) + 1,
+            last_seen: new Date().toISOString()
+          })
+          .eq('visitor_id', visitorId);
+      }
+
+    } catch (error) {
+      logger.error('Error in trackVisitorAction', 'SUPABASE_DATABASE', { error: (error as Error).message });
+    }
+  }
+
+  async getVisitorActivityLogs(visitorId: string, limit = 50): Promise<any[]> {
+    try {
+      const { data, error } = await this.client
+        .from('activity_logs')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        logger.error('Error fetching visitor activity logs', 'SUPABASE_DATABASE', { error: error.message });
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      logger.error('Error in getVisitorActivityLogs', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  async getVisitorSessions(visitorId: string): Promise<VisitorSession[]> {
+    try {
+      const { data, error } = await this.client
+        .from('visitor_sessions')
+        .select('*')
+        .eq('visitor_id', visitorId)
+        .order('started_at', { ascending: false });
+
+      if (error) {
+        logger.error('Error fetching visitor sessions', 'SUPABASE_DATABASE', { error: error.message });
+        return [];
+      }
+
+      return (data || []).map(this.mapVisitorSessionFromDb);
+    } catch (error) {
+      logger.error('Error in getVisitorSessions', 'SUPABASE_DATABASE', { error: (error as Error).message });
+      return [];
+    }
+  }
+
+  private mapVisitorProfileFromDb(dbProfile: any): VisitorProfile {
+    return {
+      id: dbProfile.id,
+      visitorId: dbProfile.visitor_id,
+      name: dbProfile.name,
+      firstSeen: dbProfile.first_seen,
+      lastSeen: dbProfile.last_seen,
+      totalVisits: dbProfile.total_visits || 0,
+      totalActions: dbProfile.total_actions || 0,
+      metadata: dbProfile.metadata || {},
+      deviceInfo: dbProfile.device_info || {},
+      isActive: dbProfile.is_active,
+      createdAt: dbProfile.created_at,
+      updatedAt: dbProfile.updated_at
+    };
+  }
+
+  private mapVisitorSessionFromDb(dbSession: any): VisitorSession {
+    return {
+      id: dbSession.id,
+      visitorId: dbSession.visitor_id,
+      sessionId: dbSession.session_id,
+      startedAt: dbSession.started_at,
+      endedAt: dbSession.ended_at,
+      durationSeconds: dbSession.duration_seconds,
+      pageViews: dbSession.page_views || 0,
+      actions: dbSession.actions || 0,
+      pagesVisited: dbSession.pages_visited || [],
+      userAgent: dbSession.user_agent,
+      ipAddress: dbSession.ip_address,
+      referrer: dbSession.referrer,
+      deviceType: dbSession.device_type,
+      browser: dbSession.browser,
+      os: dbSession.os,
+      createdAt: dbSession.created_at
+    };
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { UserData } from './types';
 
@@ -8,246 +8,279 @@ interface AuthContextType {
   user: UserData | null;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string, userData: UserData) => void;
+  userPermissions: Record<string, boolean>;
+  login: (token: string, userData: UserData, permissions?: Record<string, boolean>) => void;
   logout: () => void;
   verifyAuth: () => Promise<boolean>;
+  refreshPermissions: () => Promise<void>;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   isLoading: true,
+  userPermissions: {},
   login: () => {},
   logout: () => {},
   verifyAuth: async () => false,
+  refreshPermissions: async () => {},
+  hasPermission: () => false,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userPermissions, setUserPermissions] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const pathname = usePathname();
-  
-  // Function to verify token validity with the server
-  const verifyToken = async (token: string): Promise<UserData | null> => {
+  const hasUserRef = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Verify authentication status
+  const verifyAuth = async (): Promise<boolean> => {
     try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        setIsLoading(false);
+        return false;
+      }
+
       const response = await fetch('/api/auth/verify', {
-        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        },
       });
-      
-      if (!response.ok) return null;
-      
-      const data = await response.json();
-      return data.success && data.user ? data.user : null;
-    } catch (error) {
-      console.error('Token verification error:', error);
-      return null;
-    }
-  };
-  
-  // Function to load user from localStorage with verification
-  const loadUserFromStorage = async () => {
-    setIsLoading(true);
-    
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      const adminUser = localStorage.getItem('adminUser');
-      
-      if (adminToken && adminUser && adminUser !== 'undefined' && adminUser !== 'null') {
-        try {
-          const parsedUser = JSON.parse(adminUser);
-          
-          // Set local state immediately for better UX
-          setUser(parsedUser);
-          setIsAdmin(true);
-          
-          // Verify token with server in background
-          const verifiedUser = await verifyToken(adminToken);
-          
-          if (verifiedUser) {
-            // Token is valid, update with verified data
-            setUser(verifiedUser);
-            setIsAdmin(true);
-            
-            // Update localStorage with fresh data if needed
-            if (JSON.stringify(verifiedUser) !== adminUser) {
-              localStorage.setItem('adminUser', JSON.stringify(verifiedUser));
-            }
-            
-            // Set global flags for backward compatibility
-            if (typeof window !== 'undefined') {
-                      window.__drivertasks_user = verifiedUser;
-        window.__drivertasks_isAdmin = true;
-            }
-          } else {
-            // Token is invalid, clear auth
-            console.warn('Invalid token detected, logging out');
-            handleLogout();
-          }
-        } catch (error) {
-          console.error('Error parsing/verifying user data:', error);
-          handleLogout();
+
+      if (response.ok) {
+        const data = await response.json();
+        const userData = data.user;
+        const isAdminUser = userData.role === 'admin';
+        
+        // Set user state
+        setUser(userData);
+        setIsAdmin(isAdminUser);
+        
+        // Set permissions from verify response or fetch them
+        if (data.permissions) {
+          setUserPermissions(data.permissions);
+        } else {
+          await refreshPermissions();
         }
+        
+        setIsLoading(false);
+        return true;
       } else {
-        // No stored auth data
+        // Invalid token
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
         setUser(null);
         setIsAdmin(false);
-        
-        // Clear any global flags
-        if (typeof window !== 'undefined') {
-          window.__drivertasks_user = null;
-          window.__drivertasks_isAdmin = false;
+        setUserPermissions({});
+        setIsLoading(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Auth verification error:', error);
+      setIsLoading(false);
+      return false;
+    }
+  };
+
+  // Refresh user permissions from the server
+  const refreshPermissions = async () => {
+    console.log('[AuthContext] Refreshing permissions...');
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token || !hasUserRef.current) {
+        console.log('[AuthContext] No token or user, skipping refresh');
+        return;
+      }
+
+      const response = await fetch('/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.permissions) {
+          setUserPermissions(data.permissions);
+          
+          // Only update user data if it actually changed
+          if (data.user) {
+            const currentUserStr = localStorage.getItem('adminUser');
+            const newUserStr = JSON.stringify(data.user);
+            
+            // Only update if the user data actually changed
+            if (currentUserStr !== newUserStr) {
+              console.log('[AuthContext] User data changed, updating...');
+              setUser(data.user);
+              setIsAdmin(data.user.role === 'admin');
+              localStorage.setItem('adminUser', newUserStr);
+            }
+          }
         }
       }
     } catch (error) {
-      console.error('Error loading auth state:', error);
-      setUser(null);
-      setIsAdmin(false);
-    } finally {
-      setIsLoading(false);
+      console.error('[AuthContext] Failed to refresh permissions:', error);
     }
   };
-  
-  // Clean logout handler
-  const handleLogout = () => {
-    // Clear localStorage
+
+  // Check if user has a specific permission
+  const hasPermission = (permission: string): boolean => {
+    // Admin users always have all permissions
+    if (isAdmin || user?.role === 'admin') {
+      console.log(`[AuthContext] Permission check for ${permission}: ✅ (admin user)`);
+      return true;
+    }
+    
+    const hasAccess = userPermissions[permission] === true;
+    console.log(`[AuthContext] Permission check for ${permission}: ${hasAccess ? '✅' : '❌'}`, {
+      user: user?.username,
+      role: user?.role,
+      userPermissions: Object.keys(userPermissions).filter(k => userPermissions[k])
+    });
+    
+    return hasAccess;
+  };
+
+  // Login function
+  const login = (token: string, userData: UserData, permissions?: Record<string, boolean>) => {
+    console.log('AuthContext login called with:', { userData, permissions });
+    
+    localStorage.setItem('adminToken', token);
+    localStorage.setItem('adminUser', JSON.stringify(userData));
+    
+    setUser(userData);
+    setIsAdmin(userData.role === 'admin');
+    
+    if (permissions) {
+      setUserPermissions(permissions);
+    }
+    
+    // Redirect after login
+    const intendedDestination = localStorage.getItem('intendedDestination');
+    if (intendedDestination && intendedDestination !== '/admin') {
+      localStorage.removeItem('intendedDestination');
+      console.log('Redirecting to intended destination:', intendedDestination);
+      router.push(intendedDestination);
+    } else {
+      // Default redirect based on permissions
+      let redirectPath = '/admin/dashboard'; // Default to dashboard
+      
+      if (permissions?.['access.admin_dashboard']) {
+        redirectPath = '/admin/dashboard';
+      } else if (permissions?.['access.tasks_management']) {
+        redirectPath = '/admin/tasks';
+      } else if (permissions?.['access.projects_management']) {
+        redirectPath = '/admin/projects';
+      } else if (permissions?.['access.daily_updates']) {
+        redirectPath = '/admin/daily-updates';
+      } else if (permissions?.['access.feedback']) {
+        redirectPath = '/admin/feedback';
+      }
+      
+      console.log('Redirecting to:', redirectPath);
+      router.push(redirectPath);
+    }
+  };
+
+  // Logout function  
+  const logout = () => {
+    // Stop the refresh interval
+    stopRefreshInterval();
+    
+    // Clear local storage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
+    localStorage.removeItem('userPermissions');
     
-    // Update state
+    // Clear state
     setUser(null);
     setIsAdmin(false);
+    setUserPermissions({});
     
-    // Clear global flags for backward compatibility
-    if (typeof window !== 'undefined') {
-      window.__drivertasks_user = null;
-      window.__drivertasks_isAdmin = false;
+    // Redirect to login
+    router.push('/admin');
+  };
+
+  // Function to start the refresh interval
+  const startRefreshInterval = () => {
+    // DISABLED: Causing infinite loop
+    // Will implement event-based refresh instead
+    console.log('[AuthContext] Automatic refresh disabled to prevent infinite loop');
+  };
+
+  // Function to stop the refresh interval
+  const stopRefreshInterval = () => {
+    if (intervalRef.current) {
+      console.log('[AuthContext] Stopping refresh interval');
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   };
-  
-  // Initialize auth state and listen for changes
+
+  // Manual permission refresh - call this after updating permissions
+  const manualRefreshPermissions = async () => {
+    console.log('[AuthContext] Manual permission refresh triggered');
+    await refreshPermissions();
+  };
+
+  // Update hasUserRef when user changes
   useEffect(() => {
-    // Load initial auth state
-    loadUserFromStorage();
+    hasUserRef.current = !!user;
     
-    // Listen for storage events (logout in other tabs)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'adminToken' || e.key === 'adminUser') {
-        loadUserFromStorage();
-      }
-    };
-    
-    // Listen for pathname changes to verify auth on navigation
-    const handleRouteChange = () => {
-      // Only verify auth on admin routes
-      if (pathname?.startsWith('/admin') && pathname !== '/admin') {
-        verifyAuth();
-      }
-    };
-    
-    // Add event listeners
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Cleanup
+    // DISABLED: Automatic refresh causing infinite loop
+    // Will implement manual refresh on specific events
+    if (user) {
+      console.log('[AuthContext] User logged in, automatic refresh disabled');
+    }
+  }, [user]);
+
+  // Initial auth check
+  useEffect(() => {
+    verifyAuth();
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      stopRefreshInterval();
     };
   }, []);
-  
-  // Verify auth on pathname change
+
+  // Store intended destination when not authenticated
   useEffect(() => {
-    if (pathname?.startsWith('/admin') && pathname !== '/admin') {
-      verifyAuth();
+    if (pathname && pathname.startsWith('/admin') && pathname !== '/admin' && !user && !isLoading) {
+      localStorage.setItem('intendedDestination', pathname);
+      router.push('/admin');
     }
-  }, [pathname]);
-  
-  // Login function
-  const login = (token: string, userData: UserData) => {
-    try {
-      localStorage.setItem('adminToken', token);
-      localStorage.setItem('adminUser', JSON.stringify(userData));
-      
-      setUser(userData);
-      setIsAdmin(true);
-      
-      // Set global flags for backward compatibility
-      if (typeof window !== 'undefined') {
-        window.__drivertasks_user = userData;
-        window.__drivertasks_isAdmin = true;
-      }
-    } catch (error) {
-      console.error('Error during login:', error);
-    }
-  };
-  
-  // Logout function
-  const logout = () => {
-    // First, call the logout API endpoint
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-      }
-    }).then(() => {
-      // Then handle client-side logout
-      handleLogout();
-      
-      // Redirect to login page if on admin page
-      if (pathname?.startsWith('/admin') && pathname !== '/admin') {
-        router.push('/admin');
-      }
-    }).catch(error => {
-      console.error('Error during logout API call:', error);
-      // Still handle client-side logout
-      handleLogout();
-    });
-  };
-  
-  // Public verification function
-  const verifyAuth = async (): Promise<boolean> => {
-    const adminToken = localStorage.getItem('adminToken');
-    
-    if (!adminToken) {
-      handleLogout();
-      return false;
-    }
-    
-    const verifiedUser = await verifyToken(adminToken);
-    
-    if (verifiedUser) {
-      // Update with verified data
-      setUser(verifiedUser);
-      setIsAdmin(true);
-      
-      // Update localStorage
-      localStorage.setItem('adminUser', JSON.stringify(verifiedUser));
-      
-      // Set global flags
-      if (typeof window !== 'undefined') {
-        window.__drivertasks_user = verifiedUser;
-        window.__drivertasks_isAdmin = true;
-      }
-      
-      return true;
-    } else {
-      handleLogout();
-      return false;
-    }
-  };
-  
+  }, [pathname, user, isLoading, router]);
+
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoading, login, logout, verifyAuth }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAdmin, 
+      isLoading, 
+      userPermissions,
+      login, 
+      logout, 
+      verifyAuth,
+      refreshPermissions: manualRefreshPermissions, // Use manual refresh
+      hasPermission
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
-
-export default AuthContext; 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 

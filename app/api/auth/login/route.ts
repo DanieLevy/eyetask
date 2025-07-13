@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Track login
     await db.trackVisit(result.user.id, result.user.username, result.user.email, result.user.role);
+    await db.trackLogin(result.user.id);
 
     // Log the action
     await db.logAction({
