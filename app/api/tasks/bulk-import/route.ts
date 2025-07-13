@@ -33,6 +33,25 @@ interface JiraImportData {
   parent_issues: JiraParentIssue[];
 }
 
+// Detect if this is a calibration/stability task structure
+function isCalibrationTask(parentIssue: JiraParentIssue): boolean {
+  // Check if all subtasks have amount_needed = 0 and/or issue_type = "Sub Task"
+  return parentIssue.subtasks.every(subtask => 
+    subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
+  );
+}
+
+// Map issue type to our system's type
+function mapIssueType(issueType: string, isCalibration: boolean): 'events' | 'hours' {
+  // For calibration tasks, default to 'events' type
+  if (isCalibration || issueType === 'Sub Task') {
+    return 'events';
+  }
+  
+  // Regular mapping
+  return (issueType.toLowerCase() === 'hours') ? 'hours' : 'events';
+}
+
 // Map JIRA road_type to our scene type
 const roadTypeToSceneMap: Record<string, string> = {
   'Mixed': 'Mixed',
@@ -44,7 +63,12 @@ const roadTypeToSceneMap: Record<string, string> = {
 };
 
 // Map JIRA day_time to our dayTime array format
-const mapDayTime = (dayTime: string): string[] => {
+const mapDayTime = (dayTime: string | string[]): string[] => {
+  // If it's already an array, return it
+  if (Array.isArray(dayTime)) {
+    return dayTime;
+  }
+  
   if (dayTime === 'Mixed') {
     return ['day', 'night', 'dusk', 'dawn'];
   }
@@ -82,6 +106,11 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
     if (!Array.isArray(parent.subtasks)) {
       errors.push(`Parent issue ${parent.key || `at index ${parentIndex}`} is missing subtasks array`);
     } else {
+      // Check if this is a calibration task set
+      const isCalibrationParent = (parent.subtasks as any[]).every(subtask => 
+        subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
+      );
+      
       parent.subtasks.forEach((subtask: Record<string, unknown>, subtaskIndex: number) => {
         // Check required fields
         if (!subtask.dataco_number) {
@@ -94,14 +123,17 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
         
         if (!subtask.issue_type) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing issue_type`);
-        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours') {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events" or "Hours"`);
+        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task') {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", or "Sub Task"`);
         }
         
         if (subtask.amount_needed === undefined || subtask.amount_needed === null) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing amount_needed`);
-        } else if (isNaN(Number(subtask.amount_needed)) || Number(subtask.amount_needed) <= 0) {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number`);
+        } else if (isNaN(Number(subtask.amount_needed))) {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
+        } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
+          // Only require positive amount for non-calibration tasks
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
         }
       });
     }
@@ -225,6 +257,11 @@ export async function POST(request: NextRequest) {
             continue;
           }
           
+          // Detect if this is a calibration/stability task
+          const isCalibration = isCalibrationTask(parentIssue);
+          // Map issue type to our system's type
+          const systemIssueType = mapIssueType(jiraSubtask.issue_type, isCalibration);
+
           // Convert weather to appropriate type
           const weatherValue = jiraSubtask.weather as string || 'Clear';
           const validWeather = ['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'].includes(weatherValue) 
@@ -242,17 +279,41 @@ export async function POST(request: NextRequest) {
             title: jiraSubtask.summary as string,
             subtitle: '',
             datacoNumber: datacoNumber,
-            type: (jiraSubtask.issue_type as string).toLowerCase() as 'events' | 'hours',
+            type: systemIssueType,
             amountNeeded: Number(jiraSubtask.amount_needed),
             labels: jiraSubtask.labels as string[] || [],
             targetCar: Array.isArray(parentIssue.target_car) ? parentIssue.target_car : [parentIssue.target_car as string],
             weather: validWeather,
             scene: validScene,
-            dayTime: Array.isArray(jiraSubtask.day_time) 
-              ? jiraSubtask.day_time as string[]
-              : mapDayTime(jiraSubtask.day_time as string),
+            dayTime: mapDayTime(jiraSubtask.day_time),
             taskId: createObjectId(taskInfo.id)
           };
+          
+          // Add calibration-specific labels if this is a calibration task
+          if (isCalibration) {
+            // Add calibration label if not already present
+            if (!subtaskData.labels.includes('calibration')) {
+              subtaskData.labels.push('calibration');
+            }
+            // Add stability label if not already present
+            if (!subtaskData.labels.includes('stability')) {
+              subtaskData.labels.push('stability');
+            }
+            
+            // Add specific type labels based on the summary
+            const summaryLower = jiraSubtask.summary.toLowerCase();
+            if (summaryLower.includes('setup approval')) {
+              subtaskData.labels.push('setup-approval');
+            } else if (summaryLower.includes('calibration approval')) {
+              subtaskData.labels.push('calibration-approval');
+            } else if (summaryLower.includes('di validations')) {
+              subtaskData.labels.push('di-validation');
+            } else if (summaryLower.includes('gt approval')) {
+              subtaskData.labels.push('gt-approval');
+            } else if (summaryLower.includes('c2l approval')) {
+              subtaskData.labels.push('c2l-approval');
+            }
+          }
           
           // Create the subtask
           const subtaskId = await db.createSubtask(subtaskData);

@@ -1370,8 +1370,10 @@ export class SupabaseDatabaseService {
 
       // Add scope filter
       if (projectId) {
-        query = query.or(`project_id.eq.${projectId},is_general.eq.true`);
+        // On project pages, show only project-specific updates
+        query = query.eq('project_id', projectId);
       } else {
+        // On homepage, show only general updates
         query = query.eq('is_general', true);
       }
 

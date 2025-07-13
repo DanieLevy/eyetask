@@ -448,13 +448,42 @@ export default function TaskManagement() {
                   <li key={subtask._id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-colors">
                      <div className="flex items-center justify-between flex-wrap gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{subtask.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{subtask.title}</p>
+                          {/* Show calibration/stability badges */}
+                          {subtask.labels?.includes('calibration') && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full font-medium">
+                              כיול
+                            </span>
+                          )}
+                          {subtask.labels?.includes('stability') && (
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 text-xs rounded-full font-medium">
+                              יציבות
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{subtask.subtitle || 'אין תת-כותרת'}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                            <span className="font-mono">{formatDatacoDisplay(subtask.datacoNumber)}</span>
                            <span className="capitalize">{subtask.scene}</span>
                            <span>{subtask.weather}</span>
+                           {/* Show amount needed with special styling for calibration tasks */}
+                           <span className={subtask.amountNeeded === 0 ? 'text-blue-600 dark:text-blue-400' : ''}>
+                             {subtask.type === 'hours' ? `${subtask.amountNeeded} שעות` : `${subtask.amountNeeded} אירועים`}
+                           </span>
                         </div>
+                        {/* Show calibration type labels */}
+                        {subtask.labels && subtask.labels.length > 0 && (
+                          <div className="flex items-center gap-1 mt-2">
+                            {subtask.labels.filter(label => 
+                              ['setup-approval', 'calibration-approval', 'di-validation', 'gt-approval', 'c2l-approval'].includes(label)
+                            ).map(label => (
+                              <span key={label} className="px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 text-xs rounded">
+                                {label.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         <button

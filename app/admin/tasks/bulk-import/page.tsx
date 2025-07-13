@@ -443,28 +443,42 @@ export default function BulkImportPage() {
                         {expandedPreviewTasks[parentIssue.key] && (
                           <div className="p-3">
                             <div className="overflow-auto">
-                              <table className="w-full text-sm text-right">
-                                <thead className="bg-muted/20 text-xs">
-                                  <tr>
-                                    <th className="p-2 border-b border-border">מס' DATACO</th>
-                                    <th className="p-2 border-b border-border">כותרת</th>
-                                    <th className="p-2 border-b border-border">סוג</th>
-                                    <th className="p-2 border-b border-border">כמות</th>
-                                    <th className="p-2 border-b border-border">מזג אוויר</th>
-                                    <th className="p-2 border-b border-border">סצנה</th>
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-border">
+                                    <th className="text-right p-2">DATACO</th>
+                                    <th className="text-right p-2">כותרת</th>
+                                    <th className="text-right p-2">סוג</th>
+                                    <th className="text-right p-2">כמות</th>
+                                    <th className="text-right p-2">מזג אוויר</th>
+                                    <th className="text-right p-2">סוג דרך</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {parentIssue.subtasks.map((subtask: any, index: number) => (
-                                    <tr key={subtask.dataco_number} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/10'}>
-                                      <td className="p-2 border-b border-border">{subtask.dataco_number}</td>
-                                      <td className="p-2 border-b border-border">{subtask.summary}</td>
-                                      <td className="p-2 border-b border-border">{subtask.issue_type}</td>
-                                      <td className="p-2 border-b border-border">{subtask.amount_needed}</td>
-                                      <td className="p-2 border-b border-border">{subtask.weather}</td>
-                                      <td className="p-2 border-b border-border">{subtask.road_type}</td>
-                                    </tr>
-                                  ))}
+                                  {parentIssue.subtasks.map((subtask: any, index: number) => {
+                                    const isCalibration = subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task';
+                                    return (
+                                      <tr key={subtask.dataco_number} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/10'}>
+                                        <td className="p-2 border-b border-border">{subtask.dataco_number}</td>
+                                        <td className="p-2 border-b border-border">
+                                          <div className="flex items-center gap-2">
+                                            {subtask.summary}
+                                            {isCalibration && (
+                                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full font-medium">
+                                                כיול
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="p-2 border-b border-border">{subtask.issue_type}</td>
+                                        <td className={`p-2 border-b border-border ${isCalibration ? 'text-blue-600 font-medium' : ''}`}>
+                                          {subtask.amount_needed}
+                                        </td>
+                                        <td className="p-2 border-b border-border">{subtask.weather}</td>
+                                        <td className="p-2 border-b border-border">{subtask.road_type}</td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>

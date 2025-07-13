@@ -49,6 +49,11 @@ function validateJiraData(data: any): { valid: boolean; errors: string[] } {
     if (!Array.isArray(parent.subtasks)) {
       errors.push(`Parent issue ${parent.key || `at index ${parentIndex}`} is missing subtasks array`);
     } else {
+      // Check if this is a calibration task set
+      const isCalibrationParent = parent.subtasks.every((subtask: any) => 
+        subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
+      );
+      
       parent.subtasks.forEach((subtask: any, subtaskIndex: number) => {
         // Check required fields
         if (!subtask.dataco_number) {
@@ -61,14 +66,17 @@ function validateJiraData(data: any): { valid: boolean; errors: string[] } {
         
         if (!subtask.issue_type) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing issue_type`);
-        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours') {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events" or "Hours"`);
+        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task') {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", or "Sub Task"`);
         }
         
         if (subtask.amount_needed === undefined || subtask.amount_needed === null) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing amount_needed`);
-        } else if (isNaN(Number(subtask.amount_needed)) || Number(subtask.amount_needed) <= 0) {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number`);
+        } else if (isNaN(Number(subtask.amount_needed))) {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
+        } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
+          // Only require positive amount for non-calibration tasks
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
         }
       });
     }
