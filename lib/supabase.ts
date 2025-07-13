@@ -144,7 +144,7 @@ export type Database = {
           subtitle: string | null;
           images: string[] | null;
           dataco_number: string;
-          type: 'events' | 'hours';
+          type: 'events' | 'hours' | 'loops';
           amount_needed: number | null;
           labels: string[] | null;
           target_car: string[] | null;

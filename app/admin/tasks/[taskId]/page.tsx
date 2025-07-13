@@ -63,7 +63,7 @@ interface Subtask {
   subtitle?: string;
   images?: string[];
   datacoNumber: string;
-  type: 'events' | 'hours';
+  type: 'events' | 'hours' | 'loops';
   amountNeeded: number;
   labels: string[];
   targetCar: string[];
@@ -469,7 +469,9 @@ export default function TaskManagement() {
                            <span>{subtask.weather}</span>
                            {/* Show amount needed with special styling for calibration tasks */}
                            <span className={subtask.amountNeeded === 0 ? 'text-blue-600 dark:text-blue-400' : ''}>
-                             {subtask.type === 'hours' ? `${subtask.amountNeeded} שעות` : `${subtask.amountNeeded} אירועים`}
+                             {subtask.type === 'hours' ? `${subtask.amountNeeded} שעות` : 
+                              subtask.type === 'loops' ? `${subtask.amountNeeded} לולאות` :
+                              `${subtask.amountNeeded} אירועים`}
                            </span>
                         </div>
                         {/* Show calibration type labels */}

@@ -54,7 +54,7 @@ export interface Subtask {
   subtitle?: string;
   images?: string[];
   datacoNumber: string;
-  type: 'events' | 'hours';
+  type: 'events' | 'hours' | 'loops';
   amountNeeded?: number;
   labels: string[];
   targetCar: string[];

@@ -14,7 +14,8 @@ export const subtaskTypeOptions = [
 // Task type options
 export const taskTypeOptions = [
   { value: 'events', label: 'אירועים' },
-  { value: 'hours', label: 'שעות' }
+  { value: 'hours', label: 'שעות' },
+  { value: 'loops', label: 'לולאות' }
 ];
 
 // Task time of day options

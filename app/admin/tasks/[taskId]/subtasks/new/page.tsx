@@ -33,7 +33,7 @@ interface NewSubtaskData {
   title: string;
   subtitle?: string;
   datacoNumber: string;
-  type: 'events' | 'hours';
+  type: 'events' | 'hours' | 'loops';
   amountNeeded: number;
   labels: string[];
   targetCar: string[];
@@ -351,7 +351,7 @@ export default function NewSubtaskPage() {
                       name="subtaskType"
                       value="events"
                       checked={newSubtaskData.type === 'events'}
-                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
+                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' | 'loops' }))}
                       className="mr-2"
                     />
                     Events (אירועים)
@@ -362,10 +362,21 @@ export default function NewSubtaskPage() {
                       name="subtaskType"
                       value="hours"
                       checked={newSubtaskData.type === 'hours'}
-                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
+                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' | 'loops' }))}
                       className="mr-2"
                     />
                     Hours (שעות)
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="subtaskType"
+                      value="loops"
+                      checked={newSubtaskData.type === 'loops'}
+                      onChange={(e) => setNewSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' | 'loops' }))}
+                      className="mr-2"
+                    />
+                    Loops (סיבובים)
                   </label>
                 </div>
               </div>

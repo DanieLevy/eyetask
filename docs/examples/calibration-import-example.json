@@ -93,6 +93,16 @@
           "road_type": "Test Track",
           "day_time": "Mixed",
           "labels": []
+        },
+        {
+          "dataco_number": "DATACO-14004",
+          "summary": "Camera Calibration - Stability Test Loops",
+          "issue_type": "Loops",
+          "amount_needed": 100,
+          "weather": "Clear",
+          "road_type": "Test Track",
+          "day_time": ["day"],
+          "labels": ["stability", "loops", "calibration"]
         }
       ]
     },
@@ -121,6 +131,16 @@
           "road_type": "Urban",
           "day_time": "Night",
           "labels": ["data-collection", "night-driving"]
+        },
+        {
+          "dataco_number": "DATACO-15003",
+          "summary": "Test Track Stability Loops",
+          "issue_type": "Loops",
+          "amount_needed": 50,
+          "weather": "Mixed",
+          "road_type": "Test Track",
+          "day_time": "Mixed",
+          "labels": ["testing", "loops"]
         }
       ]
     }

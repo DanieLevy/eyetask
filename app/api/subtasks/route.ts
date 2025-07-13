@@ -156,9 +156,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate type
-    if (!['events', 'hours'].includes(data.type)) {
+    if (!['events', 'hours', 'loops'].includes(data.type)) {
       return NextResponse.json({
-        error: 'Invalid type. Must be either "events" or "hours"',
+        error: 'Invalid type. Must be either "events", "hours", or "loops"',
         success: false
       }, { status: 400 });
     }

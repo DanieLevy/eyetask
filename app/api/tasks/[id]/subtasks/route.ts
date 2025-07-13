@@ -158,9 +158,9 @@ export async function POST(
     }
     
     // Additional validation for specific fields
-    if (requestBody.type && !['events', 'hours'].includes(requestBody.type)) {
+    if (requestBody.type && !['events', 'hours', 'loops'].includes(requestBody.type)) {
       return NextResponse.json(
-        { error: 'Invalid subtask type. Must be "events" or "hours"', success: false },
+        { error: 'Invalid subtask type. Must be "events", "hours", or "loops"', success: false },
         { status: 400 }
       );
     }

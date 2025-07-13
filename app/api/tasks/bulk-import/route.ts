@@ -36,20 +36,25 @@ interface JiraImportData {
 // Detect if this is a calibration/stability task structure
 function isCalibrationTask(parentIssue: JiraParentIssue): boolean {
   // Check if all subtasks have amount_needed = 0 and/or issue_type = "Sub Task"
+  // But exclude Loops with 0 amount as those might be placeholders
   return parentIssue.subtasks.every(subtask => 
-    subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
+    (subtask.amount_needed === 0 && subtask.issue_type !== 'Loops') || 
+    subtask.issue_type === 'Sub Task'
   );
 }
 
 // Map issue type to our system's type
-function mapIssueType(issueType: string, isCalibration: boolean): 'events' | 'hours' {
+function mapIssueType(issueType: string, isCalibration: boolean): 'events' | 'hours' | 'loops' {
   // For calibration tasks, default to 'events' type
   if (isCalibration || issueType === 'Sub Task') {
     return 'events';
   }
   
   // Regular mapping
-  return (issueType.toLowerCase() === 'hours') ? 'hours' : 'events';
+  const lowerIssueType = issueType.toLowerCase();
+  if (lowerIssueType === 'hours') return 'hours';
+  if (lowerIssueType === 'loops') return 'loops';
+  return 'events'; // Default to events
 }
 
 // Map JIRA road_type to our scene type
@@ -59,8 +64,33 @@ const roadTypeToSceneMap: Record<string, string> = {
   'Urban': 'Urban',
   'Rural': 'Rural',
   'Sub-Urban': 'Sub-Urban',
-  'Test Track': 'Test Track'
+  'Test Track': 'Test Track',
+  // Handle combined types
+  'Rural/Sub-Urban': 'Rural', // Default to Rural for combined Rural/Sub-Urban
+  'Sub-Urban/Rural': 'Rural', // Handle reverse order too
 };
+
+// Enhanced function to map road types with fallback logic
+function mapRoadTypeToScene(roadType: string): string {
+  // Direct mapping
+  if (roadTypeToSceneMap[roadType]) {
+    return roadTypeToSceneMap[roadType];
+  }
+  
+  // Handle slash-separated combinations
+  if (roadType.includes('/')) {
+    const parts = roadType.split('/').map(p => p.trim());
+    // Try to find the first valid part
+    for (const part of parts) {
+      if (roadTypeToSceneMap[part]) {
+        return roadTypeToSceneMap[part];
+      }
+    }
+  }
+  
+  // Default to Mixed for unrecognized types
+  return 'Mixed';
+}
 
 // Map JIRA day_time to our dayTime array format
 const mapDayTime = (dayTime: string | string[]): string[] => {
@@ -123,8 +153,8 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
         
         if (!subtask.issue_type) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing issue_type`);
-        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task') {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", or "Sub Task"`);
+        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task' && subtask.issue_type !== 'Loops') {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", "Loops", or "Sub Task"`);
         }
         
         if (subtask.amount_needed === undefined || subtask.amount_needed === null) {
@@ -133,7 +163,10 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
           errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
         } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
           // Only require positive amount for non-calibration tasks
-          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
+          // Exception: Allow 0 for Loops type as they might be placeholders
+          if (subtask.issue_type !== 'Loops') {
+            errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
+          }
         }
       });
     }
@@ -264,12 +297,32 @@ export async function POST(request: NextRequest) {
 
           // Convert weather to appropriate type
           const weatherValue = jiraSubtask.weather as string || 'Clear';
-          const validWeather = ['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'].includes(weatherValue) 
-            ? weatherValue as 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed'
-            : 'Clear';
+          let validWeather: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
+          
+          // Map unknown weather to Mixed
+          if (weatherValue === 'Unknown' || weatherValue === 'unknown') {
+            validWeather = 'Mixed';
+            logger.info('Mapping Unknown weather to Mixed', 'BULK_IMPORT_API', {
+              subtask: jiraSubtask.dataco_number,
+              originalWeather: weatherValue
+            });
+          } else if (['Clear', 'Fog', 'Overcast', 'Rain', 'Snow', 'Mixed'].includes(weatherValue)) {
+            validWeather = weatherValue as 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
+          } else {
+            validWeather = 'Clear'; // Default fallback
+          }
             
           // Convert scene to appropriate type
-          const sceneValue = roadTypeToSceneMap[jiraSubtask.road_type as string] || 'Mixed';
+          const sceneValue = mapRoadTypeToScene(jiraSubtask.road_type as string);
+          
+          // Log combined road types
+          if (jiraSubtask.road_type && (jiraSubtask.road_type as string).includes('/')) {
+            logger.info('Mapping combined road type', 'BULK_IMPORT_API', {
+              subtask: jiraSubtask.dataco_number,
+              originalRoadType: jiraSubtask.road_type,
+              mappedScene: sceneValue
+            });
+          }
           const validScene = ['Highway', 'Urban', 'Rural', 'Sub-Urban', 'Test Track', 'Mixed'].includes(sceneValue)
             ? sceneValue as 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed'
             : 'Mixed';

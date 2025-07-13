@@ -28,8 +28,9 @@ interface JiraImportData {
 }
 
 // Validate the JSON structure
-function validateJiraData(data: any): { valid: boolean; errors: string[] } {
+function validateJiraData(data: any): { valid: boolean; errors: string[]; warnings?: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   
   if (!data || typeof data !== 'object') {
     errors.push('Invalid JSON data structure');
@@ -66,8 +67,8 @@ function validateJiraData(data: any): { valid: boolean; errors: string[] } {
         
         if (!subtask.issue_type) {
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing issue_type`);
-        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task') {
-          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", or "Sub Task"`);
+        } else if (subtask.issue_type !== 'Events' && subtask.issue_type !== 'Hours' && subtask.issue_type !== 'Sub Task' && subtask.issue_type !== 'Loops') {
+          errors.push(`Subtask ${subtask.dataco_number} has invalid issue_type: ${subtask.issue_type}. Must be "Events", "Hours", "Loops", or "Sub Task"`);
         }
         
         if (subtask.amount_needed === undefined || subtask.amount_needed === null) {
@@ -76,7 +77,23 @@ function validateJiraData(data: any): { valid: boolean; errors: string[] } {
           errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
         } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
           // Only require positive amount for non-calibration tasks
-          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
+          // Exception: Allow 0 for Loops type as they might be placeholders
+          if (subtask.issue_type !== 'Loops') {
+            errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
+          }
+        }
+        
+        // Add warnings for edge cases
+        if (subtask.weather === 'Unknown' || subtask.weather === 'unknown') {
+          warnings.push(`Subtask ${subtask.dataco_number} has weather "Unknown" - will be mapped to "Mixed"`);
+        }
+        
+        if (subtask.road_type && subtask.road_type.includes('/')) {
+          warnings.push(`Subtask ${subtask.dataco_number} has combined road type "${subtask.road_type}" - will use first valid type`);
+        }
+        
+        if (subtask.issue_type === 'Loops' && subtask.amount_needed === 0) {
+          warnings.push(`Subtask ${subtask.dataco_number} is a Loops type with 0 amount - this might be a placeholder`);
         }
       });
     }
@@ -84,7 +101,8 @@ function validateJiraData(data: any): { valid: boolean; errors: string[] } {
   
   return {
     valid: errors.length === 0,
-    errors
+    errors,
+    warnings: warnings.length > 0 ? warnings : undefined
   };
 }
 
@@ -166,8 +184,9 @@ export async function POST(request: NextRequest) {
       valid: taskVerification.valid,
       errors: taskVerification.errors,
       taskMap: taskVerification.taskMap,
+      warnings: structureValidation.warnings,
       success: true
-    }, { 
+    }, {
       status: 200,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',

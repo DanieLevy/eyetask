@@ -27,7 +27,7 @@ interface Subtask {
   subtitle?: string;
   images?: string[];
   datacoNumber: string;
-  type: 'events' | 'hours';
+  type: 'events' | 'hours' | 'loops';
   amountNeeded: number;
   labels: string[];
   targetCar: string[];
@@ -319,11 +319,12 @@ export default function EditSubtaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">סוג</label>
                   <select
                     value={editSubtaskData.type || 'events'}
-                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' }))}
+                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, type: e.target.value as 'events' | 'hours' | 'loops' }))}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="events">אירועים</option>
                     <option value="hours">שעות</option>
+                    <option value="loops">לופים</option>
                   </select>
                 </div>
                 <div>
