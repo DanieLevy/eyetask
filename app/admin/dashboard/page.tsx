@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminClientLayout from '@/components/AdminClientLayout';
+import { LoadingSpinner } from '@/components/LoadingSystem';
 import { 
   Plus, 
   Eye, 
@@ -82,6 +83,7 @@ export default function AdminDashboard() {
   const [cacheLoading, setCacheLoading] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'data_manager' | 'driver_manager' | null>(null);
   const [username, setUsername] = useState<string>('');
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Get permissions
   const canViewAnalytics = useCanViewAnalytics();
@@ -126,35 +128,53 @@ export default function AdminDashboard() {
   }, [canManageCache, userRole]);
 
   // Clear cache function
-  const clearCache = useCallback(async (type: 'soft' | 'full' = 'soft') => {
+  const clearCache = async (type: 'soft' | 'full', reason?: string) => {
     setCacheLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
+      if (!token) {
+        router.push('/admin');
+        return;
+      }
+
       const response = await fetch('/api/admin/cache', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          action: type === 'full' ? 'clear-all' : 'soft-clear',
-          reason: type === 'full' ? 'Manual cache clear from dashboard' : 'Soft update from dashboard'
-        })
+          action: type === 'soft' ? 'clear' : 'flush',
+          reason 
+        }),
       });
-      
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Unauthorized, redirect to login
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          localStorage.removeItem('userPermissions');
+          router.push('/admin');
+          return;
+        }
+        throw new Error('Failed to clear cache');
+      }
+
       const data = await response.json();
       if (data.success) {
-        await fetchCacheStatus();
-        // Show success notification
-        toast.success(type === 'full' ? 'מטמון נוקה בהצלחה!' : 'עדכון רך בוצע בהצלחה!');
+        toast.success(`מטמון ${type === 'soft' ? 'עודכן' : 'נוקה'} בהצלחה`);
+        fetchCacheStatus();
+      } else {
+        toast.error(data.error || 'שגיאה בניקוי המטמון');
       }
     } catch (error) {
-      console.error('Cache operation failed:', error);
-      toast.error('שגיאה בפעולת מטמון');
+      console.error('Cache clear error:', error);
+      toast.error('שגיאה בניקוי המטמון');
     } finally {
       setCacheLoading(false);
     }
-  }, [fetchCacheStatus]);
+  };
 
   const refreshData = useCallback(async () => {
     try {
@@ -210,9 +230,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       await refreshData();
-      // Only fetch cache status if user has cache management permission
-      if (canManageCache || userRole === 'admin') {
-        await fetchCacheStatus();
+      // Only fetch cache status if userRole has been determined
+      if (userRole !== null) {
+        // Only fetch cache status if user has cache management permission
+        if (canManageCache || userRole === 'admin') {
+          await fetchCacheStatus();
+        }
       }
     };
     
@@ -231,6 +254,9 @@ export default function AdminDashboard() {
       const token = localStorage.getItem('adminToken');
       
       if (!token) {
+        // Clear any stale user data
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('userPermissions');
         router.push('/admin');
         return;
       }
@@ -242,30 +268,55 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
-        throw new Error('Authentication failed');
+        // Clear invalid token and user data
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('userPermissions');
+        router.push('/admin');
+        return;
       }
 
       const data = await response.json();
       if (data.success && data.user) {
         setUserRole(data.user.role || 'admin');
         setUsername(data.user.username || '');
+        setAuthChecked(true);
         
         // Check if user has access to cache management for loading cache status
         if (data.user.role === 'admin' || (data.permissions && data.permissions['access.cache_management'])) {
           fetchCacheStatus();
         }
       } else {
-        throw new Error('Invalid response');
+        // Invalid response, redirect to login
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('userPermissions');
+        router.push('/admin');
       }
     } catch (error) {
       console.error('Authentication error:', error);
+      // Clear data and redirect on error
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      localStorage.removeItem('userPermissions');
       router.push('/admin');
     }
   };
 
   useEffect(() => {
     checkAuth();
-  }, [router, refreshData]);
+  }, [router]);
+
+  // Early return if auth hasn't been checked yet
+  if (!authChecked) {
+    return (
+      <AdminClientLayout>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      </AdminClientLayout>
+    );
+  }
 
   // Calculate comprehensive statistics
   const stats = {
@@ -419,16 +470,41 @@ export default function AdminDashboard() {
               )}
             </div>
           ) : (
-            // Driver Manager View - Show welcome message
+            // Driver Manager View - Show welcome message with actual permissions
             <Card>
               <CardContent className="p-6 text-center">
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-full inline-flex mb-4">
                   <Car className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">ברוך הבא, מנהל נהגים</h3>
-                <p className="text-muted-foreground">
-                  יש לך הרשאות לניהול עדכונים יומיים בלבד
+                <h3 className="text-lg font-semibold mb-2">ברוך הבא, {username || 'משתמש'}</h3>
+                <p className="text-muted-foreground mb-4">
+                  ההרשאות שלך:
                 </p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {canViewAnalytics && (
+                    <Badge variant="secondary">אנליטיקה</Badge>
+                  )}
+                  {canViewFeedback && (
+                    <Badge variant="secondary">משוב</Badge>
+                  )}
+                  {canManageProjects && (
+                    <Badge variant="secondary">פרויקטים</Badge>
+                  )}
+                  {canManageTasks && (
+                    <Badge variant="secondary">משימות</Badge>
+                  )}
+                  {canManageUsers && (
+                    <Badge variant="secondary">משתמשים</Badge>
+                  )}
+                  {canManageCache && (
+                    <Badge variant="secondary">מטמון</Badge>
+                  )}
+                  {canManagePushNotifications && (
+                    <Badge variant="secondary">התראות</Badge>
+                  )}
+                  {/* Always show daily updates for driver managers */}
+                  <Badge variant="secondary">עדכונים יומיים</Badge>
+                </div>
               </CardContent>
             </Card>
           )}

@@ -92,7 +92,11 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onClick={onLogout} 
+            onClick={() => {
+              if (onLogout) {
+                onLogout();
+              }
+            }} 
             className="text-destructive focus:text-destructive cursor-pointer"
           >
             <LogOut className="w-4 h-4 mr-2" />

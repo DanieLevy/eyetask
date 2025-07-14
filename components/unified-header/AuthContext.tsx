@@ -189,22 +189,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Logout function  
-  const logout = () => {
+  const logout = async () => {
     // Stop the refresh interval
     stopRefreshInterval();
+    
+    try {
+      // Call logout API endpoint
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Continue with logout even if API call fails
+    }
     
     // Clear local storage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
     localStorage.removeItem('userPermissions');
+    localStorage.removeItem('intendedDestination');
     
     // Clear state
     setUser(null);
     setIsAdmin(false);
     setUserPermissions({});
+    hasUserRef.current = false;
     
-    // Redirect to login
-    router.push('/admin');
+    // Force redirect to login
+    window.location.href = '/admin';
   };
 
   // Function to start the refresh interval
