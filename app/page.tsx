@@ -16,7 +16,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
 import { useVisitor } from '@/contexts/VisitorContext';
 import { VisitorNameModal } from '@/components/VisitorNameModal';
-import { trackPageView, trackAction, getVisitorInfo } from '@/lib/visitor-utils';
+import { trackPageView, trackAction } from '@/lib/visitor-utils';
+import { markVisitorModalShown } from '@/lib/visitor-utils';
 import { logger } from '@/lib/logger';
 
 // Project and Task interfaces moved to shared types
@@ -32,114 +33,67 @@ function HomePageCore() {
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
   const router = useRouter();
-  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor } = useVisitor();
+  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor, refreshVisitorInfo } = useVisitor();
   
-  // State for visitor modal
+  // State for visitor modal - simplified
   const [showVisitorModal, setShowVisitorModal] = useState(false);
-  const [hasCheckedVisitor, setHasCheckedVisitor] = useState(false);
-  const [shouldShowModalForVisitor, setShouldShowModalForVisitor] = useState(false);
-  const modalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const modalShownRef = useRef(false); // Track if we already tried to show modal
   
   // URL parameters
   const isPWALaunch = searchParams.get('utm_medium') === 'pwa' || pwaStatus.status.isStandalone;
   const launchSource = searchParams.get('utm_source') || 'direct';
   
-  // Check if visitor needs to register
+  // Single effect to handle visitor modal display
   useEffect(() => {
-    // Log visitor check state
-    logger.info('[Visitor] Homepage visitor check', 'HOMEPAGE', {
-      visitorLoading,
-      hasCheckedVisitor,
-      visitorId: visitor?.visitorId,
-      isRegistered: visitor?.isRegistered,
-      name: visitor?.name,
-      showVisitorModal,
-      hasTimer: !!modalTimerRef.current
-    });
-    
-    if (!visitorLoading && !hasCheckedVisitor) {
-      setHasCheckedVisitor(true);
-      
-      if (visitor && !visitor.isRegistered) {
-        logger.info('[Visitor] Unregistered visitor detected', 'HOMEPAGE', {
-          visitorId: visitor.visitorId,
-          willShowModal: true
-        });
-        
-        // Set flag to show modal
-        setShouldShowModalForVisitor(true);
-      } else if (visitor && visitor.isRegistered) {
-        logger.info('[Visitor] Registered visitor detected', 'HOMEPAGE', {
-          visitorId: visitor.visitorId,
-          name: visitor.name,
-          sessionId: visitor.sessionId
-        });
-        // Make sure we don't show modal for registered visitors
-        setShouldShowModalForVisitor(false);
-      }
+    // Skip if already processing or modal was already shown
+    if (visitorLoading || modalShownRef.current) {
+      return;
     }
-  }, [visitor, visitorLoading, hasCheckedVisitor]);
-
-  // Separate effect for handling the modal timer
-  useEffect(() => {
-    if (shouldShowModalForVisitor && !showVisitorModal && visitor && !visitor.isRegistered) {
-      logger.info('[Visitor] Setting up modal timer', 'HOMEPAGE', {
-        visitorId: visitor?.visitorId,
-        delayMs: 1500
-      });
-      
-      // Clear any existing timer
-      if (modalTimerRef.current) {
-        clearTimeout(modalTimerRef.current);
-      }
-      
-      // Set new timer
-      modalTimerRef.current = setTimeout(() => {
-        // Double-check registration status before showing modal
-        const currentVisitor = getVisitorInfo();
-        if (!currentVisitor.isRegistered) {
-          logger.info('[Visitor] Timer fired - showing registration modal', 'HOMEPAGE', {
-            visitorId: visitor?.visitorId
-          });
-          setShowVisitorModal(true);
-        } else {
-          logger.info('[Visitor] Timer fired but visitor is now registered - skipping modal', 'HOMEPAGE', {
-            visitorId: visitor?.visitorId,
-            name: currentVisitor.name
-          });
-        }
-        modalTimerRef.current = null;
-      }, 1500);
-      
-      // Cleanup
-      return () => {
-        if (modalTimerRef.current) {
-          logger.info('[Visitor] Modal timer cleanup', 'HOMEPAGE', {
-            visitorId: visitor?.visitorId
-          });
-          clearTimeout(modalTimerRef.current);
-          modalTimerRef.current = null;
-        }
-      };
-        }
-  }, [shouldShowModalForVisitor, showVisitorModal, visitor]);
-
-  // Watch for visitor registration changes
-  useEffect(() => {
-    if (visitor?.isRegistered && shouldShowModalForVisitor) {
-      logger.info('[Visitor] Visitor became registered - clearing modal flag', 'HOMEPAGE', {
+    
+    // Skip if visitor is not loaded yet
+    if (!visitor) {
+      return;
+    }
+    
+    // Skip if visitor is registered or modal was already shown before
+    if (visitor.isRegistered || visitor.modalShown) {
+      logger.info('[Visitor] Skipping modal - visitor registered or modal already shown', 'HOMEPAGE', {
         visitorId: visitor.visitorId,
+        isRegistered: visitor.isRegistered,
+        modalShown: visitor.modalShown,
         name: visitor.name
       });
-      setShouldShowModalForVisitor(false);
-      
-      // Clear any pending timer
-      if (modalTimerRef.current) {
-        clearTimeout(modalTimerRef.current);
-        modalTimerRef.current = null;
-      }
+      return;
     }
-  }, [visitor?.isRegistered, shouldShowModalForVisitor, visitor?.visitorId, visitor?.name]);
+    
+    // Prevent multiple executions
+    modalShownRef.current = true;
+    
+    logger.info('[Visitor] Scheduling modal display', 'HOMEPAGE', {
+      visitorId: visitor.visitorId,
+      delayMs: 1500
+    });
+    
+    // Show modal after delay
+    const timer = setTimeout(() => {
+      // Mark modal as shown immediately to prevent duplicates
+      markVisitorModalShown();
+      
+      // Refresh visitor info to update the modalShown flag
+      refreshVisitorInfo();
+      
+      setShowVisitorModal(true);
+      
+      logger.info('[Visitor] Showing registration modal', 'HOMEPAGE', {
+        visitorId: visitor.visitorId
+      });
+    }, 1500);
+    
+    // Cleanup
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [visitor, visitorLoading]);
   
   // Track page view for registered visitors
   useEffect(() => {
@@ -278,7 +232,7 @@ function HomePageCore() {
         duration: 4000,
       });
       setShowVisitorModal(false);
-      setShouldShowModalForVisitor(false); // Reset the flag to prevent modal from showing again
+      // setShouldShowModalForVisitor(false); // Reset the flag to prevent modal from showing again - This line was removed as per the new_code
       
       // Track the homepage view after registration
       setTimeout(() => {
@@ -332,7 +286,7 @@ function HomePageCore() {
         {/* Visitor Name Modal */}
         <VisitorNameModal
           isOpen={showVisitorModal}
-          onClose={() => setShowVisitorModal(false)}
+          onClose={() => {}} // Empty function since modal is mandatory
           onSubmit={handleVisitorRegistration}
           isSubmitting={isRegistering}
         />

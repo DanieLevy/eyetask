@@ -48,6 +48,12 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
 
   const refreshVisitorInfo = useCallback(() => {
     const info = getVisitorInfo();
+    logger.info('[Visitor] Refreshing visitor info', 'VISITOR_CONTEXT', {
+      visitorId: info.visitorId,
+      isRegistered: info.isRegistered,
+      modalShown: info.modalShown,
+      name: info.name
+    });
     setVisitor(info);
   }, []);
 

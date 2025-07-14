@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { User, X, Shield } from 'lucide-react';
+import { HeaderLogo } from '@/components/unified-header/HeaderLogo';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 interface VisitorNameModalProps {
   isOpen: boolean;
@@ -22,6 +23,17 @@ export function VisitorNameModal({ isOpen, onClose, onSubmit, isSubmitting }: Vi
   const [error, setError] = useState('');
   const hebrewFont = useHebrewFont('heading');
   const mixedFont = useMixedFont('body');
+
+  // Additional guard to prevent modal from showing if already shown
+  useEffect(() => {
+    if (isOpen) {
+      const modalShown = localStorage.getItem('eyetask_visitor_modal_shown') === 'true';
+      if (modalShown) {
+        logger.warn('[VisitorNameModal] Modal already shown, closing immediately', 'VISITOR_MODAL');
+        onClose();
+      }
+    }
+  }, [isOpen, onClose]);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -70,13 +82,12 @@ export function VisitorNameModal({ isOpen, onClose, onSubmit, isSubmitting }: Vi
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - no close on click since input is mandatory */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
-            onClick={onClose}
           />
           
           {/* Modal */}
@@ -85,42 +96,28 @@ export function VisitorNameModal({ isOpen, onClose, onSubmit, isSubmitting }: Vi
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[90vw] max-w-md"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[90vw] max-w-sm"
           >
-            <div className="bg-background rounded-lg shadow-2xl border border-border/50 p-6">
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
-                type="button"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              
-              {/* Icon */}
-              <div className="flex justify-center mb-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-lg opacity-50 animate-pulse" />
-                  <div className="relative bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-3">
-                    <User className="h-8 w-8 text-white" />
-                  </div>
-                </div>
+            <div className="bg-background rounded-xl shadow-2xl border border-border/50 p-8">
+              {/* Logo */}
+              <div className="flex justify-center mb-6">
+                <HeaderLogo condensed />
               </div>
               
               {/* Title */}
-              <h2 className={cn("text-center text-2xl font-bold mb-2", hebrewFont.fontClass)}>
+              <h2 className={cn("text-center text-2xl font-bold mb-3", hebrewFont.fontClass)}>
                 ברוך הבא! 👋
               </h2>
               
               {/* Description */}
-              <p className={cn("text-center text-muted-foreground mb-6 text-sm", mixedFont.fontClass)}>
-                אנא הכנס את שמך כדי שנוכל להתאים את החוויה שלך
+              <p className={cn("text-center text-muted-foreground mb-8 text-sm", mixedFont.fontClass)}>
+                אנא הכנס את שמך כדי להמשיך
               </p>
               
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="visitor-name" className={hebrewFont.fontClass}>
+                  <Label htmlFor="visitor-name" className={cn("text-sm", hebrewFont.fontClass)}>
                     השם שלך
                   </Label>
                   <Input
@@ -142,33 +139,15 @@ export function VisitorNameModal({ isOpen, onClose, onSubmit, isSubmitting }: Vi
                   </Alert>
                 )}
                 
-                {/* Privacy notice */}
-                <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Shield className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                  <p className={mixedFont.fontClass}>
-                    המידע שלך נשמר באופן מאובטח ומשמש רק לשיפור החוויה שלך באתר
-                  </p>
-                </div>
-                
-                {/* Buttons */}
-                <div className="flex gap-3 pt-2" dir="rtl">
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1"
-                  >
-                    {isSubmitting ? 'שומר...' : 'המשך'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    className="flex-1"
-                  >
-                    אולי אחר כך
-                  </Button>
-                </div>
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? 'שומר...' : 'המשך'}
+                </Button>
               </form>
             </div>
           </motion.div>

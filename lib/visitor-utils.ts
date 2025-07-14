@@ -5,6 +5,7 @@ const VISITOR_ID_KEY = 'eyetask_visitor_id';
 const VISITOR_NAME_KEY = 'eyetask_visitor_name';
 const VISITOR_SESSION_KEY = 'eyetask_visitor_session';
 const VISITOR_REGISTERED_KEY = 'eyetask_visitor_registered';
+const VISITOR_MODAL_SHOWN_KEY = 'eyetask_visitor_modal_shown';
 const VISITOR_COOKIE_NAME = 'eyetask_visitor';
 
 export interface VisitorInfo {
@@ -12,6 +13,7 @@ export interface VisitorInfo {
   sessionId: string;
   name?: string;
   isRegistered: boolean;
+  modalShown?: boolean;
 }
 
 /**
@@ -117,13 +119,15 @@ export function getVisitorInfo(): VisitorInfo {
     return {
       visitorId: '',
       sessionId: '',
-      isRegistered: false
+      isRegistered: false,
+      modalShown: false
     };
   }
   
   const visitorId = getOrCreateVisitorId();
   const name = localStorage.getItem(VISITOR_NAME_KEY) || undefined;
   const isRegistered = localStorage.getItem(VISITOR_REGISTERED_KEY) === 'true';
+  const modalShown = localStorage.getItem(VISITOR_MODAL_SHOWN_KEY) === 'true';
   
   // If not registered in localStorage, check cookie
   if (!isRegistered && !name) {
@@ -139,7 +143,8 @@ export function getVisitorInfo(): VisitorInfo {
             visitorId,
             sessionId: getOrCreateSessionId(),
             name: parsed.name,
-            isRegistered: true
+            isRegistered: true,
+            modalShown: true // If they have a name, modal was shown
           };
         }
       } catch (e) {
@@ -152,7 +157,8 @@ export function getVisitorInfo(): VisitorInfo {
     visitorId,
     sessionId: getOrCreateSessionId(),
     name,
-    isRegistered
+    isRegistered,
+    modalShown
   };
 }
 
@@ -189,11 +195,25 @@ export function clearVisitorData(): void {
   
   localStorage.removeItem(VISITOR_ID_KEY);
   localStorage.removeItem(VISITOR_NAME_KEY);
+  localStorage.removeItem(VISITOR_SESSION_KEY);
   localStorage.removeItem(VISITOR_REGISTERED_KEY);
-  sessionStorage.removeItem(VISITOR_SESSION_KEY);
+  localStorage.removeItem(VISITOR_MODAL_SHOWN_KEY);
   
   // Also clear cookie
-  document.cookie = `${VISITOR_COOKIE_NAME}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+  document.cookie = `${VISITOR_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+}
+
+/**
+ * Mark visitor modal as shown to prevent multiple displays
+ */
+export function markVisitorModalShown(): void {
+  if (typeof window === 'undefined') return;
+  
+  localStorage.setItem(VISITOR_MODAL_SHOWN_KEY, 'true');
+  
+  logger.info('[Visitor] Modal marked as shown', 'VISITOR_UTILS', {
+    visitorId: getOrCreateVisitorId()
+  });
 }
 
 /**
