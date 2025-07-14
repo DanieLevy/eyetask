@@ -33,7 +33,7 @@ function HomePageCore() {
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
   const router = useRouter();
-  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor, refreshVisitorInfo } = useVisitor();
+  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor, refreshVisitorInfo, checkAndUpdateFromDatabase } = useVisitor();
   
   // State for visitor modal - simplified
   const [showVisitorModal, setShowVisitorModal] = useState(false);

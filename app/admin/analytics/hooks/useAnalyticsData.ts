@@ -76,8 +76,7 @@ export function useAnalyticsData() {
           .filter((activity: any) => activity.userRole !== 'admin');
         
         const filteredUsers = (result.data.topUsers || [])
-          .filter((user: any) => user.role !== 'admin')
-          .slice(0, 5); // Keep top 5 non-admin users
+          .filter((user: any) => user.role !== 'admin'); // Pass all non-admin users
 
         // Transform the data to our simplified structure
         const transformedData: AnalyticsData = {

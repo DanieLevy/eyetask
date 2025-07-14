@@ -59,48 +59,55 @@ function AnalyticsContent() {
     return null;
   }
 
+  const handleTimeRangeChange = (value: string) => {
+    const selected = TIME_RANGES.find(t => t.value === value);
+    if (selected) setTimeRange(selected);
+  };
+
+  const handleRefresh = () => {
+    refresh();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">ניתוח נתונים</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              סקירה כללית של פעילות המערכת
-            </p>
-          </div>
-          
-          {/* Controls */}
-          <div className="flex items-center gap-2">
-            <Select 
-              value={timeRange.value} 
-              onValueChange={(value) => {
-                const selected = TIME_RANGES.find(t => t.value === value);
-                if (selected) setTimeRange(selected);
-              }}
-            >
-              <SelectTrigger className="w-32 h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIME_RANGES.map((range) => (
-                  <SelectItem key={range.value} value={range.value}>
-                    {range.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Header */}
+        <div className="mb-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
+                לוח בקרה אנליטיקס
+              </h1>
+              <p className="text-muted-foreground mt-1">ניתוח ביצועים ופעילות בזמן אמת</p>
+            </div>
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refresh}
-              disabled={refreshing}
-              className="h-9"
-            >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-            </Button>
+            <div className="flex items-center gap-3">
+              <Select value={timeRange.value} onValueChange={handleTimeRangeChange}>
+                <SelectTrigger className="w-32 border-0 shadow-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_RANGES.map((range) => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <RefreshCw className={cn(
+                  "h-4 w-4",
+                  refreshing && "animate-spin"
+                )} />
+              </Button>
+            </div>
           </div>
         </div>
 

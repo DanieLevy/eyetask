@@ -52,18 +52,13 @@ export async function GET(request: NextRequest) {
       }, { status: 403 });
     }
 
-    logger.info('User accessing analytics', 'ANALYTICS_API', {
-      userId: user.id,
-      username: user.username,
-      role: user.role
-    });
-    
+    const isAdmin = user.role === 'admin';
+
     // Get time range from query params
     const { searchParams } = new URL(request.url);
-    const rangeParam = searchParams.get('range') || '7';
+    const rangeParam = searchParams.get('range');
     
-    // Parse range - handle both numeric and string formats
-    let rangeDays = 7;
+    let rangeDays = 30; // Default to 30 days
     if (rangeParam === '1' || rangeParam === '1d') {
       rangeDays = 1;
     } else if (rangeParam === '7' || rangeParam === '7d') {
@@ -90,6 +85,17 @@ export async function GET(request: NextRequest) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - rangeDays);
     
+    // Get hidden users if not admin
+    let hiddenUserIds: string[] = [];
+    if (!isAdmin) {
+      const { data: hiddenUsers } = await supabase
+        .from('app_users')
+        .select('id')
+        .eq('hide_from_analytics', true);
+      
+      hiddenUserIds = (hiddenUsers || []).map(u => u.id);
+    }
+    
     // Fetch recent activity logs
     const { data: activityLogs, error: logsError } = await supabase
       .from('activity_logs')
@@ -110,7 +116,15 @@ export async function GET(request: NextRequest) {
       .limit(50);
     
     // Process activity logs for analytics
-    const recentActivities = (activityLogs || []).map((log: any) => ({
+    const recentActivities = (activityLogs || [])
+      .filter((log: any) => {
+        // Filter out hidden users for non-admin users
+        if (!isAdmin && log.user_id && hiddenUserIds.includes(log.user_id)) {
+          return false;
+        }
+        return true;
+      })
+      .map((log: any) => ({
       _id: log.id,
       timestamp: log.timestamp,
       userId: log.user_id,
@@ -155,6 +169,13 @@ export async function GET(request: NextRequest) {
     });
     
     const topUsers = Object.values(userActivityMap)
+      .filter(user => {
+        // Filter out hidden users for non-admin users (only for registered users, not visitors)
+        if (!isAdmin && !user.isVisitor && hiddenUserIds.includes(user.userId)) {
+          return false;
+        }
+        return true;
+      })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
       .map(user => ({

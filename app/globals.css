@@ -1250,10 +1250,70 @@ html[lang="en"] {
 
 /* Notch-aware dropdown enhancements */
 .notch-aware-dropdown {
+  /* Add extra space at top on iOS */
   padding-top: env(safe-area-inset-top, 0);
-  padding-left: env(safe-area-inset-left, 0);
-  padding-right: env(safe-area-inset-right, 0);
-  /* Remove bottom padding - fix for PWA */
-  padding-bottom: 0 !important;
-  border-radius: 1rem;
+}
+
+/* Analytics Page Animations */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Gradient text support for all browsers */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.text-transparent {
+  color: transparent;
+}
+
+/* Improved dark mode gradients */
+.dark .bg-gradient-to-r {
+  opacity: 0.9;
+}
+
+.dark .bg-gradient-to-br {
+  opacity: 0.8;
 }

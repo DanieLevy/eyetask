@@ -81,6 +81,7 @@ export interface AppUser {
   lastModifiedBy?: string;
   lastModifiedAt?: string;
   mongodb_id?: string;
+  hide_from_analytics?: boolean;
 }
 
 export interface Analytics {
@@ -576,7 +577,7 @@ export class SupabaseDatabaseService {
           email: user.email,
           password_hash: user.passwordHash,
           role: user.role,
-          is_active: user.isActive !== undefined ? user.isActive : true,
+          is_active: user.isActive,
           last_login: user.lastLogin || null,
           created_by: user.createdBy || null,
           last_modified_by: user.lastModifiedBy || null,
@@ -701,6 +702,7 @@ export class SupabaseDatabaseService {
   private mapUserFromDb(dbUser: any): AppUser {
     return {
       id: dbUser.id,
+      _id: dbUser._id,
       username: dbUser.username,
       email: dbUser.email,
       passwordHash: dbUser.password_hash,
@@ -711,7 +713,8 @@ export class SupabaseDatabaseService {
       createdBy: dbUser.created_by,
       lastModifiedBy: dbUser.last_modified_by,
       lastModifiedAt: dbUser.last_modified_at,
-      mongodb_id: dbUser.mongodb_id
+      mongodb_id: dbUser.mongodb_id,
+      hide_from_analytics: dbUser.hide_from_analytics
     };
   }
 
@@ -1067,6 +1070,7 @@ export class SupabaseDatabaseService {
       if (updates.role !== undefined) updateData.role = updates.role;
       if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
       if (updates.lastLogin !== undefined) updateData.last_login = updates.lastLogin;
+      if (updates.hide_from_analytics !== undefined) updateData.hide_from_analytics = updates.hide_from_analytics;
 
       const { error } = await this.client
         .from('app_users')

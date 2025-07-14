@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export function MetricsCardsSkeleton() {
   return (
@@ -86,28 +87,103 @@ export function ActivityFeedSkeleton() {
 
 export function AnalyticsPageSkeleton() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-28" />
-            <Skeleton className="h-9 w-9" />
-          </div>
-        </div>
+    <div className="animate-fade-in">
+      {/* Header Skeleton */}
+      <div className="mb-6">
+        <Skeleton className="h-10 w-48 mb-2 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800" />
+        <Skeleton className="h-4 w-64 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800" />
+      </div>
 
-        {/* Metrics Cards */}
-        <MetricsCardsSkeleton />
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {[1, 2, 3].map((i) => (
+          <Card 
+            key={i} 
+            className="border-0 shadow-lg animate-pulse"
+            style={{
+              animationDelay: `${i * 100}ms`
+            }}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-12 w-12 rounded-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <UserLeaderboardSkeleton />
-          <ActivityFeedSkeleton />
-        </div>
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Top Users */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div 
+                key={i} 
+                className={cn(
+                  "p-4 rounded-lg border animate-pulse",
+                  i === 1 && "bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20"
+                )}
+                style={{
+                  animationDelay: `${i * 50}ms`
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div>
+                      <Skeleton className="h-4 w-24 mb-1" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Skeleton className="h-6 w-12 mb-1" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Activity Feed */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-3 pt-6">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div 
+                key={i} 
+                className="p-3 rounded-lg animate-pulse"
+                style={{
+                  animationDelay: `${i * 50}ms`
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-full mb-1" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

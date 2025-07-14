@@ -76,6 +76,19 @@ export async function PUT(
     // Prepare update data
     const updateData: any = {};
     
+    // Update username if provided and different
+    if (data.username && data.username !== existingUser.username) {
+      // Check if username is already taken
+      const usernameExists = await db.getUserByUsername(data.username);
+      if (usernameExists) {
+        return NextResponse.json({
+          error: 'Username already exists',
+          success: false
+        }, { status: 400 });
+      }
+      updateData.username = data.username;
+    }
+    
     // Update role if provided
     if (data.role && ['admin', 'data_manager', 'driver_manager'].includes(data.role)) {
       updateData.role = data.role;
@@ -114,11 +127,18 @@ export async function PUT(
     }
     
     // Log the action
+    let actionDescription = `עדכן משתמש: ${existingUser.username}`;
+    if (data.hide_from_analytics !== undefined) {
+      actionDescription = data.hide_from_analytics 
+        ? `הסתיר משתמש מאנליטיקה: ${existingUser.username}`
+        : `הציג משתמש באנליטיקה: ${existingUser.username}`;
+    }
+    
     await db.logAction({
       userId: adminUser.id,
       username: adminUser.username,
       userRole: adminUser.role,
-      action: `עדכן משתמש: ${existingUser.username}`,
+      action: actionDescription,
       category: 'user',
       target: {
         id: id,

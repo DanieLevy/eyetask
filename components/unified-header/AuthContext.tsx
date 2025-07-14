@@ -120,6 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(data.user);
               setIsAdmin(data.user.role === 'admin');
               localStorage.setItem('adminUser', newUserStr);
+              
+              // Check if username was changed
+              const currentUser = JSON.parse(currentUserStr || '{}');
+              if (currentUser.username !== data.user.username) {
+                console.log('[AuthContext] Username changed from', currentUser.username, 'to', data.user.username);
+                // The username change will be reflected in the UI automatically
+              }
             }
           }
         }
@@ -227,9 +234,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to start the refresh interval
   const startRefreshInterval = () => {
-    // DISABLED: Causing infinite loop
-    // Will implement event-based refresh instead
-    console.log('[AuthContext] Automatic refresh disabled to prevent infinite loop');
+    // Enable moderate refresh to sync username changes
+    // Use 5 minute interval to avoid too many requests
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    
+    console.log('[AuthContext] Starting permission refresh interval (5 minutes)');
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    intervalRef.current = setInterval(() => {
+      console.log('[AuthContext] Running periodic permission refresh');
+      refreshPermissions();
+    }, REFRESH_INTERVAL);
   };
 
   // Function to stop the refresh interval
@@ -251,10 +269,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     hasUserRef.current = !!user;
     
-    // DISABLED: Automatic refresh causing infinite loop
-    // Will implement manual refresh on specific events
+    // Start refresh interval when user is logged in
     if (user) {
-      console.log('[AuthContext] User logged in, automatic refresh disabled');
+      console.log('[AuthContext] User logged in, starting refresh interval');
+      startRefreshInterval();
+    } else {
+      stopRefreshInterval();
     }
   }, [user]);
 

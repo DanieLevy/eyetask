@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,11 +22,19 @@ import {
   LogIn,
   ExternalLink,
   FileText,
-  Shield
+  Shield,
+  Edit2,
+  Trash2,
+  X,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import AdminPageWrapper from '@/components/AdminPageWrapper';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
 
 interface VisitorActivity {
   id: string;
@@ -77,22 +85,19 @@ interface VisitorData {
   };
 }
 
-function VisitorProfileContent({ params }: { params: Promise<{ visitorId: string }> }) {
+function VisitorProfileContent({ visitorId }: { visitorId: string }) {
   const [visitorData, setVisitorData] = useState<VisitorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visitorId, setVisitorId] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('activities');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
   const router = useRouter();
   const hebrewFont = useHebrewFont('heading');
   const mixedFont = useMixedFont('body');
-
-  useEffect(() => {
-    async function loadParams() {
-      const { visitorId: id } = await params;
-      setVisitorId(id);
-    }
-    loadParams();
-  }, [params]);
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     if (visitorId) {
@@ -126,11 +131,92 @@ function VisitorProfileContent({ params }: { params: Promise<{ visitorId: string
       } else {
         throw new Error(result.error || 'Failed to load visitor data');
       }
-    } catch (error) {
-      logger.error('Error fetching visitor data', 'VISITOR_PROFILE', undefined, error as Error);
-      setError((error as Error).message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בטעינת נתוני המבקר');
+      logger.error('Error fetching visitor data', 'VISITOR_PROFILE', { error: err });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    if (!visitorData || !visitorId) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/visitors/${visitorId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: editingName.trim() })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update visitor name');
+      }
+
+      toast.success('שם המבקר עודכן בהצלחה');
+      setIsEditing(false);
+      fetchVisitorData();
+    } catch (error) {
+      console.error('Error updating visitor name:', error);
+      toast.error('שגיאה בעדכון שם המבקר');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!visitorId) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/visitors/${visitorId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete visitor');
+      }
+
+      toast.success('המבקר נמחק בהצלחה');
+      router.push('/admin/analytics');
+    } catch (error) {
+      console.error('Error deleting visitor:', error);
+      toast.error('שגיאה במחיקת המבקר');
+    }
+  };
+
+  const handleRemoveName = async () => {
+    if (!visitorData || !visitorId) return;
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/visitors/${visitorId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: '' })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to remove visitor name');
+      }
+
+      toast.success('שם המבקר הוסר בהצלחה');
+      setIsEditing(false);
+      fetchVisitorData();
+    } catch (error) {
+      console.error('Error removing visitor name:', error);
+      toast.error('שגיאה בהסרת שם המבקר');
     }
   };
 
@@ -221,7 +307,69 @@ function VisitorProfileContent({ params }: { params: Promise<{ visitorId: string
                 {visitor.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <CardTitle className={cn("text-2xl", hebrewFont)}>{visitor.name}</CardTitle>
+                {isEditing ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      className="h-8 w-48"
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleUpdateName}
+                      disabled={!editingName.trim()}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditingName(visitor.name);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CardTitle className={cn("text-2xl", hebrewFont)}>{visitor.name}</CardTitle>
+                    {isAdmin && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setIsEditing(true);
+                            setEditingName(visitor.name);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleRemoveName}
+                          className="text-orange-500 hover:text-orange-600"
+                          title="הסר שם"
+                        >
+                          <User className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowDeleteDialog(true)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <CardDescription>מזהה: {visitor.visitorId}</CardDescription>
               </div>
             </div>
@@ -384,14 +532,24 @@ function VisitorProfileContent({ params }: { params: Promise<{ visitorId: string
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => setShowDeleteDialog(open)}
+        onConfirm={handleDelete}
+        title="מחיקת מבקר"
+        description={`האם אתה בטוח שברצונך למחוק את המבקר ${visitor.name}? פעולה זו תמחק את כל הנתונים הקשורים למבקר ואינה ניתנת לביטול.`}
+      />
     </div>
   );
 }
 
-export default function VisitorProfilePage({ params }: { params: Promise<{ visitorId: string }> }) {
+export default function VisitorProfilePage() {
+  const params = useParams<{ visitorId: string }>();
   return (
     <AdminPageWrapper>
-      <VisitorProfileContent params={params} />
+      <VisitorProfileContent visitorId={params.visitorId} />
     </AdminPageWrapper>
   );
 } 
