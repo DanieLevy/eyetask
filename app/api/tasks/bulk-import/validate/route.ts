@@ -155,11 +155,11 @@ export async function POST(request: NextRequest) {
   let user: any;
   
   try {
-    // Check authentication and admin status
+    // Check authentication and admin/data_manager status
     user = authService.extractUserFromRequest(request);
-    if (!user || user.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'data_manager')) {
       return NextResponse.json(
-        { error: 'Unauthorized access - Admin required', success: false },
+        { error: 'Unauthorized access - Admin or data manager role required', success: false },
         { status: 401 }
       );
     }

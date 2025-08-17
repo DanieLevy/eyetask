@@ -3,7 +3,6 @@ import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 
 import { logger } from '@/lib/logger';
-import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/projects - Fetch all projects
 export async function GET(request: NextRequest) {
@@ -39,9 +38,14 @@ export async function GET(request: NextRequest) {
 // POST /api/projects - Create a new project
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
+    // Check authentication and project management permission
     const user = authService.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized access - Project management permission required',
+        success: false
+      }, { status: 401 });
+    }
 
     const data = await request.json();
     
@@ -73,9 +77,9 @@ export async function POST(request: NextRequest) {
     
     // Log the action
     await db.logAction({
-      userId: adminUser.id,
-      username: adminUser.username,
-      userRole: adminUser.role,
+      userId: user.id,
+      username: user.username,
+      userRole: user.role,
       action: `יצר פרויקט חדש: ${data.name}`,
       category: 'project',
       target: {
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Project created successfully', 'PROJECTS_API', { 
       projectId, 
-      userId: adminUser.id,
+      userId: user.id,
       projectName: data.name 
     });
 

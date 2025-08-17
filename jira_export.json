@@ -1,0 +1,301 @@
+{
+  "parent_issues": [
+    {
+      "key": "DATACO-13910",
+      "title": "Imaging Radar data collection V4.0.4 - JER TEAM v330",
+      "extra_sensors": [
+        "Radar",
+        "Velodyne 128"
+      ],
+      "target_car": "VN41S130330",
+      "subtasks": [
+        {
+          "dataco_number": "DATACO-13911",
+          "summary": "Bnei Brak",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13912",
+          "summary": "Tel Aviv",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13913",
+          "summary": "Petah Tikva",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13914",
+          "summary": "Herzelia Industrial area",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13915",
+          "summary": "Kiryat Ono Mall area and nearby streets",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13916",
+          "summary": "Ramat Gan",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13917",
+          "summary": "North area (Krayot)",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13918",
+          "summary": "Jerusalem",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13919",
+          "summary": "Areas with Light train / Train / Public transportation",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13920",
+          "summary": "Roundabouts",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13921",
+          "summary": "Ra'anana",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13922",
+          "summary": "Highway",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13923",
+          "summary": "Kfar Saba",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13924",
+          "summary": "Tunnels",
+          "issue_type": "Events",
+          "amount_needed": 10,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": [
+            "Tunnels"
+          ]
+        },
+        {
+          "dataco_number": "DATACO-13925",
+          "summary": "Ramat HaSharon",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13926",
+          "summary": "Suburban areas - Kibbutz-Moshav",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13927",
+          "summary": "Calibrations",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": [
+            "Calibrations"
+          ]
+        },
+        {
+          "dataco_number": "DATACO-13928",
+          "summary": "Hod HaSharon",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13929",
+          "summary": "Rain",
+          "issue_type": "Hours",
+          "amount_needed": 0,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": [
+            "Rain"
+          ]
+        },
+        {
+          "dataco_number": "DATACO-13930",
+          "summary": "Or Yehuda",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13931",
+          "summary": "Savyon",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13932",
+          "summary": "Ganei Tikva",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13933",
+          "summary": "Yahud",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13934",
+          "summary": "Parking lot",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13935",
+          "summary": "Holon",
+          "issue_type": "Hours",
+          "amount_needed": 0,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13936",
+          "summary": "Bat Yam",
+          "issue_type": "Hours",
+          "amount_needed": 0,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13937",
+          "summary": "Haifa",
+          "issue_type": "Hours",
+          "amount_needed": 2,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        },
+        {
+          "dataco_number": "DATACO-13969",
+          "summary": "Version 215099 test",
+          "issue_type": "Events",
+          "amount_needed": 1,
+          "weather": "Clear",
+          "road_type": "Urban",
+          "day_time": "Day",
+          "labels": []
+        }
+      ]
+    }
+  ]
+}

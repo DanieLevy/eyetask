@@ -104,12 +104,23 @@ export default function BulkImportPage() {
       });
       
       const result = await response.json();
+      
+      if (!response.ok) {
+        // Handle API errors (like 401 unauthorized)
+        setValidationStatus({
+          valid: false,
+          errors: [result.error || 'Failed to validate data']
+        });
+        toast.error(result.error || 'Failed to validate data');
+        return;
+      }
+      
       setValidationStatus(result);
       
       if (result.valid) {
         toast.success('JSON data validated successfully');
       } else {
-        toast.error(`Validation failed with ${result.errors.length} errors`);
+        toast.error(`Validation failed with ${result.errors?.length || 0} errors`);
       }
     } catch (error) {
       console.error('Error validating JSON:', error);
@@ -187,6 +198,12 @@ export default function BulkImportPage() {
       });
       
       const result = await response.json();
+      
+      if (!response.ok) {
+        // Handle API errors (like 401 unauthorized)
+        toast.error(result.error || 'Import failed due to authorization error');
+        return;
+      }
       
       if (result.success) {
         setImportResults(result.results);

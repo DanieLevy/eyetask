@@ -3,7 +3,6 @@ import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 
 import { logger } from '@/lib/logger';
-import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/daily-updates/[id] - Get a single daily update
 export async function GET(
@@ -72,9 +71,14 @@ export async function PUT(
   try {
     const { id } = await params;
     
-    // Check authentication
+    // Check authentication and data management permission
     const user = authService.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized access - Data management permission required',
+        success: false
+      }, { status: 401 });
+    }
     
     const data = await request.json();
     
@@ -132,7 +136,7 @@ export async function PUT(
     
     logger.info('Daily update updated successfully', 'DAILY_UPDATES_API', {
       updateId: id,
-      userId: adminUser.id,
+      userId: user.id,
       changes: Object.keys(updateData)
     });
     
@@ -164,9 +168,14 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Check authentication
+    // Check authentication and data management permission
     const user = authService.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized access - Data management permission required',
+        success: false
+      }, { status: 401 });
+    }
     
     // Get update details before deletion
     const update = await db.getDailyUpdateById(id);
@@ -190,7 +199,7 @@ export async function DELETE(
     logger.info('Daily update deleted successfully', 'DAILY_UPDATES_API', {
       updateId: id,
       updateTitle: update.title,
-      deletedBy: adminUser.id
+      deletedBy: user.id
     });
     
     return NextResponse.json({

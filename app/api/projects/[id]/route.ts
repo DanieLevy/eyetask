@@ -3,7 +3,6 @@ import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 
 import { logger } from '@/lib/logger';
-import { requireAdmin } from '@/lib/auth-utils';
 
 // GET /api/projects/[id] - Get a single project
 export async function GET(
@@ -56,9 +55,14 @@ export async function PUT(
   try {
     const { id } = await params;
     
-    // Check authentication
+    // Check authentication and project management permission
     const user = authService.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized access - Project management permission required',
+        success: false
+      }, { status: 401 });
+    }
     
     const data = await request.json();
     
@@ -98,9 +102,9 @@ export async function PUT(
     
     // Log the action
     await db.logAction({
-      userId: adminUser.id,
-      username: adminUser.username,
-      userRole: adminUser.role,
+      userId: user.id,
+      username: user.username,
+      userRole: user.role,
       action: `עדכן פרויקט: ${existingProject.name}`,
       category: 'project',
       target: {
@@ -114,7 +118,7 @@ export async function PUT(
     
     logger.info('Project updated successfully', 'PROJECTS_API', {
       projectId: id,
-      userId: adminUser.id,
+      userId: user.id,
       changes: Object.keys(updateData)
     });
     
@@ -146,9 +150,14 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Check authentication
+    // Check authentication and project management permission
     const user = authService.extractUserFromRequest(request);
-    const adminUser = requireAdmin(user);
+    if (!user || !authService.canManageData(user)) {
+      return NextResponse.json({
+        error: 'Unauthorized access - Project management permission required',
+        success: false
+      }, { status: 401 });
+    }
     
     // Get project details before deletion
     const project = await db.getProjectById(id);
@@ -174,9 +183,9 @@ export async function DELETE(
     
     // Log the action
     await db.logAction({
-      userId: adminUser.id,
-      username: adminUser.username,
-      userRole: adminUser.role,
+      userId: user.id,
+      username: user.username,
+      userRole: user.role,
       action: `מחק פרויקט: ${project.name}`,
       category: 'project',
       target: {
@@ -190,7 +199,7 @@ export async function DELETE(
     logger.info('Project deleted successfully', 'PROJECTS_API', {
       projectId: id,
       projectName: project.name,
-      deletedBy: adminUser.id
+      deletedBy: user.id
     });
     
     return NextResponse.json({
