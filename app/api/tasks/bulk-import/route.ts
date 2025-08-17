@@ -161,12 +161,9 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing amount_needed`);
         } else if (isNaN(Number(subtask.amount_needed))) {
           errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
-        } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
-          // Only require positive amount for non-calibration tasks
-          // Exception: Allow 0 for Loops type as they might be placeholders
-          if (subtask.issue_type !== 'Loops') {
-            errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
-          }
+        } else if (Number(subtask.amount_needed) < 0) {
+          // Only block negative amounts - they are truly invalid
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be 0 or positive number`);
         }
       });
     }

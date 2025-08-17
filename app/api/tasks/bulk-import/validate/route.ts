@@ -75,12 +75,9 @@ function validateJiraData(data: any): { valid: boolean; errors: string[]; warnin
           errors.push(`Subtask ${subtask.dataco_number || `at index ${subtaskIndex}`} is missing amount_needed`);
         } else if (isNaN(Number(subtask.amount_needed))) {
           errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a number`);
-        } else if (!isCalibrationParent && Number(subtask.amount_needed) <= 0) {
-          // Only require positive amount for non-calibration tasks
-          // Exception: Allow 0 for Loops type as they might be placeholders
-          if (subtask.issue_type !== 'Loops') {
-            errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be a positive number for non-calibration tasks`);
-          }
+        } else if (Number(subtask.amount_needed) < 0) {
+          // Only block negative amounts - they are truly invalid
+          errors.push(`Subtask ${subtask.dataco_number} has invalid amount_needed: ${subtask.amount_needed}. Must be 0 or positive number`);
         }
         
         // Add warnings for edge cases
@@ -92,8 +89,9 @@ function validateJiraData(data: any): { valid: boolean; errors: string[]; warnin
           warnings.push(`Subtask ${subtask.dataco_number} has combined road type "${subtask.road_type}" - will use first valid type`);
         }
         
-        if (subtask.issue_type === 'Loops' && subtask.amount_needed === 0) {
-          warnings.push(`Subtask ${subtask.dataco_number} is a Loops type with 0 amount - this might be a placeholder`);
+        // Warn about zero amounts - they're allowed but might need attention
+        if (Number(subtask.amount_needed) === 0) {
+          warnings.push(`Subtask ${subtask.dataco_number} has amount_needed: 0 - this might be a placeholder or conditional task`);
         }
       });
     }

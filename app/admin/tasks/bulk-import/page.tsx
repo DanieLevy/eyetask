@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 interface ValidationStatus {
   valid: boolean;
   errors: string[];
+  warnings?: string[];
   taskMap?: Record<string, { id: string; title: string }>;
 }
 
@@ -118,7 +119,8 @@ export default function BulkImportPage() {
       setValidationStatus(result);
       
       if (result.valid) {
-        toast.success('JSON data validated successfully');
+        const warningCount = result.warnings?.length || 0;
+        toast.success(`JSON data validated successfully${warningCount > 0 ? ` (${warningCount} warnings)` : ''}`);
       } else {
         toast.error(`Validation failed with ${result.errors?.length || 0} errors`);
       }
@@ -371,7 +373,7 @@ export default function BulkImportPage() {
                             : 'text-red-700 dark:text-red-400'
                         }`}>
                           {validationStatus.valid 
-                            ? 'הקובץ תקין ומוכן לייבוא' 
+                            ? `הקובץ תקין ומוכן לייבוא${validationStatus.warnings?.length ? ` (${validationStatus.warnings.length} אזהרות)` : ''}` 
                             : `נמצאו ${validationStatus.errors.length} שגיאות בקובץ`}
                         </span>
                       </div>
@@ -385,6 +387,28 @@ export default function BulkImportPage() {
                               <li key={index}>{error}</li>
                             ))}
                           </ul>
+                        </div>
+                      )}
+                      
+                      {/* Show warnings if any exist */}
+                      {validationStatus.warnings && validationStatus.warnings.length > 0 && (
+                        <div className="mt-3 p-3 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+                            <p className="font-medium text-amber-700 dark:text-amber-400">
+                              אזהרות ({validationStatus.warnings.length})
+                            </p>
+                          </div>
+                          <div className="text-sm text-amber-600 dark:text-amber-400">
+                            <ul className="list-disc list-inside space-y-1 pr-2">
+                              {validationStatus.warnings.map((warning, index) => (
+                                <li key={index}>{warning}</li>
+                              ))}
+                            </ul>
+                            <p className="mt-2 text-xs text-amber-500">
+                              אזהרות אלו לא חוסמות את הייבוא, אך כדאי לבדוק אותן לפני המשך
+                            </p>
+                          </div>
                         </div>
                       )}
                       
