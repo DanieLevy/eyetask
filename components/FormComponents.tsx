@@ -109,6 +109,7 @@ export function InputField({
     >
       <Input
         id={htmlFor}
+        name={htmlFor}
         type={type}
         value={value}
         onChange={onChange}
@@ -155,6 +156,7 @@ export function TextareaField({
     >
       <Textarea
         id={htmlFor}
+        name={htmlFor}
         value={value}
         onChange={onChange}
         placeholder={placeholder}

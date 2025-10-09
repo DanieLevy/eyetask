@@ -1,34 +1,4 @@
 {
     "mcpServers": {
-      "supabase": {
-        "command": "cmd",
-        "args": [
-          "/c",
-          "npx",
-          "-y",
-          "@supabase/mcp-server-supabase@latest",
-          "--access-token",
-          "sbp_34eed4b68881f5b87ed47a9e31a59e0221a94ece"
-        ]
-      },
-      "shadcn-ui": {
-        "command": "npx",
-        "args": ["@jpisnice/shadcn-ui-mcp-server"],
-        "env": {
-          "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
-        }
-      },
-      "MongoDB": {
-        "command": "npx",
-        "args": [
-          "-y",
-          "@mongodb-js/mongodb-mcp-server"
-        ],
-        "env": {
-          "MDB_MCP_API_CLIENT_ID": "vnadpbh",
-          "MDB_MCP_API_CLIENT_SECRET": "a6e8420c-7630-4aeb-89fb-13b1dca9adad",
-          "MDB_MCP_CONNECTION_STRING": "mongodb+srv://daniellevy:daniellevy@drivershubcluster.rxun1vo.mongodb.net/?retryWrites=true&w=majority&appName=drivershubcluster"
-        }
-      }
-    }
-  }
+    }   
+}
