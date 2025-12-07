@@ -136,7 +136,7 @@ export default function CloudinaryImage({
   }
 
   // Use Next.js Image component with proper configuration
-  // unoptimized=true to avoid conflicts with Cloudinary's own optimization
+  // unoptimized prop is now set globally in next.config.ts
   if (fill) {
     return (
       <Image 
@@ -153,7 +153,6 @@ export default function CloudinaryImage({
         onError={handleError}
         onClick={onClick}
         priority={priority}
-        unoptimized={true} // Cloudinary handles optimization
       />
     );
   } else {
@@ -170,7 +169,6 @@ export default function CloudinaryImage({
         onClick={onClick}
         priority={priority}
         loading={loading}
-        unoptimized={true} // Cloudinary handles optimization
       />
     );
   }

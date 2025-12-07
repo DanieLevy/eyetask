@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Allow all external image domains
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,6 +14,9 @@ const nextConfig: NextConfig = {
         hostname: 'localhost',
       },
     ],
+    // Disable image optimization for Netlify compatibility
+    // This prevents 500 errors when using next/image
+    unoptimized: true,
   },
   // Enable server components
   experimental: {

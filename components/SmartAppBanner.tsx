@@ -84,7 +84,6 @@ export default function SmartAppBanner() {
                   width={48}
                   height={48}
                   className="object-cover"
-                  unoptimized={true}
                 />
               </div>
               <div>
@@ -133,7 +132,6 @@ export default function SmartAppBanner() {
                   width={24}
                   height={24}
                   className="rounded-lg"
-                  unoptimized={true}
                 />
                 <h3 className={`text-sm font-semibold text-card-foreground ${hebrewFont.fontClass}`}>
                   התקנת DC Drivers
@@ -243,7 +241,6 @@ export function MiniAppBanner() {
           width={24}
           height={24}
           className="rounded-lg"
-          unoptimized={true}
         />
         <div className="flex-1 min-w-0">
           <p className={`text-sm text-card-foreground ${hebrewFont.fontClass}`}>

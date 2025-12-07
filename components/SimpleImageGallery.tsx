@@ -57,7 +57,6 @@ export default function ModernImageGallery({
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover transition-transform duration-300 group-hover:scale-110"
-              unoptimized={true} // Allow external images
             />
             
             {/* Overlay */}
@@ -146,7 +145,6 @@ export function NextJSImageGallery({ images, alt = 'Gallery image', className = 
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover transition-transform duration-300 group-hover:scale-110"
-              unoptimized={true}
             />
           </div>
         ))}

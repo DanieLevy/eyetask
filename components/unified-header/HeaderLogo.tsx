@@ -58,7 +58,6 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
                 objectPosition: isRtl ? 'right center' : 'left center',
               }}
               priority
-              unoptimized={true} // SVG doesn't need optimization
             />
           </div>
         )}
