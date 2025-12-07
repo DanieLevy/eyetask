@@ -6,32 +6,47 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE;
 
+// Validate environment variables but only log errors, don't throw during module init
+// This prevents 500 errors on Netlify when the module is imported
 if (!supabaseUrl || !supabaseAnonKey) {
-  logger.error('Missing Supabase configuration', 'SUPABASE', {
+  const errorMessage = 'Missing Supabase configuration - please check environment variables';
+  // eslint-disable-next-line no-console
+  console.error('[SUPABASE ERROR]', errorMessage, {
     hasUrl: !!supabaseUrl,
-    hasAnonKey: !!supabaseAnonKey
+    hasAnonKey: !!supabaseAnonKey,
+    nodeEnv: process.env.NODE_ENV
   });
-  throw new Error('Missing Supabase configuration');
+  
+  // Only log, don't throw - let the application handle missing config gracefully
+  if (typeof logger !== 'undefined') {
+    logger.error(errorMessage, 'SUPABASE', {
+      hasUrl: !!supabaseUrl,
+      hasAnonKey: !!supabaseAnonKey
+    });
+  }
 }
 
 // Create Supabase client for client-side operations
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  db: {
-    schema: 'public'
-  },
-  global: {
-    headers: {
-      'X-Application-Name': 'EyeTask'
-    }
-  }
-});
+// Only create client if we have valid configuration
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'X-Application-Name': 'EyeTask'
+        }
+      }
+    })
+  : null; // Fallback to prevent module load errors
 
 // Create Supabase admin client for server-side operations (bypasses RLS)
-export const supabaseAdmin = supabaseServiceKey 
+export const supabaseAdmin = (supabaseServiceKey && supabaseUrl)
   ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         persistSession: false,
@@ -41,7 +56,7 @@ export const supabaseAdmin = supabaseServiceKey
         schema: 'public'
       }
     })
-  : null;
+  : undefined;
 
 // Connection status checker
 export async function checkSupabaseConnection(): Promise<boolean> {
@@ -63,9 +78,18 @@ export async function checkSupabaseConnection(): Promise<boolean> {
 
 // Helper to get the appropriate client based on context
 export function getSupabaseClient(requireAdmin: boolean = false) {
+  // Check if clients are properly initialized
   if (requireAdmin && supabaseAdmin) {
     return supabaseAdmin;
   }
+  
+  if (!supabase) {
+    const error = new Error('Supabase client not initialized - check environment variables');
+    // eslint-disable-next-line no-console
+    console.error('[SUPABASE ERROR]', error.message);
+    throw error;
+  }
+  
   return supabase;
 }
 
