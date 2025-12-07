@@ -124,14 +124,11 @@ export default function DailyUpdatesCarousel({
       }
     } catch (error) {
       console.error('Error fetching daily updates:', error);
-      // Don't set error if we already have updates (they might be from cache)
-      if (!updates || updates.length === 0) {
-        setError('אירעה שגיאה בטעינת העדכונים. נסה שוב מאוחר יותר.');
-      }
+      setError('אירעה שגיאה בטעינת העדכונים. נסה שוב מאוחר יותר.');
     } finally {
       setLoading(false);
     }
-  }, [hiddenUpdateIds, projectId, projectName, updates]); // Include updates to ensure fresh data
+  }, [hiddenUpdateIds, projectId, projectName]); // Removed 'updates' from dependencies
 
   useEffect(() => {
     fetchData();

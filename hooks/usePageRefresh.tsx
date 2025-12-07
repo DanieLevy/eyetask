@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 
 interface RefreshContextType {
   setPageRefresh: (refreshFn: () => Promise<void> | void) => void;
@@ -36,16 +36,24 @@ export function usePageRefresh(refreshFn: () => Promise<void> | void) {
     throw new Error('usePageRefresh must be used within a RefreshProvider');
   }
 
-  // Register the refresh function when the component mounts
   const { setPageRefresh } = context;
   
-  // Register the function
-  React.useEffect(() => {
-    setPageRefresh(refreshFn);
+  // Use a ref to store the latest refresh function without triggering re-renders
+  const refreshFnRef = useRef(refreshFn);
+  
+  // Update the ref when refreshFn changes, but don't trigger effect re-run
+  useEffect(() => {
+    refreshFnRef.current = refreshFn;
+  }, [refreshFn]);
+  
+  // Register a stable wrapper function that calls the latest refreshFn
+  useEffect(() => {
+    const stableRefreshFn = () => refreshFnRef.current();
+    setPageRefresh(stableRefreshFn);
     
     // Cleanup on unmount
     return () => setPageRefresh(() => {});
-  }, [setPageRefresh, refreshFn]);
+  }, [setPageRefresh]); // Only depend on setPageRefresh, not refreshFn
 }
 
 export function useRefreshTrigger() {
