@@ -61,6 +61,11 @@ export const supabaseAdmin = (supabaseServiceKey && supabaseUrl)
 // Connection status checker
 export async function checkSupabaseConnection(): Promise<boolean> {
   try {
+    if (!supabase) {
+      logger.error('Supabase client not initialized', 'SUPABASE');
+      return false;
+    }
+    
     const { error } = await supabase.from('projects').select('count').limit(0);
     
     if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" which is fine
