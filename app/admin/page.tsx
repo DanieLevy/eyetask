@@ -75,11 +75,8 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    let loginSuccessful = false;
 
     try {
-      // Starting login process
-      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -89,7 +86,6 @@ export default function AdminLoginPage() {
       });
 
       const data = await response.json();
-      // Login response received
 
       if (data.success) {
         // Handle both direct response and nested data structure
@@ -98,16 +94,15 @@ export default function AdminLoginPage() {
         const permissions = data.permissions || data.data?.permissions || {};
         
         if (token && user) {
-          // Login successful, calling auth context login
-          loginSuccessful = true;
           toast.success('התחברת בהצלחה');
           
           if (authContext?.login) {
             // Use the auth context login method which handles redirect
             authContext.login(token, user, permissions);
+            // Don't set loading to false - let the redirect happen
+            // The loading state will continue until the page navigates
           } else {
             // Fallback: manual redirect if auth context is not available
-            // Auth context not available, using fallback redirect
             localStorage.setItem('adminToken', token);
             localStorage.setItem('adminUser', JSON.stringify(user));
             if (permissions) {
@@ -115,35 +110,35 @@ export default function AdminLoginPage() {
             }
             
             // Redirect based on permissions
+            let redirectPath = '/admin/dashboard';
             if (permissions?.['access.admin_dashboard']) {
-              router.push('/admin/dashboard');
+              redirectPath = '/admin/dashboard';
             } else if (permissions?.['access.tasks_management']) {
-              router.push('/admin/tasks');
+              redirectPath = '/admin/tasks';
             } else if (permissions?.['access.projects_management']) {
-              router.push('/admin/projects');
-            } else {
-              router.push('/admin/dashboard');
+              redirectPath = '/admin/projects';
             }
+            
+            // Use replace to avoid going back to login page
+            router.replace(redirectPath);
           }
-          // Don't set loading to false here, let the redirect happen
+          // Keep loading state true during redirect
           return;
         } else {
           setError('שגיאה בתגובת השרת');
           toast.error('שגיאה בתגובת השרת');
+          setLoading(false);
         }
       } else {
         setError(data.error || 'שם משתמש או סיסמה שגויים');
         toast.error(data.error || 'שם משתמש או סיסמה שגויים');
+        setLoading(false);
       }
     } catch (error) {
       console.error('Login error:', error);
       setError('שגיאה בהתחברות למערכת');
       toast.error('שגיאה בהתחברות למערכת');
-    } finally {
-      // Only set loading to false if we didn't successfully login
-      if (!loginSuccessful) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 

@@ -156,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Login function
-  const login = (token: string, userData: UserData, permissions?: Record<string, boolean>) => {
+  const login = useCallback((token: string, userData: UserData, permissions?: Record<string, boolean>) => {
     logger.debug('AuthContext login called', 'AUTH', { userData, permissions });
     
     localStorage.setItem('adminToken', token);
@@ -164,37 +164,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setUser(userData);
     setIsAdmin(userData.role === 'admin');
+    setIsLoading(false); // Important: Set loading to false after login
     
     if (permissions) {
       setUserPermissions(permissions);
+      localStorage.setItem('userPermissions', JSON.stringify(permissions));
     }
     
-    // Redirect after login
-    const intendedDestination = localStorage.getItem('intendedDestination');
-    if (intendedDestination && intendedDestination !== '/admin') {
-      localStorage.removeItem('intendedDestination');
-      logger.debug(`Redirecting to intended destination: ${intendedDestination}`, 'AUTH');
-      router.push(intendedDestination);
-    } else {
-      // Default redirect based on permissions
-      let redirectPath = '/admin/dashboard'; // Default to dashboard
-      
-      if (permissions?.['access.admin_dashboard']) {
-        redirectPath = '/admin/dashboard';
-      } else if (permissions?.['access.tasks_management']) {
-        redirectPath = '/admin/tasks';
-      } else if (permissions?.['access.projects_management']) {
-        redirectPath = '/admin/projects';
-      } else if (permissions?.['access.daily_updates']) {
-        redirectPath = '/admin/daily-updates';
-      } else if (permissions?.['access.feedback']) {
-        redirectPath = '/admin/feedback';
+    // Use setTimeout to ensure state updates are processed before redirect
+    setTimeout(() => {
+      // Redirect after login
+      const intendedDestination = localStorage.getItem('intendedDestination');
+      if (intendedDestination && intendedDestination !== '/admin') {
+        localStorage.removeItem('intendedDestination');
+        logger.debug(`Redirecting to intended destination: ${intendedDestination}`, 'AUTH');
+        router.replace(intendedDestination);
+      } else {
+        // Default redirect based on permissions
+        let redirectPath = '/admin/dashboard'; // Default to dashboard
+        
+        if (permissions?.['access.admin_dashboard']) {
+          redirectPath = '/admin/dashboard';
+        } else if (permissions?.['access.tasks_management']) {
+          redirectPath = '/admin/tasks';
+        } else if (permissions?.['access.projects_management']) {
+          redirectPath = '/admin/projects';
+        } else if (permissions?.['access.daily_updates']) {
+          redirectPath = '/admin/daily-updates';
+        } else if (permissions?.['access.feedback']) {
+          redirectPath = '/admin/feedback';
+        }
+        
+        logger.debug(`Redirecting to: ${redirectPath}`, 'AUTH');
+        router.replace(redirectPath);
       }
-      
-      logger.debug(`Redirecting to: ${redirectPath}`, 'AUTH');
-      router.push(redirectPath);
-    }
-  };
+    }, 0);
+  }, [router]);
 
   // Logout function  
   const logout = async () => {

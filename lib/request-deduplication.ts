@@ -2,6 +2,13 @@
 interface PendingRequest {
   promise: Promise<Response>;
   timestamp: number;
+  // Store the response data instead of the Response object to avoid cloning issues
+  responseData?: {
+    status: number;
+    statusText: string;
+    headers: Headers;
+    body: unknown;
+  };
 }
 
 const pendingRequests = new Map<string, PendingRequest>();
@@ -17,18 +24,43 @@ export async function deduplicatedFetch(url: string, options?: RequestInit): Pro
   if (pending) {
     const age = Date.now() - pending.timestamp;
     
-    // If the request is still fresh, return the existing promise
-    if (age < DEDUPE_WINDOW) {
-      // Silently reuse the pending request
-      return pending.promise.then(res => res.clone());
-    } else {
+    // If the request is still fresh and has cached response data, return it
+    if (age < DEDUPE_WINDOW && pending.responseData) {
+      // Return a new Response object with the cached data
+      return new Response(JSON.stringify(pending.responseData.body), {
+        status: pending.responseData.status,
+        statusText: pending.responseData.statusText,
+        headers: pending.responseData.headers
+      });
+    } else if (age >= DEDUPE_WINDOW) {
       // Request is stale, remove it
       pendingRequests.delete(key);
     }
   }
   
   // Create new request
-  const promise = fetch(url, options);
+  const promise = fetch(url, options).then(async (response) => {
+    // Cache the response data for future deduplicated calls
+    try {
+      const clonedResponse = response.clone();
+      const body = await clonedResponse.json();
+      
+      const cached = pendingRequests.get(key);
+      if (cached) {
+        cached.responseData = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          body
+        };
+      }
+    } catch {
+      // If response can't be cloned/parsed, don't cache it
+      // This is fine - the original response will still be returned
+    }
+    
+    return response;
+  });
   
   // Store the pending request
   pendingRequests.set(key, {
