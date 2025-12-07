@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { feedbackService } from '@/lib/services/feedbackService';
-import { UpdateFeedbackRequest } from '@/lib/types/feedback';
-import { logger } from '@/lib/logger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { requireAdmin } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
+import { feedbackService } from '@/lib/services/feedbackService';
+import { UpdateFeedbackRequest } from '@/lib/types/feedback';
 
 // GET - Get specific ticket by ID
 export async function GET(

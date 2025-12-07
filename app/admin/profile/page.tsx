@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { User, Mail, Lock, Save, Loader2, Shield, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import AdminClientLayout from '@/components/AdminClientLayout';
 import { useAuth } from '@/components/unified-header/AuthContext';
-import { toast } from 'sonner';
-import { User, Mail, Lock, Save, Loader2, Shield, AlertCircle } from 'lucide-react';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 export default function ProfilePage() {
@@ -79,7 +79,7 @@ export default function ProfilePage() {
         return;
       }
       
-      const updateData: any = {
+      const updateData: { username: string; email: string; currentPassword?: string; password?: string } = {
         username: formData.username,
         email: formData.email
       };

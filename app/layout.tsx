@@ -1,22 +1,22 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Toaster } from "sonner";
-import Footer from "@/components/Footer";
-import SmartAppBanner from "@/components/SmartAppBanner";
-import OfflineBanner from "@/components/OfflineBanner";
-import { LoadingProvider } from "@/contexts/LoadingContext";
-import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
-import DeepLinkHandler from "@/components/DeepLinkHandler";
-import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
-import CSSFailsafe from "@/components/CSSFailsafe";
-import { RefreshProvider } from "@/hooks/usePageRefresh";
 import Script from "next/script";
+import { Toaster } from "sonner";
+import ConditionalHeader from "@/components/ConditionalHeader";
+import CSSFailsafe from "@/components/CSSFailsafe";
+import DeepLinkHandler from "@/components/DeepLinkHandler";
+import Footer from "@/components/Footer";
+import GlobalPullToRefresh from "@/components/GlobalPullToRefresh";
 import IOSThemeHandler from "@/components/IOSThemeHandler";
 import { GlobalLoadingIndicator } from "@/components/LoadingSystem";
+import { NavigationLoadingProvider } from "@/components/NavigationLoadingProvider";
+import OfflineBanner from "@/components/OfflineBanner";
+import SmartAppBanner from "@/components/SmartAppBanner";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import ConditionalHeader from "@/components/ConditionalHeader";
 import { AuthProvider } from "@/components/unified-header/AuthContext";
+import { LoadingProvider } from "@/contexts/LoadingContext";
 import { VisitorProvider } from "@/contexts/VisitorContext";
+import { RefreshProvider } from "@/hooks/usePageRefresh";
 
 export const metadata: Metadata = {
   title: "Driver Tasks",

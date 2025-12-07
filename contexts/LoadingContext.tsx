@@ -25,7 +25,7 @@ export interface LoadingState {
   progress?: number; // 0-100 for progress bars
   startTime: number;
   timeout?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Loading context interface
@@ -45,7 +45,7 @@ interface LoadingContextType {
       priority?: LoadingPriority;
       message?: string;
       timeout?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }
   ) => void;
   
@@ -55,7 +55,7 @@ interface LoadingContextType {
     updates: {
       message?: string;
       progress?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }
   ) => void;
   
@@ -64,7 +64,7 @@ interface LoadingContextType {
   clearLoadingByType: (type: LoadingType) => void;
   
   // Loading orchestration
-  withLoading: <T>(
+  withLoading: <T,>(
     id: string,
     type: LoadingType,
     operation: () => Promise<T>,
@@ -96,9 +96,10 @@ export function LoadingProvider({ children }: LoadingProviderProps): React.JSX.E
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const timeouts = timeoutsRef.current;
     return () => {
-      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
-      timeoutsRef.current.clear();
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      timeouts.clear();
     };
   }, []);
 
@@ -137,7 +138,7 @@ export function LoadingProvider({ children }: LoadingProviderProps): React.JSX.E
       priority?: LoadingPriority;
       message?: string;
       timeout?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     } = {}
   ) => {
     const {
@@ -180,7 +181,7 @@ export function LoadingProvider({ children }: LoadingProviderProps): React.JSX.E
     updates: {
       message?: string;
       progress?: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }
   ) => {
     setLoadingStates(prev => {
@@ -297,7 +298,7 @@ export function LoadingProvider({ children }: LoadingProviderProps): React.JSX.E
   }, []);
 
   // Higher-order function for automatic loading management
-  const withLoading = useCallback(<T extends any>(
+  const withLoading = useCallback(<T,>(
     id: string,
     type: LoadingType,
     operation: () => Promise<T>,
@@ -360,7 +361,7 @@ export function usePageLoading() {
     startPageLoading: (id: string, message?: string) => 
       startLoading(id, 'page', { priority: 'high', message }),
     stopPageLoading: (id: string) => stopLoading(id),
-    withPageLoading: <T extends any>(id: string, operation: () => Promise<T>, message?: string) =>
+    withPageLoading: <T,>(id: string, operation: () => Promise<T>, message?: string) =>
       withLoading(id, 'page', operation, { priority: 'high', message })
   };
 }
@@ -375,7 +376,7 @@ export function useActionLoading() {
     stopActionLoading: (id: string) => stopLoading(id),
     updateActionLoading: (id: string, message?: string, progress?: number) =>
       updateLoading(id, { message, progress }),
-    withActionLoading: <T extends any>(id: string, operation: () => Promise<T>, message?: string) =>
+    withActionLoading: <T,>(id: string, operation: () => Promise<T>, message?: string) =>
       withLoading(id, 'action', operation, { priority: 'medium', message })
   };
 }
@@ -388,7 +389,7 @@ export function useDataLoading() {
     startDataLoading: (id: string, message?: string) => 
       startLoading(id, 'data', { priority: 'medium', message }),
     stopDataLoading: (id: string) => stopLoading(id),
-    withDataLoading: <T extends any>(id: string, operation: () => Promise<T>, message?: string) =>
+    withDataLoading: <T,>(id: string, operation: () => Promise<T>, message?: string) =>
       withLoading(id, 'data', operation, { priority: 'medium', message })
   };
 }

@@ -1,7 +1,7 @@
-import { logger } from './logger';
-import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryUrl, extractPublicIdFromUrl, type CloudinaryUploadResult } from './cloudinary-server';
 import fs from 'fs/promises';
 import path from 'path';
+import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryUrl, extractPublicIdFromUrl } from './cloudinary-server';
+import { logger } from './logger';
 
 /**
  * Enhanced file storage service using Cloudinary

@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { activityLogger } from '@/lib/activityLogger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { activityLogger } from '@/lib/activityLogger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface TaskUpdateData {
+  title?: string;
+  subtitle?: string;
+  images?: string[];
+  datacoNumber?: string;
+  description?: Record<string, unknown>;
+  type?: string[];
+  locations?: string[];
+  amountNeeded?: number;
+  targetCar?: string[];
+  lidar?: boolean;
+  dayTime?: string[];
+  priority?: number;
+  isVisible?: boolean;
+}
 
 // GET /api/tasks/[id] - Get a single task
 export async function GET(
@@ -102,7 +118,7 @@ export async function PUT(
     }
     
     // Create update object with only the fields that are provided
-    const updateData: any = {};
+    const updateData: TaskUpdateData = {};
     if (data.title !== undefined) updateData.title = data.title;
     if (data.subtitle !== undefined) updateData.subtitle = data.subtitle;
     if (data.images !== undefined) updateData.images = data.images;

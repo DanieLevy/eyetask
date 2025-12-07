@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 interface RouteParams {
   params: Promise<{ projectName: string }>;
@@ -24,7 +24,7 @@ export async function GET(
     
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in project-data API:', error);
+    logger.error('Error in project-data API', 'PROJECT_DATA_API', undefined, error as Error);
     return NextResponse.json(
       { error: 'Failed to fetch project data' },
       { status: 500 }

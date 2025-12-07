@@ -120,7 +120,7 @@ export type Database = {
           subtitle: string | null;
           images: string[] | null;
           dataco_number: string;
-          description: Record<string, any>;
+          description: Record<string, unknown>;
           type: string[] | null;
           locations: string[] | null;
           amount_needed: number | null;
@@ -162,10 +162,10 @@ export type Database = {
       analytics: {
         Row: {
           id: string;
-          visits: Record<string, any>;
-          unique_visitors: Record<string, any>;
-          daily_stats: Record<string, any>;
-          counters: Record<string, any>;
+          visits: Record<string, unknown>;
+          unique_visitors: Record<string, unknown>;
+          daily_stats: Record<string, unknown>;
+          counters: Record<string, unknown>;
           last_updated: string;
           created_at: string;
           updated_at: string;

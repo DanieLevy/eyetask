@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { supabaseDb } from './supabase-database';
 import { logger } from './logger';
 import { getUserPermissions } from './permissions';
 import { getSupabaseClient } from './supabase';
+import { supabaseDb } from './supabase-database';
 
 // Enhanced JWT secret configuration for production
 const JWT_SECRET = process.env.JWT_SECRET || 
@@ -75,7 +75,7 @@ export class SupabaseAuthService {
         return null;
       }
 
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string; email?: string; role: string };
       
       // Validate required fields
       if (!decoded.id || !decoded.username || !decoded.role) {
@@ -86,7 +86,7 @@ export class SupabaseAuthService {
       return {
         id: decoded.id,
         username: decoded.username,
-        email: decoded.email,
+        email: decoded.email || '',
         role: decoded.role
       };
     } catch (error) {
@@ -121,7 +121,7 @@ export class SupabaseAuthService {
       }
       
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -129,7 +129,7 @@ export class SupabaseAuthService {
   /**
    * Get user from token with permissions
    */
-  async getUserFromToken(token: string): Promise<any | null> {
+  async getUserFromToken(token: string): Promise<(AuthUser & { permissions?: Record<string, boolean> }) | null> {
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
       const supabase = getSupabaseClient(true); // Use admin client
@@ -152,7 +152,7 @@ export class SupabaseAuthService {
         ...user,
         permissions
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -167,7 +167,7 @@ export class SupabaseAuthService {
     success: boolean; 
     error?: string; 
     token?: string; 
-    user?: any;
+    user?: AuthUser;
     permissions?: Record<string, boolean>;
   }> {
     try {
@@ -229,8 +229,7 @@ export class SupabaseAuthService {
           id: user.id,
           username: user.username,
           email: user.email,
-          role: user.role,
-          isActive: user.is_active
+          role: user.role
         },
         permissions
       };

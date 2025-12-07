@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface RealtimeNotificationProps {
   message?: string;

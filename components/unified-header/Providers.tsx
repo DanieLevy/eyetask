@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { HeaderProvider } from './HeaderContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { HeaderProvider } from './HeaderContext';
 
 interface ProvidersProps {
   children: React.ReactNode;

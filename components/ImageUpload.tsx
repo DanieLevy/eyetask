@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import { Upload, X } from 'lucide-react';
+import { useState, useRef } from 'react';
 import CloudinaryImage from './CloudinaryImage';
 
 // Helper function to get the correct auth token

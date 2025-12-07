@@ -15,7 +15,7 @@ export default function IOSThemeHandler() {
     try {
       setIsPWA(
         window.matchMedia('(display-mode: standalone)').matches || 
-        (window.navigator as any).standalone === true ||
+        (window.navigator as { standalone?: boolean }).standalone === true ||
         localStorage.getItem('isPWA') === 'true'
       );
       
@@ -27,8 +27,8 @@ export default function IOSThemeHandler() {
       
       mediaQuery.addEventListener('change', handleDisplayChange);
       return () => mediaQuery.removeEventListener('change', handleDisplayChange);
-    } catch (e) {
-      console.warn('PWA detection error:', e);
+    } catch {
+      // PWA detection failed, continue without PWA mode
     }
   }, []);
   
@@ -39,7 +39,7 @@ export default function IOSThemeHandler() {
     const isIOS = (() => {
       try {
         return localStorage.getItem('isIOSDevice') === 'true';
-      } catch (e) {
+      } catch {
         return false;
       }
     })();

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
-import { getSupabaseClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import { getSupabaseClient } from '@/lib/supabase';
+import type { VisitorSession } from '@/lib/supabase-database';
+import { supabaseDb as db } from '@/lib/supabase-database';
+import type { ActivityLogEntry } from '@/lib/types/analytics';
 
 // Never cache this route
 export const dynamic = 'force-dynamic';
@@ -42,17 +44,20 @@ export async function GET(
         deviceInfo: profile.deviceInfo,
         isActive: profile.isActive
       },
-      activities: activities.map((activity: any) => ({
+      activities: (activities as unknown as ActivityLogEntry[]).map((activity) => ({
         id: activity.id,
         timestamp: activity.timestamp,
         action: activity.action,
         category: activity.category,
-        target: activity.target,
-        metadata: activity.metadata,
-        severity: activity.severity
+        userId: activity.userId,
+        username: activity.username,
+        userRole: activity.userRole,
+        visitorId: activity.visitorId,
+        visitorName: activity.visitorName,
+        metadata: activity.metadata
       })),
-      sessions: sessions.map((session: any) => ({
-        id: session.id,
+      sessions: (sessions as unknown as VisitorSession[]).map((session) => ({
+        id: session.id || '',
         sessionId: session.sessionId,
         startedAt: session.startedAt,
         endedAt: session.endedAt,

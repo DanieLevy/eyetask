@@ -1,11 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useRef } from 'react';
+import { PlusCircle, type LucideIcon } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { BarChart3, CheckSquare, FolderOpen, MessageCircle, Home, PlusCircle } from 'lucide-react';
-import { HeaderVariant, UnifiedHeaderProps } from './types';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
+import { useAdminNavigation } from '@/hooks/useAdminNavigation';
 import { useAuth } from './AuthContext';
-import { useAdminNavigation, NavigationItem } from '@/hooks/useAdminNavigation';
+import { UnifiedHeaderProps } from './types';
 
 interface RouteConfig extends Partial<UnifiedHeaderProps> {
   pattern: string | RegExp;
@@ -227,7 +227,7 @@ export const HeaderProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: item.id,
         label: item.label,
         href: item.href,
-        icon: item.icon as any, // Type assertion to handle the icon type difference
+        icon: item.icon as LucideIcon | undefined,
         isActive: item.isActive,
         isExternal: item.isExternal
       }));

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import { Bell, BellOff, Smartphone, RefreshCw, CheckCircle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +30,7 @@ export function PushNotificationSettings() {
       } else {
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                           (window.navigator as any).standalone === true;
+                           (window.navigator as { standalone?: boolean }).standalone === true;
         
         if (isIOS && !isStandalone) {
           showIOSInstallPrompt();

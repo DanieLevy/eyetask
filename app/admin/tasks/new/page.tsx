@@ -1,35 +1,25 @@
 'use client';
 
-import { useEffect, useState, Suspense, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Eye, 
-  Plus,
-  RefreshCw,
-  ChevronRight,
-  AlertTriangle,
-  ArrowLeft,
-  Trash2,
   Save,
-  RotateCcw,
   X,
   Menu,
   Home,
-  ChevronDown,
   Car,
   Clock,
   Zap,
-  Tag,
-  Info,
   MapPin as Road,
+  AlertTriangle,
 } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense, useMemo } from 'react';
+import { toast } from 'sonner';
 import { MultipleImageUpload } from '@/components/ImageUpload';
 import ModernCheckbox from '@/components/ModernCheckbox';
-import { toast } from 'sonner';
+import { useHebrewFont as _useHebrewFont } from '@/hooks/useFont';
 
 interface Project {
   _id: string;
@@ -160,7 +150,7 @@ function NewTaskPageCore() {
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [_user, _setUser] = useState<null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [createAnother, setCreateAnother] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -196,8 +186,8 @@ function NewTaskPageCore() {
       if (!parsedUser || !parsedUser.id || !parsedUser.username) {
         throw new Error('Invalid user data structure');
       }
-      setUser(parsedUser);
-    } catch (error) {
+      // User data validated - no need to store in state
+    } catch {
       router.push('/admin');
       return;
     }
@@ -307,7 +297,7 @@ function NewTaskPageCore() {
   };
 
   // Handle DATACO number input - only allow numbers
-  const handleDatacoNumberChange = (value: string) => {
+  const _handleDatacoNumberChange = (value: string) => {
     // Remove any non-numeric characters
     const numericValue = value.replace(/[^0-9]/g, '');
     setTask(prev => ({ ...prev, datacoNumber: numericValue }));
@@ -474,7 +464,7 @@ function NewTaskPageCore() {
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                        הזן מספרים בלבד. הקידומת &quot;DATACO-&quot; תתווסף אוטומטית
                       </p>
                       {task.datacoNumber && (
                         <p className="text-xs text-blue-600 mt-1">
@@ -651,7 +641,7 @@ function NewTaskPageCore() {
 
 // Loading fallback component
 function NewTaskPageFallback() {
-  useHebrewFont();
+  _useHebrewFont();
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="text-center">

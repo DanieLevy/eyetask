@@ -1,21 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Eye, 
-  Save,
-  X,
-  RefreshCw,
-  ChevronRight,
-  Plus,
-  Target
+  ChevronRight
 } from 'lucide-react';
-import { capitalizeEnglishArray } from '@/lib/utils';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import SimpleImageGallery from '@/components/SimpleImageGallery';
+import { capitalizeEnglishArray } from '@/lib/utils';
 
 interface Task {
   id: string;
@@ -68,13 +63,7 @@ export default function NewSubtaskPage() {
     dayTime: []
   });
 
-  useEffect(() => {
-    if (taskId) {
-    fetchTaskData();
-    }
-  }, [taskId]);
-
-  const fetchTaskData = async () => {
+  const fetchTaskData = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/tasks/${taskId}`, {
@@ -97,7 +86,13 @@ export default function NewSubtaskPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [taskId]);
+
+  useEffect(() => {
+    if (taskId) {
+      fetchTaskData();
+    }
+  }, [taskId, fetchTaskData]);
   
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -126,7 +121,7 @@ export default function NewSubtaskPage() {
     setImagePreviewUrls(prev => [...prev, ...previews]);
   };
 
-  const handleRemoveNewImage = (indexToRemove: number) => {
+  const _handleRemoveNewImage = (indexToRemove: number) => {
     setImagesToUpload(prev => prev.filter((_, index) => index !== indexToRemove));
     setImagePreviewUrls(prev => prev.filter((_, index) => index !== indexToRemove));
   };
@@ -268,7 +263,7 @@ export default function NewSubtaskPage() {
           <div className="bg-card rounded-lg border border-border p-6">
             <div className="p-6 border-b border-border">
               <h2 className="text-xl font-semibold text-foreground">הוסף תת-משימה חדשה</h2>
-              <p className="text-sm text-muted-foreground mt-1">צור תת-משימה חדשה עבור המשימה "{task.title}"</p>
+              <p className="text-sm text-muted-foreground mt-1">צור תת-משימה חדשה עבור המשימה &quot;{task.title}&quot;</p>
             </div>
             
             <div className="p-6 space-y-4">
@@ -314,7 +309,7 @@ export default function NewSubtaskPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    הזן מספרים בלבד. הקידומת "DATACO-" תתווסף אוטומטית
+                    הזן מספרים בלבד. הקידומת &quot;DATACO-&quot; תתווסף אוטומטית
                   </p>
                   {newSubtaskData.datacoNumber && (
                     <p className="text-xs text-primary mt-1">
@@ -432,7 +427,7 @@ export default function NewSubtaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
                   <select
                     value={newSubtaskData.weather}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, weather: e.target.value as any }))}
+                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, weather: e.target.value as NewSubtaskData['weather'] }))}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="Clear">בהיר (Clear)</option>
@@ -447,7 +442,7 @@ export default function NewSubtaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
                   <select
                     value={newSubtaskData.scene}
-                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, scene: e.target.value as any }))}
+                    onChange={(e) => setNewSubtaskData(prev => ({ ...prev, scene: e.target.value as NewSubtaskData['scene'] }))}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="Highway">כביש מהיר (Highway)</option>

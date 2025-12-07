@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
+import { he } from 'date-fns/locale';
 import {
   Bell,
   Send,
@@ -27,24 +27,23 @@ import {
   ChevronDown,
   X
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
+import { useCallback, useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -52,12 +51,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { he } from 'date-fns/locale';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface PushSubscription {
   _id: string;
@@ -107,31 +105,7 @@ export default function PushNotificationsPage() {
   
   const router = useRouter();
 
-  useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      router.push('/admin');
-      return;
-    }
-    loadData();
-  }, [router]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadSubscriptions(),
-        loadHistory()
-      ]);
-    } catch (error) {
-      logger.error('Error loading data:', 'PUSH_ADMIN', error as Error);
-      toast.error('שגיאה בטעינת הנתונים');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSubscriptions = async () => {
+  const loadSubscriptions = useCallback(async () => {
     try {
       const response = await fetch('/api/push/subscriptions', {
         headers: {
@@ -141,11 +115,11 @@ export default function PushNotificationsPage() {
       const data = await response.json();
       setSubscriptions(data.subscriptions || []);
     } catch (error) {
-      logger.error('Error loading subscriptions:', 'PUSH_ADMIN', error as Error);
+      logger.error('Error loading subscriptions', 'PUSH_ADMIN', undefined, error as Error);
     }
-  };
+  }, []);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       const response = await fetch('/api/push/history', {
         headers: {
@@ -155,9 +129,33 @@ export default function PushNotificationsPage() {
       const data = await response.json();
       setHistory(data.history || []);
     } catch (error) {
-      logger.error('Error loading history:', 'PUSH_ADMIN', error as Error);
+      logger.error('Error loading history', 'PUSH_ADMIN', undefined, error as Error);
     }
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadSubscriptions(),
+        loadHistory()
+      ]);
+    } catch (error) {
+      logger.error('Error loading data', 'PUSH_ADMIN', undefined, error as Error);
+      toast.error('שגיאה בטעינת הנתונים');
+    } finally {
+      setLoading(false);
+    }
+  }, [loadSubscriptions, loadHistory]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      router.push('/admin');
+      return;
+    }
+    loadData();
+  }, [router, loadData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -230,7 +228,7 @@ export default function PushNotificationsPage() {
         toast.error(result.error || 'שגיאה בשליחת ההתראה');
       }
     } catch (error) {
-      logger.error('Error sending notification:', 'PUSH_ADMIN', error as Error);
+      logger.error('Error sending notification', 'PUSH_ADMIN', undefined, error as Error);
       toast.error('שגיאה בשליחת ההתראה');
     } finally {
       setSending(false);

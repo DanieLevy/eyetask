@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 import { getUserPermissions } from '@/lib/permissions';
 import { getSupabaseClient } from '@/lib/supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // GET /api/users/me - Get current user's profile and permissions
 export async function GET(request: NextRequest) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] /api/users/me called`);
-  
   try {
     // Extract user from request
     const user = authService.extractUserFromRequest(request);
@@ -80,14 +77,14 @@ export async function PUT(request: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString()
     };
 
     // Update username if provided and different
     if (data.username && data.username !== existingUser.username) {
       // Check if username is already taken
-      const { data: usernameExists, error: usernameError } = await supabase
+      const { data: usernameExists } = await supabase
         .from('app_users')
         .select('id')
         .eq('username', data.username)
@@ -115,7 +112,7 @@ export async function PUT(request: NextRequest) {
       }
 
       // Check if email is already taken
-      const { data: emailExists, error: emailError } = await supabase
+      const { data: emailExists } = await supabase
         .from('app_users')
         .select('id')
         .eq('email', data.email)

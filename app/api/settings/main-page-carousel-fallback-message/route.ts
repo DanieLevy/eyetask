@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { logger } from '@/lib/logger';
-import { cache } from '@/lib/cache';
 import { requireAdmin } from '@/lib/auth-utils';
+import { cache } from '@/lib/cache';
+import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 const SETTING_KEY = 'main-page-carousel-fallback-message';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache for settings
 const CACHE_NAMESPACE = 'settings';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Try to get from cache first
     const cacheKey = `setting_${SETTING_KEY}`;

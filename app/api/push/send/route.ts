@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { pushService } from '@/lib/services/pushNotificationService';
-import { logger } from '@/lib/logger';
 import { requireAdmin } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
+import { pushService } from '@/lib/services/pushNotificationService';
 
 // POST /api/push/send - Send push notification (admin only)
 export async function POST(request: NextRequest) {

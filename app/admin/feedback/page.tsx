@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FeedbackTicket, FeedbackStats as FeedbackStatsType, FeedbackFilterOptions } from '@/lib/types/feedback';
-import FeedbackList from '@/components/admin/FeedbackList';
+import { useState, useEffect, useCallback } from 'react';
 import FeedbackFilters from '@/components/admin/FeedbackFilters';
+import FeedbackList from '@/components/admin/FeedbackList';
 import FeedbackStatsComponent from '@/components/admin/FeedbackStatsComponent';
 import TicketModal from '@/components/admin/TicketModal';
 import AdminClientLayout from '@/components/AdminClientLayout';
+import { FeedbackTicket, FeedbackStats as FeedbackStatsType, FeedbackFilterOptions } from '@/lib/types/feedback';
 
 export default function FeedbackManagementPage() {
   const [tickets, setTickets] = useState<FeedbackTicket[]>([]);
@@ -18,16 +18,12 @@ export default function FeedbackManagementPage() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [_hasMore, setHasMore] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState<FeedbackFilterOptions>({});
 
-  useEffect(() => {
-    loadData();
-  }, [currentPage, filters]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -90,7 +86,11 @@ export default function FeedbackManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filters]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleTicketClick = (ticket: FeedbackTicket) => {
     setSelectedTicket(ticket);

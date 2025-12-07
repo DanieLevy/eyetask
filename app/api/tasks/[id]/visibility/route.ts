@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
+import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -56,7 +56,7 @@ async function handleVisibilityToggle(
 
     // Convert MongoDB result to API format
     const taskResponse = {
-      id: updatedTask._id!.toString(),
+      id: updatedTask._id?.toString() ?? '',
       title: updatedTask.title,
       subtitle: updatedTask.subtitle,
       images: updatedTask.images || [],
@@ -81,7 +81,7 @@ async function handleVisibilityToggle(
       success: true,
     });
   } catch (error) {
-    console.error('Error toggling task visibility:', error);
+    logger.error('Error toggling task visibility', 'TASK_API', undefined, error as Error);
     return NextResponse.json(
       { error: 'Failed to toggle task visibility', success: false },
       { status: 500 }

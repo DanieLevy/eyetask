@@ -19,7 +19,7 @@ interface LogEntry {
   level: LogLevelValue;
   message: string;
   context?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   error?: Error;
   userId?: string;
   ip?: string;
@@ -76,15 +76,17 @@ class Logger {
         console.warn(logMessage);
         break;
       case 'info':
+        // eslint-disable-next-line no-console
         console.info(logMessage);
         break;
       case 'debug':
+        // eslint-disable-next-line no-console
         console.debug(logMessage);
         break;
     }
   }
 
-  error(message: string, context?: string, data?: any, error?: Error): void {
+  error(message: string, context?: string, data?: Record<string, unknown>, error?: Error): void {
     this.writeLog({
       timestamp: new Date().toISOString(),
       level: 'error',
@@ -95,7 +97,7 @@ class Logger {
     });
   }
 
-  warn(message: string, context?: string, data?: any): void {
+  warn(message: string, context?: string, data?: Record<string, unknown>): void {
     this.writeLog({
       timestamp: new Date().toISOString(),
       level: 'warn',
@@ -105,7 +107,7 @@ class Logger {
     });
   }
 
-  info(message: string, context?: string, data?: any): void {
+  info(message: string, context?: string, data?: Record<string, unknown>): void {
     this.writeLog({
       timestamp: new Date().toISOString(),
       level: 'info',
@@ -115,7 +117,7 @@ class Logger {
     });
   }
 
-  debug(message: string, context?: string, data?: any): void {
+  debug(message: string, context?: string, data?: Record<string, unknown>): void {
     this.writeLog({
       timestamp: new Date().toISOString(),
       level: 'debug',
@@ -125,7 +127,19 @@ class Logger {
     });
   }
 
-  apiLog(req: any, res: any, executionTime?: number, error?: Error): void {
+  apiLog(req: { url?: string; method?: string; headers?: Record<string, string | string[] | undefined> }, res: { status?: number }, executionTime?: number, error?: Error): void {
+    const headers = req.headers || {};
+    const forwardedFor = headers['x-forwarded-for'];
+    const realIp = headers['x-real-ip'];
+    const userAgent = headers['user-agent'];
+    
+    const getHeaderValue = (header: string | string[] | undefined): string | undefined => {
+      if (Array.isArray(header)) {
+        return header[0];
+      }
+      return header;
+    };
+    
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level: error ? 'error' : 'info',
@@ -135,19 +149,19 @@ class Logger {
       method: req.method,
       statusCode: res.status,
       executionTime,
-      ip: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'unknown',
-      userAgent: req.headers['user-agent'],
+      ip: getHeaderValue(forwardedFor) || getHeaderValue(realIp) || 'unknown',
+      userAgent: getHeaderValue(userAgent),
       error
     };
 
-    if (req.headers.authorization) {
+    if (headers.authorization) {
       entry.data = { hasAuth: true };
     }
 
     this.writeLog(entry);
   }
 
-  dataOperation(operation: string, entity: string, id?: string, data?: any, error?: Error): void {
+  dataOperation(operation: string, entity: string, id?: string, data?: Record<string, unknown>, error?: Error): void {
     this.writeLog({
       timestamp: new Date().toISOString(),
       level: error ? 'error' : 'debug',
@@ -187,9 +201,9 @@ export class AppError extends Error {
   }
 }
 
-export const handleAsync = (fn: Function) => (req: any, res: any, next?: any) => {
-  Promise.resolve(fn(req, res, next)).catch((error) => {
-    logger.error('Unhandled async error', 'ASYNC', { url: req?.url, method: req?.method }, error);
+export const handleAsync = (fn: (...args: unknown[]) => Promise<unknown>) => (req: { url?: string; method?: string }, res: unknown, next?: (error?: unknown) => void): Promise<unknown> => {
+  return Promise.resolve(fn(req, res, next)).catch((error) => {
+    logger.error('Unhandled async error', 'ASYNC', { url: req?.url, method: req?.method }, error as Error);
     if (next) {
       next(error);
     } else {
@@ -198,7 +212,7 @@ export const handleAsync = (fn: Function) => (req: any, res: any, next?: any) =>
   });
 };
 
-export const validateRequired = (data: any, fields: string[], context: string = 'VALIDATION'): void => {
+export const validateRequired = (data: Record<string, unknown>, fields: string[], context: string = 'VALIDATION'): void => {
   const missing = fields.filter(field => !(field in data) || data[field] === null || data[field] === undefined);
   
   if (missing.length > 0) {
@@ -207,7 +221,7 @@ export const validateRequired = (data: any, fields: string[], context: string = 
   }
 };
 
-export const safeJsonParse = (jsonString: string, defaultValue: any = null, context: string = 'JSON_PARSE'): any => {
+export const safeJsonParse = (jsonString: string, defaultValue: unknown = null, context: string = 'JSON_PARSE'): unknown => {
   try {
     return JSON.parse(jsonString);
   } catch (error) {
@@ -222,7 +236,7 @@ export const retryOperation = async <T>(
   delay: number = 1000,
   context: string = 'RETRY'
 ): Promise<T> => {
-  let lastError: Error;
+  let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -241,6 +255,9 @@ export const retryOperation = async <T>(
     }
   }
 
-  logger.error(`Operation failed after ${maxRetries} attempts`, context, undefined, lastError!);
-  throw lastError!;
+  if (!lastError) {
+    throw new Error('Operation failed but no error was captured');
+  }
+  logger.error(`Operation failed after ${maxRetries} attempts`, context, undefined, lastError);
+  throw lastError;
 }; 

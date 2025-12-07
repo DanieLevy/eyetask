@@ -1,9 +1,7 @@
-import { getSupabaseClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import { getSupabaseClient } from '@/lib/supabase';
 import { 
   FeedbackTicket, 
-  FeedbackResponse, 
-  FeedbackInternalNote,
   CreateFeedbackRequest,
   UpdateFeedbackRequest,
   AddResponseRequest,
@@ -12,6 +10,7 @@ import {
   FeedbackStats,
   FeedbackStatus,
   FeedbackPriority,
+  FeedbackIssueType,
   FeedbackCategory
 } from '@/lib/types/feedback';
 
@@ -60,7 +59,6 @@ class FeedbackServiceSupabase {
   ): Promise<string> {
     try {
       const ticketNumber = await this.generateTicketNumber();
-      const now = new Date().toISOString();
       
       // Map frontend categories to database enum values
       const mapCategoryToDb = (category: string): string => {
@@ -309,11 +307,11 @@ class FeedbackServiceSupabase {
   async updateTicket(
     ticketId: string, 
     updates: UpdateFeedbackRequest,
-    adminId?: string,
-    adminName?: string
+    _adminId?: string,
+    _adminName?: string
   ): Promise<boolean> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         ...updates,
         updated_at: new Date().toISOString()
       };
@@ -578,8 +576,8 @@ class FeedbackServiceSupabase {
         }
 
         // Unassigned
-        if (!ticket.assigned_to) {
-          stats.unassignedCount!++;
+        if (!ticket.assigned_to && stats.unassignedCount !== undefined) {
+          stats.unassignedCount++;
         }
 
         // Resolution time
@@ -621,7 +619,7 @@ class FeedbackServiceSupabase {
       return subtasks?.map(s => ({
         id: s.id,
         title: s.title,
-        taskTitle: (s.tasks as any)?.title || 'Unknown Task'
+        taskTitle: (s.tasks as { title?: string })?.title || 'Unknown Task'
       })) || [];
     } catch (error) {
       logger.error('Failed to get available subtasks', 'FEEDBACK_SERVICE', undefined, error as Error);
@@ -657,46 +655,46 @@ class FeedbackServiceSupabase {
   /**
    * Map database ticket to FeedbackTicket interface
    */
-  private mapTicketFromDb(dbTicket: any): FeedbackTicket {
+  private mapTicketFromDb(dbTicket: Record<string, unknown>): FeedbackTicket {
     return {
-      _id: dbTicket.id,
-      ticketNumber: dbTicket.ticket_number,
-      userName: dbTicket.user_name,
-      userEmail: dbTicket.user_email,
-      userPhone: dbTicket.user_phone,
-      title: dbTicket.title,
-      description: dbTicket.description,
-      category: this.mapCategoryFromDb(dbTicket.category), // Map back to frontend value
-      priority: dbTicket.priority,
-      issueType: dbTicket.issue_type,
-      relatedTo: dbTicket.related_to,
-      status: dbTicket.status,
-      tags: dbTicket.tags || [],
-      responses: dbTicket.feedback_responses?.map((r: any) => ({
-        responseId: r.id,
-        authorType: r.author_type,
-        authorName: r.author_name,
-        authorId: r.author_id,
-        content: r.content,
-        isPublic: r.is_public,
-        attachments: r.attachments || [],
-        createdAt: new Date(r.created_at)
+      _id: dbTicket.id as string,
+      ticketNumber: dbTicket.ticket_number as string,
+      userName: dbTicket.user_name as string,
+      userEmail: dbTicket.user_email as string,
+      userPhone: dbTicket.user_phone as string | undefined,
+      title: dbTicket.title as string,
+      description: dbTicket.description as string,
+      category: this.mapCategoryFromDb(dbTicket.category as string), // Map back to frontend value
+      priority: dbTicket.priority as FeedbackPriority,
+      issueType: dbTicket.issue_type as FeedbackIssueType,
+      relatedTo: dbTicket.related_to as { type: 'project' | 'task' | 'subtask'; id: string; title: string; } | undefined,
+      status: dbTicket.status as FeedbackStatus,
+      tags: (dbTicket.tags as string[] | undefined) || [],
+      responses: (dbTicket.feedback_responses as Array<Record<string, unknown>> | undefined)?.map((r) => ({
+        responseId: r.id as string,
+        authorType: r.author_type as 'admin' | 'user',
+        authorName: r.author_name as string,
+        authorId: r.author_id as string | undefined,
+        content: r.content as string,
+        isPublic: r.is_public as boolean,
+        attachments: (r.attachments as string[] | undefined) || [],
+        createdAt: new Date(r.created_at as string)
       })) || [],
-      internalNotes: dbTicket.feedback_internal_notes?.map((n: any) => ({
-        noteId: n.id,
-        authorName: n.author_name,
-        authorId: n.author_id,
-        content: n.content,
-        createdAt: new Date(n.created_at)
+      internalNotes: (dbTicket.feedback_internal_notes as Array<Record<string, unknown>> | undefined)?.map((n) => ({
+        noteId: n.id as string,
+        authorName: n.author_name as string,
+        authorId: n.author_id as string,
+        content: n.content as string,
+        createdAt: new Date(n.created_at as string)
       })) || [],
-      assignedTo: dbTicket.assigned_to,
-      resolvedAt: dbTicket.resolved_at ? new Date(dbTicket.resolved_at) : undefined,
-      closedAt: dbTicket.closed_at ? new Date(dbTicket.closed_at) : undefined,
-      createdAt: new Date(dbTicket.created_at),
-      updatedAt: new Date(dbTicket.updated_at),
-      userAgent: dbTicket.user_agent,
-      ipAddress: dbTicket.ip_address,
-      isUrgent: dbTicket.is_urgent
+      assignedTo: dbTicket.assigned_to as string | undefined,
+      resolvedAt: dbTicket.resolved_at ? new Date(dbTicket.resolved_at as string) : undefined,
+      closedAt: dbTicket.closed_at ? new Date(dbTicket.closed_at as string) : undefined,
+      createdAt: new Date(dbTicket.created_at as string),
+      updatedAt: new Date(dbTicket.updated_at as string),
+      userAgent: dbTicket.user_agent as string | undefined,
+      ipAddress: dbTicket.ip_address as string | undefined,
+      isUrgent: (dbTicket.is_urgent as boolean | undefined) ?? false
     };
   }
 }

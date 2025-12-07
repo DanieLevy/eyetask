@@ -1,11 +1,16 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
-import { HeaderLogoProps } from './types';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { HeaderLogoProps } from './types';
 
+/**
+ * Header Logo Component
+ * Uses Next.js Image for SVG logo with theme-based filter
+ */
 export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) => {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -20,11 +25,6 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
     setIsRtl(dir === 'rtl');
   }, []);
   
-  // Set appropriate width based on condensed prop
-  const logoWidth = condensed ? 120 : 140;
-  const logoHeight = condensed ? 32 : 40;
-  
-  // Use SVG with appropriate styles for dark/light themes
   return (
     <Link 
       href="/" 
@@ -48,18 +48,17 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
             )}
             style={{ filter: resolvedTheme === 'dark' ? 'invert(1)' : 'none' }}
           >
-            <img
+            <Image
               src="/icons/header-icon-blacktext.svg"
               alt="Driver Tasks Logo"
-              style={{ 
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain', 
-                objectPosition: isRtl ? 'right center' : 'left center',
-                color: 'initial',
-                background: 'none'
-              }}
+              fill
               className="transition-all duration-300"
+              style={{
+                objectFit: 'contain',
+                objectPosition: isRtl ? 'right center' : 'left center',
+              }}
+              priority
+              unoptimized={true} // SVG doesn't need optimization
             />
           </div>
         )}

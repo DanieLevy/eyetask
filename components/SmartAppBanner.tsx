@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { X, Share, Plus } from 'lucide-react';
-import { usePWADetection } from '@/hooks/usePWADetection';
+import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
+import { usePWADetection } from '@/hooks/usePWADetection';
 
+/**
+ * Smart App Banner Component
+ * Shows install prompts for PWA with proper Next.js Image usage
+ */
 export default function SmartAppBanner() {
   const {
     status,
     dismissInstallPrompt,
-    neverShowAgain,
     installApp
   } = usePWADetection();
 
@@ -73,16 +77,14 @@ export default function SmartAppBanner() {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg overflow-hidden shadow-sm">
-                <img
+              <div className="w-12 h-12 rounded-lg overflow-hidden shadow-sm relative">
+                <Image
                   src="/icons/icon-192x192.png"
                   alt="DC Drivers"
                   width={48}
                   height={48}
-                  style={{
-                    color: 'initial',
-                    background: 'none'
-                  }}
+                  className="object-cover"
+                  unoptimized={true}
                 />
               </div>
               <div>
@@ -125,16 +127,13 @@ export default function SmartAppBanner() {
             {/* Simple Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-2">
-                <img 
+                <Image 
                   src="/icons/icon-128x128.png" 
                   alt="DC Drivers"
                   width={24}
                   height={24}
                   className="rounded-lg"
-                  style={{
-                    color: 'initial',
-                    background: 'none'
-                  }}
+                  unoptimized={true}
                 />
                 <h3 className={`text-sm font-semibold text-card-foreground ${hebrewFont.fontClass}`}>
                   התקנת DC Drivers
@@ -178,7 +177,7 @@ export default function SmartAppBanner() {
                     <div className="flex items-center gap-2 mb-1">
                       <Plus className="w-4 h-4 text-muted-foreground" />
                       <span className={`text-sm font-medium text-card-foreground ${hebrewFont.fontClass}`}>
-                        בחר "הוסף למסך הבית"
+                        בחר &quot;הוסף למסך הבית&quot;
                       </span>
                     </div>
                   </div>
@@ -190,7 +189,7 @@ export default function SmartAppBanner() {
                   </div>
                   <div className="flex-1">
                     <span className={`text-sm font-medium text-card-foreground ${hebrewFont.fontClass}`}>
-                      לחץ "הוסף" לאישור
+                      לחץ &quot;הוסף&quot; לאישור
                     </span>
                   </div>
                 </div>
@@ -238,16 +237,13 @@ export function MiniAppBanner() {
   return (
     <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-sm">
       <div className="flex items-center gap-2">
-        <img 
+        <Image 
           src="/icons/icon-128x128.png" 
           alt="DC Drivers"
           width={24}
           height={24}
           className="rounded-lg"
-          style={{
-            color: 'initial',
-            background: 'none'
-          }}
+          unoptimized={true}
         />
         <div className="flex-1 min-w-0">
           <p className={`text-sm text-card-foreground ${hebrewFont.fontClass}`}>

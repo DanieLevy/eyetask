@@ -1,10 +1,7 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // Disable ESLint during production builds
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [
       {
@@ -23,28 +20,13 @@ const nextConfig: NextConfig = {
   },
   // External packages for server components
   serverExternalPackages: ['cloudinary'],
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Don't resolve 'fs' module on the client to prevent this error on build --> Error: Can't resolve 'fs'
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        dns: false,
-        child_process: false,
-        tls: false,
-      };
-    }
-    
-    // Handle cloudinary module
-    if (!isServer) {
-      config.externals = config.externals || [];
-      config.externals.push({
-        'cloudinary': 'cloudinary'
-      });
-    }
-
-    return config;
+  // Turbopack configuration for Next.js 16 compatibility
+  turbopack: {
+    root: path.resolve(__dirname),
+    resolveAlias: {
+      // Ensure server-only modules work correctly
+      'cloudinary': 'cloudinary',
+    },
   },
 };
 

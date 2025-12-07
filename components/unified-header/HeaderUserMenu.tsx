@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { 
   User, 
   LogOut, 
@@ -9,6 +8,8 @@ import {
   UserCircle,
   UserCog
 } from 'lucide-react';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,10 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useHebrewFont } from '@/hooks/useFont';
 import { cn } from '@/lib/utils';
 import { HeaderUserMenuProps } from './types';
-import { useHebrewFont } from '@/hooks/useFont';
-import Link from 'next/link';
 
 export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProps) => {
   const [mounted, setMounted] = useState(false);

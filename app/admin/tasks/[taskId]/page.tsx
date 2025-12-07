@@ -1,12 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Eye, 
-  Target, 
   Plus,
   Edit,
   Trash2,
@@ -17,21 +13,18 @@ import {
   Zap,
   Clock,
   AlertTriangle,
-  ChevronRight,
-  Cloud,
   FileText,
   ImageIcon,
   Loader2,
   Info,
   EyeOff
 } from 'lucide-react';
-import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
-import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import SimpleImageGallery from '@/components/SimpleImageGallery';
-import { subtaskTypeOptions } from '@/lib/constants';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import SimpleImageGallery from '@/components/SimpleImageGallery';
 
 interface Task {
   _id: string;
@@ -181,7 +174,7 @@ export default function TaskManagement() {
     }
     setLoading(true);
     fetchTaskData().finally(() => setLoading(false));
-  }, [fetchTaskData]);
+  }, [fetchTaskData, router]);
 
   const handleDelete = async () => {
     if (!deleteConfirm) return;
@@ -211,7 +204,7 @@ export default function TaskManagement() {
       } else {
         toast.error(result.error || errorMessage);
       }
-    } catch (error) {
+    } catch {
       toast.error(errorMessage);
     } finally {
       setIsRefreshing(false);
@@ -221,7 +214,7 @@ export default function TaskManagement() {
     }
   };
 
-  const handleToggleVisibility = async () => {
+  const _handleToggleVisibility = async () => {
     if (!task) return;
     
     setIsRefreshing(true);

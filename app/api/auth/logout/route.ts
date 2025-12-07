@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { activityLogger } from '@/lib/activityLogger';
 import { authSupabase as auth } from '@/lib/auth-supabase';
 import { extractTokenFromHeader } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
-import { activityLogger } from '@/lib/activityLogger';
 
 // Never cache this route
 export const dynamic = 'force-dynamic';

@@ -1,18 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
-  Plus,
   Save,
   ChevronRight,
   Megaphone
 } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import ModernCheckbox from '@/components/ModernCheckbox';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import ModernCheckbox from '@/components/ModernCheckbox';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 interface UpdateForm {
   title: string;
@@ -293,9 +292,9 @@ export default function NewDailyUpdatePage() {
                         type="radio"
                         name="type"
                         value={option.value}
-                        checked={form.type === option.value}
-                        onChange={(e) => setForm({ ...form, type: e.target.value as any })}
-                        className="sr-only"
+                      checked={form.type === option.value}
+                      onChange={(e) => setForm({ ...form, type: e.target.value as UpdateForm['type'] })}
+                      className="sr-only"
                       />
                       <div className={`
                         flex items-center gap-2 w-full p-2 rounded-lg border transition-all

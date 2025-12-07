@@ -1,10 +1,5 @@
 'use client';
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Activity } from '../../types/analytics';
 import { 
   FileText, 
   Users, 
@@ -16,6 +11,11 @@ import {
   Info,
   Zap
 } from 'lucide-react';
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Activity } from '../../types/analytics';
 
 interface ActivityFeedProps {
   activities: Activity[];

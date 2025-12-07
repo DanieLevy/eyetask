@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // Never cache this route
 export const dynamic = 'force-dynamic';

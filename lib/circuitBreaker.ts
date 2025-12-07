@@ -82,7 +82,11 @@ export function getCircuitBreaker(key: string): CircuitBreaker {
       monitoringPeriod: 60000  // Monitor failures over 1 minute periods
     }));
   }
-  return circuitBreakers.get(key)!;
+  const breaker = circuitBreakers.get(key);
+  if (!breaker) {
+    throw new Error(`Circuit breaker not found for key: ${key}`);
+  }
+  return breaker;
 }
 
 export { CircuitBreaker }; 

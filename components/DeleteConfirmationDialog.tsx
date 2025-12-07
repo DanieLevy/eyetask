@@ -1,5 +1,6 @@
 "use client"
 
+import { Trash2 } from "lucide-react"
 import React from "react"
 import {
   AlertDialog,
@@ -12,7 +13,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DeleteConfirmationDialogProps {

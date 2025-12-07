@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
+import { AuthUser } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
 import { createObjectId } from '@/lib/supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { updateTaskAmount } from '@/lib/taskUtils';
-
-const subtaskSchema = {
-  title: { required: true, type: 'string', minLength: 1, maxLength: 200 },
-  subtitle: { required: false, type: 'string', maxLength: 200 },
-  datacoNumber: { required: true, type: 'string', minLength: 1, maxLength: 50 },
-  type: { required: true, type: 'string' },
-  amountNeeded: { required: true, type: 'number' },
-  labels: { required: true, type: 'object' },
-  weather: { required: true, type: 'string' },
-  scene: { required: true, type: 'string' },
-  dayTime: { required: false, type: 'object' }
-};
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -115,7 +104,7 @@ export async function POST(
   { params }: RouteParams
 ) {
   let taskId: string | undefined;
-  let user: any;
+  let user: AuthUser | null;
   
   try {
     // Await params to fix Next.js 15 requirement
@@ -233,7 +222,7 @@ export async function POST(
     
     // Fetch the created subtask to return it
     const subtasks = await db.getSubtasksByTask(taskId);
-    const newSubtask = subtasks.find(s => s._id!.toString() === newSubtaskId);
+    const newSubtask = subtasks.find(s => s._id?.toString() === newSubtaskId);
     
     logger.info('Subtask created successfully', 'SUBTASKS_API', {
       subtaskId: newSubtaskId,
@@ -262,9 +251,10 @@ export async function POST(
     });
     
   } catch (error) {
+    const errorUser = authService.extractUserFromRequest(request);
     logger.error('Error creating subtask', 'SUBTASKS_API', { 
       taskId,
-      userId: user?.id 
+      userId: errorUser?.id 
     }, error as Error);
     return NextResponse.json(
       { error: 'Failed to create subtask', success: false },

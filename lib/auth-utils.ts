@@ -1,4 +1,4 @@
-import { authSupabase } from './auth-supabase';
+import { authSupabase, AuthUser } from './auth-supabase';
 
 /**
  * Extract token from Authorization header
@@ -36,14 +36,14 @@ export async function requireAuthEnhanced(authHeader: string | null) {
 /**
  * Check if user is admin enhanced
  */
-export function isAdminEnhanced(user: any): boolean {
-  return user && (user.role === 'admin' || user.role === 'data_manager');
+export function isAdminEnhanced(user: AuthUser | null): boolean {
+  return !!(user && (user.role === 'admin' || user.role === 'data_manager'));
 }
 
 /**
  * Helper function to require authentication
  */
-export function requireAuth(user: any) {
+export function requireAuth(user: AuthUser | null) {
   if (!user) {
     throw new Error('Authentication required');
   }
@@ -53,7 +53,7 @@ export function requireAuth(user: any) {
 /**
  * Helper function to require admin access
  */
-export function requireAdmin(user: any) {
+export function requireAdmin(user: AuthUser | null) {
   if (!user) {
     throw new Error('Authentication required');
   }

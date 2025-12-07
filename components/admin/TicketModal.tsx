@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FeedbackTicket, FeedbackStatus, FeedbackPriority } from '@/lib/types/feedback';
 import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { X, Trash2, Send, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
+import { FeedbackTicket, FeedbackStatus, FeedbackPriority } from '@/lib/types/feedback';
 
 interface Props {
   ticket: FeedbackTicket;

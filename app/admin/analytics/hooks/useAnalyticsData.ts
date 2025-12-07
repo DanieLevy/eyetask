@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { useAnalytics } from '../context/AnalyticsContext';
 import { AnalyticsData } from '../types/analytics';
 import { fetchManager } from '../utils/fetchManager';
-import { toast } from 'sonner';
 
 const REFRESH_INTERVAL = 60000; // 60 seconds instead of 30
 const ENABLE_AUTO_REFRESH = false; // Disable auto-refresh by default
@@ -63,20 +63,21 @@ export function useAnalyticsData() {
           const today = new Date();
           const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
           
-          Object.entries(result.data.dailyStats).forEach(([date, stats]: [string, any]) => {
+          Object.entries(result.data.dailyStats).forEach(([date, stats]) => {
+            const statData = stats as { visits?: number };
             const statDate = new Date(date);
             if (statDate >= weekAgo && statDate <= today) {
-              weekVisitors += stats.visits || 0;
+              weekVisitors += statData.visits || 0;
             }
           });
         }
 
         // Filter out admin activities and users
         const filteredActivities = (result.data.recentActivities || [])
-          .filter((activity: any) => activity.userRole !== 'admin');
+          .filter((activity: { userRole: string }) => activity.userRole !== 'admin');
         
         const filteredUsers = (result.data.topUsers || [])
-          .filter((user: any) => user.role !== 'admin'); // Pass all non-admin users
+          .filter((user: { role: string }) => user.role !== 'admin'); // Pass all non-admin users
 
         // Transform the data to our simplified structure
         const transformedData: AnalyticsData = {
@@ -146,7 +147,7 @@ export function useAnalyticsData() {
         clearInterval(interval);
       }
     };
-  }, [timeRange.value]); // Include timeRange.value here to refetch on change
+  }, [timeRange.value, fetchAnalytics, refresh, refreshing]); // Include all dependencies
 
   return {
     data,

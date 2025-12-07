@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pushService } from "@/lib/services/pushNotificationService";
 import { logger } from "@/lib/logger";
+import { pushService } from "@/lib/services/pushNotificationService";
 
 // GET /api/push/vapid-key - Get VAPID public key (public endpoint)
 export async function GET(request: NextRequest) {

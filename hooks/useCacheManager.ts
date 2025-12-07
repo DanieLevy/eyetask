@@ -4,17 +4,6 @@ import { useCallback } from 'react';
 
 // Simple cache utilities without automatic checking
 export function useCacheUtils() {
-  // Force reload the page
-  const forceReload = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    
-    // Clear all caches
-    clearAllCaches().then(() => {
-      // Reload the page
-      window.location.reload();
-    });
-  }, []);
-
   // Clear all browser caches
   const clearAllCaches = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -32,7 +21,7 @@ export function useCacheUtils() {
         
         // Update service worker
         const registrations = await navigator.serviceWorker.getRegistrations();
-        for (let registration of registrations) {
+        for (const registration of registrations) {
           await registration.update();
         }
       }
@@ -40,10 +29,21 @@ export function useCacheUtils() {
       // Clear session storage
       sessionStorage.clear();
       
-    } catch (error) {
+    } catch {
       // Silently fail cache clearing
     }
   }, []);
+
+  // Force reload the page
+  const forceReload = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Clear all caches
+    clearAllCaches().then(() => {
+      // Reload the page
+      window.location.reload();
+    });
+  }, [clearAllCaches]);
 
   // Manual refresh cache
   const refreshCache = useCallback(async () => {

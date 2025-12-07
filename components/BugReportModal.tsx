@@ -1,8 +1,8 @@
 'use client';
 
+import { X, Bug } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Bug } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PageContext {
@@ -69,14 +69,6 @@ export default function BugReportModal({ isOpen, onClose, pageContext }: BugRepo
     setIsSubmitting(true);
     
     try {
-      const reportData = {
-        description,
-        email: email || undefined,
-        severity,
-        pageContext,
-        timestamp: new Date().toISOString()
-      };
-      
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {

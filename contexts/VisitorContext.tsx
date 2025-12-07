@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { getVisitorInfo, saveVisitorName, VisitorInfo } from '@/lib/visitor-utils';
 import { logger } from '@/lib/logger';
+import { getVisitorInfo, saveVisitorName, VisitorInfo } from '@/lib/visitor-utils';
 
 interface VisitorContextType {
   visitor: VisitorInfo | null;
@@ -108,7 +108,7 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadVisitorInfo();
-  }, []);
+  }, [checkAndUpdateFromDatabase]);
 
   // Set up periodic checks for name updates from database
   useEffect(() => {

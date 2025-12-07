@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // POST /api/auth/setup - One-time admin user setup
 export async function POST(request: NextRequest) {

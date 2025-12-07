@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithCache, cache, invalidateCache } from '@/lib/cache';
 import { logger } from '@/lib/logger';
-import { deduplicatedFetch } from '@/lib/request-deduplication';
 
 // Performance tracking utilities
 const performanceTracker = {
@@ -15,12 +14,12 @@ const performanceTracker = {
       try {
         window.performance?.mark(`${key}-end`);
         window.performance?.measure(`${key}-duration`, `${key}-start`, `${key}-end`);
-      } catch (e) {
+      } catch {
         // Silent error handling
       }
     }
   },
-  log: (key: string, message: string, data?: any) => {
+  log: (_key: string, _message: string, _data?: unknown) => {
     // Silent - no logging
   }
 };
@@ -33,7 +32,7 @@ interface UseOptimizedDataOptions {
   refetchOnMount?: boolean;
   refetchOnWindowFocus?: boolean;
   backgroundRefetch?: boolean;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: Error) => void;
 }
 
@@ -81,7 +80,7 @@ export function useOptimizedData<T>(
   const [isStale, setIsStale] = useState(false);
 
   const fetchInProgress = useRef(false);
-  const mountTime = useRef(Date.now());
+  const _mountTime = useRef(Date.now());
   const lastFetchTime = useRef(0);
   const requestDedupeKey = useRef('');
   const fetchCallCount = useRef(0);
@@ -151,7 +150,7 @@ export function useOptimizedData<T>(
       requestDedupeKey.current = ''; // Reset deduplication key
       performanceTracker.endTime(`${fetchId}-total`);
     }
-  }, [enabled, url, cacheTime, backgroundRefetch, onSuccess, onError, cacheKey, data]);
+  }, [enabled, url, cacheTime, onSuccess, onError, cacheKey, data]);
 
   const refetch = useCallback(async () => {
     // Invalidate cache and refetch
@@ -185,7 +184,7 @@ export function useOptimizedData<T>(
           const doBackgroundFetch = async () => {
             try {
               await fetchData(false);
-            } catch (error) {
+            } catch {
               // Silent background fetch error
             }
           };
@@ -215,7 +214,7 @@ export function useOptimizedData<T>(
           const doRefetch = async () => {
             try {
               await fetchData(false);
-            } catch (error) {
+            } catch {
               // Silent refetch error
             }
           };
@@ -378,7 +377,7 @@ export function useProjectData(projectName: string, enabled = true) {
 }
 
 export function useDataPreloader() {
-  const projectCache = useRef<Map<string, any>>(new Map());
+  const projectCache = useRef<Map<string, unknown>>(new Map());
 
   const preloadProject = useCallback(async (projectName: string) => {
     if (!projectName) return;

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cache } from '@/lib/cache';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { logger } from '@/lib/logger';
 import { requireAdmin } from '@/lib/auth-utils';
+import { cache } from '@/lib/cache';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/cache/clear - Clear all or specific caches

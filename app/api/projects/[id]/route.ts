@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface ProjectUpdateData {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  color?: string;
+  priority?: number;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  notes?: string;
+  image?: string;
+}
 
 // GET /api/projects/[id] - Get a single project
 export async function GET(
@@ -76,8 +88,7 @@ export async function PUT(
     }
     
     // Create update object with only the fields that are provided
-    const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name;
+    const updateData: ProjectUpdateData = {};
     if (data.description !== undefined) updateData.description = data.description;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.color !== undefined) updateData.color = data.color;

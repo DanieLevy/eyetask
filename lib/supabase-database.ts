@@ -1,11 +1,11 @@
-import { supabase, supabaseAdmin, getSupabaseClient } from './supabase';
-import { logger } from './logger';
 import { cache } from './cache';
+import { logger } from './logger';
+import { getSupabaseClient } from './supabase';
 
 // Types for our collections (matching MongoDB structure)
 export interface Project {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   name: string;
   description: string;
   isActive?: boolean;
@@ -23,7 +23,7 @@ export interface Project {
 
 export interface Task {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   title: string;
   subtitle?: string;
   images?: string[];
@@ -48,7 +48,7 @@ export interface Task {
 
 export interface Subtask {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   taskId: string;
   title: string;
   subtitle?: string;
@@ -69,7 +69,7 @@ export interface Subtask {
 
 export interface AppUser {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   username: string;
   email: string;
   passwordHash: string;
@@ -86,7 +86,7 @@ export interface AppUser {
 
 export interface Analytics {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   visits: {
     total: number;
     today: number;
@@ -120,7 +120,7 @@ export interface Analytics {
 
 export interface DailyUpdate {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   title: string;
   content: string;
   type: string;
@@ -142,7 +142,7 @@ export interface DailyUpdate {
 
 export interface DailyUpdateSetting {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   key: string;
   value: string;
   createdAt?: string;
@@ -152,7 +152,7 @@ export interface DailyUpdateSetting {
 
 export interface PushSubscription {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   userId: string;
   username: string;
   email: string;
@@ -174,7 +174,7 @@ export interface PushSubscription {
 
 export interface PushNotification {
   id?: string;
-  _id?: any;
+  _id?: string | number;
   title: string;
   body: string;
   icon: string;
@@ -209,7 +209,7 @@ export interface VisitorProfile {
     location?: string;
     language?: string;
     timezone?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   deviceInfo: {
     userAgent?: string;
@@ -319,7 +319,7 @@ export class SupabaseDatabaseService {
 
   async updateProject(id: string, updates: Partial<Project>): Promise<boolean> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.description !== undefined) updateData.description = updates.description;
@@ -472,7 +472,7 @@ export class SupabaseDatabaseService {
 
   async updateTask(id: string, updates: Partial<Task>): Promise<boolean> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (updates.title !== undefined) updateData.title = updates.title;
       if (updates.subtitle !== undefined) updateData.subtitle = updates.subtitle;
@@ -655,78 +655,79 @@ export class SupabaseDatabaseService {
   }
 
   // Mapping functions to convert between DB format and app format
-  private mapProjectFromDb(dbProject: any): Project {
+  private mapProjectFromDb(dbProject: Record<string, unknown>): Project {
     return {
-      id: dbProject.id,
-      _id: dbProject.id,
-      name: dbProject.name,
-      description: dbProject.description || '',
-      isActive: dbProject.is_active,
-      color: dbProject.color,
-      priority: dbProject.priority,
-      clientName: dbProject.client_name,
-      clientEmail: dbProject.client_email,
-      clientPhone: dbProject.client_phone,
-      notes: dbProject.notes,
-      image: dbProject.image,
-      createdAt: dbProject.created_at,
-      updatedAt: dbProject.updated_at,
-      mongodb_id: dbProject.mongodb_id
+      id: dbProject.id as string | undefined,
+      _id: dbProject.id as string | number | undefined,
+      name: dbProject.name as string,
+      description: (dbProject.description as string | undefined) || '',
+      isActive: dbProject.is_active as boolean | undefined,
+      color: dbProject.color as string | undefined,
+      priority: dbProject.priority as number | undefined,
+      clientName: dbProject.client_name as string | undefined,
+      clientEmail: dbProject.client_email as string | undefined,
+      clientPhone: dbProject.client_phone as string | undefined,
+      notes: dbProject.notes as string | undefined,
+      image: dbProject.image as string | undefined,
+      createdAt: dbProject.created_at as string | undefined,
+      updatedAt: dbProject.updated_at as string | undefined,
+      mongodb_id: dbProject.mongodb_id as string | undefined
     };
   }
 
-  private mapTaskFromDb(dbTask: any): Task {
+  private mapTaskFromDb(dbTask: Record<string, unknown>): Task {
     return {
-      id: dbTask.id,
-      _id: dbTask.id,
-      title: dbTask.title,
-      subtitle: dbTask.subtitle,
-      images: dbTask.images || [],
-      datacoNumber: dbTask.dataco_number,
-      description: dbTask.description,
-      projectId: dbTask.project_id,
-      type: dbTask.type || [],
-      locations: dbTask.locations || [],
-      amountNeeded: dbTask.amount_needed,
-      targetCar: dbTask.target_car || [],
-      lidar: dbTask.lidar,
-      dayTime: dbTask.day_time || [],
-      priority: dbTask.priority,
-      isVisible: dbTask.is_visible,
-      createdAt: dbTask.created_at,
-      updatedAt: dbTask.updated_at,
-      mongodb_id: dbTask.mongodb_id
+      id: dbTask.id as string | undefined,
+      _id: dbTask.id as string | number | undefined,
+      title: dbTask.title as string,
+      subtitle: dbTask.subtitle as string | undefined,
+      images: (dbTask.images as string[] | undefined) || [],
+      datacoNumber: dbTask.dataco_number as string,
+      description: dbTask.description as { main?: string; howToExecute?: string; } | undefined,
+      projectId: dbTask.project_id as string,
+      type: (dbTask.type as string[] | undefined) || [],
+      locations: (dbTask.locations as string[] | undefined) || [],
+      amountNeeded: dbTask.amount_needed as number | undefined,
+      targetCar: (dbTask.target_car as string[] | undefined) || [],
+      lidar: dbTask.lidar as boolean | undefined,
+      dayTime: (dbTask.day_time as string[] | undefined) || [],
+      priority: dbTask.priority as number,
+      isVisible: dbTask.is_visible as boolean,
+      createdAt: dbTask.created_at as string | undefined,
+      updatedAt: dbTask.updated_at as string | undefined,
+      mongodb_id: dbTask.mongodb_id as string | undefined
     };
   }
 
-  private mapUserFromDb(dbUser: any): AppUser {
+  private mapUserFromDb(dbUser: Record<string, unknown>): AppUser {
     return {
-      id: dbUser.id,
-      _id: dbUser._id,
-      username: dbUser.username,
-      email: dbUser.email,
-      passwordHash: dbUser.password_hash,
-      role: dbUser.role,
-      createdAt: dbUser.created_at,
-      lastLogin: dbUser.last_login,
-      isActive: dbUser.is_active,
-      createdBy: dbUser.created_by,
-      lastModifiedBy: dbUser.last_modified_by,
-      lastModifiedAt: dbUser.last_modified_at,
-      mongodb_id: dbUser.mongodb_id,
-      hide_from_analytics: dbUser.hide_from_analytics
+      id: dbUser.id as string | undefined,
+      _id: dbUser._id as string | number | undefined,
+      username: dbUser.username as string,
+      email: dbUser.email as string,
+      passwordHash: dbUser.password_hash as string,
+      role: dbUser.role as 'admin' | 'data_manager' | 'driver_manager',
+      createdAt: dbUser.created_at as string | undefined,
+      lastLogin: dbUser.last_login as string | undefined,
+      isActive: dbUser.is_active as boolean | undefined,
+      createdBy: dbUser.created_by as string | undefined,
+      lastModifiedBy: dbUser.last_modified_by as string | undefined,
+      lastModifiedAt: dbUser.last_modified_at as string | undefined,
+      mongodb_id: dbUser.mongodb_id as string | undefined,
+      hide_from_analytics: dbUser.hide_from_analytics as boolean | undefined
     };
   }
 
-  private mapAnalyticsFromDb(dbAnalytics: any): Analytics {
+  private mapAnalyticsFromDb(dbAnalytics: Record<string, unknown>): Analytics {
     return {
-      id: dbAnalytics.id,
-      visits: dbAnalytics.visits,
-      uniqueVisitors: dbAnalytics.unique_visitors,
-      dailyStats: dbAnalytics.daily_stats,
-      counters: dbAnalytics.counters,
-      lastUpdated: dbAnalytics.last_updated,
-      mongodb_id: dbAnalytics.mongodb_id
+      id: dbAnalytics.id as string | undefined,
+      _id: dbAnalytics._id as string | number | undefined,
+      visits: dbAnalytics.visits as { total: number; today: number; last7Days: number; last30Days: number; },
+      uniqueVisitors: dbAnalytics.unique_visitors as { total: number; today: string[]; last7Days: string[]; last30Days: string[]; },
+      dailyStats: dbAnalytics.daily_stats as { [date: string]: { visits: number; uniqueVisitors: string[]; actions: number; loginCount: number; }; },
+      counters: dbAnalytics.counters as { projects: number; tasks: number; subtasks: number; users: number; activeUsers: number; },
+      lastUpdated: dbAnalytics.last_updated as string | undefined,
+      mongodb_id: dbAnalytics.mongodb_id as string | undefined
     };
   }
 
@@ -908,7 +909,7 @@ export class SupabaseDatabaseService {
 
   async updateSubtask(id: string, updates: Partial<Subtask>): Promise<boolean> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (updates.title !== undefined) updateData.title = updates.title;
       if (updates.subtitle !== undefined) updateData.subtitle = updates.subtitle;
@@ -1059,7 +1060,7 @@ export class SupabaseDatabaseService {
 
   async updateUser(id: string, updates: Partial<AppUser>, modifiedBy: string): Promise<boolean> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         last_modified_by: modifiedBy,
         last_modified_at: new Date().toISOString()
       };
@@ -1186,12 +1187,12 @@ export class SupabaseDatabaseService {
       type: string;
       name?: string;
     };
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     severity?: 'info' | 'success' | 'warning' | 'error';
   }): Promise<void> {
     try {
       // Support both authenticated users and visitors
-      const logEntry: any = {
+      const logEntry: Record<string, unknown> = {
         action: data.action,
         category: data.category,
         target: data.target || null,
@@ -1253,7 +1254,7 @@ export class SupabaseDatabaseService {
   }
 
   // Get recent activity logs
-  async getRecentActivityLogs(limit = 100, startDate?: Date): Promise<any[]> {
+  async getRecentActivityLogs(limit = 100, startDate?: Date): Promise<Record<string, unknown>[]> {
     try {
       let query = this.client
         .from('activity_logs')
@@ -1303,31 +1304,31 @@ export class SupabaseDatabaseService {
   }
 
   // Add the missing mapping function
-  private mapSubtaskFromDb(dbSubtask: any): Subtask {
+  private mapSubtaskFromDb(dbSubtask: Record<string, unknown>): Subtask {
     return {
-      id: dbSubtask.id,
-      _id: dbSubtask.id,
-      taskId: dbSubtask.task_id,
-      title: dbSubtask.title,
-      subtitle: dbSubtask.subtitle,
-      images: dbSubtask.images || [],
-      datacoNumber: dbSubtask.dataco_number,
-      type: dbSubtask.type,
-      amountNeeded: dbSubtask.amount_needed,
-      labels: dbSubtask.labels || [],
-      targetCar: dbSubtask.target_car || [],
-      weather: dbSubtask.weather,
-      scene: dbSubtask.scene,
-      dayTime: dbSubtask.day_time || [],
-      isVisible: dbSubtask.is_visible,
-      createdAt: dbSubtask.created_at,
-      updatedAt: dbSubtask.updated_at,
-      mongodb_id: dbSubtask.mongodb_id
+      id: dbSubtask.id as string | undefined,
+      _id: dbSubtask.id as string | number | undefined,
+      taskId: dbSubtask.task_id as string,
+      title: dbSubtask.title as string,
+      subtitle: dbSubtask.subtitle as string | undefined,
+      images: (dbSubtask.images as string[] | undefined) || [],
+      datacoNumber: dbSubtask.dataco_number as string,
+      type: dbSubtask.type as 'events' | 'hours' | 'loops',
+      amountNeeded: dbSubtask.amount_needed as number | undefined,
+      labels: (dbSubtask.labels as string[] | undefined) || [],
+      targetCar: (dbSubtask.target_car as string[] | undefined) || [],
+      weather: dbSubtask.weather as 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed' | undefined,
+      scene: dbSubtask.scene as 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed' | undefined,
+      dayTime: (dbSubtask.day_time as string[] | undefined) || [],
+      isVisible: dbSubtask.is_visible as boolean | undefined,
+      createdAt: dbSubtask.created_at as string | undefined,
+      updatedAt: dbSubtask.updated_at as string | undefined,
+      mongodb_id: dbSubtask.mongodb_id as string | undefined
     };
   }
 
   // Analytics update methods
-  async trackVisit(userId: string, username: string, email: string, role: string): Promise<void> {
+  async trackVisit(userId: string, _username: string, _email: string, _role: string): Promise<void> {
     try {
       const analytics = await this.getAnalytics();
       if (!analytics) return;
@@ -1691,7 +1692,7 @@ export class SupabaseDatabaseService {
 
   async updateDailyUpdate(id: string, updates: Partial<DailyUpdate>): Promise<boolean> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (updates.title !== undefined) updateData.title = updates.title;
       if (updates.content !== undefined) updateData.content = updates.content;
@@ -1788,38 +1789,39 @@ export class SupabaseDatabaseService {
   }
 
   // Add new mapping functions after the existing ones
-  private mapDailyUpdateFromDb(dbUpdate: any): DailyUpdate {
+  private mapDailyUpdateFromDb(dbUpdate: Record<string, unknown>): DailyUpdate {
     return {
-      id: dbUpdate.id,
-      _id: dbUpdate.id,
-      title: dbUpdate.title,
-      content: dbUpdate.content,
-      type: dbUpdate.type,
-      priority: dbUpdate.priority,
-      durationType: dbUpdate.duration_type,
-      durationValue: dbUpdate.duration_value,
-      expiresAt: dbUpdate.expires_at,
-      isActive: dbUpdate.is_active,
-      isPinned: dbUpdate.is_pinned,
-      isHidden: dbUpdate.is_hidden,
-      targetAudience: dbUpdate.target_audience || [],
-      projectId: dbUpdate.project_id,
-      isGeneral: dbUpdate.is_general,
-      createdBy: dbUpdate.created_by,
-      createdAt: dbUpdate.created_at,
-      updatedAt: dbUpdate.updated_at,
-      mongodb_id: dbUpdate.mongodb_id
+      id: dbUpdate.id as string | undefined,
+      _id: dbUpdate.id as string | number | undefined,
+      title: dbUpdate.title as string,
+      content: dbUpdate.content as string,
+      type: dbUpdate.type as string,
+      priority: dbUpdate.priority as number,
+      durationType: dbUpdate.duration_type as string,
+      durationValue: dbUpdate.duration_value as number | undefined,
+      expiresAt: dbUpdate.expires_at as string | undefined,
+      isActive: dbUpdate.is_active as boolean,
+      isPinned: dbUpdate.is_pinned as boolean,
+      isHidden: dbUpdate.is_hidden as boolean,
+      targetAudience: (dbUpdate.target_audience as string[] | undefined) || [],
+      projectId: dbUpdate.project_id as string | undefined,
+      isGeneral: dbUpdate.is_general as boolean,
+      createdBy: dbUpdate.created_by as string | undefined,
+      createdAt: dbUpdate.created_at as string | undefined,
+      updatedAt: dbUpdate.updated_at as string | undefined,
+      mongodb_id: dbUpdate.mongodb_id as string | undefined
     };
   }
 
-  private mapDailyUpdateSettingFromDb(dbSetting: any): DailyUpdateSetting {
+  private mapDailyUpdateSettingFromDb(dbSetting: Record<string, unknown>): DailyUpdateSetting {
     return {
-      id: dbSetting.id,
-      key: dbSetting.key,
-      value: dbSetting.value,
-      createdAt: dbSetting.created_at,
-      updatedAt: dbSetting.updated_at,
-      mongodb_id: dbSetting.mongodb_id
+      id: dbSetting.id as string | undefined,
+      _id: dbSetting.id as string | number | undefined,
+      key: dbSetting.key as string,
+      value: dbSetting.value as string,
+      createdAt: dbSetting.created_at as string | undefined,
+      updatedAt: dbSetting.updated_at as string | undefined,
+      mongodb_id: dbSetting.mongodb_id as string | undefined
     };
   }
 
@@ -2069,7 +2071,7 @@ export class SupabaseDatabaseService {
 
   async updatePushNotificationStats(id: string, stats: Partial<PushNotification['deliveryStats']>, status?: PushNotification['status']): Promise<boolean> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (stats.sent !== undefined) updateData.delivery_sent = stats.sent;
       if (stats.delivered !== undefined) updateData.delivery_delivered = stats.delivered;
@@ -2130,7 +2132,7 @@ export class SupabaseDatabaseService {
   }
 
   // Add mapping functions for push notifications
-  private mapPushSubscriptionFromDb(dbSub: any): PushSubscription {
+  private mapPushSubscriptionFromDb(dbSub: Record<string, unknown>): PushSubscription {
     // Handle both old schema (separate fields) and new schema (subscription object)
     let subscriptionData;
     
@@ -2158,44 +2160,46 @@ export class SupabaseDatabaseService {
     }
     
     return {
-      id: dbSub.id,
-      userId: dbSub.user_id || 'anonymous',
-      username: dbSub.username || 'Anonymous',
-      email: dbSub.email || '',
-      role: dbSub.role || 'guest',
-      subscription: subscriptionData,
-      userAgent: dbSub.user_agent,
-      deviceType: dbSub.device_type,
-      createdAt: dbSub.created_at,
-      lastActive: dbSub.last_active,
-      isActive: dbSub.is_active,
-      mongodb_id: dbSub.mongodb_id
+      id: dbSub.id as string | undefined,
+      _id: dbSub.id as string | number | undefined,
+      userId: (dbSub.user_id as string | undefined) || 'anonymous',
+      username: (dbSub.username as string | undefined) || 'Anonymous',
+      email: (dbSub.email as string | undefined) || '',
+      role: (dbSub.role as string | undefined) || 'guest',
+      subscription: subscriptionData as { endpoint: string; keys: { p256dh: string; auth: string; }; },
+      userAgent: dbSub.user_agent as string,
+      deviceType: dbSub.device_type as string,
+      createdAt: dbSub.created_at as string | undefined,
+      lastActive: dbSub.last_active as string | undefined,
+      isActive: dbSub.is_active as boolean,
+      mongodb_id: dbSub.mongodb_id as string | undefined
     };
   }
 
-  private mapPushNotificationFromDb(dbNotif: any): PushNotification {
+  private mapPushNotificationFromDb(dbNotif: Record<string, unknown>): PushNotification {
     return {
-      id: dbNotif.id,
-      title: dbNotif.title,
-      body: dbNotif.body,
-      icon: dbNotif.icon,
-      badge: dbNotif.badge,
-      image: dbNotif.image,
-      url: dbNotif.url,
-      tag: dbNotif.tag,
-      requireInteraction: dbNotif.require_interaction,
-      targetRoles: dbNotif.target_roles,
-      targetUsers: dbNotif.target_users,
-      sentBy: dbNotif.sent_by,
-      sentAt: dbNotif.sent_at,
+      id: dbNotif.id as string | undefined,
+      _id: dbNotif.id as string | number | undefined,
+      title: dbNotif.title as string,
+      body: dbNotif.body as string,
+      icon: dbNotif.icon as string,
+      badge: dbNotif.badge as string,
+      image: dbNotif.image as string,
+      url: dbNotif.url as string,
+      tag: dbNotif.tag as string,
+      requireInteraction: dbNotif.require_interaction as boolean,
+      targetRoles: (dbNotif.target_roles as string[] | undefined) || [],
+      targetUsers: (dbNotif.target_users as string[] | undefined) || [],
+      sentBy: dbNotif.sent_by as string,
+      sentAt: dbNotif.sent_at as string,
       deliveryStats: {
-        sent: dbNotif.delivery_sent,
-        delivered: dbNotif.delivery_delivered,
-        failed: dbNotif.delivery_failed,
-        clicked: dbNotif.delivery_clicked
+        sent: dbNotif.delivery_sent as number,
+        delivered: dbNotif.delivery_delivered as number,
+        failed: dbNotif.delivery_failed as number,
+        clicked: dbNotif.delivery_clicked as number
       },
-      status: dbNotif.status,
-      mongodb_id: dbNotif.mongodb_id
+      status: dbNotif.status as string,
+      mongodb_id: dbNotif.mongodb_id as string | undefined
     };
   }
 
@@ -2254,7 +2258,7 @@ export class SupabaseDatabaseService {
   }
 
   // Visitor tracking methods
-  async createOrUpdateVisitorProfile(visitorId: string, name: string, metadata?: any): Promise<VisitorProfile | null> {
+  async createOrUpdateVisitorProfile(visitorId: string, name: string, metadata?: Record<string, unknown>): Promise<VisitorProfile | null> {
     try {
       // Check if visitor already exists
       const { data: existing } = await this.client
@@ -2433,7 +2437,7 @@ export class SupabaseDatabaseService {
     }
   }
 
-  async trackVisitorAction(visitorId: string, visitorName: string, action: string, category: string, metadata?: any): Promise<void> {
+  async trackVisitorAction(visitorId: string, visitorName: string, action: string, category: string, metadata?: Record<string, unknown>): Promise<void> {
     try {
       // Log to activity_logs with visitor info
       const { error } = await this.client
@@ -2474,7 +2478,7 @@ export class SupabaseDatabaseService {
     }
   }
 
-  async getVisitorActivityLogs(visitorId: string, limit = 50): Promise<any[]> {
+  async getVisitorActivityLogs(visitorId: string, limit = 50): Promise<Record<string, unknown>[]> {
     try {
       const { data, error } = await this.client
         .from('activity_logs')
@@ -2515,41 +2519,41 @@ export class SupabaseDatabaseService {
     }
   }
 
-  private mapVisitorProfileFromDb(dbProfile: any): VisitorProfile {
+  private mapVisitorProfileFromDb(dbProfile: Record<string, unknown>): VisitorProfile {
     return {
-      id: dbProfile.id,
-      visitorId: dbProfile.visitor_id,
-      name: dbProfile.name,
-      firstSeen: dbProfile.first_seen,
-      lastSeen: dbProfile.last_seen,
-      totalVisits: dbProfile.total_visits || 0,
-      totalActions: dbProfile.total_actions || 0,
-      metadata: dbProfile.metadata || {},
-      deviceInfo: dbProfile.device_info || {},
-      isActive: dbProfile.is_active,
-      createdAt: dbProfile.created_at,
-      updatedAt: dbProfile.updated_at
+      id: dbProfile.id as string | undefined,
+      visitorId: dbProfile.visitor_id as string,
+      name: dbProfile.name as string,
+      firstSeen: dbProfile.first_seen as string,
+      lastSeen: dbProfile.last_seen as string,
+      totalVisits: (dbProfile.total_visits as number | undefined) || 0,
+      totalActions: (dbProfile.total_actions as number | undefined) || 0,
+      metadata: (dbProfile.metadata as { location?: string; language?: string; timezone?: string; [key: string]: unknown; } | undefined) || {},
+      deviceInfo: (dbProfile.device_info as { userAgent?: string; browser?: string; os?: string; device?: string; isMobile?: boolean; } | undefined) || {},
+      isActive: dbProfile.is_active as boolean,
+      createdAt: dbProfile.created_at as string | undefined,
+      updatedAt: dbProfile.updated_at as string | undefined
     };
   }
 
-  private mapVisitorSessionFromDb(dbSession: any): VisitorSession {
+  private mapVisitorSessionFromDb(dbSession: Record<string, unknown>): VisitorSession {
     return {
-      id: dbSession.id,
-      visitorId: dbSession.visitor_id,
-      sessionId: dbSession.session_id,
-      startedAt: dbSession.started_at,
-      endedAt: dbSession.ended_at,
-      durationSeconds: dbSession.duration_seconds,
-      pageViews: dbSession.page_views || 0,
-      actions: dbSession.actions || 0,
-      pagesVisited: dbSession.pages_visited || [],
-      userAgent: dbSession.user_agent,
-      ipAddress: dbSession.ip_address,
-      referrer: dbSession.referrer,
-      deviceType: dbSession.device_type,
-      browser: dbSession.browser,
-      os: dbSession.os,
-      createdAt: dbSession.created_at
+      id: dbSession.id as string | undefined,
+      visitorId: dbSession.visitor_id as string,
+      sessionId: dbSession.session_id as string,
+      startedAt: dbSession.started_at as string,
+      endedAt: dbSession.ended_at as string | undefined,
+      durationSeconds: dbSession.duration_seconds as number | undefined,
+      pageViews: (dbSession.page_views as number | undefined) || 0,
+      actions: (dbSession.actions as number | undefined) || 0,
+      pagesVisited: (dbSession.pages_visited as string[] | undefined) || [],
+      userAgent: dbSession.user_agent as string | undefined,
+      ipAddress: dbSession.ip_address as string | undefined,
+      referrer: dbSession.referrer as string | undefined,
+      deviceType: dbSession.device_type as string | undefined,
+      browser: dbSession.browser as string | undefined,
+      os: dbSession.os as string | undefined,
+      createdAt: dbSession.created_at as string | undefined
     };
   }
 }

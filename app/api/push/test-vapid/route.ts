@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { pushService } from "@/lib/services/pushNotificationService";
 
 // Test endpoint for debugging VAPID key issues
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const publicKey = pushService.getPublicKey();
     

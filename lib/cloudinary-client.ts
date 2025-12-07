@@ -30,7 +30,7 @@ export function extractPublicIdFromUrl(url: string): string | null {
     }
     
     return null;
-  } catch (error) {
+  } catch {
     console.warn('Failed to extract public ID from URL', { url });
     return null;
   }

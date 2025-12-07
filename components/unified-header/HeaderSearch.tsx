@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   CommandDialog,
@@ -9,10 +10,8 @@ import {
   CommandList,
   CommandEmpty,
   CommandGroup,
-  CommandItem,
-  Command
+  CommandItem
 } from '@/components/ui/command';
-import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { HeaderSearchProps } from './types';
 

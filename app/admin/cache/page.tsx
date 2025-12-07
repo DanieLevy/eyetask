@@ -1,16 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, Shield, AlertTriangle, Clock, Users, CheckCircle, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { apiClient } from '@/lib/api-client';
-import { useRouter } from 'next/navigation';
 
 interface CacheStatus {
   currentVersion: number;
   lastInvalidation: string | null;
   forceUpdate: boolean;
   timestamp: string;
+}
+
+interface CacheApiResponse {
+  success: boolean;
+  data?: CacheStatus & { newVersion?: number };
+  message?: string;
+}
+
+interface ApiError {
+  message?: string;
+  status?: number;
 }
 
 export default function CacheManagementPage() {
@@ -31,17 +42,18 @@ export default function CacheManagementPage() {
   }, [router]);
 
   // Fetch cache status
-  const fetchCacheStatus = async () => {
+  const fetchCacheStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiClient.get<any>('/api/admin/cache?action=status');
+      const data = await apiClient.get<CacheApiResponse>('/api/admin/cache?action=status');
       
-      if (data.success) {
+      if (data.success && data.data) {
         setCacheStatus(data.data);
       } else {
-        setMessage({ type: 'error', text: data.message });
+        setMessage({ type: 'error', text: data.message || 'Failed to fetch cache status' });
       }
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       setMessage({ type: 'error', text: error.message || 'Failed to fetch cache status' });
       // If unauthorized, redirect to login
       if (error.status === 401) {
@@ -50,7 +62,7 @@ export default function CacheManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
   // Clear all caches for all users
   const clearAllCaches = async () => {
@@ -60,19 +72,20 @@ export default function CacheManagementPage() {
 
     setActionLoading('clear-all');
     try {
-      const data = await apiClient.post<any>('/api/admin/cache', { 
+      const data = await apiClient.post<CacheApiResponse>('/api/admin/cache', { 
         action: 'clear-all',
         reason: reason || 'Manual cache clear by admin'
       });
       
-      if (data.success) {
+      if (data.success && data.data) {
         setMessage({ type: 'success', text: `מטמון נוקה בהצלחה! גרסה חדשה: ${data.data.newVersion}` });
         await fetchCacheStatus();
         setReason('');
       } else {
-        setMessage({ type: 'error', text: data.message });
+        setMessage({ type: 'error', text: data.message || 'Failed to clear caches' });
       }
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       setMessage({ type: 'error', text: error.message || 'Failed to clear caches' });
     } finally {
       setActionLoading(null);
@@ -83,15 +96,16 @@ export default function CacheManagementPage() {
   const softCacheUpdate = async () => {
     setActionLoading('soft-clear');
     try {
-      const data = await apiClient.post<any>('/api/admin/cache', { action: 'soft-clear' });
+      const data = await apiClient.post<CacheApiResponse>('/api/admin/cache', { action: 'soft-clear' });
       
-      if (data.success) {
+      if (data.success && data.data) {
         setMessage({ type: 'success', text: `עדכון רך בוצע! גרסה חדשה: ${data.data.newVersion}` });
         await fetchCacheStatus();
       } else {
-        setMessage({ type: 'error', text: data.message });
+        setMessage({ type: 'error', text: data.message || 'Failed to perform soft update' });
       }
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       setMessage({ type: 'error', text: error.message || 'Failed to perform soft update' });
     } finally {
       setActionLoading(null);
@@ -102,15 +116,16 @@ export default function CacheManagementPage() {
   const resetForceUpdate = async () => {
     setActionLoading('reset-force');
     try {
-      const data = await apiClient.post<any>('/api/admin/cache', { action: 'reset-force' });
+      const data = await apiClient.post<CacheApiResponse>('/api/admin/cache', { action: 'reset-force' });
       
       if (data.success) {
         setMessage({ type: 'success', text: 'דגל עדכון חובה אופס' });
         await fetchCacheStatus();
       } else {
-        setMessage({ type: 'error', text: data.message });
+        setMessage({ type: 'error', text: data.message || 'Failed to reset force update' });
       }
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as ApiError;
       setMessage({ type: 'error', text: error.message || 'Failed to reset force update' });
     } finally {
       setActionLoading(null);
@@ -123,7 +138,7 @@ export default function CacheManagementPage() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchCacheStatus, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchCacheStatus]);
 
   // Clear message after 5 seconds
   useEffect(() => {
@@ -148,10 +163,10 @@ export default function CacheManagementPage() {
 
         {/* Message - Enhanced for Mobile PWA */}
         {message && (
-          <div className={`fixed top-20 right-4 left-4 md:left-auto md:top-4 md:right-4 z-[9999] p-4 rounded-lg border max-w-md mx-auto md:mx-0 ${
+          <div className={`mb-6 p-4 rounded-lg border animate-in slide-in-from-top-2 ${
             message.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
+              ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200' 
+              : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200'
           }`}>
             <div className="flex items-center gap-2">
               {message.type === 'success' ? (
@@ -159,199 +174,150 @@ export default function CacheManagementPage() {
               ) : (
                 <XCircle className="h-5 w-5 flex-shrink-0" />
               )}
-              <span className={hebrewFont.fontClass}>{message.text}</span>
+              <p className={hebrewFont.fontClass}>{message.text}</p>
             </div>
           </div>
         )}
 
-        {/* Current Status */}
-        <div className="bg-card rounded-lg border border-border p-6 mb-8">
-          <h2 className={`text-xl font-semibold text-foreground mb-4 ${hebrewFont.fontClass}`}>
-            סטטוס מטמון נוכחי
-          </h2>
-          
-          {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span className={hebrewFont.fontClass}>טוען...</span>
+        {/* Cache Status Card */}
+        <div className="bg-card rounded-lg border border-border shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={`text-xl font-semibold text-foreground ${hebrewFont.fontClass}`}>
+              סטטוס מטמון נוכחי
+            </h2>
+            <button
+              onClick={fetchCacheStatus}
+              disabled={loading}
+              className="p-2 hover:bg-accent rounded-lg transition-colors disabled:opacity-50"
+              aria-label="רענן סטטוס"
+            >
+              <RefreshCw className={`h-5 w-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {loading && !cacheStatus ? (
+            <div className="space-y-3">
+              <div className="h-4 bg-muted rounded animate-pulse"></div>
+              <div className="h-4 bg-muted rounded animate-pulse w-3/4"></div>
+              <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
             </div>
           ) : cacheStatus ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-4 bg-background rounded-lg border">
-                <Clock className="h-5 w-5 text-blue-500" />
-                <div>
-                  <div className={`text-sm font-medium text-foreground ${hebrewFont.fontClass}`}>
-                    גרסת מטמון נוכחית
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {cacheStatus.currentVersion}
-                  </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
+                <Clock className="h-5 w-5 text-primary" />
+                <div className="flex-1">
+                  <p className={`text-sm text-muted-foreground ${hebrewFont.fontClass}`}>גרסת מטמון נוכחית</p>
+                  <p className="text-lg font-semibold text-foreground">{cacheStatus.currentVersion}</p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-3 p-4 bg-background rounded-lg border">
-                <Users className="h-5 w-5 text-purple-500" />
-                <div>
-                  <div className={`text-sm font-medium text-foreground ${hebrewFont.fontClass}`}>
-                    עדכון חובה
-                  </div>
-                  <div className={`text-xs ${cacheStatus.forceUpdate ? 'text-red-600' : 'text-green-600'}`}>
-                    {cacheStatus.forceUpdate ? 'פעיל' : 'כבוי'}
-                  </div>
+
+              <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
+                <Users className="h-5 w-5 text-primary" />
+                <div className="flex-1">
+                  <p className={`text-sm text-muted-foreground ${hebrewFont.fontClass}`}>ניקוי אחרון</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {cacheStatus.lastInvalidation 
+                      ? new Date(cacheStatus.lastInvalidation).toLocaleString('he-IL') 
+                      : 'אין מידע'}
+                  </p>
                 </div>
               </div>
-              
-              {cacheStatus.lastInvalidation && (
-                <div className="flex items-center gap-3 p-4 bg-background rounded-lg border md:col-span-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                  <div>
-                    <div className={`text-sm font-medium text-foreground ${hebrewFont.fontClass}`}>
-                      ניקוי אחרון
+
+              <div className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg">
+                {cacheStatus.forceUpdate ? (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    <div className="flex-1">
+                      <p className={`text-sm text-muted-foreground ${hebrewFont.fontClass}`}>מצב</p>
+                      <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                        עדכון חובה פעיל
+                      </p>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(cacheStatus.lastInvalidation).toLocaleString('he-IL')}
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-5 w-5 text-green-500" />
+                    <div className="flex-1">
+                      <p className={`text-sm text-muted-foreground ${hebrewFont.fontClass}`}>מצב</p>
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                        רגיל
+                      </p>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="text-muted-foreground">לא ניתן לטעון סטטוס מטמון</div>
+            <p className={`text-muted-foreground ${hebrewFont.fontClass}`}>אין מידע זמין</p>
           )}
-          
-          <button
-            onClick={fetchCacheStatus}
-            disabled={loading}
-            className="mt-4 px-3 py-1.5 sm:px-4 sm:py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className={hebrewFont.fontClass}>רענן סטטוס</span>
-          </button>
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Actions Section */}
+        <div className="bg-card rounded-lg border border-border shadow-sm p-6 space-y-4">
+          <h2 className={`text-xl font-semibold text-foreground mb-4 ${hebrewFont.fontClass}`}>
+            פעולות
+          </h2>
+
+          {/* Reason Input */}
+          <div className="space-y-2">
+            <label className={`block text-sm font-medium text-foreground ${hebrewFont.fontClass}`}>
+              סיבה לניקוי (אופציונלי)
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="לדוגמה: עדכון תוכן חשוב"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+              dir="rtl"
+            />
+          </div>
+
           {/* Clear All Caches */}
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Trash2 className="h-6 w-6 text-red-500" />
-              <h3 className={`text-lg font-semibold text-foreground ${hebrewFont.fontClass}`}>
-                ניקוי מטמון מלא
-              </h3>
-            </div>
-            
-            <p className={`text-muted-foreground mb-4 text-sm ${hebrewFont.fontClass}`}>
-              ינקה את המטמון של כל המשתמשים ויאלץ אותם לטעון את התוכן החדש. 
-              המשתמשים יקבלו הודעה על הצורך לרענן.
-            </p>
+          <button
+            onClick={clearAllCaches}
+            disabled={actionLoading === 'clear-all'}
+            className={`w-full p-4 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${hebrewFont.fontClass}`}
+          >
+            <Trash2 className={`h-5 w-5 ${actionLoading === 'clear-all' ? 'animate-pulse' : ''}`} />
+            {actionLoading === 'clear-all' ? 'מנקה...' : 'נקה מטמון לכל המשתמשים'}
+          </button>
 
-            <div className="mb-4">
-              <label className={`block text-sm font-medium text-foreground mb-2 ${hebrewFont.fontClass}`}>
-                סיבה לניקוי (אופציונלי)
-              </label>
-              <input
-                type="text"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="למשל: עדכון גרסה, תיקון באגים..."
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            
-            <button
-              onClick={clearAllCaches}
-              disabled={actionLoading === 'clear-all'}
-              className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {actionLoading === 'clear-all' ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-              <span className={hebrewFont.fontClass}>
-                {actionLoading === 'clear-all' ? 'מנקה...' : 'נקה מטמון לכל המשתמשים'}
-              </span>
-            </button>
-          </div>
+          {/* Soft Cache Update */}
+          <button
+            onClick={softCacheUpdate}
+            disabled={actionLoading === 'soft-clear'}
+            className={`w-full p-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${hebrewFont.fontClass}`}
+          >
+            <RefreshCw className={`h-5 w-5 ${actionLoading === 'soft-clear' ? 'animate-spin' : ''}`} />
+            {actionLoading === 'soft-clear' ? 'מעדכן...' : 'עדכון רך (ללא אילוץ)'}
+          </button>
 
-          {/* Soft Update */}
-          <div className="bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <RefreshCw className="h-6 w-6 text-blue-500" />
-              <h3 className={`text-lg font-semibold text-foreground ${hebrewFont.fontClass}`}>
-                עדכון רך
-              </h3>
-            </div>
-            
-            <p className={`text-muted-foreground mb-4 text-sm ${hebrewFont.fontClass}`}>
-              עדכן גרסת מטמון בלי לאלץ רענון מיידי. 
-              המשתמשים יקבלו עדכון בטעינה הבאה.
-            </p>
-            
-            <button
-              onClick={softCacheUpdate}
-              disabled={actionLoading === 'soft-clear'}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {actionLoading === 'soft-clear' ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              <span className={hebrewFont.fontClass}>
-                {actionLoading === 'soft-clear' ? 'מעדכן...' : 'בצע עדכון רך'}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Reset Force Update */}
-        {cacheStatus?.forceUpdate && (
-          <div className="mt-6 bg-card rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Shield className="h-6 w-6 text-green-500" />
-              <h3 className={`text-lg font-semibold text-foreground ${hebrewFont.fontClass}`}>
-                איפוס עדכון חובה
-              </h3>
-            </div>
-            
-            <p className={`text-muted-foreground mb-4 text-sm ${hebrewFont.fontClass}`}>
-              בטל את דגל העדכון החובה. המשתמשים לא יאולצו יותר לרענן.
-            </p>
-            
+          {/* Reset Force Update */}
+          {cacheStatus?.forceUpdate && (
             <button
               onClick={resetForceUpdate}
               disabled={actionLoading === 'reset-force'}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              className={`w-full p-4 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${hebrewFont.fontClass}`}
             >
-              {actionLoading === 'reset-force' ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Shield className="h-4 w-4" />
-              )}
-              <span className={hebrewFont.fontClass}>
-                {actionLoading === 'reset-force' ? 'מאפס...' : 'אפס עדכון חובה'}
-              </span>
+              <Shield className={`h-5 w-5 ${actionLoading === 'reset-force' ? 'animate-pulse' : ''}`} />
+              {actionLoading === 'reset-force' ? 'מאפס...' : 'אפס דגל עדכון חובה'}
             </button>
-          </div>
-        )}
+          )}
 
-        {/* Warning */}
-        <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div>
-              <h4 className={`font-medium text-yellow-800 ${hebrewFont.fontClass}`}>
-                הערה חשובה
-              </h4>
-              <p className={`text-yellow-700 text-sm mt-1 ${hebrewFont.fontClass}`}>
-                ניקוי מטמון מלא יגרום לכל המשתמשים לטעון מחדש את האפליקציה. 
-                השתמש בזה רק אחרי עדכונים חשובים או תיקוני באגים קריטיים.
-              </p>
-            </div>
+          {/* Info Box */}
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <h3 className={`text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2 ${hebrewFont.fontClass}`}>
+              מידע חשוב
+            </h3>
+            <ul className={`text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside ${hebrewFont.fontClass}`}>
+              <li>ניקוי מטמון יגרום לכל המשתמשים לטעון מחדש את האפליקציה</li>
+              <li>עדכון רך ישדרג את המטמון ללא אילוץ טעינה מחדש</li>
+              <li>המערכת תעדכן אוטומטית את גרסת המטמון</li>
+            </ul>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

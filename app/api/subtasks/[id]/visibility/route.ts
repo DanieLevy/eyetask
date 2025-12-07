@@ -1,7 +1,7 @@
-import { supabaseDb as db } from '@/lib/supabase-database';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,7 +22,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     return NextResponse.json({ success: true, message: `Subtask visibility updated` });
   } catch (error) {
-    console.error('Error toggling subtask visibility:', error);
+    logger.error('Error toggling subtask visibility', 'SUBTASK_API', undefined, error as Error);
     return NextResponse.json({ error: 'Failed to toggle subtask visibility', success: false }, { status: 500 });
   }
 } 

@@ -1,23 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
 import { ArrowRight, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useHebrewFont } from '@/hooks/useFont';
-
-import { UnifiedHeaderProps, HeaderAction } from './types';
+import { cn } from '@/lib/utils';
 import { useAuth } from './AuthContext';
+import HeaderActions from './HeaderActions';
 import { useHeaderContext } from './HeaderContext';
 import HeaderLogo from './HeaderLogo';
-import HeaderSearch from './HeaderSearch';
-import HeaderActions from './HeaderActions';
 import HeaderNavigation from './HeaderNavigation';
+import HeaderSearch from './HeaderSearch';
 import HeaderUserMenu from './HeaderUserMenu';
 import MobileMenu from './MobileMenu';
+import { UnifiedHeaderProps, HeaderAction } from './types';
 
 export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const [mounted, setMounted] = useState(false);
@@ -25,7 +23,6 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const { user, isAdmin, logout } = useAuth();
   const { getConfigForCurrentRoute } = useHeaderContext();
   const router = useRouter();
-  const pathname = usePathname();
   const hebrewHeading = useHebrewFont('heading');
   
   // Merge route-based config with passed props
@@ -33,7 +30,6 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const config = { ...routeConfig, ...props };
   
   const {
-    variant = 'default',
     title,
     subtitle,
     backHref,

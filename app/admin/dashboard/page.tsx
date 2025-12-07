@@ -1,10 +1,5 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import AdminClientLayout from '@/components/AdminClientLayout';
-import { LoadingSpinner } from '@/components/LoadingSystem';
 import { 
   Plus, 
   Eye, 
@@ -17,19 +12,19 @@ import {
   Server,
   MessageCircle,
   Upload,
-  Cpu,
   Users,
   Car,
   Bell
 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-
-// Import shadcn UI components
+import AdminClientLayout from '@/components/AdminClientLayout';
+import { LoadingSpinner } from '@/components/LoadingSystem';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-
-// Import permission hooks
 import { 
   useCanViewAnalytics,
   useCanViewFeedback,
@@ -41,8 +36,7 @@ import {
 } from '@/hooks/usePermission';
 
 // Temporary inline hooks to bypass import issue
-const useHebrewFont = (element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
-const useMixedFont = (element: string = 'body') => ({ fontClass: 'font-mixed', direction: 'ltr' as const });
+const _useHebrewFont = (_element: string = 'body') => ({ fontClass: 'font-hebrew text-right', direction: 'rtl' as const });
 const useTasksRealtime = (callback: () => void) => { useEffect(() => { const interval = setInterval(callback, 30000); return () => clearInterval(interval); }, [callback]); };
 const useProjectsRealtime = (callback: () => void) => { useEffect(() => { const interval = setInterval(callback, 30000); return () => clearInterval(interval); }, [callback]); };
 const usePageRefresh = (callback: () => void) => { useEffect(() => { callback(); }, [callback]); };
@@ -77,8 +71,7 @@ export default function AdminDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [_user, _setUser] = useState<null>(null);
   const [cacheStatus, setCacheStatus] = useState<CacheStatus | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'data_manager' | 'driver_manager' | null>(null);
@@ -94,11 +87,8 @@ export default function AdminDashboard() {
   const canManageTasks = useCanManageTasks();
   const canManagePushNotifications = useCanManagePushNotifications();
   
-  const [searchTerm, setSearchTerm] = useState('');
   const [showCachePanel, setShowCachePanel] = useState(false);
   const router = useRouter();
-  const hebrewFont = useHebrewFont('heading');
-  const mixedFont = useMixedFont('body');
 
   const fetchCacheStatus = useCallback(async () => {
     // Only fetch cache status if user is actually an admin
@@ -178,7 +168,7 @@ export default function AdminDashboard() {
 
   const refreshData = useCallback(async () => {
     try {
-      setRefreshing(true);
+      // Refresh data without state tracking
       const token = localStorage.getItem('adminToken');
       const timestamp = Date.now();
       
@@ -205,7 +195,7 @@ export default function AdminDashboard() {
       console.error('Error fetching data:', error);
       setLoading(false);
     } finally {
-      setRefreshing(false);
+      // Refresh complete
     }
   }, []);
 
@@ -249,7 +239,7 @@ export default function AdminDashboard() {
   usePageRefresh(refreshData);
 
   // Update the checkAuth function to use permissions
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -301,11 +291,11 @@ export default function AdminDashboard() {
       localStorage.removeItem('userPermissions');
       router.push('/admin');
     }
-  };
+  }, [router, fetchCacheStatus]);
 
   useEffect(() => {
     checkAuth();
-  }, [router]);
+  }, [checkAuth]);
 
   // Early return if auth hasn't been checked yet
   if (!authChecked) {
@@ -841,7 +831,7 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
                       <div className="text-lg font-bold text-green-600">{stats.totalTasks}</div>
-                      <div className="text-xs text-green-700">סה"כ משימות</div>
+                      <div className="text-xs text-green-700">סה&quot;כ משימות</div>
                     </div>
                     
                     <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">

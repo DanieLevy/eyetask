@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { RefreshCw, ArrowDown } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void> | void;
@@ -21,14 +21,14 @@ export default function PullToRefresh({
   const [refreshSuccess, setRefreshSuccess] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouchStart = useCallback((e: TouchEvent) => {
     if (window.scrollY === 0) {
       setStartY(e.touches[0].clientY);
       setCanPull(true);
     }
-  };
+  }, []);
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!canPull || isRefreshing) return;
 
     const currentY = e.touches[0].clientY;
@@ -38,9 +38,9 @@ export default function PullToRefresh({
       e.preventDefault();
       setPullDistance(Math.min(diff, refreshThreshold * 1.5));
     }
-  };
+  }, [canPull, isRefreshing, startY, refreshThreshold]);
 
-  const handleTouchEnd = async () => {
+  const handleTouchEnd = useCallback(async () => {
     if (!canPull || isRefreshing) return;
 
     if (pullDistance >= refreshThreshold) {
@@ -65,7 +65,7 @@ export default function PullToRefresh({
 
     setCanPull(false);
     setStartY(0);
-  };
+  }, [canPull, isRefreshing, pullDistance, refreshThreshold, onRefresh]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -80,7 +80,7 @@ export default function PullToRefresh({
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [canPull, isRefreshing, pullDistance, startY, refreshThreshold]);
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   const pullProgress = Math.min(pullDistance / refreshThreshold, 1);
   const shouldShowIndicator = pullDistance > 5;

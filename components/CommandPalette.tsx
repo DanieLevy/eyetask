@@ -1,18 +1,5 @@
 "use client"
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { 
-  CommandDialog, 
-  CommandEmpty, 
-  CommandGroup, 
-  CommandInput, 
-  CommandItem, 
-  CommandList, 
-  CommandSeparator 
-} from "@/components/ui/command"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { 
   SearchIcon, 
   HomeIcon, 
@@ -23,6 +10,19 @@ import {
   InfoIcon,
   LogOutIcon
 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import * as React from "react"
+import { Button } from "@/components/ui/button"
+import { 
+  CommandDialog, 
+  CommandEmpty, 
+  CommandGroup, 
+  CommandInput, 
+  CommandItem, 
+  CommandList, 
+  CommandSeparator 
+} from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 
 interface CommandPaletteProps {
   children?: React.ReactNode

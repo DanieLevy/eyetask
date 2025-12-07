@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
+import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
 import { updateTaskAmount } from '@/lib/taskUtils';
 
 interface RouteParams {
@@ -40,7 +41,7 @@ export async function POST(
       success: true,
     });
   } catch (error) {
-    console.error('Error recalculating task amount:', error);
+    logger.error('Error recalculating task amount', 'TASK_API', undefined, error as Error);
     return NextResponse.json(
       { error: 'Failed to recalculate task amount', success: false },
       { status: 500 }

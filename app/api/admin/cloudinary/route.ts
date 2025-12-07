@@ -1,7 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
+import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
+import { cloudinary } from '@/lib/cloudinary-server';
 import { logger } from '@/lib/logger';
-import { getCloudinaryStats, cloudinary } from '@/lib/cloudinary-server';
+
+interface CloudinaryResource {
+  public_id: string;
+  created_at: string;
+  bytes: number;
+  secure_url?: string;
+  [key: string]: unknown;
+}
+
+interface CloudinaryResourcesOptions {
+  resource_type?: string;
+  max_results?: number;
+  next_cursor?: string;
+  prefix?: string;
+  tags?: boolean;
+}
+
+interface CleanupUnusedResourcesData {
+  dryRun?: boolean;
+  olderThan?: number;
+  folder?: string;
+}
+
+interface DeleteResourcesData {
+  publicIds?: string[];
+  confirm?: boolean;
+}
 
 // GET /api/admin/cloudinary - Get Cloudinary usage statistics and resource info
 export async function GET(request: NextRequest) {
@@ -162,7 +189,7 @@ async function getResources(searchParams: URLSearchParams) {
     const resourceType = searchParams.get('resource_type') || 'image';
     const tags = searchParams.get('tags')?.split(',') || undefined;
 
-    const options: any = {
+    const options: CloudinaryResourcesOptions = {
       resource_type: resourceType,
       max_results: Math.min(maxResults, 500), // Limit to prevent abuse
       next_cursor: nextCursor
@@ -179,7 +206,7 @@ async function getResources(searchParams: URLSearchParams) {
     const result = await cloudinary.api.resources(options);
 
     // Enhance resources with additional info
-    const enhancedResources = result.resources.map((resource: any) => ({
+    const enhancedResources = result.resources.map((resource: CloudinaryResource) => ({
       ...resource,
       size_mb: (resource.bytes / 1024 / 1024).toFixed(2),
       created_date: new Date(resource.created_at).toLocaleDateString(),
@@ -239,7 +266,7 @@ async function getUsage() {
 /**
  * Clean up unused Cloudinary resources
  */
-async function cleanupUnusedResources(data: any) {
+async function cleanupUnusedResources(data: CleanupUnusedResourcesData) {
   try {
     const { dryRun = true, olderThan = 30, folder = '' } = data;
     
@@ -259,7 +286,7 @@ async function cleanupUnusedResources(data: any) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThan);
 
-    const candidatesForDeletion = resources.resources.filter((resource: any) => {
+    const candidatesForDeletion = resources.resources.filter((resource: CloudinaryResource) => {
       const createdDate = new Date(resource.created_at);
       return createdDate < cutoffDate;
     });
@@ -268,7 +295,7 @@ async function cleanupUnusedResources(data: any) {
       logger.info('Dry run cleanup results', 'CLOUDINARY_CLEANUP', {
         totalResources: resources.resources.length,
         candidatesForDeletion: candidatesForDeletion.length,
-        estimatedSavings: candidatesForDeletion.reduce((acc: number, r: any) => acc + r.bytes, 0)
+        estimatedSavings: candidatesForDeletion.reduce((acc: number, r: CloudinaryResource) => acc + r.bytes, 0)
       });
 
       return NextResponse.json({
@@ -277,13 +304,13 @@ async function cleanupUnusedResources(data: any) {
           dryRun: true,
           totalResources: resources.resources.length,
           candidatesForDeletion: candidatesForDeletion.length,
-          candidates: candidatesForDeletion.map((r: any) => ({
+          candidates: candidatesForDeletion.map((r: CloudinaryResource) => ({
             public_id: r.public_id,
             created_at: r.created_at,
             bytes: r.bytes,
             url: r.secure_url
           })),
-          estimatedSavings: candidatesForDeletion.reduce((acc: number, r: any) => acc + r.bytes, 0)
+          estimatedSavings: candidatesForDeletion.reduce((acc: number, r: CloudinaryResource) => acc + r.bytes, 0)
         }
       });
     }
@@ -339,7 +366,7 @@ async function cleanupUnusedResources(data: any) {
 /**
  * Delete specific resources
  */
-async function deleteResources(data: any) {
+async function deleteResources(data: DeleteResourcesData) {
   try {
     const { publicIds = [], confirm = false } = data;
 

@@ -1,24 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { 
   LogOut,
   ChevronRight,
   Settings
 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { useAdminNavigation } from '@/hooks/useAdminNavigation';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { cn } from '@/lib/utils';
 
 interface AdminClientLayoutProps {
   children: React.ReactNode;
 }
 
+type AdminUser = {
+  username: string;
+  role: string;
+};
+
 function AdminLayoutContent({ children }: AdminClientLayoutProps) {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { navigationItems, isLoading: navLoading } = useAdminNavigation();
@@ -38,9 +43,9 @@ function AdminLayoutContent({ children }: AdminClientLayoutProps) {
     }
 
     try {
-      const parsedUser = JSON.parse(userData);
+      const parsedUser = JSON.parse(userData) as AdminUser;
       setCurrentUser(parsedUser);
-    } catch (error) {
+    } catch {
       router.push('/admin');
     }
   }, [router]);

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Loader2, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { InputField, TextareaField, CheckboxField } from '@/components/FormComponents';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface FormData {
   name: string;
@@ -164,10 +164,11 @@ export default function EditProjectPage() {
       } else {
         throw new Error(result.error || 'Failed to update project');
       }
-    } catch (err: any) {
-      console.error('Error updating project:', err);
-      setError(err.message || 'Failed to update project');
-      toast.error(err.message || 'Failed to update project');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Error updating project:', error);
+      setError(error.message || 'Failed to update project');
+      toast.error(error.message || 'Failed to update project');
     } finally {
       setSubmitting(false);
     }

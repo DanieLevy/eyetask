@@ -1,20 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Bell, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export function PushNotificationBanner() {
   const { 
     isSupported, 
     isSubscribed, 
     isLoading, 
-    error, 
-    subscribe, 
-    permission,
-    showIOSInstallPrompt
+    subscribe
   } = usePushNotifications();
   const isOffline = useOfflineStatus();
   const [isDismissed, setIsDismissed] = useState(false);
@@ -23,7 +20,7 @@ export function PushNotificationBanner() {
   const isIOS = typeof window !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isPWA = typeof window !== 'undefined' && (
     window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as any).standalone === true
+    (window.navigator as { standalone?: boolean }).standalone === true
   );
 
   useEffect(() => {

@@ -59,11 +59,11 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
-      let errorData: any = {};
+      let errorData: Record<string, unknown> = {};
 
       try {
-        errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
+        errorData = await response.json() as Record<string, unknown>;
+        errorMessage = (errorData.error as string) || (errorData.message as string) || errorMessage;
       } catch {
         // JSON parsing failed, use default message
       }
@@ -79,7 +79,7 @@ class ApiClient {
       const error: ApiError = {
         message: errorMessage,
         status: response.status,
-        code: errorData.code
+        code: typeof errorData.code === 'string' ? errorData.code : undefined
       };
 
       throw error;
@@ -97,8 +97,9 @@ class ApiClient {
   ): Promise<T> {
     try {
       return await fn();
-    } catch (error: any) {
-      if (retries > 0 && error.status !== 401 && error.status !== 403) {
+    } catch (error) {
+      const apiError = error as { status?: number };
+      if (retries > 0 && apiError.status !== 401 && apiError.status !== 403) {
                   // Retry attempt silently
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         return this.retryRequest(fn, retries - 1);
@@ -157,7 +158,7 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: any, options?: ApiOptions): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: ApiOptions): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -165,7 +166,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, data?: any, options?: ApiOptions): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown, options?: ApiOptions): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',

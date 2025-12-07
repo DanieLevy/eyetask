@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
-import { authSupabase as authService } from '@/lib/auth-supabase';
 import { hasPermission } from '@/lib/auth-permissions';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { logger } from '@/lib/logger';
 import { PERMISSIONS } from '@/lib/permissions';
 
 // Cache version management
-const CACHE_VERSION_KEY = 'cache-version';
-const CACHE_INVALIDATION_KEY = 'cache-invalidation';
+interface CacheVersionStore {
+  version: number;
+  lastInvalidation: string | null;
+  forceUpdate: boolean;
+}
 
 // In-memory store for cache versions (in production, use Redis or database)
-let cacheVersionStore: { [key: string]: any } = {
+let cacheVersionStore: CacheVersionStore = {
   version: Date.now(),
   lastInvalidation: null,
   forceUpdate: false
@@ -199,7 +202,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Broadcast cache invalidation to all connected clients
-function broadcastCacheInvalidation(data: any) {
+function broadcastCacheInvalidation(data: { version: number; reason?: string }) {
   // In a real implementation, you'd use WebSockets, Server-Sent Events, 
   // or a push notification service to notify all clients
   // For now, we'll rely on periodic client checks

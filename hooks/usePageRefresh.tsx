@@ -39,16 +39,13 @@ export function usePageRefresh(refreshFn: () => Promise<void> | void) {
   // Register the refresh function when the component mounts
   const { setPageRefresh } = context;
   
-  // Use useCallback to prevent unnecessary re-registrations
-  const stableRefreshFn = useCallback(refreshFn, []);
-  
   // Register the function
   React.useEffect(() => {
-    setPageRefresh(stableRefreshFn);
+    setPageRefresh(refreshFn);
     
     // Cleanup on unmount
     return () => setPageRefresh(() => {});
-  }, [setPageRefresh, stableRefreshFn]);
+  }, [setPageRefresh, refreshFn]);
 }
 
 export function useRefreshTrigger() {

@@ -1,10 +1,10 @@
 'use client';
 
+import { WifiOff, RefreshCw, AlertTriangle, X, Info } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Clock, RefreshCw, AlertTriangle, X, Info, ChevronUp } from 'lucide-react';
-import { useOfflineStatus } from '@/hooks/useOfflineStatus';
-import { useHebrewFont } from '@/hooks/useFont';
 import { toast } from 'sonner';
+import { useHebrewFont } from '@/hooks/useFont';
+import { useOfflineStatus } from '@/hooks/useOfflineStatus';
 
 interface CacheInfo {
   isServedFromCache: boolean;
@@ -13,7 +13,7 @@ interface CacheInfo {
 }
 
 export default function OfflineBanner() {
-  const { status: offlineStatus, isOnline } = useOfflineStatus();
+  const { isOnline } = useOfflineStatus();
   const [isExpanded, setIsExpanded] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<CacheInfo>({ isServedFromCache: false });
   const [showDetails, setShowDetails] = useState(false);
@@ -58,7 +58,7 @@ export default function OfflineBanner() {
           
           // If we can reach our server, we're not really offline
           setActuallyOffline(false);
-        } catch (error) {
+        } catch {
           // Can't reach our server, likely truly offline
           setActuallyOffline(true);
         }
@@ -169,8 +169,14 @@ export default function OfflineBanner() {
 
   // Force refresh function
   const handleRefresh = () => {
+    const reloadPage = () => {
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.reload();
+      }
+    };
+    
     // Clear caches and reload
-    if ('caches' in window) {
+    if (typeof window !== 'undefined' && 'caches' in window) {
       caches.keys().then(cacheNames => {
         Promise.all(
           cacheNames.map(cacheName => {
@@ -180,15 +186,15 @@ export default function OfflineBanner() {
             return Promise.resolve();
           })
         ).then(() => {
-          (window as any).location.reload();
+          reloadPage();
         }).catch(() => {
-          (window as any).location.reload();
+          reloadPage();
         });
       }).catch(() => {
-        (window as any).location.reload();
+        reloadPage();
       });
     } else {
-      (window as any).location.reload();
+      reloadPage();
     }
   };
 

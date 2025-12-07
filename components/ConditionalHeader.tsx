@@ -1,6 +1,5 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { UnifiedHeader } from './unified-header';
 import { HeaderProviders } from './unified-header/Providers';
 
@@ -9,8 +8,6 @@ import { HeaderProviders } from './unified-header/Providers';
  * This helps avoid duplicate header rendering across the application
  */
 export default function ConditionalHeader() {
-  const pathname = usePathname();
-  
   // The path information is passed to the header context via HeaderProviders
   // which allows proper dynamic configuration of the header across the app
   return (

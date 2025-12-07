@@ -119,7 +119,7 @@ export function usePWADetection(): UsePWADetectionReturn {
     if (window.matchMedia('(display-mode: standalone)').matches) return true;
     
     // iOS Safari specific detection
-    if ((window.navigator as any).standalone) return true;
+    if ((window.navigator as { standalone?: boolean }).standalone) return true;
     
     // Additional checks for various browsers
     if (window.matchMedia('(display-mode: minimal-ui)').matches) return true;
@@ -224,6 +224,13 @@ export function usePWADetection(): UsePWADetectionReturn {
     isClient
   ]);
 
+  // Dismiss install prompt
+  const dismissInstallPrompt = useCallback(() => {
+    localStorage.setItem(STORAGE_KEYS.INSTALL_DISMISSED, Date.now().toString());
+    setDeferredPrompt(null);
+    updateStatus();
+  }, [updateStatus]);
+
   // Install app
   const installApp = useCallback(async (): Promise<boolean> => {
     if (!deferredPrompt) return false;
@@ -246,20 +253,13 @@ export function usePWADetection(): UsePWADetectionReturn {
       console.error('PWA: Installation failed:', error);
       return false;
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, dismissInstallPrompt]);
 
   // Show install instructions for iOS
   const showInstallInstructions = useCallback(() => {
     // This will be handled by a modal/banner component
 
   }, []);
-
-  // Dismiss install prompt
-  const dismissInstallPrompt = useCallback(() => {
-    localStorage.setItem(STORAGE_KEYS.INSTALL_DISMISSED, Date.now().toString());
-    setDeferredPrompt(null);
-    updateStatus();
-  }, [updateStatus]);
 
   // Get app URL for deep linking
   const getAppUrl = useCallback((path: string = ''): string => {
@@ -383,7 +383,7 @@ export function usePWADetection(): UsePWADetectionReturn {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.matchMedia('(display-mode: standalone)').removeEventListener('change', handleDisplayModeChange);
     };
-  }, [updateStatus, isClient]);
+  }, [updateStatus, isClient, checkStandaloneMode]);
 
   return {
     status,

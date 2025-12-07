@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
 import { LucideIcon, Folder, BarChart2, MessageSquare, LogOut, User, Home, Settings, HelpCircle } from 'lucide-react';
+import { ReactNode } from 'react';
 import React from 'react';
 
 /**
@@ -30,7 +30,7 @@ export const renderIcon = (
     try {
       // TypeScript needs help here - we'll create a new props object
       const originalProps = (icon as React.ReactElement).props || {};
-      const newProps: Record<string, any> = {};
+      const newProps: Record<string, unknown> = {};
       
       // Only add className if it's safe to do so - check if it's an object first
       if (originalProps && typeof originalProps === 'object' && 

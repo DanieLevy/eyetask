@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { logger } from '@/lib/logger';
 import { requireAdmin } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 export async function GET(
   request: NextRequest,

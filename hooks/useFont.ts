@@ -1,12 +1,10 @@
 import { useMemo } from 'react';
 import { 
-  FontFamily, 
   FontWeight, 
   Language, 
   FontConfig,
   getFontFamily,
   getFontClassName,
-  getRecommendedWeight,
   createFontConfig,
   detectLanguage,
   fontConfigs

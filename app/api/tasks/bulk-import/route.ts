@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { activityLogger } from '@/lib/activityLogger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { requireAuthEnhanced, isAdminEnhanced } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
 import { createObjectId } from '@/lib/supabase';
-import { pushService } from '@/lib/services/pushNotificationService';
+import { supabaseDb as db } from '@/lib/supabase-database';
 import { updateTaskAmount } from '@/lib/taskUtils';
-import { activityLogger } from '@/lib/activityLogger';
 
 
 // Define interfaces based on the JSON structure
@@ -29,9 +27,6 @@ interface JiraParentIssue {
   subtasks: JiraSubtask[];
 }
 
-interface JiraImportData {
-  parent_issues: JiraParentIssue[];
-}
 
 // Detect if this is a calibration/stability task structure
 function isCalibrationTask(parentIssue: JiraParentIssue): boolean {
@@ -136,9 +131,10 @@ function validateJiraData(data: Record<string, unknown>): { valid: boolean; erro
     if (!Array.isArray(parent.subtasks)) {
       errors.push(`Parent issue ${parent.key || `at index ${parentIndex}`} is missing subtasks array`);
     } else {
-      // Check if this is a calibration task set
-      const isCalibrationParent = (parent.subtasks as any[]).every(subtask => 
-        subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
+      // Check if this is a calibration task set (unused but kept for future use)
+      const _isCalibrationParent = (parent.subtasks as unknown[]).every(subtask =>
+        (subtask as { amount_needed?: number; issue_type?: string }).amount_needed === 0 || 
+        (subtask as { amount_needed?: number; issue_type?: string }).issue_type === 'Sub Task'
       );
       
       parent.subtasks.forEach((subtask: Record<string, unknown>, subtaskIndex: number) => {

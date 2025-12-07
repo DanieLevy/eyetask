@@ -1,6 +1,6 @@
 import { AuthUser } from './auth-supabase';
-import { getUserPermissions } from './permissions';
 import { logger } from './logger';
+import { getUserPermissions } from './permissions';
 
 /**
  * Check if a user has a specific permission
@@ -88,7 +88,7 @@ export async function requirePermission(
 /**
  * Get a user's permissions with caching
  */
-let permissionCache: Map<string, { permissions: Record<string, boolean>; timestamp: number }> = new Map();
+const permissionCache: Map<string, { permissions: Record<string, boolean>; timestamp: number }> = new Map();
 const CACHE_TTL = 60000; // 1 minute cache
 
 export async function getCachedUserPermissions(userId: string): Promise<Record<string, boolean>> {

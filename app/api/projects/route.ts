@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // GET /api/projects - Fetch all projects
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const projects = await db.getAllProjects();
     

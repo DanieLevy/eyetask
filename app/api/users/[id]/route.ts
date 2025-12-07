@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { logger } from '@/lib/logger';
 import { requireAdmin } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // GET /api/users/[id] - Get a single user
 export async function GET(
@@ -74,7 +73,7 @@ export async function PUT(
     }
     
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     
     // Update username if provided and different
     if (data.username && data.username !== existingUser.username) {

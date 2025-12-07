@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
-import { authSupabase as authService } from '@/lib/auth-supabase';
-
-import { logger } from '@/lib/logger';
 import { activityLogger } from '@/lib/activityLogger';
+import { authSupabase as authService } from '@/lib/auth-supabase';
+import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
 
 // GET /api/tasks - Fetch all tasks (admin) or visible tasks (public)
 export async function GET(request: NextRequest) {

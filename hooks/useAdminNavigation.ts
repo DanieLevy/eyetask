@@ -1,8 +1,8 @@
-import { useMemo, useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import { BarChart3, CheckSquare, FolderOpen, MessageCircle, Home, Calendar, Users, Bell, HardDrive } from 'lucide-react';
-import { PERMISSIONS } from '@/lib/permissions';
+import { usePathname } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/components/unified-header/AuthContext';
+import { PERMISSIONS } from '@/lib/permissions';
 
 export interface NavigationItem {
   id: string;

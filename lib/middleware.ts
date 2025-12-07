@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger, AppError } from './logger';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -16,7 +16,7 @@ function generateRequestId(): string {
 }
 
 // API Error Handler
-export function handleApiError(error: unknown, requestId: string): NextResponse<ApiResponse> {
+export function handleApiError<T = unknown>(error: unknown, requestId: string): NextResponse<ApiResponse<T>> {
   if (error instanceof AppError) {
     logger.error(`API Error [${requestId}]`, 'API', {
       statusCode: error.statusCode,
@@ -24,7 +24,7 @@ export function handleApiError(error: unknown, requestId: string): NextResponse<
       message: error.message
     }, error);
 
-    return NextResponse.json<ApiResponse>({
+    return NextResponse.json<ApiResponse<T>>({
       success: false,
       error: error.message,
       timestamp: new Date().toISOString(),
@@ -36,7 +36,7 @@ export function handleApiError(error: unknown, requestId: string): NextResponse<
   if (error instanceof SyntaxError) {
     logger.error(`JSON Parse Error [${requestId}]`, 'API', { message: error.message }, error);
     
-    return NextResponse.json<ApiResponse>({
+    return NextResponse.json<ApiResponse<T>>({
       success: false,
       error: 'Invalid JSON format',
       timestamp: new Date().toISOString(),
@@ -47,7 +47,7 @@ export function handleApiError(error: unknown, requestId: string): NextResponse<
   // Handle unexpected errors
   logger.error(`Unexpected Error [${requestId}]`, 'API', undefined, error as Error);
   
-  return NextResponse.json<ApiResponse>({
+  return NextResponse.json<ApiResponse<T>>({
     success: false,
     error: 'Internal server error',
     timestamp: new Date().toISOString(),
@@ -72,10 +72,10 @@ export function createSuccessResponse<T>(
 }
 
 // API Wrapper with logging and error handling
-export function withApiHandler<T = any>(
-  handler: (req: NextRequest, context: any) => Promise<NextResponse<ApiResponse<T>>>
+export function withApiHandler<T = unknown>(
+  handler: (req: NextRequest, context: Record<string, unknown>) => Promise<NextResponse<ApiResponse<T>>>
 ) {
-  return async (req: NextRequest, context: any): Promise<NextResponse<ApiResponse<T>>> => {
+  return async (req: NextRequest, context: Record<string, unknown>): Promise<NextResponse<ApiResponse<T>>> => {
     const startTime = Date.now();
     const requestId = generateRequestId();
     const method = req.method;
@@ -85,12 +85,9 @@ export function withApiHandler<T = any>(
 
 
       // Add request ID to request for use in handlers
-      (req as any).requestId = requestId;
+      (req as NextRequest & { requestId?: string }).requestId = requestId;
 
       const response = await handler(req, context);
-      const executionTime = Date.now() - startTime;
-
-
 
       return response;
     } catch (error) {
@@ -102,14 +99,14 @@ export function withApiHandler<T = any>(
         executionTime: `${executionTime}ms`
       }, error as Error);
 
-      return handleApiError(error, requestId);
+      return handleApiError<T>(error, requestId);
     }
   };
 }
 
 // Request validation middleware
-export function validateRequestBody(schema: Record<string, any>) {
-  return async (req: NextRequest): Promise<any> => {
+export function validateRequestBody(schema: Record<string, { required?: boolean; type?: string; minLength?: number; maxLength?: number; pattern?: RegExp }>) {
+  return async (req: NextRequest): Promise<Record<string, unknown>> => {
     try {
       const body = await req.json();
       
@@ -263,14 +260,28 @@ export function paginate<T>(
   const endIndex = startIndex + limit;
   
   // Sort if requested
-  let sortedItems = [...items];
+  const sortedItems = [...items];
   if (params.sortBy) {
     sortedItems.sort((a, b) => {
-      const aVal = (a as any)[params.sortBy!];
-      const bVal = (b as any)[params.sortBy!];
+      const sortBy = params.sortBy;
+      if (!sortBy) return 0;
+      const aVal = (a as Record<string, unknown>)[sortBy];
+      const bVal = (b as Record<string, unknown>)[sortBy];
       
-      if (aVal < bVal) return params.sortOrder === 'desc' ? 1 : -1;
-      if (aVal > bVal) return params.sortOrder === 'desc' ? -1 : 1;
+      // Handle null/undefined values
+      if (aVal === undefined || aVal === null) return 1;
+      if (bVal === undefined || bVal === null) return -1;
+      
+      // Convert to comparable values
+      const aCompare = typeof aVal === 'string' || typeof aVal === 'number' || aVal instanceof Date
+        ? aVal
+        : String(aVal);
+      const bCompare = typeof bVal === 'string' || typeof bVal === 'number' || bVal instanceof Date
+        ? bVal
+        : String(bVal);
+      
+      if (aCompare < bCompare) return params.sortOrder === 'desc' ? 1 : -1;
+      if (aCompare > bCompare) return params.sortOrder === 'desc' ? -1 : 1;
       return 0;
     });
   }
@@ -294,7 +305,7 @@ export function paginate<T>(
 export interface RequestContext {
   requestId: string;
   startTime: number;
-  user?: any;
+  user?: { id: string; username: string; email?: string; role: string } | null;
   clientId: string;
 }
 

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Calendar, Clock, Pin, Eye, EyeOff, Save, X, AlertCircle, CheckCircle2, Hash, Type, Sparkles, Info } from 'lucide-react';
-import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
+import { Loader2, ArrowLeft, Calendar, Clock, Pin, Eye, EyeOff, Save, X, AlertCircle, CheckCircle2, Type, Sparkles, Info } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 
 interface UpdateForm {
@@ -86,18 +86,7 @@ export default function EditDailyUpdatePage() {
     isGeneral: true
   });
 
-  useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      router.push('/admin');
-      return;
-    }
-
-    fetchProjects();
-    fetchUpdate();
-  }, [id, router]);
-
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/projects', {
@@ -111,15 +100,15 @@ export default function EditDailyUpdatePage() {
         const data = await response.json();
         setProjects(data.projects || []);
       }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
+    } catch {
+      // Error handled by toast
       toast.error('שגיאה בטעינת פרויקטים');
     } finally {
       setLoadingProjects(false);
     }
-  };
+  }, []);
 
-  const fetchUpdate = async () => {
+  const fetchUpdate = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
@@ -179,14 +168,19 @@ export default function EditDailyUpdatePage() {
         isGeneral: updateData.isGeneral !== false
       });
 
-    } catch (error) {
-      console.error('Error fetching update:', error);
+    } catch {
+      // Error handled by toast
       toast.error('שגיאה בטעינת העדכון');
       setTimeout(() => router.push('/admin/daily-updates'), 2000);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, router]);
+
+  useEffect(() => {
+    fetchProjects();
+    fetchUpdate();
+  }, [fetchProjects, fetchUpdate]);
 
   const handleProjectChange = (projectId: string) => {
     const isGeneral = projectId === 'general';
@@ -386,7 +380,7 @@ export default function EditDailyUpdatePage() {
                       <button
                         key={type.value}
                         type="button"
-                        onClick={() => setForm({ ...form, type: type.value as any })}
+                        onClick={() => setForm({ ...form, type: type.value as UpdateForm['type'] })}
                         className={cn(
                           "relative p-4 rounded-xl border-2 transition-all transform hover:scale-105",
                           "flex flex-col items-center gap-2",
@@ -502,7 +496,7 @@ export default function EditDailyUpdatePage() {
                         <button
                           key={duration.value}
                           type="button"
-                          onClick={() => setForm({ ...form, durationType: duration.value as any })}
+                          onClick={() => setForm({ ...form, durationType: duration.value as UpdateForm['durationType'] })}
                           className={cn(
                             "relative p-4 rounded-xl border-2 transition-all transform hover:scale-105",
                             "flex flex-col items-center gap-2",

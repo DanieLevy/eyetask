@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useCallback, useMemo } from 'react';
-import { generateCloudinaryUrl, isCloudinaryUrl, getThumbnailUrl } from '@/lib/cloudinary-client';
+import { generateCloudinaryUrl, isCloudinaryUrl } from '@/lib/cloudinary-client';
 
 interface CloudinaryImageProps {
   src: string;
@@ -27,7 +28,8 @@ interface CloudinaryImageProps {
 
 /**
  * Enhanced image component that handles Cloudinary images with optimization
- * Automatically optimizes Cloudinary images and provides fallbacks
+ * Uses Next.js Image component for proper optimization and lazy loading
+ * Properly configured to avoid Cloudinary conflicts with next/image domain restrictions
  */
 export default function CloudinaryImage({
   src,
@@ -46,23 +48,18 @@ export default function CloudinaryImage({
   style,
   onClick,
   onLoad,
-  onError,
-  placeholder,
-  blurDataURL
+  onError
 }: CloudinaryImageProps) {
   const [imageError, setImageError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Handle image load
   const handleLoad = useCallback(() => {
-    setIsLoading(false);
     onLoad?.();
   }, [onLoad]);
 
   // Handle image error
   const handleError = useCallback(() => {
     setImageError(true);
-    setIsLoading(false);
     onError?.();
   }, [onError]);
 
@@ -106,14 +103,10 @@ export default function CloudinaryImage({
     return src;
   }, [src, width, height, quality, crop, format, transformation]);
 
-  // Generate thumbnail for blur placeholder
-  const thumbnailUrl = getThumbnailUrl(src);
-
   // Calculate optimized source URL
   const optimizedSrc = useMemo(() => {
     // For debugging: Use the original URL directly for Cloudinary images
     if (isCloudinaryUrl(src) && !width && !height && !transformation) {
-              // Using original Cloudinary URL
       return src;
     }
     return getOptimizedImageUrl();
@@ -142,93 +135,42 @@ export default function CloudinaryImage({
     );
   }
 
-  // Don't show loading state for now to debug the black image issue
-  // if (isLoading) {
-  //   return (
-  //     <div 
-  //       className={`bg-gray-100 dark:bg-gray-900 animate-pulse flex items-center justify-center ${className}`}
-  //       style={{ width, height, ...style }}
-  //     >
-  //       <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-  //         <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-  //       </svg>
-  //     </div>
-  //   );
-  // }
-
-  // For Cloudinary and other URLs, use Next.js Image with optimization
-  const imageProps: any = {
-    src: optimizedSrc,
-    alt,
-    className,
-    style: {
-      ...style,
-      // Override Next.js default styles that might cause transparency issues
-      color: 'initial',
-      background: 'none'
-    },
-    priority,
-    loading,
-    onClick,
-    onLoad: handleLoad,
-    onError: handleError,
-    unoptimized: true // Force unoptimized for debugging
-  };
-
-  // Add dimensions or fill
-  if (fill) {
-    imageProps.fill = true;
-    imageProps.sizes = sizes || '100vw';
-  } else {
-    imageProps.width = width;
-    imageProps.height = height;
-    if (sizes) imageProps.sizes = sizes;
-  }
-
-  // Skip blur placeholder for now during debugging
-  // if (placeholder === 'blur' && thumbnailUrl) {
-  //   imageProps.placeholder = 'blur';
-  //   imageProps.blurDataURL = blurDataURL || thumbnailUrl;
-  // }
-
-
-
-  // Use regular img tag for ALL cases to fix black image issue
-  // The issue is that Next.js Image component is applying problematic styles
-  
+  // Use Next.js Image component with proper configuration
+  // unoptimized=true to avoid conflicts with Cloudinary's own optimization
   if (fill) {
     return (
-      <img 
+      <Image 
         src={optimizedSrc}
         alt={alt}
-        className={`${className} absolute inset-0 w-full h-full object-cover`}
+        fill
+        sizes={sizes || '100vw'}
+        className={className}
         style={{
-          ...style,
-          color: 'initial',
-          background: 'none'
+          objectFit: 'cover',
+          ...style
         }}
         onLoad={handleLoad}
         onError={handleError}
         onClick={onClick}
+        priority={priority}
+        unoptimized={true} // Cloudinary handles optimization
       />
     );
   } else {
-    // Use regular img tag for width/height cases too
     return (
-      <img 
+      <Image 
         src={optimizedSrc}
         alt={alt}
-        width={width}
-        height={height}
+        width={width || 800}
+        height={height || 600}
         className={className}
-        style={{
-          ...style,
-          color: 'initial',
-          background: 'none'
-        }}
+        style={style}
         onLoad={handleLoad}
         onError={handleError}
         onClick={onClick}
+        priority={priority}
+        loading={loading}
+        unoptimized={true} // Cloudinary handles optimization
       />
     );
   }
@@ -256,12 +198,7 @@ export function CloudinaryImageGallery({
   alt = 'Gallery image',
   className = '',
   imageClassName = '',
-  onImageClick,
-  sizes = {
-    thumbnail: { width: 150, height: 150 },
-    medium: { width: 500, height: 500 },
-    large: { width: 1200, height: 1200 }
-  }
+  onImageClick
 }: CloudinaryImageGalleryProps) {
   if (!images.length) return null;
 
@@ -307,11 +244,6 @@ export function ResponsiveCloudinaryImage({
   publicId,
   alt,
   aspectRatio = 'landscape',
-  breakpoints = {
-    mobile: { width: 400, height: 300 },
-    tablet: { width: 800, height: 600 },
-    desktop: { width: 1200, height: 900 }
-  },
   ...props
 }: ResponsiveCloudinaryImageProps) {
   const aspectRatios = {

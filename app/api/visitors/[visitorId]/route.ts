@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { logger } from '@/lib/logger';
 import { requireAdmin } from '@/lib/auth-utils';
+import { logger } from '@/lib/logger';
 import { getSupabaseClient } from '@/lib/supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // PUT /api/visitors/[visitorId] - Update visitor profile (admin only)
 export async function PUT(

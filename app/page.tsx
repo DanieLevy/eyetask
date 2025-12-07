@@ -1,24 +1,23 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useCallback, Suspense, useRef, useMemo, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
-import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
-import { PushNotificationBanner } from '@/components/PushNotificationBanner';
-import { useOfflineStatus } from '@/hooks/useOfflineStatus';
-import { usePWADetection } from '@/hooks/usePWADetection';
-import ProjectCard from '@/components/ProjectCard';
-import { useHomepageData, useDataPreloader } from '@/hooks/useOptimizedData';
-import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
-import { LoadingSpinner } from '@/components/LoadingSystem';
-import { EmptyState } from '@/components/EmptyState';
 import { toast } from 'sonner';
-import { useVisitor } from '@/contexts/VisitorContext';
+import DailyUpdatesCarousel from '@/components/DailyUpdatesCarousel';
+import { LoadingSpinner } from '@/components/LoadingSystem';
+import ProjectCard from '@/components/ProjectCard';
+import { PushNotificationBanner } from '@/components/PushNotificationBanner';
+import { HomepageLoadingSkeleton } from '@/components/SkeletonLoaders';
 import { VisitorNameModal } from '@/components/VisitorNameModal';
+import { useVisitor } from '@/contexts/VisitorContext';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { useOfflineStatus } from '@/hooks/useOfflineStatus';
+import { useHomepageData, useDataPreloader } from '@/hooks/useOptimizedData';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
+import { usePWADetection } from '@/hooks/usePWADetection';
+import { logger } from '@/lib/logger';
 import { trackPageView, trackAction } from '@/lib/visitor-utils';
 import { markVisitorModalShown } from '@/lib/visitor-utils';
-import { logger } from '@/lib/logger';
 
 // Project and Task interfaces moved to shared types
 
@@ -32,8 +31,7 @@ function HomePageCore() {
   const { preloadProject } = useDataPreloader();
   const offlineStatus = useOfflineStatus();
   const pwaStatus = usePWADetection();
-  const router = useRouter();
-  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor, refreshVisitorInfo, checkAndUpdateFromDatabase } = useVisitor();
+  const { visitor, isLoading: visitorLoading, isRegistering, registerVisitor, refreshVisitorInfo } = useVisitor();
   
   // State for visitor modal - simplified
   const [showVisitorModal, setShowVisitorModal] = useState(false);
@@ -93,11 +91,11 @@ function HomePageCore() {
     return () => {
       clearTimeout(timer);
     };
-  }, [visitor, visitorLoading]);
+  }, [visitor, visitorLoading, refreshVisitorInfo]);
   
   // Track page view for registered visitors
   useEffect(() => {
-    if (visitor?.isRegistered) {
+    if (visitor?.isRegistered && visitor.name && visitor.visitorId) {
       logger.info('[Visitor] Tracking homepage view', 'HOMEPAGE', {
         visitorId: visitor.visitorId,
         name: visitor.name,
@@ -105,7 +103,7 @@ function HomePageCore() {
       });
       trackPageView('דף הבית');
     }
-  }, [visitor?.isRegistered]);
+  }, [visitor?.isRegistered, visitor?.name, visitor?.visitorId]);
 
   // Memoized data processing
   const projects = useMemo(() => {

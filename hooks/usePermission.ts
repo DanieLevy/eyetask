@@ -16,7 +16,7 @@ export function usePermission(permission: string): boolean {
   }
   
   const access = hasPermission(permission);
-  console.log(`[usePermission] Checking ${permission}: ${access ? '✅' : '❌'}`);
+  // Permission check logged via AuthContext
   return access;
 }
 

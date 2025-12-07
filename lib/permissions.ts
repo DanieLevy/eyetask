@@ -1,5 +1,5 @@
-import { getSupabaseClient } from './supabase';
 import { logger } from './logger';
+import { getSupabaseClient } from './supabase';
 
 export interface Permission {
   key: string;

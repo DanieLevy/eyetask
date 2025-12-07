@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // GET /api/homepage-data - Fetch all homepage data in a single optimized query
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const data = await db.getHomepageData();
     
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in homepage-data API:', error);
+    logger.error('Error in homepage-data API', 'HOMEPAGE_DATA_API', undefined, error as Error);
     return NextResponse.json(
       { error: 'Failed to fetch homepage data' },
       { status: 500 }
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Clear cache endpoint (admin only)
-export async function DELETE(request: NextRequest) {
+export async function DELETE(_request: NextRequest) {
   try {
     // Clear homepage data cache
     db.invalidateHomepageCache();

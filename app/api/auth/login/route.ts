@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // Never cache this route
 export const dynamic = 'force-dynamic';
@@ -29,18 +29,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Track login
-    await db.trackVisit(result.user.id, result.user.username, result.user.email, result.user.role);
-    await db.trackLogin(result.user.id);
+    if (result.user) {
+      await db.trackVisit(result.user.id, result.user.username, result.user.email, result.user.role);
+      await db.trackLogin(result.user.id);
 
-    // Log the action
-    await db.logAction({
-      userId: result.user.id,
-      username: result.user.username,
-      userRole: result.user.role,
-      action: 'התחבר למערכת',
-      category: 'auth',
-      severity: 'info'
-    });
+      // Log the action
+      await db.logAction({
+        userId: result.user.id,
+        username: result.user.username,
+        userRole: result.user.role,
+        action: 'התחבר למערכת',
+        category: 'auth',
+        severity: 'info'
+      });
+    }
 
     logger.info('Admin login successful', 'AUTH_API', { username });
 

@@ -1,7 +1,10 @@
 // Singleton fetch manager to prevent duplicate API calls
+
+type FetchFunction<T> = () => Promise<T>;
+
 class FetchManager {
   private static instance: FetchManager;
-  private activeRequests: Map<string, Promise<any>> = new Map();
+  private activeRequests: Map<string, Promise<unknown>> = new Map();
 
   private constructor() {}
 
@@ -12,9 +15,9 @@ class FetchManager {
     return FetchManager.instance;
   }
 
-  async fetch(key: string, fetchFn: () => Promise<any>): Promise<any> {
+  async fetch<T = unknown>(key: string, fetchFn: FetchFunction<T>): Promise<T> {
     // If there's already an active request with this key, return it
-    const activeRequest = this.activeRequests.get(key);
+    const activeRequest = this.activeRequests.get(key) as Promise<T> | undefined;
     if (activeRequest) {
       return activeRequest;
     }
@@ -30,9 +33,9 @@ class FetchManager {
     return requestPromise;
   }
 
-  clearAll() {
+  clearAll(): void {
     this.activeRequests.clear();
   }
 }
 
-export const fetchManager = FetchManager.getInstance(); 
+export const fetchManager = FetchManager.getInstance();

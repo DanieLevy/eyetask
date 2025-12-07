@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
 import { pushService } from '@/lib/services/pushNotificationService';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // POST /api/push/subscribe - Subscribe to push notifications
 export async function POST(request: NextRequest) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate unique ID for anonymous users
-    const userId = user?.id || null;
+    const userId = user?.id || 'anonymous';
     const username = userName || user?.username || 'Anonymous User';
     const email = user?.email || '';
     const role = user?.role || 'guest';
@@ -226,8 +226,8 @@ export async function DELETE(request: NextRequest) {
       isIOS
     });
 
-    // Remove subscription - pass the actual userId which could be null
-    await db.removePushSubscription(endpoint, user?.id || null);
+    // Remove subscription - pass the actual userId which could be undefined
+    await db.removePushSubscription(endpoint, user?.id);
 
     logger.info('[Push Unsubscribe] Subscription removed successfully', 'PUSH_UNSUBSCRIBE', {
       userId: user?.id || 'anonymous',

@@ -136,7 +136,7 @@ class RequestGuard {
 }
 
 // Safe fetch wrapper with comprehensive protection
-export async function safeFetch<T = any>(
+export async function safeFetch<T = unknown>(
   url: string, 
   options: RequestInit = {},
   metadata: { component?: string; retryCount?: number } = {}
@@ -236,8 +236,9 @@ export function useSafeEffect(
 
     // Log dependency changes for debugging
     if (debugName && prevDepsRef.current) {
+      const prevDeps = prevDepsRef.current;
       const changedDeps = deps.filter((dep, index) => 
-        dep !== prevDepsRef.current![index]
+        dep !== prevDeps[index]
       );
       
       if (changedDeps.length > 0) {
@@ -251,11 +252,12 @@ export function useSafeEffect(
 
     prevDepsRef.current = deps;
     return effect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
 
 // Safe useCallback wrapper that prevents function recreation loops
-export function useSafeCallback<T extends (...args: any[]) => any>(
+export function useSafeCallback<T extends (...args: unknown[]) => unknown>(
   callback: T,
   deps: React.DependencyList,
   debugName?: string
@@ -283,6 +285,7 @@ export function useSafeCallback<T extends (...args: any[]) => any>(
     lastRecreationRef.current = now;
     
     return callback(...args);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps) as T;
 }
 
@@ -318,7 +321,7 @@ export function useSafeState<T>(
 
     lastUpdateRef.current = now;
     setState(value);
-  }, []);
+  }, [debugName]);
 
   return [state, safeSetState];
 }
@@ -350,8 +353,8 @@ export class ProjectGuard {
     });
 
     // Alert on excessive renders
-    const metrics = this.componentMetrics.get(componentName)!;
-    if (metrics.renderCount > 50) {
+    const metrics = this.componentMetrics.get(componentName);
+    if (metrics && metrics.renderCount > 50) {
       logger.error('Component excessive renders detected', 'PROJECT_GUARD', {
         componentName,
         renderCount: metrics.renderCount
@@ -401,7 +404,7 @@ export class ProjectGuard {
       report.totalErrors += metrics.errorCount;
 
       if (metrics.renderCount > 20 || metrics.fetchCount > 50 || metrics.errorCount > 5) {
-        (report.problematicComponents as any[]).push({
+        (report.problematicComponents as Array<{ name: string; renderCount: number; fetchCount: number; errorCount: number; lastActivity: number }>).push({
           name,
           ...metrics
         });

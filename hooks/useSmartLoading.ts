@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState, useRef } from 'react';
-import { useLoading, useActionLoading, useDataLoading, usePageLoading } from '@/contexts/LoadingContext';
+import { useLoading, useActionLoading } from '@/contexts/LoadingContext';
 
 /**
  * Smart loading hook that automatically manages loading states
@@ -234,7 +234,7 @@ export function useProgressLoading() {
   const executeSteps = useCallback(async <T>(
     steps: Array<{
       name: string;
-      operation: () => Promise<any>;
+      operation: () => Promise<T>;
       weight?: number; // Relative weight for progress calculation
     }>,
     options: {
@@ -278,7 +278,7 @@ export function useProgressLoading() {
     setCurrentStep('הושלם');
 
     return results;
-  }, [withLoading]);
+  }, [withLoading, currentStep]);
 
   const reset = useCallback(() => {
     setProgress(0);
@@ -354,7 +354,7 @@ export function useRetryLoading() {
     }
 
     throw lastError || new Error('Max retry attempts exceeded');
-  }, [withLoading]);
+  }, [withLoading, lastError]);
 
   return {
     attempts,

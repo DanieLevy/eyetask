@@ -2,15 +2,15 @@
 
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
-
 // Optional plugins
-import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import Download from 'yet-another-react-lightbox/plugins/download';
 import Share from 'yet-another-react-lightbox/plugins/share';
 import Thumbnails from 'yet-another-react-lightbox/plugins/thumbnails';
+import Zoom from 'yet-another-react-lightbox/plugins/zoom';
 import 'yet-another-react-lightbox/plugins/thumbnails.css';
 
 interface ImageGalleryProps {
@@ -19,6 +19,11 @@ interface ImageGalleryProps {
   className?: string;
 }
 
+/**
+ * Modern Image Gallery Component
+ * Uses Next.js Image for optimized loading with proper lazy loading
+ * Integrates with yet-another-react-lightbox for full-screen viewing
+ */
 export default function ModernImageGallery({ 
   images, 
   alt = 'Gallery image',
@@ -35,7 +40,7 @@ export default function ModernImageGallery({
 
   return (
     <>
-      {/* Thumbnail Grid */}
+      {/* Thumbnail Grid - Using Next.js Image */}
       <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 ${className}`}>
         {images.map((image, index) => (
           <div
@@ -46,11 +51,13 @@ export default function ModernImageGallery({
               setIsOpen(true);
             }}
           >
-            <img
+            <Image
               src={image}
               alt={`${alt} ${index + 1}`}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-110"
+              unoptimized={true} // Allow external images
             />
             
             {/* Overlay */}
@@ -111,7 +118,7 @@ export default function ModernImageGallery({
   );
 }
 
-// Alternative: With Next.js Image optimization
+// Alternative: Optimized Gallery Component
 export function NextJSImageGallery({ images, alt = 'Gallery image', className = '' }: ImageGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -133,12 +140,13 @@ export function NextJSImageGallery({ images, alt = 'Gallery image', className = 
               setIsOpen(true);
             }}
           >
-            {/* Use Next.js Image for optimization */}
-            <img
+            <Image
               src={image}
               alt={`${alt} ${index + 1}`}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-110"
+              unoptimized={true}
             />
           </div>
         ))}
@@ -157,20 +165,6 @@ export function NextJSImageGallery({ images, alt = 'Gallery image', className = 
           container: {
             backgroundColor: 'rgba(0, 0, 0, 0.9)',
           },
-        }}
-        // Render function for Next.js Image
-        render={{
-          slide: ({ slide }) => (
-            <img
-              src={slide.src}
-              alt={slide.alt}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-              }}
-            />
-          ),
         }}
       />
     </>

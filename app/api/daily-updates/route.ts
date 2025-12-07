@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface DailyUpdateCreateData {
+  title: string;
+  content: string;
+  type: 'info' | 'warning' | 'success' | 'error' | 'announcement';
+  priority: number;
+  durationType: 'hours' | 'days' | 'permanent';
+  durationValue?: number;
+  expiresAt?: string;
+  isActive?: boolean;
+  isPinned?: boolean;
+  isHidden?: boolean;
+  targetAudience?: string[];
+  projectId?: string;
+  isGeneral?: boolean;
+  createdBy: string;
+}
 
 // GET /api/daily-updates - Get daily updates (filtered by scope)
 export async function GET(request: NextRequest) {
@@ -105,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create daily update - explicitly type the object
-    const updateData: any = {
+    const updateData: DailyUpdateCreateData = {
       title: data.title,
       content: data.content,
       type: data.type,
@@ -126,7 +143,14 @@ export async function POST(request: NextRequest) {
       updateData.expiresAt = expiresAt;
     }
     
-    const updateId = await db.createDailyUpdate(updateData);
+    const updateId = await db.createDailyUpdate({
+      ...updateData,
+      isActive: updateData.isActive ?? true,
+      isPinned: updateData.isPinned ?? false,
+      isHidden: updateData.isHidden ?? false,
+      targetAudience: updateData.targetAudience || [],
+      isGeneral: updateData.isGeneral ?? true
+    });
     const newUpdate = await db.getDailyUpdateById(updateId);
     
     logger.info('Daily update created successfully', 'DAILY_UPDATES_API', {

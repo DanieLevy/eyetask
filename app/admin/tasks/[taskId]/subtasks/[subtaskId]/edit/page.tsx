@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Save,
   ChevronRight,
-  Target,
-  Image as ImageIcon,
-  X
+  Target
 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import SimpleImageGallery from '@/components/SimpleImageGallery';
 
@@ -56,11 +54,7 @@ export default function EditSubtaskPage() {
   const [newImagePreviews, setNewImagePreviews] = useState<Array<{id: string, url: string}>>([]);
 
 
-  useEffect(() => {
-    fetchData();
-  }, [taskId, subtaskId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -95,7 +89,11 @@ export default function EditSubtaskPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [taskId, subtaskId, router]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
   
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -125,12 +123,12 @@ export default function EditSubtaskPage() {
     setNewImagePreviews(prev => [...prev, ...newPreviews]);
   };
 
-  const handleRemoveNewImage = (indexToRemove: number) => {
+  const _handleRemoveNewImage = (indexToRemove: number) => {
     setNewImages(prev => prev.filter((_, index) => index !== indexToRemove));
     setNewImagePreviews(prev => prev.filter((_, index) => index !== indexToRemove));
   };
   
-  const handleRemoveExistingImage = (urlToRemove: string) => {
+  const _handleRemoveExistingImage = (urlToRemove: string) => {
     setExistingImageUrls(prev => prev.filter(url => url !== urlToRemove));
   };
 
@@ -197,7 +195,7 @@ export default function EditSubtaskPage() {
   };
 
   // Format DATACO number for display
-  const formatDatacoDisplay = (datacoNumber: string) => {
+  const _formatDatacoDisplay = (datacoNumber: string) => {
     if (!datacoNumber) return '';
     return `DATACO-${datacoNumber}`;
   };
@@ -268,7 +266,7 @@ export default function EditSubtaskPage() {
           <div className="bg-card rounded-lg border border-border">
             <div className="p-6 border-b border-border">
               <h2 className="text-xl font-semibold text-foreground">ערוך תת-משימה</h2>
-              <p className="text-sm text-muted-foreground mt-1">ערוך את התת-משימה "{subtask.title}"</p>
+              <p className="text-sm text-muted-foreground mt-1">ערוך את התת-משימה &quot;{subtask.title}&quot;</p>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -424,7 +422,7 @@ export default function EditSubtaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">מזג אוויר *</label>
                   <select
                     value={editSubtaskData.weather || 'Clear'}
-                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, weather: e.target.value as any }))}
+                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, weather: e.target.value as Subtask['weather'] }))}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="Clear">בהיר (Clear)</option>
@@ -439,7 +437,7 @@ export default function EditSubtaskPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">סצנה *</label>
                   <select
                     value={editSubtaskData.scene || 'Urban'}
-                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, scene: e.target.value as any }))}
+                    onChange={(e) => setEditSubtaskData(prev => ({ ...prev, scene: e.target.value as Subtask['scene'] }))}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="Highway">כביש מהיר (Highway)</option>

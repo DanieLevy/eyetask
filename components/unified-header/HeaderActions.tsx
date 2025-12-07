@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { MoreVertical } from 'lucide-react';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,9 +12,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { HeaderActionsProps, HeaderAction } from './types';
 import { useHebrewFont } from '@/hooks/useFont';
+import { cn } from '@/lib/utils';
+import { HeaderActionsProps } from './types';
 
 export const HeaderActions = ({ actions, className }: HeaderActionsProps) => {
   const [isSmallScreen, setIsSmallScreen] = useState(false);

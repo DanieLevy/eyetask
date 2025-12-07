@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { hasPermission } from '@/lib/auth-permissions';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { getSupabaseClient } from '@/lib/supabase';
-import { hasPermission } from '@/lib/auth-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import { getSupabaseClient } from '@/lib/supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // GET /api/users/[id]/permissions - Get user permissions
 export async function GET(

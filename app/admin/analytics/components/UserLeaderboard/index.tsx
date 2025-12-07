@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Crown, Medal, ArrowLeft, Trophy, Star } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { User, Activity } from '../../types/analytics';
-import { useRouter } from 'next/navigation';
 
 interface UserLeaderboardProps {
   users: User[];

@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowRight, 
   ChevronDown, 
@@ -23,15 +21,52 @@ import {
   Layers,
   Search,
 } from "lucide-react";
-import { useHebrewFont, useMixedFont } from "@/hooks/useFont";
-import { capitalizeEnglish, capitalizeEnglishArray } from "@/lib/utils";
-import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useProjectData } from "@/hooks/useOptimizedData";
-import { ProjectPageLoadingSkeleton } from "@/components/SkeletonLoaders";
-import { InlineLoading } from "@/components/LoadingSystem";
-import SimpleImageGallery from "@/components/SimpleImageGallery";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import CloudinaryImage from "@/components/CloudinaryImage";
 import DailyUpdatesCarousel from "@/components/DailyUpdatesCarousel";
+import { InlineLoading } from "@/components/LoadingSystem";
+import SimpleImageGallery from "@/components/SimpleImageGallery";
+import { ProjectPageLoadingSkeleton } from "@/components/SkeletonLoaders";
+import { useHebrewFont, useMixedFont } from "@/hooks/useFont";
+import { useProjectData } from "@/hooks/useOptimizedData";
+import { usePageRefresh } from "@/hooks/usePageRefresh";
+import { capitalizeEnglish, capitalizeEnglishArray } from "@/lib/utils";
+
+type ProjectPageData = {
+  project: {
+    _id: string;
+    name: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  tasks: Array<{
+    _id: string;
+    title: string;
+    subtitle?: string;
+    images?: string[];
+    datacoNumber: string;
+    description: {
+      main: string;
+      howToExecute: string;
+    };
+    projectId: string;
+    type: ('events' | 'hours')[];
+    locations: string[];
+    amountNeeded: number;
+    targetCar: string[];
+    lidar: boolean;
+    dayTime: ('day' | 'night' | 'dusk' | 'dawn')[];
+    priority: number;
+    isVisible: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  subtasks: Record<string, unknown>;
+  success: boolean;
+  queryTime?: number;
+};
 
 export default function ProjectPage() {
   const params = useParams();
@@ -222,7 +257,7 @@ export default function ProjectPage() {
   };
 
   // Search helper function - searches across multiple fields
-  const matchesSearchQuery = (task: any, query: string): boolean => {
+  const matchesSearchQuery = (task: ProjectPageData['tasks'][number], query: string): boolean => {
     if (!query || query.trim() === "") return true;
     
     const lowerQuery = query.toLowerCase().trim();

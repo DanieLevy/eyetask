@@ -1,19 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
-  Save,
-  ChevronRight,
-  Target
+  Save
 } from 'lucide-react';
-import { capitalizeEnglishArray } from '@/lib/utils';
-import { MultipleImageUpload } from '@/components/ImageUpload';
+import Link from 'next/link';
+import { useRouter, useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { MultipleImageUpload } from '@/components/ImageUpload';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { useMixedFont } from '@/hooks/useFont';
+import { capitalizeEnglishArray } from '@/lib/utils';
 
 interface Task {
   id: string;
@@ -73,11 +71,7 @@ export default function EditTaskPage() {
     priority: 5
   });
 
-  useEffect(() => {
-    fetchTask();
-  }, [taskId]);
-
-  const fetchTask = async () => {
+  const fetchTask = useCallback(async () => {
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/tasks/${taskId}`, {
@@ -122,7 +116,11 @@ export default function EditTaskPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [taskId, router]);
+
+  useEffect(() => {
+    fetchTask();
+  }, [taskId, fetchTask]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

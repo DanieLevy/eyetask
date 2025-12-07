@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Lock, User, AlertCircle } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { useAuth } from '@/components/unified-header/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
 export default function AdminLoginPage() {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     // Check if user is already authenticated
     if (!authLoading && currentUser) {
-      console.log('User already authenticated, redirecting...');
+      // User already authenticated, redirecting
       router.push('/admin/dashboard');
     } else if (!authLoading) {
       // Auth check complete, no user found
@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
           const parsedUser = JSON.parse(userData);
           if (parsedUser && parsedUser.id && parsedUser.username) {
             // User is already authenticated, redirect immediately
-            console.log('Found existing auth in localStorage, redirecting...');
+            // Found existing auth in localStorage, redirecting
             router.replace('/admin/dashboard');
             return;
           }
@@ -78,7 +78,7 @@ export default function AdminLoginPage() {
     let loginSuccessful = false;
 
     try {
-      console.log('Starting login process...');
+      // Starting login process
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -89,7 +89,7 @@ export default function AdminLoginPage() {
       });
 
       const data = await response.json();
-      console.log('Login response:', data);
+      // Login response received
 
       if (data.success) {
         // Handle both direct response and nested data structure
@@ -98,7 +98,7 @@ export default function AdminLoginPage() {
         const permissions = data.permissions || data.data?.permissions || {};
         
         if (token && user) {
-          console.log('Login successful, calling auth context login...');
+          // Login successful, calling auth context login
           loginSuccessful = true;
           toast.success('התחברת בהצלחה');
           
@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
             authContext.login(token, user, permissions);
           } else {
             // Fallback: manual redirect if auth context is not available
-            console.warn('Auth context not available, using fallback redirect');
+            // Auth context not available, using fallback redirect
             localStorage.setItem('adminToken', token);
             localStorage.setItem('adminUser', JSON.stringify(user));
             if (permissions) {

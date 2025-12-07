@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { requireAdmin } from '@/lib/auth-utils';
 import { logger } from '@/lib/logger';
-
-// Define Subtask interface locally
-interface Subtask {
-  _id?: string;
-  id?: string;
-  taskId: string | any;
-  [key: string]: any;
-}
+import { supabaseDb as db, Subtask } from '@/lib/supabase-database';
 
 // GET /api/admin/dashboard - Get dashboard statistics
 export async function GET(request: NextRequest) {
@@ -29,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Get all subtasks for stats
     const allSubtasks: Subtask[] = [];
     for (const task of tasks) {
-      const subtasks = await db.getSubtasksByTask(task._id!.toString());
+      const subtasks = await db.getSubtasksByTask(task._id?.toString() ?? '');
       allSubtasks.push(...subtasks);
     }
 
@@ -60,13 +52,13 @@ export async function GET(request: NextRequest) {
 
       // Project analytics
       projectStats: projects.map(project => {
-        const projectTasks = tasks.filter(task => task.projectId.toString() === project._id!.toString());
+        const projectTasks = tasks.filter(task => task.projectId.toString() === project._id?.toString());
         const projectSubtasks = allSubtasks.filter(subtask => 
-          projectTasks.some(task => task._id!.toString() === subtask.taskId.toString())
+          projectTasks.some(task => task._id?.toString() === subtask.taskId.toString())
         );
         
         return {
-          projectId: project._id!.toString(),
+          projectId: project._id?.toString() ?? '',
           projectName: project.name,
           taskCount: projectTasks.length,
           subtaskCount: projectSubtasks.length,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
-import { authSupabase as authService } from '@/lib/auth-supabase';
+import { authSupabase as authService, AuthUser } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // Define interfaces based on the JSON structure
 interface JiraSubtask {
@@ -23,12 +23,12 @@ interface JiraParentIssue {
   subtasks: JiraSubtask[];
 }
 
-interface JiraImportData {
+interface _JiraImportData {
   parent_issues: JiraParentIssue[];
 }
 
 // Validate the JSON structure
-function validateJiraData(data: any): { valid: boolean; errors: string[]; warnings?: string[] } {
+function validateJiraData(data: unknown): { valid: boolean; errors: string[]; warnings?: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
   
@@ -37,12 +37,14 @@ function validateJiraData(data: any): { valid: boolean; errors: string[]; warnin
     return { valid: false, errors };
   }
   
-  if (!Array.isArray(data.parent_issues)) {
+  const jiraData = data as { parent_issues: JiraParentIssue[] };
+  
+  if (!Array.isArray(jiraData.parent_issues)) {
     errors.push('Missing or invalid parent_issues array');
     return { valid: false, errors };
   }
   
-  data.parent_issues.forEach((parent: any, parentIndex: number) => {
+  jiraData.parent_issues.forEach((parent: JiraParentIssue, parentIndex: number) => {
     if (!parent.key) {
       errors.push(`Parent issue at index ${parentIndex} is missing a key (DATACO number)`);
     }
@@ -51,11 +53,11 @@ function validateJiraData(data: any): { valid: boolean; errors: string[]; warnin
       errors.push(`Parent issue ${parent.key || `at index ${parentIndex}`} is missing subtasks array`);
     } else {
       // Check if this is a calibration task set
-      const isCalibrationParent = parent.subtasks.every((subtask: any) => 
+      const _isCalibrationParent = parent.subtasks.every((subtask: JiraSubtask) => 
         subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task'
       );
       
-      parent.subtasks.forEach((subtask: any, subtaskIndex: number) => {
+      parent.subtasks.forEach((subtask: JiraSubtask, subtaskIndex: number) => {
         // Check required fields
         if (!subtask.dataco_number) {
           errors.push(`Subtask at index ${subtaskIndex} of parent ${parent.key || `at index ${parentIndex}`} is missing dataco_number`);
@@ -128,7 +130,7 @@ async function verifyParentTasks(parentIssues: JiraParentIssue[]): Promise<{
   );
   
   // Check for missing tasks
-  tasks.forEach(({ datacoNumber, task }, index) => {
+  tasks.forEach(({ task }, index) => {
     const originalKey = parentIssues[index].key;
     
     if (!task) {
@@ -150,7 +152,7 @@ async function verifyParentTasks(parentIssues: JiraParentIssue[]): Promise<{
 
 // POST /api/tasks/bulk-import/validate - Validate JIRA JSON data
 export async function POST(request: NextRequest) {
-  let user: any;
+  let user: AuthUser | null;
   
   try {
     // Check authentication and admin/data_manager status
@@ -194,8 +196,9 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    logger.error('Error validating bulk import data', 'BULK_IMPORT_VALIDATE_API', { 
-      userId: user?.id 
+    const errorUser = authService.extractUserFromRequest(request);
+    logger.error('Error validating bulk import data', 'BULK_IMPORT_VALIDATE_API', {
+      userId: errorUser?.id
     }, error as Error);
     
     return NextResponse.json(

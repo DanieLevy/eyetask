@@ -1,15 +1,15 @@
 'use client';
 
+import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState, useEffect } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { HeaderLogo } from '@/components/unified-header/HeaderLogo';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface VisitorNameModalProps {
   isOpen: boolean;

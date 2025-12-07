@@ -1,6 +1,6 @@
-import { supabaseDb as db } from './supabase-database';
-import { logger } from './logger';
 import { NextRequest } from 'next/server';
+import { logger } from './logger';
+import { supabaseDb as db } from './supabase-database';
 
 export interface ActivityEvent {
   _id?: string;
@@ -14,7 +14,7 @@ export interface ActivityEvent {
     type: string;
     title?: string;
   };
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   metadata?: {
     ip?: string;
     userAgent?: string;
@@ -55,7 +55,7 @@ class ActivityLogger {
           username: activity.target?.title || 'Unknown',
           userRole: activity.userType,
           action: activity.action,
-          category: activity.category as any,
+          category: activity.category as 'auth' | 'project' | 'task' | 'subtask' | 'user' | 'system' | 'view',
           target: activity.target,
           metadata: {
             ...activity.details,
@@ -87,7 +87,7 @@ class ActivityLogger {
     taskTitle: string,
     userId?: string,
     userType: 'admin' | 'user' = 'user',
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     request?: NextRequest
   ): Promise<void> {
     const actionMessages = {
@@ -124,7 +124,7 @@ class ActivityLogger {
     projectName: string,
     userId?: string,
     userType: 'admin' | 'user' = 'admin',
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     request?: NextRequest
   ): Promise<void> {
     const actionMessages = {
@@ -161,7 +161,7 @@ class ActivityLogger {
     taskId: string,
     userId?: string,
     userType: 'admin' | 'user' = 'user',
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     request?: NextRequest
   ): Promise<void> {
     const actionMessages = {
@@ -198,7 +198,7 @@ class ActivityLogger {
     action: 'login' | 'logout' | 'login_failed' | 'token_refresh',
     userId?: string,
     username?: string,
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     request?: NextRequest
   ): Promise<void> {
     const actionMessages = {
@@ -233,7 +233,7 @@ class ActivityLogger {
     updateId: string,
     updateTitle: string,
     userId?: string,
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     request?: NextRequest
   ): Promise<void> {
     const actionMessages = {
@@ -267,7 +267,7 @@ class ActivityLogger {
    */
   async logSystemActivity(
     action: string,
-    details?: Record<string, any>,
+    details?: Record<string, unknown>,
     severity: 'info' | 'warning' | 'error' = 'info'
   ): Promise<void> {
     await this.logActivity({
@@ -284,7 +284,7 @@ class ActivityLogger {
    * Get activity statistics
    * TODO: Implement with Supabase queries
    */
-  async getActivityStats(timeRange?: { start: Date; end: Date }): Promise<ActivityStats> {
+  async getActivityStats(_timeRange?: { start: Date; end: Date }): Promise<ActivityStats> {
     // TODO: Implement activity stats with Supabase
     // This would require reimplementing the aggregation queries
     logger.warn('Activity stats not implemented for Supabase yet', 'ACTIVITY_LOGGER');
@@ -301,7 +301,7 @@ class ActivityLogger {
    * Get recent activities for public display
    * TODO: Implement with Supabase
    */
-  async getRecentActivities(limit: number = 20, includeViews: boolean = false): Promise<ActivityEvent[]> {
+  async getRecentActivities(_limit: number = 20, _includeViews: boolean = false): Promise<ActivityEvent[]> {
     // TODO: Implement with Supabase queries
     logger.warn('Recent activities not implemented for Supabase yet', 'ACTIVITY_LOGGER');
     return [];

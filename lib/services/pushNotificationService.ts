@@ -1,9 +1,9 @@
 import webpush from 'web-push';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
 // Define PushSubscription interface locally
-interface PushSubscription {
+interface _PushSubscription {
   _id?: string;
   id?: string;
   userId?: string;
@@ -87,7 +87,7 @@ export interface PushPayload {
     title: string;
     icon?: string;
   }>;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export interface SendOptions {
@@ -220,7 +220,7 @@ class PushNotificationService {
             endpointPreview: sub.subscription.endpoint.substring(0, 50) + '...'
           });
 
-          await webpush.sendNotification(sub.subscription as any, notificationPayload);
+          await webpush.sendNotification(sub.subscription as webpush.PushSubscription, notificationPayload);
           sent++;
           
           logger.info('Push sent successfully', 'PUSH_SERVICE', {
@@ -228,38 +228,39 @@ class PushNotificationService {
             username: sub.username,
             deviceType: sub.deviceType
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           failed++;
-          const errorMessage = `Failed to send to ${sub.username}: ${error.message}`;
+          const errorMessage = `Failed to send to ${sub.username}: ${error instanceof Error ? error.message : 'Unknown error'}`;
           errors.push(errorMessage);
           
+          const errorObj = error as { message?: string; statusCode?: number; headers?: Record<string, unknown>; body?: unknown };
           logger.error('Push send failed', 'PUSH_SERVICE', {
             userId: sub.userId,
             username: sub.username,
-            error: error.message,
-            statusCode: error.statusCode,
-            headers: error.headers,
-            body: error.body,
+            error: errorObj.message || 'Unknown error',
+            statusCode: errorObj.statusCode,
+            headers: errorObj.headers,
+            body: errorObj.body,
             endpoint: sub.subscription.endpoint.substring(0, 50) + '...'
           });
 
           // Handle subscription errors
-          if (error.statusCode === 410) {
+          if (errorObj.statusCode === 410) {
             // Subscription expired, mark as inactive
             await db.removePushSubscription(sub.subscription.endpoint);
             logger.info('Removed expired subscription', 'PUSH_SERVICE', {
               userId: sub.userId,
               username: sub.username
             });
-          } else if (error.statusCode === 400) {
+          } else if (errorObj.statusCode === 400) {
             logger.error('Bad request - check VAPID keys and subscription', 'PUSH_SERVICE', {
               userId: sub.userId,
-              errorBody: error.body
+              errorBody: errorObj.body
             });
-          } else if (error.statusCode === 401) {
+          } else if (errorObj.statusCode === 401) {
             logger.error('Unauthorized - VAPID keys may be invalid', 'PUSH_SERVICE', {
               userId: sub.userId,
-              errorBody: error.body
+              errorBody: errorObj.body
             });
           }
         }
@@ -379,7 +380,7 @@ class PushNotificationService {
         }
       });
 
-      await webpush.sendNotification(subscription as any, payload);
+      await webpush.sendNotification(subscription as webpush.PushSubscription, payload);
       logger.info('Test notification sent successfully', 'PUSH_SERVICE');
       return { success: true, error: null };
     } catch (error) {

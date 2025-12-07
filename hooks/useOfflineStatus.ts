@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-interface OfflineRequest {
+interface _OfflineRequest {
   id: string;
   url: string;
   method: string;
@@ -41,11 +41,11 @@ interface UseOfflineStatusReturn {
   // Legacy compatibility
   toggleOfflineMode: () => void;
   clearOfflineQueue: () => Promise<void>;
-  addToQueue: (requestData: any) => Promise<string>;
-  getQueuedRequests: () => Promise<any[]>;
+  addToQueue: (requestData: Record<string, unknown>) => Promise<string>;
+  getQueuedRequests: () => Promise<Record<string, unknown>[]>;
   removeFromQueue: (requestId: string) => Promise<void>;
   clearApiCache: () => Promise<void>;
-  getCacheStatus: () => Promise<Record<string, any>>;
+  getCacheStatus: () => Promise<Record<string, unknown>>;
 }
 
 // Storage keys
@@ -77,9 +77,22 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
   const checkNetworkInfo = useCallback(() => {
     if (typeof window === 'undefined') return;
 
-    const connection = (navigator as any).connection || 
-                      (navigator as any).mozConnection || 
-                      (navigator as any).webkitConnection;
+    interface NetworkInformation {
+      type?: string;
+      effectiveType?: string;
+      downlink?: number;
+      rtt?: number;
+      saveData?: boolean;
+      addEventListener?: (event: string, handler: () => void) => void;
+      removeEventListener?: (event: string, handler: () => void) => void;
+    }
+    interface NetworkInformationExtended extends Navigator {
+      connection?: NetworkInformation;
+      mozConnection?: NetworkInformation;
+      webkitConnection?: NetworkInformation;
+    }
+    const nav = navigator as NetworkInformationExtended;
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
 
     const networkInfo = {
       networkType: connection?.type || null,
@@ -151,40 +164,6 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
     }
   }, []);
 
-  // Check offline queue
-  const checkOfflineQueue = useCallback(async () => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      // Check IndexedDB queue
-      const db = await openDB();
-      const transaction = db.transaction(['offline_queue'], 'readonly');
-      const store = transaction.objectStore('offline_queue');
-      
-      const requests = await new Promise<any[]>((resolve, reject) => {
-        const getAllRequest = store.getAll();
-        getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-        getAllRequest.onerror = () => reject(getAllRequest.error);
-      });
-
-      setStatus(prev => ({
-        ...prev,
-        hasQueuedRequests: requests.length > 0,
-        queuedRequestsCount: requests.length
-      }));
-    } catch (error) {
-      // Fallback to localStorage
-      const queueJson = localStorage.getItem(STORAGE_KEYS.OFFLINE_QUEUE);
-      const queue = queueJson ? JSON.parse(queueJson) : [];
-      
-      setStatus(prev => ({
-        ...prev,
-        hasQueuedRequests: queue.length > 0,
-        queuedRequestsCount: queue.length
-      }));
-    }
-  }, []);
-
   // Open IndexedDB
   const openDB = useCallback((): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -203,6 +182,40 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
       };
     });
   }, []);
+
+  // Check offline queue
+  const checkOfflineQueue = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Check IndexedDB queue
+      const db = await openDB();
+      const transaction = db.transaction(['offline_queue'], 'readonly');
+      const store = transaction.objectStore('offline_queue');
+      
+      const requests = await new Promise<Record<string, unknown>[]>((resolve, reject) => {
+        const getAllRequest = store.getAll();
+        getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+        getAllRequest.onerror = () => reject(getAllRequest.error);
+      });
+
+      setStatus(prev => ({
+        ...prev,
+        hasQueuedRequests: requests.length > 0,
+        queuedRequestsCount: requests.length
+      }));
+    } catch {
+      // Fallback to localStorage
+      const queueJson = localStorage.getItem(STORAGE_KEYS.OFFLINE_QUEUE);
+      const queue = queueJson ? JSON.parse(queueJson) : [];
+      
+      setStatus(prev => ({
+        ...prev,
+        hasQueuedRequests: queue.length > 0,
+        queuedRequestsCount: queue.length
+      }));
+    }
+  }, [openDB]);
 
   // Sync offline queue
   const syncOfflineQueue = useCallback(async () => {
@@ -292,17 +305,23 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
     
     if (cacheInfoStr) {
       try {
-        const cacheInfo = JSON.parse(cacheInfoStr);
+        const cacheInfo = JSON.parse(cacheInfoStr) as {
+          hasApiCache?: boolean;
+          hasStaticCache?: boolean;
+          lastCacheUpdate?: string | null;
+          cacheSize?: number;
+        };
         setStatus(prev => ({
           ...prev,
           cacheInfo: {
+            ...prev.cacheInfo,
             ...cacheInfo,
             lastCacheUpdate: cacheInfo.lastCacheUpdate ? 
               new Date(cacheInfo.lastCacheUpdate) : null
           }
         }));
-      } catch (error) {
-        console.error('Failed to parse cache info:', error);
+      } catch {
+        // Failed to parse cache info, use defaults
       }
     }
 
@@ -342,8 +361,23 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
     window.addEventListener('offline', handleOffline);
     navigator.serviceWorker?.addEventListener('message', handleSWMessage);
 
-    const connection = (navigator as any).connection;
-    if (connection) {
+    interface NetworkInformation {
+      type?: string;
+      effectiveType?: string;
+      downlink?: number;
+      rtt?: number;
+      saveData?: boolean;
+      addEventListener?: (event: string, handler: () => void) => void;
+      removeEventListener?: (event: string, handler: () => void) => void;
+    }
+    interface NetworkInformationExtended extends Navigator {
+      connection?: NetworkInformation;
+      mozConnection?: NetworkInformation;
+      webkitConnection?: NetworkInformation;
+    }
+    const nav = navigator as NetworkInformationExtended;
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
+    if (connection && connection.addEventListener) {
       connection.addEventListener('change', handleConnectionChange);
     }
 
@@ -357,7 +391,7 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
       window.removeEventListener('offline', handleOffline);
       navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
       
-      if (connection) {
+      if (connection && connection.removeEventListener) {
         connection.removeEventListener('change', handleConnectionChange);
       }
     };
@@ -390,10 +424,10 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
       console.error('Error clearing offline queue:', error);
       throw error;
     }
-  }, [checkOfflineQueue]);
+  }, [checkOfflineQueue, openDB]);
 
   // Add request to offline queue
-  const addToQueue = useCallback(async (requestData: any) => {
+  const addToQueue = useCallback(async (requestData: Record<string, unknown>) => {
     try {
       const db = await openDB();
       const transaction = db.transaction(['offline_queue'], 'readwrite');
@@ -426,7 +460,7 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
       const transaction = db.transaction(['offline_queue'], 'readonly');
       const store = transaction.objectStore('offline_queue');
       
-      return new Promise<any[]>((resolve, reject) => {
+      return new Promise<Record<string, unknown>[]>((resolve, reject) => {
         const getAllRequest = store.getAll();
         getAllRequest.onsuccess = () => resolve(getAllRequest.result);
         getAllRequest.onerror = () => reject(getAllRequest.error);
@@ -471,7 +505,7 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
 
     try {
       const cacheNames = await caches.keys();
-      const status: Record<string, any> = {};
+      const status: Record<string, unknown> = {};
       
       for (const cacheName of cacheNames) {
         const cache = await caches.open(cacheName);
@@ -507,26 +541,9 @@ export function useOfflineStatus(): UseOfflineStatusReturn {
 }
 
 // Utility functions
-function generateRequestId(): string {
+function _generateRequestId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-async function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('DriverTasksDB', 1);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      
-      if (!db.objectStoreNames.contains('offline_queue')) {
-        const store = db.createObjectStore('offline_queue', { keyPath: 'id' });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-      }
-    };
-  });
-}
 
  

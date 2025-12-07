@@ -1,16 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
-  Plus,
   FolderPlus,
   ChevronRight
 } from 'lucide-react';
-import ImageUpload from '@/components/ImageUpload';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ImageUpload';
 
 interface NewProjectData {
   name: string;

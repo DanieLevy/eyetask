@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { feedbackService } from '@/lib/services/feedbackService';
 import { logger } from '@/lib/logger';
+import { feedbackService } from '@/lib/services/feedbackService';
 
 // GET - Get available subtasks for feedback form (Public endpoint)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const subtasks = await feedbackService.getAvailableSubtasks();
 

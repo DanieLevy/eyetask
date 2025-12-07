@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useCallback, createContext, useContext, useState, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useLoading } from '@/contexts/LoadingContext';
+import React, { useEffect, useRef, useCallback, createContext, useContext, useState, Suspense } from 'react';
 import { LoadingOverlay } from '@/components/LoadingSystem';
+import { useLoading } from '@/contexts/LoadingContext';
 import { logger } from '@/lib/logger';
 
 interface NavigationLoadingContextType {
@@ -19,7 +19,7 @@ const NavigationLoadingContext = createContext<NavigationLoadingContextType | nu
 function NavigationLoadingCore({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { startLoading, stopLoading, isLoading } = useLoading();
+  const { startLoading, stopLoading } = useLoading();
   
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigationMessage, setNavigationMessage] = useState<string>('');
@@ -32,6 +32,29 @@ function NavigationLoadingCore({ children }: { children: React.ReactNode }) {
   const generateNavigationId = useCallback(() => {
     return `navigation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }, []);
+
+  // Finish navigation loading
+  const finishNavigation = useCallback(() => {
+    if (currentNavigationId.current) {
+      stopLoading(currentNavigationId.current);
+      
+      const duration = Date.now() - navigationStartRef.current;
+      logger.debug('Navigation finished', 'NAVIGATION_LOADING', { 
+        navigationId: currentNavigationId.current, 
+        duration 
+      });
+      
+      currentNavigationId.current = '';
+    }
+
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+      navigationTimeoutRef.current = null;
+    }
+
+    setIsNavigating(false);
+    setNavigationMessage('');
+  }, [stopLoading]);
 
   // Start navigation loading
   const startNavigation = useCallback((to: string, options: { message?: string; timeout?: number } = {}) => {
@@ -61,30 +84,7 @@ function NavigationLoadingCore({ children }: { children: React.ReactNode }) {
     }, timeout);
 
     logger.debug('Navigation started', 'NAVIGATION_LOADING', { to, navigationId });
-  }, [startLoading, generateNavigationId]);
-
-  // Finish navigation loading
-  const finishNavigation = useCallback(() => {
-    if (currentNavigationId.current) {
-      stopLoading(currentNavigationId.current);
-      
-      const duration = Date.now() - navigationStartRef.current;
-      logger.debug('Navigation finished', 'NAVIGATION_LOADING', { 
-        navigationId: currentNavigationId.current, 
-        duration 
-      });
-      
-      currentNavigationId.current = '';
-    }
-
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-      navigationTimeoutRef.current = null;
-    }
-
-    setIsNavigating(false);
-    setNavigationMessage('');
-  }, [stopLoading]);
+  }, [startLoading, generateNavigationId, finishNavigation]);
 
   // Cancel navigation loading
   const cancelNavigation = useCallback(() => {
@@ -229,7 +229,9 @@ export function withNavigationLoading<P extends object>(
       if (loadingMessage) {
         startNavigation(window.location.pathname, { message: loadingMessage });
       }
-    }, []);
+      // loadingMessage is a prop parameter, not a reactive dependency
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startNavigation]);
 
     return <Component {...props} />;
   };

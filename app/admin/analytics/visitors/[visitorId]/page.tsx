@@ -1,14 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
-import { logger } from '@/lib/logger';
+import { format } from 'date-fns';
+import { he } from 'date-fns/locale';
 import {
   ArrowRight,
   User,
@@ -20,21 +13,26 @@ import {
   Target,
   ChevronRight,
   LogIn,
-  ExternalLink,
-  FileText,
   Shield,
   Edit2,
   Trash2,
   X,
   Check
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { he } from 'date-fns/locale';
-import AdminPageWrapper from '@/components/AdminPageWrapper';
-import { useAuth } from '@/components/unified-header/AuthContext';
-import { Input } from '@/components/ui/input';
+import { useRouter, useParams } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
+import AdminPageWrapper from '@/components/AdminPageWrapper';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { logger } from '@/lib/logger';
+import { cn } from '@/lib/utils';
 
 interface VisitorActivity {
   id: string;
@@ -46,7 +44,7 @@ interface VisitorActivity {
     type: string;
     name?: string;
   };
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface VisitorSession {
@@ -68,8 +66,8 @@ interface VisitorProfile {
   lastSeen: string;
   totalVisits: number;
   totalActions: number;
-  metadata?: any;
-  deviceInfo?: any;
+  metadata?: Record<string, unknown>;
+  deviceInfo?: Record<string, unknown>;
   isActive: boolean;
 }
 
@@ -89,7 +87,6 @@ function VisitorProfileContent({ visitorId }: { visitorId: string }) {
   const [visitorData, setVisitorData] = useState<VisitorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('activities');
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -98,12 +95,6 @@ function VisitorProfileContent({ visitorId }: { visitorId: string }) {
   const hebrewFont = useHebrewFont('heading');
   const mixedFont = useMixedFont('body');
   const { isAdmin } = useAuth();
-
-  useEffect(() => {
-    if (visitorId) {
-      fetchVisitorData();
-    }
-  }, [visitorId]);
 
   const fetchVisitorData = async () => {
     try {

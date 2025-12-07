@@ -70,7 +70,7 @@ export function getOrCreateVisitorId(): string {
             hasName: !!parsed.name
           });
         }
-      } catch (e) {
+      } catch {
         // Invalid cookie data
       }
     }
@@ -147,7 +147,7 @@ export function getVisitorInfo(): VisitorInfo {
             modalShown: true // If they have a name, modal was shown
           };
         }
-      } catch (e) {
+      } catch {
         // Invalid cookie data
       }
     }
@@ -328,7 +328,7 @@ export async function trackPageView(page: string): Promise<void> {
 /**
  * Track custom action for visitor
  */
-export async function trackAction(action: string, category: string = 'action', metadata?: any): Promise<void> {
+export async function trackAction(action: string, category: string = 'action', metadata?: Record<string, unknown>): Promise<void> {
   const visitor = getVisitorInfo();
   
   if (!visitor.visitorId || !visitor.isRegistered) {

@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { activityLogger } from '@/lib/activityLogger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { activityLogger } from '@/lib/activityLogger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface SubtaskUpdateData {
+  title?: string;
+  subtitle?: string;
+  images?: string[];
+  datacoNumber?: string;
+  type?: 'events' | 'hours' | 'loops';
+  amountNeeded?: number;
+  labels?: string[];
+  targetCar?: string[];
+  weather?: 'Clear' | 'Fog' | 'Overcast' | 'Rain' | 'Snow' | 'Mixed';
+  scene?: 'Highway' | 'Urban' | 'Rural' | 'Sub-Urban' | 'Test Track' | 'Mixed';
+  dayTime?: string[];
+  isVisible?: boolean;
+}
 
 // GET /api/subtasks/[id] - Get a single subtask
 export async function GET(
@@ -93,7 +108,7 @@ export async function PUT(
     }
     
     // Create update object with only the fields that are provided
-    const updateData: any = {};
+    const updateData: SubtaskUpdateData = {};
     if (data.title !== undefined) updateData.title = data.title;
     if (data.subtitle !== undefined) updateData.subtitle = data.subtitle;
     if (data.images !== undefined) updateData.images = data.images;

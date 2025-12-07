@@ -1,8 +1,8 @@
 'use client';
 
+import { X, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PushNotificationNameModalProps {

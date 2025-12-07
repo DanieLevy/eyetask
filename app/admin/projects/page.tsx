@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { format } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { Plus, Pencil, Eye, MoreHorizontal, Trash2, FolderPlus, Calendar, Activity, Layers } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, X } from "lucide-react";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -25,13 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { Search, X } from "lucide-react";
-import { toast } from 'sonner';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { EmptyState } from '@/components/EmptyState';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Project = {
   _id: string;
@@ -133,12 +132,12 @@ export default function ProjectsPage() {
       if (projectsRes.success) {
         // Enhance projects with task counts
         const enhancedProjects = projectsRes.projects.map((project: Project) => {
-          const projectTasks = tasksRes.success ? tasksRes.tasks.filter((task: any) => task.projectId === project._id) : [];
+          const projectTasks = tasksRes.success ? tasksRes.tasks.filter((task: { projectId: string; isVisible?: boolean; priority?: number }) => task.projectId === project._id) : [];
           return {
             ...project,
             taskCount: projectTasks.length,
-            activeTaskCount: projectTasks.filter((task: any) => task.isVisible).length,
-            highPriorityCount: projectTasks.filter((task: any) => task.priority >= 1 && task.priority <= 3).length
+            activeTaskCount: projectTasks.filter((task: { isVisible?: boolean }) => task.isVisible).length,
+            highPriorityCount: projectTasks.filter((task: { priority?: number }) => (task.priority ?? 0) >= 1 && (task.priority ?? 0) <= 3).length
           };
         });
         

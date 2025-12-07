@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { FeedbackFilterOptions } from '@/lib/types/feedback';
 import { Search, Filter, RefreshCw, X } from 'lucide-react';
+import { useState } from 'react';
+import { FeedbackFilterOptions, FeedbackStatus, FeedbackPriority } from '@/lib/types/feedback';
 
 interface Props {
   filters: FeedbackFilterOptions;
@@ -21,9 +21,10 @@ const FeedbackFilters: React.FC<Props> = ({ filters, onFiltersChange, onRefresh 
 
   const handleStatusFilter = (status: string) => {
     const currentStatuses = filters.status || [];
-    const newStatuses = currentStatuses.includes(status as any)
+    const statusTyped = status as FeedbackStatus;
+    const newStatuses = currentStatuses.includes(statusTyped)
       ? currentStatuses.filter(s => s !== status)
-      : [...currentStatuses, status as any];
+      : [...currentStatuses, statusTyped];
     
     onFiltersChange({ ...filters, status: newStatuses.length ? newStatuses : undefined });
   };
@@ -79,7 +80,7 @@ const FeedbackFilters: React.FC<Props> = ({ filters, onFiltersChange, onRefresh 
             key={status}
             onClick={() => handleStatusFilter(status)}
             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              filters.status?.includes(status as any)
+              filters.status?.includes(status as FeedbackStatus)
                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
@@ -104,7 +105,7 @@ const FeedbackFilters: React.FC<Props> = ({ filters, onFiltersChange, onRefresh 
                     key={status}
                     onClick={() => handleStatusFilter(status)}
                     className={`px-2 py-1 rounded text-xs transition-colors ${
-                      filters.status?.includes(status as any)
+                      filters.status?.includes(status as FeedbackStatus)
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
@@ -127,13 +128,14 @@ const FeedbackFilters: React.FC<Props> = ({ filters, onFiltersChange, onRefresh 
                     key={priority}
                     onClick={() => {
                       const currentPriorities = filters.priority || [];
-                      const newPriorities = currentPriorities.includes(priority as any)
+                      const priorityTyped = priority as FeedbackPriority;
+                      const newPriorities = currentPriorities.includes(priorityTyped)
                         ? currentPriorities.filter(p => p !== priority)
-                        : [...currentPriorities, priority as any];
+                        : [...currentPriorities, priorityTyped];
                       onFiltersChange({ ...filters, priority: newPriorities.length ? newPriorities : undefined });
                     }}
                     className={`px-2 py-1 rounded text-xs transition-colors ${
-                      filters.priority?.includes(priority as any)
+                      filters.priority?.includes(priority as FeedbackPriority)
                         ? 'bg-orange-100 text-orange-800'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
@@ -163,7 +165,7 @@ const FeedbackFilters: React.FC<Props> = ({ filters, onFiltersChange, onRefresh 
         <div className="flex flex-wrap gap-1 pt-2 border-t border-gray-100">
           {filters.searchTerm && (
             <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-50 text-blue-700 border border-blue-200">
-              "{filters.searchTerm}"
+              &quot;{filters.searchTerm}&quot;
               <button
                 onClick={() => {
                   setSearchTerm('');

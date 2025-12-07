@@ -16,7 +16,7 @@ const FeedbackStatsComponent: React.FC<Props> = ({ stats }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Total Tickets */}
         <div className="bg-white rounded-lg border border-gray-200 p-3">
-          <div className="text-xs text-gray-500 mb-1">סה"כ פניות</div>
+          <div className="text-xs text-gray-500 mb-1">סה&quot;כ פניות</div>
           <div className="text-lg font-bold text-gray-900">{stats.total}</div>
           <div className="text-xs text-blue-600">+{stats.newToday || 0} היום</div>
         </div>

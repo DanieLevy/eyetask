@@ -1,9 +1,9 @@
 'use client';
 
+import { TrendingUp, TrendingDown, Users, Activity, Clock } from 'lucide-react';
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Users, Activity, Clock } from 'lucide-react';
 import { Metrics } from '../../types/analytics';
 
 interface MetricsCardsProps {

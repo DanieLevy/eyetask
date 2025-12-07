@@ -1,8 +1,5 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Upload, 
@@ -18,6 +15,9 @@ import {
   CheckCircle2,
   Eye
 } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
 // Interface for validation status
@@ -37,12 +37,31 @@ interface ImportResults {
   taskResults: { taskKey: string; subtasksAdded: number }[];
 }
 
+interface BulkImportSubtask {
+  key: string;
+  issue_type: string;
+  amount_needed: number;
+  labels?: string[];
+  [key: string]: unknown;
+}
+
+interface BulkImportParentIssue {
+  key: string;
+  subtasks: BulkImportSubtask[];
+  [key: string]: unknown;
+}
+
+interface BulkImportData {
+  parent_issues: BulkImportParentIssue[];
+  [key: string]: unknown;
+}
+
 export default function BulkImportPage() {
-  const router = useRouter();
+  const _router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [file, setFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<any | null>(null);
+  const [parsedData, setParsedData] = useState<BulkImportData | null>(null);
   const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -75,7 +94,7 @@ export default function BulkImportPage() {
           const json = JSON.parse(event.target?.result as string);
           setParsedData(json);
           validateData(json);
-        } catch (error) {
+        } catch {
           toast.error('Failed to parse JSON file');
           setValidationStatus({
             valid: false,
@@ -89,7 +108,7 @@ export default function BulkImportPage() {
   };
   
   // Function to validate the JSON data
-  const validateData = async (data: any) => {
+  const validateData = async (data: BulkImportData) => {
     setIsValidating(true);
     
     try {
@@ -162,7 +181,7 @@ export default function BulkImportPage() {
           const json = JSON.parse(event.target?.result as string);
           setParsedData(json);
           validateData(json);
-        } catch (error) {
+        } catch {
           toast.error('Failed to parse JSON file');
           setValidationStatus({
             valid: false,
@@ -455,7 +474,7 @@ export default function BulkImportPage() {
                 </p>
                 
                 <div className="mt-4 space-y-6">
-                  {parsedData.parent_issues.map((parentIssue: any) => {
+                  {parsedData.parent_issues.map((parentIssue: BulkImportParentIssue) => {
                     const taskInfo = validationStatus.taskMap?.[parentIssue.key];
                     if (!taskInfo) return null;
                     
@@ -496,14 +515,14 @@ export default function BulkImportPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {parentIssue.subtasks.map((subtask: any, index: number) => {
+                                  {parentIssue.subtasks.map((subtask: BulkImportSubtask, index: number) => {
                                     const isCalibration = subtask.amount_needed === 0 || subtask.issue_type === 'Sub Task';
                                     return (
-                                      <tr key={subtask.dataco_number} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/10'}>
-                                        <td className="p-2 border-b border-border">{subtask.dataco_number}</td>
+                                      <tr key={String(subtask.dataco_number) || `subtask-${index}`} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/10'}>
+                                        <td className="p-2 border-b border-border">{String(subtask.dataco_number || '')}</td>
                                         <td className="p-2 border-b border-border">
                                           <div className="flex items-center gap-2">
-                                            {subtask.summary}
+                                            {String(subtask.summary || '')}
                                             {isCalibration && (
                                               <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 text-xs rounded-full font-medium">
                                                 כיול
@@ -511,12 +530,12 @@ export default function BulkImportPage() {
                                             )}
                                           </div>
                                         </td>
-                                        <td className="p-2 border-b border-border">{subtask.issue_type}</td>
+                                        <td className="p-2 border-b border-border">{String(subtask.issue_type || '')}</td>
                                         <td className={`p-2 border-b border-border ${isCalibration ? 'text-blue-600 font-medium' : ''}`}>
-                                          {subtask.amount_needed}
+                                          {Number(subtask.amount_needed) || 0}
                                         </td>
-                                        <td className="p-2 border-b border-border">{subtask.weather}</td>
-                                        <td className="p-2 border-b border-border">{subtask.road_type}</td>
+                                        <td className="p-2 border-b border-border">{String(subtask.weather || '')}</td>
+                                        <td className="p-2 border-b border-border">{String(subtask.road_type || '')}</td>
                                       </tr>
                                     );
                                   })}
@@ -528,7 +547,7 @@ export default function BulkImportPage() {
                               <div className="mt-3">
                                 <span className="text-xs font-medium text-muted-foreground">לייבלים: </span>
                                 <div className="flex flex-wrap gap-1 mt-1">
-                                  {Array.from(new Set(parentIssue.subtasks.flatMap((s: any) => s.labels || []))).map((label) => (
+                                  {Array.from(new Set(parentIssue.subtasks.flatMap((s: BulkImportSubtask) => s.labels || []))).map((label) => (
                                     <span key={label as string} className="px-2 py-0.5 bg-muted rounded-full text-xs">
                                       {label as string}
                                     </span>
@@ -592,7 +611,7 @@ export default function BulkImportPage() {
                 <div className="mt-4 bg-muted p-4 rounded-lg">
                   <div className="grid grid-cols-3 gap-4 mb-4 text-center">
                     <div className="bg-card p-3 rounded-lg border border-border">
-                      <p className="text-sm text-muted-foreground">סה"כ תת-משימות</p>
+                      <p className="text-sm text-muted-foreground">סה&quot;כ תת-משימות</p>
                       <p className="text-2xl font-bold text-foreground">{importResults.totalProcessed}</p>
                     </div>
                     <div className="bg-card p-3 rounded-lg border border-border">

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import { UserData } from './types';
 
 interface AuthContextType {
@@ -39,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Verify authentication status
-  const verifyAuth = async (): Promise<boolean> => {
+  const verifyAuth = useCallback(async (): Promise<boolean> => {
     try {
       const token = localStorage.getItem('adminToken');
       if (!token) {
@@ -66,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.permissions) {
           setUserPermissions(data.permissions);
         } else {
-          await refreshPermissions();
+          // Will be refreshed after verifyAuth completes
         }
         
         setIsLoading(false);
@@ -86,15 +87,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return false;
     }
-  };
+  }, []);
 
   // Refresh user permissions from the server
-  const refreshPermissions = async () => {
-    console.log('[AuthContext] Refreshing permissions...');
+  const refreshPermissions = useCallback(async () => {
+    logger.debug('[AuthContext] Refreshing permissions...', 'AUTH');
     try {
       const token = localStorage.getItem('adminToken');
       if (!token || !hasUserRef.current) {
-        console.log('[AuthContext] No token or user, skipping refresh');
+        logger.debug('[AuthContext] No token or user, skipping refresh', 'AUTH');
         return;
       }
 
@@ -116,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             // Only update if the user data actually changed
             if (currentUserStr !== newUserStr) {
-              console.log('[AuthContext] User data changed, updating...');
+              logger.debug('[AuthContext] User data changed, updating...', 'AUTH');
               setUser(data.user);
               setIsAdmin(data.user.role === 'admin');
               localStorage.setItem('adminUser', newUserStr);
@@ -124,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               // Check if username was changed
               const currentUser = JSON.parse(currentUserStr || '{}');
               if (currentUser.username !== data.user.username) {
-                console.log('[AuthContext] Username changed from', currentUser.username, 'to', data.user.username);
+                logger.debug(`[AuthContext] Username changed from ${currentUser.username} to ${data.user.username}`, 'AUTH');
                 // The username change will be reflected in the UI automatically
               }
             }
@@ -134,18 +135,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('[AuthContext] Failed to refresh permissions:', error);
     }
-  };
+  }, []);
 
   // Check if user has a specific permission
   const hasPermission = (permission: string): boolean => {
     // Admin users always have all permissions
     if (isAdmin || user?.role === 'admin') {
-      console.log(`[AuthContext] Permission check for ${permission}: ✅ (admin user)`);
+      logger.debug(`[AuthContext] Permission check for ${permission}: ✅ (admin user)`, 'AUTH');
       return true;
     }
     
     const hasAccess = userPermissions[permission] === true;
-    console.log(`[AuthContext] Permission check for ${permission}: ${hasAccess ? '✅' : '❌'}`, {
+    logger.debug(`[AuthContext] Permission check for ${permission}: ${hasAccess ? '✅' : '❌'}`, 'AUTH', {
       user: user?.username,
       role: user?.role,
       userPermissions: Object.keys(userPermissions).filter(k => userPermissions[k])
@@ -156,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Login function
   const login = (token: string, userData: UserData, permissions?: Record<string, boolean>) => {
-    console.log('AuthContext login called with:', { userData, permissions });
+    logger.debug('AuthContext login called', 'AUTH', { userData, permissions });
     
     localStorage.setItem('adminToken', token);
     localStorage.setItem('adminUser', JSON.stringify(userData));
@@ -172,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const intendedDestination = localStorage.getItem('intendedDestination');
     if (intendedDestination && intendedDestination !== '/admin') {
       localStorage.removeItem('intendedDestination');
-      console.log('Redirecting to intended destination:', intendedDestination);
+      logger.debug(`Redirecting to intended destination: ${intendedDestination}`, 'AUTH');
       router.push(intendedDestination);
     } else {
       // Default redirect based on permissions
@@ -190,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redirectPath = '/admin/feedback';
       }
       
-      console.log('Redirecting to:', redirectPath);
+      logger.debug(`Redirecting to: ${redirectPath}`, 'AUTH');
       router.push(redirectPath);
     }
   };
@@ -233,35 +234,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Function to start the refresh interval
-  const startRefreshInterval = () => {
+  const startRefreshInterval = useCallback(() => {
     // Enable moderate refresh to sync username changes
     // Use 5 minute interval to avoid too many requests
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
     
-    console.log('[AuthContext] Starting permission refresh interval (5 minutes)');
+    logger.debug('[AuthContext] Starting permission refresh interval (5 minutes)', 'AUTH');
     
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
     
     intervalRef.current = setInterval(() => {
-      console.log('[AuthContext] Running periodic permission refresh');
+      logger.debug('[AuthContext] Running periodic permission refresh', 'AUTH');
       refreshPermissions();
     }, REFRESH_INTERVAL);
-  };
+  }, [refreshPermissions]);
 
   // Function to stop the refresh interval
-  const stopRefreshInterval = () => {
+  const stopRefreshInterval = useCallback(() => {
     if (intervalRef.current) {
-      console.log('[AuthContext] Stopping refresh interval');
+      logger.debug('[AuthContext] Stopping refresh interval', 'AUTH');
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  };
+  }, []);
 
   // Manual permission refresh - call this after updating permissions
   const manualRefreshPermissions = async () => {
-    console.log('[AuthContext] Manual permission refresh triggered');
+    logger.debug('[AuthContext] Manual permission refresh triggered', 'AUTH');
     await refreshPermissions();
   };
 
@@ -271,24 +272,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Start refresh interval when user is logged in
     if (user) {
-      console.log('[AuthContext] User logged in, starting refresh interval');
+      logger.debug('[AuthContext] User logged in, starting refresh interval', 'AUTH');
       startRefreshInterval();
     } else {
       stopRefreshInterval();
     }
-  }, [user]);
+  }, [user, startRefreshInterval, stopRefreshInterval]);
 
   // Initial auth check
   useEffect(() => {
     verifyAuth();
-  }, []);
+  }, [verifyAuth]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopRefreshInterval();
     };
-  }, []);
+  }, [stopRefreshInterval]);
 
   // Store intended destination when not authenticated
   useEffect(() => {

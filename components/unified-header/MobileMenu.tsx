@@ -1,34 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import {
   Menu,
-  LogOut,
   Sun,
   Moon,
   Bug,
   Info,
-  User as UserIcon,
-  Share,
-  User,
-  Settings,
-  Home,
-  CheckSquare,
-  Users,
   Bell,
   BellOff
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { MobileMenuProps, HeaderAction, NavigationItem } from './types';
-import { useHebrewFont } from '@/hooks/useFont';
-import HeaderSearch from './HeaderSearch';
-import { renderIcon, getIconForItem } from './utils';
-import { useAuth } from './AuthContext';
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import BugReportModal from '../BugReportModal';
-import PushNotificationNameModal from '../PushNotificationNameModal';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,11 +21,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { useHebrewFont } from '@/hooks/useFont';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import BugReportModal from '../BugReportModal';
+import PushNotificationNameModal from '../PushNotificationNameModal';
+import { useAuth } from './AuthContext';
+import HeaderSearch from './HeaderSearch';
+import { HeaderAction, NavigationItem } from './types';
+import { renderIcon, getIconForItem } from './utils';
 
 // Type to support more flexible action variants for the mobile menu
 type FlexibleHeaderAction = HeaderAction | Omit<HeaderAction, 'variant'> & { variant: string };
@@ -75,15 +64,13 @@ export const MobileMenu = ({
   showThemeToggle = true,
   showDebugIcon = true
 }: MobileMenuPropsInternal) => {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, isAdmin, logout } = useAuth();
+  const { isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showPushTooltip, setShowPushTooltip] = useState(false);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const hebrewFont = useHebrewFont('heading');
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   
   // Push notifications
   const { 
@@ -95,9 +82,6 @@ export const MobileMenu = ({
     unsubscribe,
     showIOSInstallPrompt
   } = usePushNotifications();
-  
-  // Check if push notifications need attention
-  const hasToken = typeof window !== 'undefined' && !!(localStorage.getItem('adminToken') || localStorage.getItem('token'));
   const needsPushAttention = isSupported && !isSubscribed && permission !== 'denied';
   
   // Push state tracking effect removed - no longer needed
@@ -308,7 +292,7 @@ export const MobileMenu = ({
                   if (!isSupported) {
                     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                                       (window.navigator as any).standalone === true;
+                                       (window.navigator as { standalone?: boolean }).standalone === true;
                     
                     if (isIOS && !isStandalone) {
                       toast.info('התקן את האפליקציה כדי להפעיל התראות', {
@@ -326,7 +310,7 @@ export const MobileMenu = ({
                   } else {
                     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                                       (window.navigator as any).standalone === true;
+                                       (window.navigator as { standalone?: boolean }).standalone === true;
                     
                     if (isIOS && !isStandalone) {
                       showIOSInstallPrompt();

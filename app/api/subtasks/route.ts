@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { activityLogger } from '@/lib/activityLogger';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { activityLogger } from '@/lib/activityLogger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface SubtaskResponse {
+  _id: string;
+  taskId: string;
+  title: string;
+  subtitle?: string;
+  images?: string[];
+  datacoNumber: string;
+  type: 'events' | 'hours' | 'loops';
+  amountNeeded?: number;
+  labels?: string[];
+  targetCar?: string[];
+  weather?: string;
+  scene?: string;
+  dayTime?: string[];
+  isVisible?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // GET /api/subtasks - Get all subtasks (admin) or visible subtasks (public)
 export async function GET(request: NextRequest) {
@@ -38,7 +57,7 @@ export async function GET(request: NextRequest) {
         try {
           const subtasks = await db.getSubtasksByTask(tid, canManageData);
           counts[tid] = subtasks.length;
-        } catch (error) {
+        } catch {
           // If task doesn't exist or error, count is 0
           counts[tid] = 0;
         }
@@ -79,14 +98,14 @@ export async function GET(request: NextRequest) {
     }
     
     // For multiple tasks, return grouped subtasks
-    const allSubtasks: any[] = [];
-    const subtasksByTask: Record<string, any[]> = {};
+    const allSubtasks: SubtaskResponse[] = [];
+    const subtasksByTask: Record<string, SubtaskResponse[]> = {};
     
     for (const tid of taskIdList) {
       try {
         const subtasks = await db.getSubtasksByTask(tid, canManageData);
         const mappedSubtasks = subtasks.map(subtask => ({
-          _id: subtask.id || subtask._id?.toString(),
+          _id: subtask.id || subtask._id?.toString() || '',
           taskId: subtask.taskId,
           title: subtask.title,
           subtitle: subtask.subtitle,
@@ -106,7 +125,7 @@ export async function GET(request: NextRequest) {
         
         subtasksByTask[tid] = mappedSubtasks;
         allSubtasks.push(...mappedSubtasks);
-      } catch (error) {
+      } catch {
         // If task doesn't exist or error, skip it
         subtasksByTask[tid] = [];
       }

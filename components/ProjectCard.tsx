@@ -1,9 +1,9 @@
 'use client';
 
-import { Clock, Folder } from 'lucide-react';
+import { Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
-import { useEffect, useState } from 'react';
 
 interface Project {
   _id: string;

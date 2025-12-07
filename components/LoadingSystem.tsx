@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle, RefreshCw, Zap, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { useLoading, LoadingType, LoadingPriority } from '@/contexts/LoadingContext';
+import React, { useEffect, useState } from 'react';
+import { useLoading, LoadingPriority } from '@/contexts/LoadingContext';
 import { useHebrewFont } from '@/hooks/useFont';
 
 // Loading animation variants

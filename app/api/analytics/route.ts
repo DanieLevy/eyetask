@@ -1,26 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
+import { hasPermission } from '@/lib/auth-permissions';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { logger } from '@/lib/logger';
-import { getSupabaseClient } from '@/lib/supabase';
-import { hasPermission } from '@/lib/auth-permissions';
 import { PERMISSIONS } from '@/lib/permissions';
+import { getSupabaseClient } from '@/lib/supabase';
+import { supabaseDb as db } from '@/lib/supabase-database';
 
-interface ActivityLog {
+interface _ActivityLogMetadata {
+  [key: string]: unknown;
+}
+
+interface ActivityLogRow {
   id: string;
   timestamp: string;
-  user_id: string;
-  username: string;
-  user_role: string;
+  user_id?: string | null;
+  username?: string | null;
+  user_role?: string | null;
+  visitor_id?: string | null;
+  visitor_name?: string | null;
   action: string;
   category: string;
-  target?: {
-    id: string;
-    type: string;
-    name?: string;
-  };
-  metadata?: Record<string, any>;
-  severity: string;
+  target?: Record<string, unknown> | null;
+  severity?: string | null;
+}
+
+interface DailyStats {
+  visits?: number;
+  uniqueVisitors?: string[];
+  [key: string]: unknown;
 }
 
 // GET /api/analytics - Get analytics dashboard data
@@ -117,14 +124,14 @@ export async function GET(request: NextRequest) {
     
     // Process activity logs for analytics
     const recentActivities = (activityLogs || [])
-      .filter((log: any) => {
+      .filter((log: ActivityLogRow) => {
         // Filter out hidden users for non-admin users
         if (!isAdmin && log.user_id && hiddenUserIds.includes(log.user_id)) {
           return false;
         }
         return true;
       })
-      .map((log: any) => ({
+      .map((log: ActivityLogRow) => ({
       _id: log.id,
       timestamp: log.timestamp,
       userId: log.user_id,
@@ -189,12 +196,12 @@ export async function GET(request: NextRequest) {
     // Calculate visitor statistics
     const visitorStats = {
       totalVisitors: visitorProfiles?.length || 0,
-      activeVisitors: visitorProfiles?.filter((v: any) => {
+      activeVisitors: visitorProfiles?.filter((v: { last_seen: string }) => {
         const lastSeen = new Date(v.last_seen);
         const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
         return lastSeen > dayAgo;
       }).length || 0,
-      newVisitors: visitorProfiles?.filter((v: any) => {
+      newVisitors: visitorProfiles?.filter((v: { first_seen: string }) => {
         const firstSeen = new Date(v.first_seen);
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return firstSeen > weekAgo;
@@ -203,9 +210,9 @@ export async function GET(request: NextRequest) {
     
     // Calculate visits and unique visitors for the time range
     let periodVisits = 0;
-    let periodUniqueVisitors = new Set<string>();
+    const periodUniqueVisitors = new Set<string>();
     
-    Object.entries(analytics.dailyStats || {}).forEach(([date, stats]) => {
+    Object.entries(analytics.dailyStats || {}).forEach(([date, stats]: [string, DailyStats]) => {
       const dateObj = new Date(date);
       if (dateObj >= startDate && dateObj <= now) {
         periodVisits += stats.visits || 0;

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File || null;
 
     // Process shared content
-    const sharedContent = {
+    const _sharedContent = {
       title: title.trim(),
       text: text.trim(),
       url: url.trim(),
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle GET requests (for debugging)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   return NextResponse.json({
     message: 'Share endpoint is working',
     method: 'POST',

@@ -1,5 +1,4 @@
 import { supabaseDb as db } from './supabase-database';
-import { logger } from './logger';
 
 // Helper function to calculate and update task amount from subtasks
 export async function updateTaskAmount(taskId: string): Promise<boolean> {

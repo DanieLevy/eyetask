@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ArrowRight, Search, Trash2, Edit2, X, Check, ChevronDown, ChevronUp, Filter, User as UserIcon, Calendar, Activity as ActivityIcon, Eye, Clock, Users, BarChart3, TrendingUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowRight, Search, Trash2, Edit2, X, Check, ChevronDown, User as UserIcon, Calendar, Activity as ActivityIcon, Eye, Clock, Users, BarChart3, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import AdminClientLayout from '@/components/AdminClientLayout';
-import { useAuth } from '@/components/unified-header/AuthContext';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { cn } from '@/lib/utils';
 import { Activity } from '../types/analytics';
 
 interface VisitorProfile {
@@ -25,8 +24,8 @@ interface VisitorProfile {
   lastSeen: string;
   totalVisits: number;
   totalActions: number;
-  metadata?: any;
-  deviceInfo?: any;
+  metadata?: Record<string, unknown>;
+  deviceInfo?: Record<string, unknown>;
   isActive: boolean;
 }
 
@@ -38,11 +37,6 @@ interface VisitorWithActions extends VisitorProfile {
 export default function AllVisitorsPage() {
   const router = useRouter();
   const { isAdmin } = useAuth();
-  
-  // Debug admin status
-  useEffect(() => {
-    console.log('[AllVisitorsPage] Admin status:', isAdmin);
-  }, [isAdmin]);
   
   const [visitors, setVisitors] = useState<VisitorWithActions[]>([]);
   const [loading, setLoading] = useState(true);

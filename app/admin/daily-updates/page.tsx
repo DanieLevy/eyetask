@@ -1,29 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { 
-  Megaphone, 
   Plus, 
-  Edit, 
-  Trash2, 
   Pin, 
-  PinOff,
-  ArrowRight,
-  Settings,
   Clock,
   Calendar,
   Eye,
   EyeOff,
-  Filter,
   X,
   Loader2
 } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useHebrewFont } from '@/hooks/useFont';
 import { cn } from '@/lib/utils';
 
 interface DailyUpdate {
@@ -50,15 +43,14 @@ interface Project {
 
 export default function DailyUpdatesPage() {
   const hebrewHeading = useHebrewFont('heading');
-  const mixedBody = useMixedFont('body');
   
   const [updates, setUpdates] = useState<DailyUpdate[]>([]);
   const [loading, setLoading] = useState(true);
   const [fallbackMessage, setFallbackMessage] = useState('לא נמצאו עדכונים להצגה');
-  const [isEditingFallback, setIsEditingFallback] = useState(false);
-  const [isSavingFallback, setIsSavingFallback] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [_loadingProjects, setLoadingProjects] = useState(true);
+  const [_isSavingFallback, setIsSavingFallback] = useState(false);
+  const [_isEditingFallback, setIsEditingFallback] = useState(false);
 
   useEffect(() => {
     fetchUpdates();
@@ -80,8 +72,8 @@ export default function DailyUpdatesPage() {
       if (result.success) {
         setUpdates(result.updates);
       }
-    } catch (error) {
-      console.error('Error fetching updates:', error);
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -101,14 +93,14 @@ export default function DailyUpdatesPage() {
         const data = await response.json();
         setProjects(data.projects || []);
       }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
+    } catch {
+      // Error handled silently
     } finally {
       setLoadingProjects(false);
     }
   };
 
-  const getProjectName = (projectId?: string): string => {
+  const _getProjectName = (projectId?: string): string => {
     if (!projectId) return 'כללי';
     const project = projects.find(p => p._id === projectId);
     return project ? project.name : 'פרויקט לא נמצא';
@@ -123,12 +115,12 @@ export default function DailyUpdatesPage() {
           setFallbackMessage(result.value);
         }
       }
-    } catch (error) {
-      console.error('Error fetching fallback message:', error);
+    } catch {
+      // Error handled silently
     }
   };
 
-  const handleSaveFallbackMessage = async () => {
+  const _handleSaveFallbackMessage = async () => {
     try {
       setIsSavingFallback(true);
       const response = await fetch('/api/settings/main-page-carousel-fallback-message', {
@@ -143,8 +135,8 @@ export default function DailyUpdatesPage() {
       } else {
         toast.error('שגיאה בשמירת הודעת ברירת מחדל');
       }
-    } catch (error) {
-      console.error('Error saving fallback message:', error);
+    } catch {
+      // Error handled by toast
       toast.error('שגיאה בשמירת הודעת ברירת מחדל');
     } finally {
       setIsSavingFallback(false);
@@ -213,7 +205,7 @@ export default function DailyUpdatesPage() {
     }
   };
 
-  const getTypeColor = (type: string) => {
+  const _getTypeColor = (type: string) => {
     switch (type) {
       case 'info': return 'bg-blue-500';
       case 'warning': return 'bg-yellow-500';
@@ -224,7 +216,7 @@ export default function DailyUpdatesPage() {
     }
   };
 
-  const getTypeLabel = (type: string) => {
+  const _getTypeLabel = (type: string) => {
     switch (type) {
       case 'info': return 'מידע';
       case 'warning': return 'אזהרה';
@@ -235,7 +227,7 @@ export default function DailyUpdatesPage() {
     }
   };
 
-  const formatDuration = (durationType: string, durationValue?: number) => {
+  const _formatDuration = (durationType: string, durationValue?: number) => {
     if (durationType === 'permanent') return 'קבוע';
     if (!durationValue) return 'לא מוגדר';
     const unit = durationType === 'hours' ? 'שעות' : 'ימים';
@@ -335,7 +327,7 @@ export default function DailyUpdatesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-blue-600 dark:text-blue-400">סה"כ</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">סה&quot;כ</p>
                   <p className="text-2xl font-bold">{updates.length}</p>
                 </div>
                 <Calendar className="h-8 w-8 text-blue-500 opacity-50" />

@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-import { getUserPermissions } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
+import { getUserPermissions } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic'; // Never cache this route
 
 export async function GET(request: NextRequest) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] /api/auth/verify called`);
-  
   try {
     const user = authService.extractUserFromRequest(request);
     

@@ -1,9 +1,9 @@
 'use client';
 
-import { FeedbackTicket } from '@/lib/types/feedback';
 import { formatDistanceToNow } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { MessageCircle, Clock, User, Flag, AlertTriangle } from 'lucide-react';
+import { FeedbackTicket } from '@/lib/types/feedback';
 
 interface Props {
   tickets: FeedbackTicket[];

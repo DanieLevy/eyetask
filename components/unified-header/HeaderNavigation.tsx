@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useHebrewFont } from '@/hooks/useFont';
 import { cn } from '@/lib/utils';
 import { HeaderNavigationProps } from './types';
-import { useHebrewFont } from '@/hooks/useFont';
 
 export const HeaderNavigation = ({ items, className }: HeaderNavigationProps) => {
   const hebrewFont = useHebrewFont('body');

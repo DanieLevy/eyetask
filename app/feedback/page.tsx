@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { CheckCircle, Send, ArrowLeft, Phone, Mail, AlertTriangle, User, FileText, Tag } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle, Send, ArrowLeft, Phone, Mail, AlertTriangle, ExternalLink, User, FileText, Tag, AlertCircle } from 'lucide-react';
-import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
+import { useState, useEffect, Suspense } from 'react';
+import { toast } from 'sonner';
+import { useHebrewFont } from '@/hooks/useFont';
 import { 
   FeedbackCategory, 
   FeedbackIssueType,
   CreateFeedbackRequest 
 } from '@/lib/types/feedback';
-import { toast } from 'sonner';
 
 interface Subtask {
   id: string;
@@ -48,7 +48,7 @@ function FeedbackPageCore() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submissionResult, setSubmissionResult] = useState<any>(null);
+  const [submissionResult, setSubmissionResult] = useState<{ ticketNumber?: string } | null>(null);
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loadingSubtasks, setLoadingSubtasks] = useState(false);
 
@@ -102,7 +102,7 @@ function FeedbackPageCore() {
     
     // Handle URL parameters for pre-filling form
     const prefillFromParams = () => {
-      const prefillData: any = {};
+      const prefillData: Partial<typeof formData> = {};
       
       // Extract context data from URL parameters
       const title = searchParams.get('title');
@@ -126,7 +126,7 @@ function FeedbackPageCore() {
       // Handle related items
       if (relatedType && relatedId && ['project', 'task', 'subtask'].includes(relatedType)) {
         prefillData.relatedTo = {
-          type: relatedType,
+          type: relatedType as 'project' | 'task' | 'subtask',
           id: relatedId
         };
       }
@@ -160,7 +160,7 @@ function FeedbackPageCore() {
   };
 
   // Update form data
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: string | boolean | { type: string; id: string }) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -179,7 +179,7 @@ function FeedbackPageCore() {
   const handleRelatedToChange = (type: string, id: string = '') => {
     setFormData(prev => ({
       ...prev,
-      relatedTo: { type: type as any, id }
+      relatedTo: { type: type as 'project' | 'task' | 'subtask' | '', id }
     }));
   };
 
@@ -250,7 +250,7 @@ function FeedbackPageCore() {
       // Add related item if specified
       if (formData.relatedTo.type && formData.relatedTo.id) {
         requestData.relatedTo = {
-          type: formData.relatedTo.type as any,
+          type: formData.relatedTo.type as 'project' | 'task' | 'subtask',
           id: formData.relatedTo.id
         };
       }
@@ -295,7 +295,6 @@ function FeedbackPageCore() {
   // Font configurations
   const hebrewHeading = useHebrewFont('heading');
   const hebrewBody = useHebrewFont('body');
-  const mixedBody = useMixedFont('body');
 
   // Success page after submission
   if (isSubmitted) {

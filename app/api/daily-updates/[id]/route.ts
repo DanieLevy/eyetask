@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { authSupabase as authService } from '@/lib/auth-supabase';
-
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface DailyUpdateUpdateData {
+  title?: string;
+  content?: string;
+  type?: 'info' | 'warning' | 'success' | 'error' | 'announcement';
+  priority?: number;
+  durationType?: 'hours' | 'days' | 'permanent';
+  durationValue?: number;
+  expiresAt?: string;
+  isActive?: boolean;
+  isPinned?: boolean;
+  isHidden?: boolean;
+  targetAudience?: string[];
+  projectId?: string;
+  isGeneral?: boolean;
+}
 
 // GET /api/daily-updates/[id] - Get a single daily update
 export async function GET(
@@ -110,14 +125,16 @@ export async function PUT(
     }
     
     // Create update object with only the fields that are provided
-    const updateData: any = {};
+    const updateData: DailyUpdateUpdateData = {};
     if (data.title !== undefined) updateData.title = data.title;
     if (data.content !== undefined) updateData.content = data.content;
     if (data.type !== undefined) updateData.type = data.type;
     if (data.priority !== undefined) updateData.priority = data.priority;
     if (data.durationType !== undefined) updateData.durationType = data.durationType;
     if (data.durationValue !== undefined) updateData.durationValue = data.durationValue;
-    if (expiresAt !== undefined) updateData.expiresAt = expiresAt;
+    if (expiresAt !== undefined) {
+      updateData.expiresAt = expiresAt === null ? undefined : expiresAt;
+    }
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.isPinned !== undefined) updateData.isPinned = data.isPinned;
     if (data.isHidden !== undefined) updateData.isHidden = data.isHidden;

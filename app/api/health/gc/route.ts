@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * This is used by the monitoring page to help manage memory usage
  * POST /api/health/gc
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Check if garbage collection is available
     if (typeof global.gc === 'function') {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString()
       }, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       success: false,
       error: 'Failed to trigger garbage collection',

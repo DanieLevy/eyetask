@@ -1,10 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useHebrewFont } from '@/hooks/useFont';
-import { useMixedFont } from '@/hooks/useFont';
-import { useAuth } from '@/components/unified-header/AuthContext';
 import { 
   Plus, 
   Pencil, 
@@ -24,13 +19,17 @@ import {
   Search,
   Filter
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { LoadingSpinner } from '@/components/LoadingSystem';
-import { EmptyState } from '@/components/EmptyState';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingSpinner } from '@/components/LoadingSystem';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -39,20 +38,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { PERMISSION_GROUPS } from '@/lib/permissions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +45,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { PERMISSION_GROUPS } from '@/lib/permissions';
 
 interface User {
   _id: string;
@@ -122,7 +120,7 @@ export default function UsersPage() {
         return;
       }
       // setCurrentUser(parsedUser); // This line is removed as per new_code
-    } catch (error) {
+    } catch {
       router.push('/admin');
       return;
     }
@@ -239,7 +237,6 @@ export default function UsersPage() {
         
         // If updating current user's permissions, refresh them in auth context
         if (currentUser && selectedUser._id === currentUser.id) {
-          console.log('Updated current user permissions, refreshing auth context...');
           await refreshPermissions();
         }
       } else {
@@ -323,7 +320,7 @@ export default function UsersPage() {
     setOperationLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const updates: any = {
+      const updates: { username: string; email: string; role: 'admin' | 'data_manager' | 'driver_manager'; isActive: boolean; password?: string } = {
         username: formData.username,
         email: formData.email,
         role: formData.role,
@@ -699,7 +696,7 @@ export default function UsersPage() {
               <Label htmlFor="role">תפקיד</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value as any })}
+                onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'data_manager' | 'driver_manager' })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -789,7 +786,7 @@ export default function UsersPage() {
               <Label htmlFor="edit-role">תפקיד</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value as any })}
+                onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'data_manager' | 'driver_manager' })}
               >
                 <SelectTrigger>
                   <SelectValue />

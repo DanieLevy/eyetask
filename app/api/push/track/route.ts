@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseDb as db } from '@/lib/supabase-database';
 import { logger } from '@/lib/logger';
+import { supabaseDb as db } from '@/lib/supabase-database';
+
+interface PushNotificationStats {
+  delivered?: number;
+  clicked?: number;
+  failed?: number;
+}
 
 // POST /api/push/track - Track push notification events
 export async function POST(request: NextRequest) {
@@ -21,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Update notification stats if ID provided
     if (notificationId) {
-      const stats: any = {};
+      const stats: PushNotificationStats = {};
       
       switch (event) {
         case 'delivered':

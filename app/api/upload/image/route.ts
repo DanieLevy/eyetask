@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractTokenFromHeader, requireAuthEnhanced } from '@/lib/auth-utils';
-import { logger } from '@/lib/logger';
+import { requireAuthEnhanced } from '@/lib/auth-utils';
 import { saveFile } from '@/lib/fileStorage';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -126,8 +126,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         fileName: fileName,
-        filePath: uploadResult.url!, // Return storage URL as filePath
-        publicUrl: uploadResult.url!, // Return storage URL as publicUrl
+        filePath: uploadResult.url ?? '', // Return storage URL as filePath
+        publicUrl: uploadResult.url ?? '', // Return storage URL as publicUrl
         fileSize: file.size,
         fileType: file.type,
         method: process.env.CLOUDINARY_URL ? 'cloudinary' : 'local'

@@ -27,10 +27,10 @@ export interface CloudinaryUploadResult {
 
 export interface CloudinaryUploadOptions {
   folder?: string;
-  transformation?: any;
+  transformation?: Record<string, unknown>;
   tags?: string[];
   context?: Record<string, string>;
-  eager?: any[];
+  eager?: Array<Record<string, unknown>>;
   quality?: string | number;
   format?: string;
   crop?: string;
@@ -56,7 +56,7 @@ export async function uploadToCloudinary(
     });
 
     // Default upload options with optimization - following official Cloudinary patterns
-    const baseOptions: any = {
+    const baseOptions: Record<string, unknown> = {
       folder: options.folder || 'drivertasks',
       resource_type: 'image' as const,
       quality: 'auto:good',
@@ -84,7 +84,7 @@ export async function uploadToCloudinary(
       ];
     }
 
-    let result: any;
+    let uploadResult: { public_id: string; secure_url: string; url: string; width?: number; height?: number; format?: string; bytes?: number; eager?: Array<unknown> };
     
     if (file instanceof File) {
       // For File objects, convert to buffer and use upload_stream
@@ -92,24 +92,26 @@ export async function uploadToCloudinary(
       const buffer = Buffer.from(arrayBuffer);
       
       // Use upload_stream for buffer uploads to avoid basename() issues
-      result = await new Promise((resolve, reject) => {
+      uploadResult = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           baseOptions,
           (error, result) => {
             if (error) reject(error);
-            else resolve(result);
+            else if (result) resolve(result);
+            else reject(new Error('Upload failed: no result returned'));
           }
         );
         uploadStream.end(buffer);
       });
     } else if (file instanceof Buffer) {
       // For Buffer objects, use upload_stream
-      result = await new Promise((resolve, reject) => {
+      uploadResult = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           baseOptions,
           (error, result) => {
             if (error) reject(error);
-            else resolve(result);
+            else if (result) resolve(result);
+            else reject(new Error('Upload failed: no result returned'));
           }
         );
         uploadStream.end(file);
@@ -120,7 +122,7 @@ export async function uploadToCloudinary(
         ...baseOptions,
         use_filename: true
       };
-      result = await cloudinary.uploader.upload(file, uploadOptions);
+      uploadResult = await cloudinary.uploader.upload(file, uploadOptions);
     } else {
       throw new Error('Unsupported file type for upload');
     }
@@ -129,46 +131,46 @@ export async function uploadToCloudinary(
     
     // Generate transformation URLs using standard Cloudinary patterns
     const transformations = {
-      thumbnail: cloudinary.url(result.public_id, {
+      thumbnail: cloudinary.url(uploadResult.public_id, {
         width: 150,
         height: 150,
         crop: 'fill'
       }),
-      medium: cloudinary.url(result.public_id, {
+      medium: cloudinary.url(uploadResult.public_id, {
         width: 500,
         height: 500,
         crop: 'limit'
       }),
-      large: cloudinary.url(result.public_id, {
+      large: cloudinary.url(uploadResult.public_id, {
         width: 1200,
         height: 1200,
         crop: 'limit'
       }),
-      optimized: cloudinary.url(result.public_id, {
+      optimized: cloudinary.url(uploadResult.public_id, {
         quality: 'auto:good'
       })
     };
 
     logger.info('Cloudinary upload successful', 'CLOUDINARY_UPLOAD', {
-      publicId: result.public_id,
-      secureUrl: result.secure_url,
-      format: result.format,
-      width: result.width,
-      height: result.height,
-      bytes: result.bytes,
+      publicId: uploadResult.public_id,
+      secureUrl: uploadResult.secure_url,
+      format: uploadResult.format,
+      width: uploadResult.width,
+      height: uploadResult.height,
+      bytes: uploadResult.bytes,
       executionTime: `${executionTime}ms`,
-      eagerCount: result.eager?.length || 0
+      eagerCount: uploadResult.eager?.length || 0
     });
 
     return {
       success: true,
-      publicId: result.public_id,
-      secureUrl: result.secure_url,
-      originalUrl: result.url,
-      width: result.width,
-      height: result.height,
-      format: result.format,
-      bytes: result.bytes,
+      publicId: uploadResult.public_id,
+      secureUrl: uploadResult.secure_url,
+      originalUrl: uploadResult.url,
+      width: uploadResult.width,
+      height: uploadResult.height,
+      format: uploadResult.format,
+      bytes: uploadResult.bytes,
       transformations
     };
 
@@ -257,7 +259,7 @@ export function extractPublicIdFromUrl(url: string): string | null {
     }
     
     return null;
-  } catch (error) {
+  } catch {
     logger.warn('Failed to extract public ID from URL', 'CLOUDINARY_EXTRACT', { url });
     return null;
   }
@@ -276,7 +278,7 @@ export function isCloudinaryUrl(url: string): boolean {
  * Get Cloudinary usage statistics (server-only)
  */
 export async function getCloudinaryStats(): Promise<{
-  usage: any;
+  usage: Record<string, unknown>;
   resources: number;
   transformations: number;
 }> {

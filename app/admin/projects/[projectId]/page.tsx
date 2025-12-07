@@ -1,28 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { 
   ArrowRight, 
   Eye, 
-  Target, 
   Plus,
   EyeOff,
   RefreshCw,
   AlertTriangle,
-  ChevronRight,
   Edit,
   Trash2,
-  Calendar,
-  MapPin,
-  Car,
-  Zap,
-  Clock,
-  Building,
   FileText,
-  CheckCircle,
-  XCircle,
   Loader2,
   Layers,
   Activity,
@@ -31,18 +18,19 @@ import {
   Settings,
   ArrowUpDown
 } from 'lucide-react';
-import { useTasksRealtime, useProjectsRealtime } from '@/hooks/useRealtime';
-import { capitalizeEnglish, capitalizeEnglishArray } from '@/lib/utils';
-import { usePageRefresh } from '@/hooks/usePageRefresh';
-import { RealtimeNotification, useRealtimeNotification } from '@/components/RealtimeNotification';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
+import { useRealtimeNotification } from '@/components/RealtimeNotification';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageRefresh } from '@/hooks/usePageRefresh';
 
 interface Task {
   _id: string;
@@ -67,10 +55,6 @@ interface Task {
   subtaskCount?: number;
 }
 
-interface Subtask {
-  _id: string;
-  taskId: string;
-}
 
 interface Project {
   _id: string;
@@ -112,7 +96,7 @@ export default function ProjectManagement() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [tasksLoading, setTasksLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [_user, _setUser] = useState<null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -121,102 +105,33 @@ export default function ProjectManagement() {
   const [filterVisible, setFilterVisible] = useState<'all' | 'visible' | 'hidden'>('all');
 
   // Realtime notifications
-  const { notification, showNotification } = useRealtimeNotification();
+  const { notification: _notification, showNotification: _showNotification } = useRealtimeNotification();
 
   // Helper function to check if any operations are active
-  const isUserInteracting = useCallback(() => {
+  const _isUserInteracting = useCallback(() => {
     return operationLoading;
   }, [operationLoading]);
 
   // Realtime handlers
-  const handleProjectChange = useCallback((payload: any) => {
-
-    
+  const _handleProjectChange = useCallback((payload: { eventType: string; new?: { id: string }; old?: { id: string } }) => {
     const { eventType, new: newRecord, old: oldRecord } = payload;
     
     if (eventType === 'UPDATE' && newRecord && newRecord.id === projectId) {
-      // Update the current project
-      setProject(newRecord);
+      // Refetch the full project data
+      // Note: newRecord only contains id, so we need to refetch
+      // For now, just refresh the page data
+      window.location.reload();
     } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === projectId) {
       // Project was deleted, redirect to dashboard
       router.push('/admin/dashboard');
     }
   }, [projectId, router]);
 
-  const handleTaskChange = useCallback((payload: any) => {
-    
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-    
-    setTasks(current => {
-      switch (eventType) {
-        case 'INSERT':
-          if (newRecord && newRecord.project_id === projectId) {
-            // Add new task
-            const exists = current.find(t => t._id === newRecord._id);
-            return exists ? current : [...current, newRecord];
-          }
-          return current;
-          
-        case 'UPDATE':
-          if (newRecord && newRecord.project_id === projectId) {
-            // Update existing task
-            return current.map(task => 
-              task._id === newRecord._id ? newRecord : task
-            );
-          } else if (newRecord && newRecord.project_id !== projectId) {
-            // Task was moved to another project, remove it
-            return current.filter(task => task._id !== newRecord._id);
-          }
-          return current;
-          
-        case 'DELETE':
-          if (oldRecord) {
-            // Remove deleted task
-            return current.filter(task => task._id !== oldRecord._id);
-          }
-          return current;
-          
-        default:
-          return current;
-      }
-    });
-  }, [projectId]);
-
-  // Optimized data fetching with separate project and tasks loading
-  const fetchProjectData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('adminToken');
-      const timestamp = Date.now();
-      
-      // Fetch project data first (fast)
-      const projectRes = await fetch(`/api/projects/${projectId}?_t=${timestamp}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      }).then(res => res.json());
-
-      if (projectRes.success) {
-        setProject(projectRes.project);
-        setLoading(false); // Show project info immediately
-        
-        // Then fetch tasks (potentially slower)
-        fetchTasks();
-      } else {
-        setError(projectRes.error || 'Failed to fetch project');
-        toast.error(projectRes.error || 'Failed to fetch project data.');
-        router.push('/admin/dashboard');
-      }
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      setError('An unexpected error occurred.');
-      toast.error('An unexpected error occurred while fetching data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, router]);
+  const _handleTaskChange = useCallback((_payload: { eventType: string; new?: { projectId: string }; old?: { projectId: string } }) => {
+    // Task changes detected - refresh data instead of partial update
+    // This ensures we have complete task data with all required fields
+    window.location.reload();
+  }, []);
 
   // Separate function for fetching tasks with subtask counts
   const fetchTasks = useCallback(async () => {
@@ -260,6 +175,41 @@ export default function ProjectManagement() {
     }
   }, [projectId]);
 
+  // Optimized data fetching with separate project and tasks loading
+  const fetchProjectData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const timestamp = Date.now();
+      
+      // Fetch project data first (fast)
+      const projectRes = await fetch(`/api/projects/${projectId}?_t=${timestamp}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      }).then(res => res.json());
+
+      if (projectRes.success) {
+        setProject(projectRes.project);
+        setLoading(false); // Show project info immediately
+        
+        // Then fetch tasks (potentially slower)
+        fetchTasks();
+      } else {
+        setError(projectRes.error || 'Failed to fetch project');
+        toast.error(projectRes.error || 'Failed to fetch project data.');
+        router.push('/admin/dashboard');
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      setError('An unexpected error occurred.');
+      toast.error('An unexpected error occurred while fetching data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId, router, fetchTasks]);
+
   // Manual refresh function
   const refreshData = useCallback(async () => {
     if (operationLoading) return;
@@ -291,8 +241,8 @@ export default function ProjectManagement() {
       if (!parsedUser || !parsedUser.id || !parsedUser.username) {
         throw new Error('Invalid user data structure');
       }
-      setUser(parsedUser);
-    } catch (error) {
+      // User data validated - no need to store in state
+    } catch {
       router.push('/admin');
       return;
     }
@@ -322,8 +272,7 @@ export default function ProjectManagement() {
       } else {
         toast.error('Failed to update task visibility');
       }
-    } catch (error) {
-      console.error('Error toggling task visibility:', error);
+    } catch {
       toast.error('An error occurred while updating visibility.');
     }
   };
@@ -348,9 +297,8 @@ export default function ProjectManagement() {
         const data = await response.json();
         toast.error(data.error || 'Failed to delete task');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred while deleting the task.');
-      console.error('Error deleting task:', error);
     } finally {
       setOperationLoading(false);
       setDeleteTarget(null);
@@ -378,9 +326,8 @@ export default function ProjectManagement() {
         const data = await response.json();
         toast.error(data.error || 'Failed to delete project');
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred while deleting the project.');
-      console.error('Error deleting project:', error);
     } finally {
       setOperationLoading(false);
       setDeleteTarget(null);
@@ -398,12 +345,6 @@ export default function ProjectManagement() {
     }
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 1 && priority <= 3) return 'text-red-500 dark:text-red-400';
-    if (priority >= 4 && priority <= 6) return 'text-amber-500 dark:text-amber-400';
-    if (priority >= 7 && priority <= 10) return 'text-green-500 dark:text-green-400';
-    return 'text-gray-500 dark:text-gray-400';
-  };
 
   const getPriorityLabel = (priority: number) => {
     if (priority >= 1 && priority <= 3) return 'גבוהה';

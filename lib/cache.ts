@@ -17,7 +17,7 @@ interface CacheItem<T> {
  * Simple in-memory cache with TTL support
  */
 class MemoryCache {
-  private cache: Map<string, CacheItem<any>> = new Map();
+  private cache: Map<string, CacheItem<unknown>> = new Map();
   private lastCleanup: number = Date.now();
   private readonly cleanupInterval: number = 60 * 1000; // Cleanup every minute
   private hitCount: number = 0;
@@ -169,12 +169,12 @@ class MemoryCache {
   /**
    * Get cache statistics
    */
-  getStats(): Record<string, any> {
+  getStats(): Record<string, unknown> {
     const namespaces: Record<string, number> = {};
     const age: Record<string, number> = {};
     
     // Count items per namespace and age distribution
-    this.cache.forEach((item, key) => {
+    this.cache.forEach((item, _key) => {
       const ns = item.namespace || 'default';
       namespaces[ns] = (namespaces[ns] || 0) + 1;
       

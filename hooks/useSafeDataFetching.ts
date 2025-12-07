@@ -3,9 +3,9 @@
  * Provides project-wide protection against infinite loops in React components
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { safeFetch, useSafeEffect, useSafeCallback, projectGuard } from '@/lib/safeDataFetching';
+import { useState, useEffect, useRef } from 'react';
 import { logger } from '@/lib/logger';
+import { safeFetch, useSafeEffect, useSafeCallback, projectGuard } from '@/lib/safeDataFetching';
 
 interface UseSafeDataFetchingOptions {
   enabled?: boolean;
@@ -14,7 +14,7 @@ interface UseSafeDataFetchingOptions {
   retryCount?: number;
   retryDelay?: number;
   staleTime?: number;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: Error) => void;
   debugName?: string;
 }
@@ -28,7 +28,7 @@ interface UseSafeDataFetchingResult<T> {
   lastFetch: number | null;
 }
 
-export function useSafeDataFetching<T = any>(
+export function useSafeDataFetching<T = unknown>(
   url: string | (() => string),
   options: UseSafeDataFetchingOptions = {}
 ): UseSafeDataFetchingResult<T> {
@@ -220,7 +220,7 @@ export function useSafeDailyUpdates() {
 
 // Project health monitoring hook
 export function useProjectHealth() {
-  const [healthReport, setHealthReport] = useState<any>(null);
+  const [healthReport, setHealthReport] = useState<Record<string, unknown> | null>(null);
 
   useSafeEffect(() => {
     const updateReport = () => {

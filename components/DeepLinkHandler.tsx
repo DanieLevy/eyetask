@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useCallback, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { usePWADetection } from '@/hooks/usePWADetection';
+import React, { useEffect, useCallback, Suspense, useRef } from 'react';
 import { toast } from 'sonner';
+import { usePWADetection } from '@/hooks/usePWADetection';
 
 interface DeepLinkConfig {
   [key: string]: {
@@ -108,150 +108,55 @@ interface DeepLinkHandlerProps {
 function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status, getAppUrl, isAppUrl } = usePWADetection();
   const hasProcessedRef = useRef(false);
   const hasProcessedProtocolRef = useRef(false);
 
-  // Handle URL parameters and deep links
-  useEffect(() => {
-    if (hasProcessedRef.current) return;
-    hasProcessedRef.current = true;
-
-    // Get URL parameters
-    const utmSource = searchParams.get('utm_source');
-    const utmMedium = searchParams.get('utm_medium');
-    const action = searchParams.get('action');
-    const projectName = searchParams.get('project');
-    const taskId = searchParams.get('task');
-    const sharedContent = searchParams.get('shared');
-    const files = searchParams.get('files');
-
-    // Handle protocol launches (drivertasks://)
-    if (utmMedium === 'protocol' || utmSource === 'protocol') {
-      if (action) {
-        handleDeepLinkAction(action, { projectName, taskId, sharedContent, files });
-      }
-      return;
-    }
-
-    // Handle external links
-    if (utmSource === 'external' || utmMedium === 'external') {
-      if (action) {
-        handleExternalLink(action, { projectName, taskId, sharedContent, files });
-      }
-      return;
-    }
-
-    // Handle shared content
-    if (sharedContent) {
-      try {
-        const content = JSON.parse(decodeURIComponent(sharedContent));
-        handleSharedContent(content);
-      } catch (error) {
-        console.error('Failed to parse shared content:', error);
-      }
-      return;
-    }
-
-    // Handle file sharing
-    if (files) {
-      try {
-        const fileList = JSON.parse(decodeURIComponent(files));
-        handleSharedFiles(fileList);
-      } catch (error) {
-        console.error('Failed to parse shared files:', error);
-      }
-      return;
-    }
-
-    // Handle direct navigation
-    if (projectName) {
-      router.push(`/project/${encodeURIComponent(projectName)}`);
-      return;
-    }
-
-    if (taskId) {
-      // Would need to fetch task details to get project name
-      // For now, just show a toast
-      toast.info('נווט למשימה', {
-        description: `מזהה משימה: ${taskId}`
+  // Handle shared content
+  const handleSharedContent = useCallback((content: Record<string, unknown>) => {
+    try {
+      // Store shared content for the app to use
+      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify(content));
+      
+      toast.success('תוכן משותף התקבל', {
+        description: 'התוכן זמין לשימוש באפליקציה'
       });
-      return;
-    }
-
-    // Handle app launches
-    if (utmMedium && utmSource) {
-      // Silent app launch tracking
-    }
-  }, [searchParams, router]);
-
-  // Handle protocol-based deep links
-  useEffect(() => {
-    if (hasProcessedProtocolRef.current) return;
-
-    const handleProtocolLaunch = (event: MessageEvent) => {
-      try {
-        const { type, data } = event.data;
-        
-        if (type === 'PROTOCOL_LAUNCH') {
-          hasProcessedProtocolRef.current = true;
-          
-          const { action, params } = data;
-          handleDeepLinkAction(action, params);
-        }
-      } catch (error) {
-        console.error('Failed to handle protocol launch:', error);
+      
+      // Navigate to appropriate page based on content type
+      if (typeof content === 'object' && content !== null && 'type' in content && content.type === 'project' && 'projectName' in content && typeof content.projectName === 'string') {
+        router.push(`/project/${encodeURIComponent(content.projectName)}`);
+      } else if (typeof content === 'object' && content !== null && 'type' in content && content.type === 'task' && 'taskId' in content) {
+        // Navigate to task
+        toast.info('פתיחת משימה משותפת');
       }
-    };
+    } catch {
+      toast.error('שגיאה בעיבוד תוכן משותף');
+    }
+  }, [router]);
 
-    const handleUnknownMessage = (event: MessageEvent) => {
-      if (event.data?.type && event.data.type !== 'PROTOCOL_LAUNCH') {
-        console.warn('Unknown deep link action:', event.data.type);
-      }
-    };
-
-    // Listen for protocol messages
-    window.addEventListener('message', handleProtocolLaunch);
-    
-    return () => {
-      window.removeEventListener('message', handleProtocolLaunch);
-    };
+  // Handle shared files
+  const handleSharedFiles = useCallback((files: Array<{ name?: string; type?: string; size?: number; lastModified?: number }>) => {
+    try {
+      // Store files for the app to use
+      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify({
+        type: 'files',
+        files: files.map(f => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          lastModified: f.lastModified
+        }))
+      }));
+      
+      toast.success('קבצים התקבלו', {
+        description: `${files.length} קבצים זמינים לשימוש`
+      });
+    } catch {
+      toast.error('שגיאה בעיבוד קבצים');
+    }
   }, []);
 
-  // Handle external link clicks
-  const handleExternalLink = async (action: string, params: any) => {
-    try {
-      switch (action) {
-        case 'open-project':
-          if (params.projectName) {
-            router.push(`/project/${encodeURIComponent(params.projectName)}`);
-            toast.success('פתיחת פרויקט', {
-              description: `נפתח פרויקט: ${params.projectName}`
-            });
-          }
-          break;
-          
-        case 'open-task':
-          if (params.taskId) {
-            // Would need to implement task opening logic
-            toast.info('פתיחת משימה', {
-              description: `מזהה משימה: ${params.taskId}`
-            });
-          }
-          break;
-          
-        default:
-          // Unknown action
-          break;
-      }
-    } catch (error) {
-      console.error('Failed to handle external link:', error);
-      toast.error('שגיאה בפתיחת קישור חיצוני');
-    }
-  };
-
   // Handle deep link actions
-  const handleDeepLinkAction = (action: string, params: any) => {
+  const handleDeepLinkAction = useCallback((action: string, params: Record<string, string | undefined>) => {
     switch (action) {
       case 'open-project':
         if (params.projectName) {
@@ -276,7 +181,7 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
           try {
             const content = JSON.parse(params.sharedContent);
             handleSharedContent(content);
-          } catch (error) {
+          } catch {
             toast.error('שגיאה בפענוח תוכן משותף');
           }
         }
@@ -287,7 +192,7 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
           try {
             const fileList = JSON.parse(params.files);
             handleSharedFiles(fileList);
-          } catch (error) {
+          } catch {
             toast.error('שגיאה בפתיחת קבצים');
           }
         }
@@ -297,59 +202,148 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
         // Unknown action
         break;
     }
-  };
+  }, [router, handleSharedContent, handleSharedFiles]);
 
-  // Handle shared content
-  const handleSharedContent = (content: any) => {
+  // Handle external link clicks
+  const handleExternalLink = useCallback(async (action: string, params: Record<string, string | undefined>) => {
     try {
-      // Store shared content for the app to use
-      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify(content));
-      
-      toast.success('תוכן משותף התקבל', {
-        description: 'התוכן זמין לשימוש באפליקציה'
-      });
-      
-      // Navigate to appropriate page based on content type
-      if (content.type === 'project' && content.projectName) {
-        router.push(`/project/${encodeURIComponent(content.projectName)}`);
-      } else if (content.type === 'task' && content.taskId) {
-        // Navigate to task
-        toast.info('פתיחת משימה משותפת');
+      switch (action) {
+        case 'open-project':
+          if (params.projectName) {
+            router.push(`/project/${encodeURIComponent(params.projectName)}`);
+            toast.success('פתיחת פרויקט', {
+              description: `נפתח פרויקט: ${params.projectName}`
+            });
+          }
+          break;
+          
+        case 'open-task':
+          if (params.taskId) {
+            // Would need to implement task opening logic
+            toast.info('פתיחת משימה', {
+              description: `מזהה משימה: ${params.taskId}`
+            });
+          }
+          break;
+          
+        default:
+          // Unknown action
+          break;
       }
-    } catch (error) {
-      toast.error('שגיאה בעיבוד תוכן משותף');
+    } catch {
+      toast.error('שגיאה בפתיחת קישור חיצוני');
     }
-  };
+  }, [router]);
 
-  // Handle shared files
-  const handleSharedFiles = (files: any[]) => {
-    try {
-      // Store files for the app to use
-      sessionStorage.setItem('drivertasks-shared-content', JSON.stringify({
-        type: 'files',
-        files: files
-      }));
-      
-      // Also store in a specific files key for easier access
-      sessionStorage.setItem('drivertasks-opened-files', JSON.stringify(
-        files.map(file => ({
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          lastModified: file.lastModified
-        }))
-      ));
-      
-      toast.success('קבצים התקבלו', {
-        description: `התקבלו ${files.length} קבצים`
-      });
-      
-      // Navigate to appropriate page for file handling
-      router.push('/admin/tasks/new');
-    } catch (error) {
-      toast.error('שגיאה בעיבוד קבצים משותפים');
+  // Handle URL parameters and deep links
+  useEffect(() => {
+    if (hasProcessedRef.current) return;
+    hasProcessedRef.current = true;
+
+    // Get URL parameters
+    const utmSource = searchParams.get('utm_source');
+    const utmMedium = searchParams.get('utm_medium');
+    const action = searchParams.get('action');
+    const projectName = searchParams.get('project');
+    const taskId = searchParams.get('task');
+    const sharedContent = searchParams.get('shared');
+    const files = searchParams.get('files');
+
+    // Handle protocol launches (drivertasks://)
+    if (utmMedium === 'protocol' || utmSource === 'protocol') {
+      if (action) {
+        handleDeepLinkAction(action, { 
+          projectName: projectName ?? undefined, 
+          taskId: taskId ?? undefined, 
+          sharedContent: sharedContent ?? undefined, 
+          files: files ?? undefined 
+        });
+      }
+      return;
     }
-  };
+
+    // Handle external links
+    if (utmSource === 'external' || utmMedium === 'external') {
+      if (action) {
+        handleExternalLink(action, { 
+          projectName: projectName ?? undefined, 
+          taskId: taskId ?? undefined, 
+          sharedContent: sharedContent ?? undefined, 
+          files: files ?? undefined 
+        });
+      }
+      return;
+    }
+
+    // Handle shared content
+    if (sharedContent) {
+      try {
+        const content = JSON.parse(decodeURIComponent(sharedContent));
+        handleSharedContent(content);
+      } catch {
+        // Silent error handling
+      }
+      return;
+    }
+
+    // Handle file sharing
+    if (files) {
+      try {
+        const fileList = JSON.parse(decodeURIComponent(files));
+        handleSharedFiles(fileList);
+      } catch {
+        // Silent error handling
+      }
+      return;
+    }
+
+    // Handle direct navigation
+    if (projectName) {
+      router.push(`/project/${encodeURIComponent(projectName)}`);
+      return;
+    }
+
+    if (taskId) {
+      // Would need to fetch task details to get project name
+      // For now, just show a toast
+      toast.info('נווט למשימה', {
+        description: `מזהה משימה: ${taskId}`
+      });
+      return;
+    }
+
+    // Handle app launches
+    if (utmMedium && utmSource) {
+      // Silent app launch tracking
+    }
+  }, [searchParams, router, handleDeepLinkAction, handleExternalLink, handleSharedContent, handleSharedFiles]);
+
+  // Handle protocol-based deep links
+  useEffect(() => {
+    if (hasProcessedProtocolRef.current) return;
+
+    const handleProtocolLaunch = (event: MessageEvent) => {
+      try {
+        const { type, data } = event.data;
+        
+        if (type === 'PROTOCOL_LAUNCH') {
+          hasProcessedProtocolRef.current = true;
+          
+          const { action, params } = data;
+          handleDeepLinkAction(action, params);
+        }
+      } catch {
+        // Silent error handling
+      }
+    };
+
+    // Listen for protocol messages
+    window.addEventListener('message', handleProtocolLaunch);
+    
+    return () => {
+      window.removeEventListener('message', handleProtocolLaunch);
+    };
+  }, [handleDeepLinkAction]);
 
   // Listen for messages from service worker or other sources
   useEffect(() => {
@@ -393,7 +387,7 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [router]);
+  }, [handleDeepLinkAction, handleSharedContent, handleSharedFiles]);
 
   // Web Share API support
   useEffect(() => {
@@ -435,7 +429,7 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
   }, [router]);
 
   // Handle share actions
-  const handleShare = async (content: any) => {
+  const handleShare = useCallback(async (content: { title?: string; description?: string; url?: string }) => {
     try {
       if (navigator.share) {
         await navigator.share({
@@ -448,34 +442,32 @@ function DeepLinkHandlerCore({ children }: DeepLinkHandlerProps) {
         await navigator.clipboard.writeText(content.url || window.location.href);
         toast.success('קישור הועתק ללוח');
       }
-    } catch (error) {
-      console.error('Share failed:', error);
+    } catch {
       toast.error('שגיאה בשיתוף');
     }
-  };
+  }, []);
 
-  const handleClipboard = async (text: string) => {
+  const handleClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       toast.success('הועתק ללוח');
-    } catch (error) {
-      console.error('Clipboard write failed:', error);
+    } catch {
       toast.error('שגיאה בהעתקה');
     }
-  };
+  }, []);
 
   // Expose functions to global scope for external use
   useEffect(() => {
-    (window as any).deepLinkHandler = {
+    (window as unknown as Record<string, unknown>).deepLinkHandler = {
       handleShare,
       handleClipboard,
       handleDeepLinkAction
     };
 
     return () => {
-      delete (window as any).deepLinkHandler;
+      delete (window as unknown as Record<string, unknown>).deepLinkHandler;
     };
-  }, []);
+  }, [handleShare, handleClipboard, handleDeepLinkAction]);
 
   return <>{children}</>;
 }
@@ -521,7 +513,6 @@ export function useDeepLink() {
     const config = DEEP_LINK_ROUTES[action];
     
     if (!config) {
-      console.warn('Unknown deep link action:', action);
       return;
     }
 
@@ -549,8 +540,8 @@ export function useDeepLink() {
           url: link
         });
         return true;
-      } catch (error) {
-        console.error('Share failed:', error);
+      } catch {
+        // Silent error handling
       }
     }
     
@@ -559,8 +550,8 @@ export function useDeepLink() {
       try {
         await navigator.clipboard.writeText(link);
         return true;
-      } catch (error) {
-        console.error('Clipboard write failed:', error);
+      } catch {
+        // Silent error handling
       }
     }
     

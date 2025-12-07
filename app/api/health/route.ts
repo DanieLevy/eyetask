@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseClient } from '@/lib/supabase';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Check Supabase connection
     const supabase = getSupabaseClient();
     
     // Try a simple query to verify database is accessible
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('projects')
       .select('count')
       .limit(1)
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(health, { 
       status: isDbConnected ? 200 : 503 
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { 
         status: 'error', 

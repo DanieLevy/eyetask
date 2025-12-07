@@ -1,22 +1,22 @@
 'use client';
 
 import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { useCanViewAnalytics } from '@/hooks/usePermission';
-import { useAuth } from '@/components/unified-header/AuthContext';
-import AdminClientLayout from '@/components/AdminClientLayout';
-import { AnalyticsProvider, useAnalytics } from './context/AnalyticsContext';
-import { useAnalyticsData } from './hooks/useAnalyticsData';
-import { MetricsCards } from './components/MetricsCards';
-import { UserLeaderboard } from './components/UserLeaderboard';
-import { ActivityFeed } from './components/ActivityFeed';
-import { AnalyticsPageSkeleton } from './components/Skeletons';
-import { TIME_RANGES } from './types/analytics';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import AdminClientLayout from '@/components/AdminClientLayout';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/components/unified-header/AuthContext';
+import { useCanViewAnalytics } from '@/hooks/usePermission';
+import { cn } from '@/lib/utils';
+import { ActivityFeed } from './components/ActivityFeed';
+import { MetricsCards } from './components/MetricsCards';
+import { AnalyticsPageSkeleton } from './components/Skeletons';
+import { UserLeaderboard } from './components/UserLeaderboard';
+import { AnalyticsProvider, useAnalytics } from './context/AnalyticsContext';
+import { useAnalyticsData } from './hooks/useAnalyticsData';
+import { TIME_RANGES } from './types/analytics';
 
 function AnalyticsContent() {
   const router = useRouter();

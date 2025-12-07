@@ -1,8 +1,8 @@
 'use client';
 
+import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
-import { Bell, AlertTriangle, CheckCircle, XCircle, Megaphone, Info, Pin, X } from 'lucide-react';
 import { deduplicatedFetch } from '@/lib/request-deduplication';
 
 interface DailyUpdate {
@@ -131,7 +131,7 @@ export default function DailyUpdatesCarousel({
     } finally {
       setLoading(false);
     }
-  }, [hiddenUpdateIds, projectId, projectName]); // Remove updates.length from dependencies to prevent re-fetch loop
+  }, [hiddenUpdateIds, projectId, projectName, updates]); // Include updates to ensure fresh data
 
   useEffect(() => {
     fetchData();

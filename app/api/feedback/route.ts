@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { feedbackService } from '@/lib/services/feedbackService';
-import { CreateFeedbackRequest, FeedbackFilterOptions, FeedbackTicket } from '@/lib/types/feedback';
-import { logger } from '@/lib/logger';
+import { NextRequest, NextResponse } from 'next/server';
 import { authSupabase as authService } from '@/lib/auth-supabase';
 import { requireAdmin } from '@/lib/auth-utils';
-import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
+import { feedbackService } from '@/lib/services/feedbackService';
+import { CreateFeedbackRequest, FeedbackFilterOptions, FeedbackStatus, FeedbackCategory, FeedbackPriority } from '@/lib/types/feedback';
 
 // POST - Create new feedback ticket (Public endpoint - no auth required)
 export async function POST(request: NextRequest) {
@@ -112,17 +111,17 @@ export async function GET(request: NextRequest) {
     
     const status = searchParams.get('status');
     if (status) {
-      filters.status = status.split(',') as any;
+      filters.status = status.split(',') as FeedbackStatus[];
     }
     
     const category = searchParams.get('category');
     if (category) {
-      filters.category = category.split(',') as any;
+      filters.category = category.split(',') as FeedbackCategory[];
     }
     
     const priority = searchParams.get('priority');
     if (priority) {
-      filters.priority = priority.split(',') as any;
+      filters.priority = priority.split(',') as FeedbackPriority[];
     }
     
     const assignedTo = searchParams.get('assignedTo');
