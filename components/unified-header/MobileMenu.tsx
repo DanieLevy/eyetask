@@ -9,7 +9,6 @@ import {
   Bell,
   BellOff
 } from 'lucide-react';
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -222,13 +221,15 @@ export const MobileMenu = ({
                     item.isActive && "bg-accent/50 text-accent-foreground font-medium",
                     hebrewFont.fontClass
                   )}
-                  asChild
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setOpen(false);
+                    window.location.href = item.href;
+                  }}
                 >
-                  <Link href={item.href} onClick={() => setOpen(false)}>
-                    <span>{item.label}</span>
-                    {/* Use SafeIcon component for navigation items */}
-                    <SafeIcon action={item} />
-                  </Link>
+                  <span>{item.label}</span>
+                  {/* Use SafeIcon component for navigation items */}
+                  <SafeIcon action={item} />
                 </DropdownMenuItem>
               ))}
             </div>
@@ -358,7 +359,7 @@ export const MobileMenu = ({
               {/* Render only functional actions */}
               <div className="py-2">
                 {functionalActions.map((action) => {
-                  // If it has an href, wrap it in a Link
+                  // If it has an href, use onSelect for navigation
                   if (action.href) {
                     return (
                       <DropdownMenuItem
@@ -369,13 +370,17 @@ export const MobileMenu = ({
                           hebrewFont.fontClass
                         )}
                         disabled={action.disabled}
-                        asChild
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setOpen(false);
+                          setTimeout(() => {
+                            window.location.href = action.href!;
+                          }, 100);
+                        }}
                       >
-                        <Link href={action.href} onClick={() => setOpen(false)}>
-                          <span>{action.label}</span>
-                          {/* Use SafeIcon component */}
-                          <SafeIcon action={action} />
-                        </Link>
+                        <span>{action.label}</span>
+                        {/* Use SafeIcon component */}
+                        <SafeIcon action={action} />
                       </DropdownMenuItem>
                     );
                   }
@@ -390,10 +395,13 @@ export const MobileMenu = ({
                         hebrewFont.fontClass
                       )}
                       disabled={action.disabled}
-                      onClick={() => {
+                      onSelect={(e) => {
+                        e.preventDefault();
                         if (action.onClick) {
-                          action.onClick();
                           setOpen(false);
+                          setTimeout(() => {
+                            action.onClick!();
+                          }, 100);
                         }
                       }}
                     >

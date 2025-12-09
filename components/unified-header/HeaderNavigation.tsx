@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useHebrewFont } from '@/hooks/useFont';
 import { cn } from '@/lib/utils';
@@ -17,7 +16,20 @@ export const HeaderNavigation = ({ items, className }: HeaderNavigationProps) =>
     <nav className={cn("flex items-center justify-center gap-1.5", className)} dir="rtl">
       {items.map((item) => {
         return (
-          <Link key={item.id} href={item.href} target={item.isExternal ? "_blank" : undefined}>
+          <a 
+            key={item.id} 
+            href={item.href} 
+            target={item.isExternal ? "_blank" : undefined}
+            rel={item.isExternal ? "noopener noreferrer" : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              if (item.isExternal) {
+                window.open(item.href, '_blank', 'noopener,noreferrer');
+              } else {
+                window.location.href = item.href;
+              }
+            }}
+          >
             <Button
               variant={item.isActive ? "default" : "ghost"}
               size="sm"
@@ -30,7 +42,7 @@ export const HeaderNavigation = ({ items, className }: HeaderNavigationProps) =>
               {item.icon && <item.icon className="h-3.5 w-3.5 ml-1.5" />}
               <span className="text-sm">{item.label}</span>
             </Button>
-          </Link>
+          </a>
         );
       })}
     </nav>

@@ -16,7 +16,6 @@ import {
   Car,
   Bell
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -508,7 +507,14 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {/* Project Management - Check permission */}
                 {canManageProjects && (
-                  <Link href="/admin/projects" className="block">
+                  <a 
+                    href="/admin/projects" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/projects';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500 rounded-lg flex-shrink-0">
@@ -524,12 +530,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* New Task - Check permission */}
                 {canManageTasks && (
-                  <Link href="/admin/tasks/new" className="block">
+                  <a 
+                    href="/admin/tasks/new" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/tasks/new';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 transition-all border border-green-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-green-500 rounded-lg flex-shrink-0">
@@ -545,12 +558,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
               
                 {/* Bulk Import - Check permission */}
                 {canManageTasks && (
-                  <Link href="/admin/tasks/bulk-import" className="block">
+                  <a 
+                    href="/admin/tasks/bulk-import" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/tasks/bulk-import';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
@@ -566,12 +586,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* Analytics - Check permission */}
                 {canViewAnalytics && (
-                  <Link href="/admin/analytics" className="block">
+                  <a 
+                    href="/admin/analytics" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/analytics';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-purple-500 rounded-lg flex-shrink-0">
@@ -587,12 +614,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* Feedback Management - Check permission */}
                 {canViewFeedback && (
-                  <Link href="/admin/feedback" className="block">
+                  <a 
+                    href="/admin/feedback" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/feedback';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-orange-500 rounded-lg flex-shrink-0">
@@ -608,11 +642,18 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* Daily Updates */}
-                <Link href="/admin/daily-updates" className="block">
+                <a 
+                  href="/admin/daily-updates" 
+                  className="block"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.href = '/admin/daily-updates';
+                  }}
+                >
                   <div className="group p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200 active:scale-95">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-indigo-500 rounded-lg flex-shrink-0">
@@ -628,11 +669,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </a>
 
                 {/* Cache Management - Check permission */}
                 {canManageCache && (
-                  <Link href="/admin/cache" className="block">
+                  <a 
+                    href="/admin/cache" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/cache';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-gray-500 rounded-lg flex-shrink-0">
@@ -648,12 +696,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* User Management - Check permission */}
                 {canManageUsers && (
-                  <Link href="/admin/users" className="block">
+                  <a 
+                    href="/admin/users" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/users';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all border border-rose-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-rose-500 rounded-lg flex-shrink-0">
@@ -669,12 +724,19 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
                 {/* Push Notifications - Check permission */}
                 {canManagePushNotifications && (
-                  <Link href="/admin/push-notifications" className="block">
+                  <a 
+                    href="/admin/push-notifications" 
+                    className="block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = '/admin/push-notifications';
+                    }}
+                  >
                     <div className="group p-4 rounded-lg bg-pink-50 hover:bg-pink-100 transition-all border border-pink-200 active:scale-95">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-pink-500 rounded-lg">
@@ -690,7 +752,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 )}
 
 
@@ -710,11 +772,14 @@ export default function AdminDashboard() {
                     <CardTitle className="text-lg">פרויקטים אחרונים</CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">ניהול מהיר של הפרויקטים הפעילים</p>
                   </div>
-                  <Button variant="outline" size="sm" asChild className="hidden sm:flex">
-                    <Link href="/admin/projects">
-                      <Eye className="h-4 w-4 mr-1" />
-                      הצג הכל
-                    </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.location.href = '/admin/projects'}
+                    className="hidden sm:flex"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    הצג הכל
                   </Button>
                 </div>
               </CardHeader>
@@ -723,11 +788,14 @@ export default function AdminDashboard() {
                   <div className="text-center py-8 pb-6">
                     <FolderPlus className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
                     <p className="text-muted-foreground text-sm">אין פרויקטים עדיין</p>
-                    <Button variant="outline" size="sm" asChild className="mt-3">
-                      <Link href="/admin/projects/new">
-                        <Plus className="h-4 w-4 mr-1" />
-                        צור פרויקט ראשון
-                      </Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => window.location.href = '/admin/projects/new'}
+                      className="mt-3"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      צור פרויקט ראשון
                     </Button>
                   </div>
                 ) : (
@@ -740,9 +808,13 @@ export default function AdminDashboard() {
                         const completionRate = taskCount > 0 ? Math.round(((taskCount - activeCount) / taskCount) * 100) : 0;
                         
                         return (
-                          <Link 
+                          <a 
                             key={project._id} 
                             href={`/admin/projects/${project._id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              window.location.href = `/admin/projects/${project._id}`;
+                            }}
                             className="block group"
                           >
                             <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg border border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all hover:shadow-md">
@@ -802,17 +874,20 @@ export default function AdminDashboard() {
                                 </div>
                               </div>
                             </div>
-                          </Link>
+                          </a>
                         );
                       })}
                     </div>
                     
                     {/* Mobile show all button */}
                     <div className="border-t pt-3 pb-3 sm:hidden">
-                      <Button variant="outline" size="sm" asChild className="w-full">
-                        <Link href="/admin/projects">
-                          הצג את כל הפרויקטים
-                        </Link>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => window.location.href = '/admin/projects'}
+                        className="w-full"
+                      >
+                        הצג את כל הפרויקטים
                       </Button>
                     </div>
                   </>
@@ -842,11 +917,14 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="text-center p-4">
                     <p className="text-muted-foreground">לניהול עדכונים יומיים, עבור לדף העדכונים</p>
-                    <Button variant="outline" size="sm" asChild className="mt-3">
-                      <Link href="/admin/daily-updates">
-                        <Eye className="h-4 w-4 mr-1" />
-                        עדכונים יומיים
-                      </Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => window.location.href = '/admin/daily-updates'}
+                      className="mt-3"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      עדכונים יומיים
                     </Button>
                   </div>
                 )}

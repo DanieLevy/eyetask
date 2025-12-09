@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -26,10 +25,14 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
   }, []);
   
   return (
-    <Link 
+    <a 
       href="/" 
+      onClick={(e) => {
+        e.preventDefault();
+        window.location.href = '/';
+      }}
       className={cn(
-        "flex items-center gap-1 sm:gap-1.5 hover:opacity-80 transition-opacity",
+        "flex items-center gap-1 sm:gap-1.5 hover:opacity-80 transition-opacity cursor-pointer",
         className
       )}
     >
@@ -70,7 +73,7 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
           Driver Tasks
         </span>
       )}
-    </Link>
+    </a>
   );
 };
 

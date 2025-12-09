@@ -78,21 +78,30 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/admin/profile" className="cursor-pointer flex">
-              <UserCog className="w-4 h-4 mr-2" />
-              <span>הפרופיל שלי</span>
-            </Link>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              window.location.href = '/admin/profile';
+            }}
+            className="cursor-pointer flex"
+          >
+            <UserCog className="w-4 h-4 mr-2" />
+            <span>הפרופיל שלי</span>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/admin/dashboard" className="cursor-pointer flex">
-              <Settings className="w-4 h-4 mr-2" />
-              <span>פאנל ניהול</span>
-            </Link>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              window.location.href = '/admin/dashboard';
+            }}
+            className="cursor-pointer flex"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            <span>פאנל ניהול</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onClick={() => {
+            onSelect={(e) => {
+              e.preventDefault();
               if (onLogout) {
                 onLogout();
               }
