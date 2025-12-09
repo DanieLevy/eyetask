@@ -4,6 +4,9 @@ module.exports = {
     'next/typescript'
   ],
   rules: {
+    // Next.js specific rules - disabled for React 19 compatibility
+    '@next/next/no-html-link-for-pages': 'off',
+    
     // TypeScript specific rules
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': ['error', {

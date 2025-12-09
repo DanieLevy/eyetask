@@ -373,9 +373,12 @@ export const MobileMenu = ({
                         onSelect={(e) => {
                           e.preventDefault();
                           setOpen(false);
-                          setTimeout(() => {
-                            window.location.href = action.href!;
-                          }, 100);
+                          if (action.href) {
+                            const href = action.href;
+                            setTimeout(() => {
+                              window.location.href = href;
+                            }, 100);
+                          }
                         }}
                       >
                         <span>{action.label}</span>
@@ -398,9 +401,10 @@ export const MobileMenu = ({
                       onSelect={(e) => {
                         e.preventDefault();
                         if (action.onClick) {
+                          const clickHandler = action.onClick;
                           setOpen(false);
                           setTimeout(() => {
-                            action.onClick!();
+                            clickHandler();
                           }, 100);
                         }
                       }}
