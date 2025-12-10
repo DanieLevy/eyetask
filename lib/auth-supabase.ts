@@ -170,45 +170,72 @@ export class SupabaseAuthService {
     user?: AuthUser;
     permissions?: Record<string, boolean>;
   }> {
+    console.log('[SERVER AUTH SERVICE] ========== LOGIN METHOD START ==========');
+    console.log('[SERVER AUTH SERVICE] Username:', username);
+    
     try {
+      console.log('[SERVER AUTH SERVICE] Getting Supabase admin client');
       const supabase = getSupabaseClient(true); // Use admin client to bypass RLS
       
       // Find user by username
+      console.log('[SERVER AUTH SERVICE] Querying database for user:', username);
       const { data: user, error } = await supabase
         .from('app_users')
         .select('*')
         .eq('username', username)
         .single();
       
+      console.log('[SERVER AUTH SERVICE] Database query result:', { 
+        found: !!user, 
+        hasError: !!error, 
+        errorMessage: error?.message 
+      });
+      
       if (error || !user) {
+        console.log('[SERVER AUTH SERVICE] User not found in database');
         logger.warn('Login failed: User not found', 'AUTH', { username });
         return { success: false, error: 'שם משתמש או סיסמה שגויים' };
       }
       
+      console.log('[SERVER AUTH SERVICE] User found:', { 
+        id: user.id, 
+        username: user.username, 
+        role: user.role, 
+        isActive: user.is_active 
+      });
+      
       // Check if user is active
       if (user.is_active === false) {
+        console.log('[SERVER AUTH SERVICE] User account is inactive');
         logger.warn('Login failed: User is inactive', 'AUTH', { username });
         return { success: false, error: 'החשבון אינו פעיל' };
       }
       
       // Verify password
+      console.log('[SERVER AUTH SERVICE] Verifying password');
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+      console.log('[SERVER AUTH SERVICE] Password verification result:', isPasswordValid);
       
       if (!isPasswordValid) {
+        console.log('[SERVER AUTH SERVICE] Invalid password');
         logger.warn('Login failed: Invalid password', 'AUTH', { username });
         return { success: false, error: 'שם משתמש או סיסמה שגויים' };
       }
       
       // Update last login
+      console.log('[SERVER AUTH SERVICE] Updating last login timestamp');
       await supabase
         .from('app_users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', user.id);
       
       // Get user permissions
+      console.log('[SERVER AUTH SERVICE] Fetching user permissions');
       const permissions = await getUserPermissions(user.id);
+      console.log('[SERVER AUTH SERVICE] Permissions fetched:', Object.keys(permissions).length, 'permissions');
       
       // Generate JWT token
+      console.log('[SERVER AUTH SERVICE] Generating JWT token');
       const token = jwt.sign(
         { 
           id: user.id, 
@@ -219,8 +246,10 @@ export class SupabaseAuthService {
         JWT_SECRET,
         { expiresIn: '24h' }
       );
+      console.log('[SERVER AUTH SERVICE] JWT token generated successfully');
       
       logger.info('User logged in successfully', 'AUTH', { userId: user.id, username: user.username });
+      console.log('[SERVER AUTH SERVICE] ========== LOGIN METHOD END (SUCCESS) ==========');
       
       return {
         success: true,

@@ -17,6 +17,7 @@ import {
   Bell
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { debugNavigation, debugRouterCall } from '@/lib/navigation-debug';
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import AdminClientLayout from '@/components/AdminClientLayout';
@@ -739,7 +740,13 @@ export default function AdminDashboard() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => router.push('/admin/projects')}
+                    onClick={() => {
+                      console.log('[Dashboard] הצג הכל (View All Projects) button clicked');
+                      debugNavigation('Dashboard Button', 'click', '/admin/projects', router);
+                      debugRouterCall('Dashboard Button', 'push', '/admin/projects');
+                      router.push('/admin/projects');
+                      console.log('[Dashboard] router.push called - waiting for navigation...');
+                    }}
                     className="hidden sm:flex"
                   >
                     <Eye className="h-4 w-4 mr-1" />
@@ -777,7 +784,10 @@ export default function AdminDashboard() {
                             href={`/admin/projects/${project._id}`}
                             onClick={(e) => {
                               e.preventDefault();
+                              console.log('[Dashboard] Project card clicked:', project.name);
+                              console.log('[Dashboard] Navigating to /admin/projects/' + project._id);
                               router.push(`/admin/projects/${project._id}`);
+                              console.log('[Dashboard] router.push called');
                             }}
                             className="block group"
                           >

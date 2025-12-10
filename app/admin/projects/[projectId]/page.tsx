@@ -119,8 +119,8 @@ export default function ProjectManagement() {
     if (eventType === 'UPDATE' && newRecord && newRecord.id === projectId) {
       // Refetch the full project data
       // Note: newRecord only contains id, so we need to refetch
-      // For now, just refresh the page data
-      window.location.reload();
+      // Use router.refresh() to reload server components data
+      router.refresh();
     } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === projectId) {
       // Project was deleted, redirect to dashboard
       router.push('/admin/dashboard');
@@ -130,8 +130,8 @@ export default function ProjectManagement() {
   const _handleTaskChange = useCallback((_payload: { eventType: string; new?: { projectId: string }; old?: { projectId: string } }) => {
     // Task changes detected - refresh data instead of partial update
     // This ensures we have complete task data with all required fields
-    window.location.reload();
-  }, []);
+    router.refresh();
+  }, [router]);
 
   // Separate function for fetching tasks with subtask counts
   const fetchTasks = useCallback(async () => {

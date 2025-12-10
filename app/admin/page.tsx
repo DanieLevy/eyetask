@@ -73,10 +73,15 @@ export default function AdminLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[CLIENT LOGIN] ========== LOGIN FORM SUBMIT ==========');
+    console.log('[CLIENT LOGIN] Form submitted at:', new Date().toISOString());
+    console.log('[CLIENT LOGIN] Username:', credentials.username);
+    
     setLoading(true);
     setError('');
 
     try {
+      console.log('[CLIENT LOGIN] Sending login request to /api/auth/login');
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -85,7 +90,19 @@ export default function AdminLoginPage() {
         body: JSON.stringify(credentials),
       });
 
+      console.log('[CLIENT LOGIN] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       const data = await response.json();
+      console.log('[CLIENT LOGIN] Response data:', {
+        success: data.success,
+        hasToken: !!data.token,
+        hasUser: !!data.user,
+        error: data.error
+      });
 
       if (data.success) {
         // Handle both direct response and nested data structure
@@ -93,15 +110,29 @@ export default function AdminLoginPage() {
         const user = data.user || data.data?.user;
         const permissions = data.permissions || data.data?.permissions || {};
         
+        console.log('[CLIENT LOGIN] Login successful:', {
+          hasToken: !!token,
+          hasUser: !!user,
+          userId: user?.id,
+          username: user?.username,
+          role: user?.role,
+          permissionsCount: Object.keys(permissions).length
+        });
+        
         if (token && user) {
           toast.success('התחברת בהצלחה');
+          console.log('[CLIENT LOGIN] Toast displayed: "התחברת בהצלחה"');
           
           if (authContext?.login) {
+            console.log('[CLIENT LOGIN] AuthContext available, calling login method');
+            console.log('[CLIENT LOGIN] AuthContext login function:', typeof authContext.login);
             // Use the auth context login method which handles redirect
             authContext.login(token, user, permissions);
+            console.log('[CLIENT LOGIN] AuthContext.login called, waiting for redirect...');
             // Don't set loading to false - let the redirect happen
             // The loading state will continue until the page navigates
           } else {
+            console.log('[CLIENT LOGIN] WARNING: AuthContext not available, using fallback');
             // Fallback: manual redirect if auth context is not available
             localStorage.setItem('adminToken', token);
             localStorage.setItem('adminUser', JSON.stringify(user));
@@ -119,6 +150,7 @@ export default function AdminLoginPage() {
               redirectPath = '/admin/projects';
             }
             
+            console.log('[CLIENT LOGIN] Fallback: Redirecting to:', redirectPath);
             // Use replace to avoid going back to login page
             router.replace(redirectPath);
           }

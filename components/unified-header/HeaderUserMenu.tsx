@@ -29,6 +29,11 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
   const hebrewFont = useHebrewFont('body');
   const router = useRouter();
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[HeaderUserMenu] Component mounted', { user: user?.username, hasRouter: !!router });
+  }, [user, router]);
+
   // Prevent hydration mismatch by only showing after mount
   useEffect(() => {
     setMounted(true);
@@ -42,13 +47,25 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
   // If no user, don't render anything (login is handled by MobileMenu on mobile)
   // Note: This component only appears in the desktop view now
   if (!user) {
+    const handleLoginClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      console.log('[HeaderUserMenu] התחבר (Login) button clicked');
+      console.log('[HeaderUserMenu] router object:', router);
+      console.log('[HeaderUserMenu] Navigating to /admin');
+      router.push('/admin');
+      console.log('[HeaderUserMenu] router.push called');
+    };
+
     return (
-      <Link href="/admin">
-        <Button variant="default" size="sm" className={cn("h-8", className)}>
-          <UserCircle className="h-4 w-4 ml-1" />
-          <span className={cn("text-sm", hebrewFont.fontClass)}>התחבר</span>
-        </Button>
-      </Link>
+      <Button 
+        variant="default" 
+        size="sm" 
+        className={cn("h-8", className)}
+        onClick={handleLoginClick}
+      >
+        <UserCircle className="h-4 w-4 ml-1" />
+        <span className={cn("text-sm", hebrewFont.fontClass)}>התחבר</span>
+      </Button>
     );
   }
 
@@ -81,14 +98,26 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={() => router.push('/admin/profile')}
+            onSelect={() => {
+              console.log('[HeaderUserMenu] הפרופיל שלי (Profile) clicked');
+              console.log('[HeaderUserMenu] router object:', router);
+              console.log('[HeaderUserMenu] Navigating to /admin/profile');
+              router.push('/admin/profile');
+              console.log('[HeaderUserMenu] router.push called');
+            }}
             className="cursor-pointer"
           >
             <UserCog className="w-4 h-4 mr-2" />
             <span>הפרופיל שלי</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => router.push('/admin/dashboard')}
+            onSelect={() => {
+              console.log('[HeaderUserMenu] פאנל ניהול (Dashboard) clicked');
+              console.log('[HeaderUserMenu] router object:', router);
+              console.log('[HeaderUserMenu] Navigating to /admin/dashboard');
+              router.push('/admin/dashboard');
+              console.log('[HeaderUserMenu] router.push called');
+            }}
             className="cursor-pointer"
           >
             <Settings className="w-4 h-4 mr-2" />
@@ -97,8 +126,13 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onSelect={() => {
+              console.log('[HeaderUserMenu] התנתק (Logout) clicked');
+              console.log('[HeaderUserMenu] onLogout function:', onLogout);
               if (onLogout) {
+                console.log('[HeaderUserMenu] Calling onLogout');
                 onLogout();
+              } else {
+                console.error('[HeaderUserMenu] onLogout is not defined!');
               }
             }} 
             className="text-destructive focus:text-destructive cursor-pointer"
