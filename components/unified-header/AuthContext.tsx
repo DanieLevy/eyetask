@@ -157,78 +157,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Login function
   const login = useCallback((token: string, userData: UserData, permissions?: Record<string, boolean>) => {
-    console.log('[CLIENT AUTH CONTEXT] ========== LOGIN METHOD CALLED ==========');
-    console.log('[CLIENT AUTH CONTEXT] Timestamp:', new Date().toISOString());
-    console.log('[CLIENT AUTH CONTEXT] User data:', {
-      id: userData.id,
+    logger.info('LOGIN METHOD CALLED', 'AUTH_CONTEXT', {
+      timestamp: new Date().toISOString(),
+      userId: userData.id,
       username: userData.username,
       email: userData.email,
-      role: userData.role
+      role: userData.role,
+      tokenLength: token?.length,
+      permissionsCount: Object.keys(permissions || {}).length
     });
-    console.log('[CLIENT AUTH CONTEXT] Token length:', token?.length);
-    console.log('[CLIENT AUTH CONTEXT] Permissions count:', Object.keys(permissions || {}).length);
-    console.log('[CLIENT AUTH CONTEXT] Permissions:', permissions);
     
     logger.debug('AuthContext login called', 'AUTH', { userData, permissions });
     
-    console.log('[CLIENT AUTH CONTEXT] Saving token to localStorage');
+    logger.info('Saving token and user data to localStorage', 'AUTH_CONTEXT');
     localStorage.setItem('adminToken', token);
-    console.log('[CLIENT AUTH CONTEXT] Saving user data to localStorage');
     localStorage.setItem('adminUser', JSON.stringify(userData));
     
-    console.log('[CLIENT AUTH CONTEXT] Setting user state');
+    logger.info('Setting user state', 'AUTH_CONTEXT', { isAdmin: userData.role === 'admin' });
     setUser(userData);
-    console.log('[CLIENT AUTH CONTEXT] Setting isAdmin:', userData.role === 'admin');
     setIsAdmin(userData.role === 'admin');
-    console.log('[CLIENT AUTH CONTEXT] Setting isLoading: false');
     setIsLoading(false); // Important: Set loading to false after login
     
     if (permissions) {
-      console.log('[CLIENT AUTH CONTEXT] Setting permissions');
+      logger.info('Setting permissions', 'AUTH_CONTEXT');
       setUserPermissions(permissions);
       localStorage.setItem('userPermissions', JSON.stringify(permissions));
     }
     
     // Determine redirect path
-    console.log('[CLIENT AUTH CONTEXT] Determining redirect path');
+    logger.info('Determining redirect path', 'AUTH_CONTEXT');
     const intendedDestination = localStorage.getItem('intendedDestination');
-    console.log('[CLIENT AUTH CONTEXT] Intended destination from localStorage:', intendedDestination);
+    logger.info('Intended destination from localStorage', 'AUTH_CONTEXT', { intendedDestination });
     let redirectPath = '/admin/dashboard'; // Default
     
     if (intendedDestination && intendedDestination !== '/admin') {
       localStorage.removeItem('intendedDestination');
       redirectPath = intendedDestination;
-      console.log('[CLIENT AUTH CONTEXT] Using intended destination:', redirectPath);
+      logger.info('Using intended destination', 'AUTH_CONTEXT', { redirectPath });
     } else if (permissions) {
       // Default redirect based on permissions
       if (permissions['access.admin_dashboard']) {
         redirectPath = '/admin/dashboard';
-        console.log('[CLIENT AUTH CONTEXT] Has admin dashboard permission, redirecting to:', redirectPath);
+        logger.info('Has admin dashboard permission', 'AUTH_CONTEXT', { redirectPath });
       } else if (permissions['access.tasks_management']) {
         redirectPath = '/admin/tasks';
-        console.log('[CLIENT AUTH CONTEXT] Has tasks management permission, redirecting to:', redirectPath);
+        logger.info('Has tasks management permission', 'AUTH_CONTEXT', { redirectPath });
       } else if (permissions['access.projects_management']) {
         redirectPath = '/admin/projects';
-        console.log('[CLIENT AUTH CONTEXT] Has projects management permission, redirecting to:', redirectPath);
+        logger.info('Has projects management permission', 'AUTH_CONTEXT', { redirectPath });
       } else if (permissions['access.daily_updates']) {
         redirectPath = '/admin/daily-updates';
-        console.log('[CLIENT AUTH CONTEXT] Has daily updates permission, redirecting to:', redirectPath);
+        logger.info('Has daily updates permission', 'AUTH_CONTEXT', { redirectPath });
       } else if (permissions['access.feedback']) {
         redirectPath = '/admin/feedback';
-        console.log('[CLIENT AUTH CONTEXT] Has feedback permission, redirecting to:', redirectPath);
+        logger.info('Has feedback permission', 'AUTH_CONTEXT', { redirectPath });
       }
     }
     
     logger.debug(`Redirecting to: ${redirectPath}`, 'AUTH');
-    console.log('[CLIENT AUTH CONTEXT] Final redirect path:', redirectPath);
-    console.log('[CLIENT AUTH CONTEXT] Current window.location.href:', window.location.href);
-    console.log('[CLIENT AUTH CONTEXT] Attempting window.location.href redirect...');
+    logger.info('Final redirect path', 'AUTH_CONTEXT', { 
+      redirectPath, 
+      currentLocation: window.location.href 
+    });
     
     // Use window.location for reliable redirect
     window.location.href = redirectPath;
-    console.log('[CLIENT AUTH CONTEXT] window.location.href set to:', redirectPath);
-    console.log('[CLIENT AUTH CONTEXT] Note: This log may not appear if redirect is immediate');
-    console.log('[CLIENT AUTH CONTEXT] ========== LOGIN METHOD END ==========');
+    logger.info('window.location.href set - redirect initiated', 'AUTH_CONTEXT', { redirectPath });
   }, []);
 
   // Logout function  
@@ -248,7 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     } catch (error) {
-      console.error('Logout API error:', error);
+      logger.error('Logout API error', 'AUTH_CONTEXT', undefined, error as Error);
       // Continue with logout even if API call fails
     }
     

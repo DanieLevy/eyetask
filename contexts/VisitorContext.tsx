@@ -45,7 +45,7 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
           // Check if name was removed or changed
           if (!dbName && visitor.isRegistered) {
             // Name was removed from database, clear local storage and show modal
-            console.log('[VisitorContext] Name removed from database');
+            logger.info('Name removed from database', 'VISITOR_CONTEXT');
             
             localStorage.removeItem('eyetask_visitor_name');
             localStorage.removeItem('eyetask_visitor_registered');
@@ -56,7 +56,7 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
             
           } else if (dbName && dbName !== visitor.name) {
             // Name was changed in database, update local storage
-            console.log('[VisitorContext] Name updated from database');
+            logger.info('Name updated from database', 'VISITOR_CONTEXT', { dbName });
             
             localStorage.setItem('eyetask_visitor_name', dbName);
             localStorage.setItem('eyetask_visitor_registered', 'true');
@@ -67,7 +67,7 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('[VisitorContext] Error checking database:', error);
+      logger.error('Error checking database', 'VISITOR_CONTEXT', undefined, error as Error);
     }
   }, [visitor]);
 
@@ -81,8 +81,8 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
         
         // Only log once on mount, not on every render
         if (isMounted && !visitor) {
-          console.log('[VisitorContext] Initialized:', { 
-            visitorId: info.visitorId.substring(0, 20) + '...', 
+          logger.info('Initialized', 'VISITOR_CONTEXT', { 
+            visitorIdPreview: info.visitorId.substring(0, 20) + '...', 
             isRegistered: info.isRegistered 
           });
         }
@@ -127,7 +127,7 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
 
   const refreshVisitorInfo = useCallback(() => {
     const info = getVisitorInfo();
-    console.log('[VisitorContext] Refreshing visitor info');
+    logger.info('Refreshing visitor info', 'VISITOR_CONTEXT');
     setVisitor(info);
     
     // Check database for updates after refresh
@@ -138,14 +138,14 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
 
   const registerVisitor = useCallback(async (name: string): Promise<boolean> => {
     if (!visitor) {
-      console.error('[VisitorContext] No visitor info available for registration');
+      logger.error('No visitor info available for registration', 'VISITOR_CONTEXT');
       return false;
     }
 
     setIsRegistering(true);
     
     try {
-      console.log('[VisitorContext] Starting registration process');
+      logger.info('Starting registration process', 'VISITOR_CONTEXT', { name });
       
       // First, save to database
       const response = await fetch('/api/visitors', {
@@ -179,14 +179,14 @@ export function VisitorProvider({ children }: { children: React.ReactNode }) {
         const updatedInfo = getVisitorInfo();
         setVisitor(updatedInfo);
         
-        console.log('[VisitorContext] Registration completed successfully');
+        logger.info('Registration completed successfully', 'VISITOR_CONTEXT');
         
         return true;
       } else {
         throw new Error(result.error || 'Registration failed');
       }
     } catch (error) {
-      console.error('[VisitorContext] Registration failed:', error);
+      logger.error('Registration failed', 'VISITOR_CONTEXT', undefined, error as Error);
       return false;
     } finally {
       setIsRegistering(false);

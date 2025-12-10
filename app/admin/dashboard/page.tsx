@@ -18,13 +18,14 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { debugNavigation, debugRouterCall } from '@/lib/navigation-debug';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react'; // Added useMemo
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger'; // Import logger for debug statements
 import AdminClientLayout from '@/components/AdminClientLayout';
 import { LoadingSpinner } from '@/components/LoadingSystem';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Removed unused Card imports - using custom styled divs instead
 import { 
   useCanViewAnalytics,
   useCanViewFeedback,
@@ -87,7 +88,7 @@ export default function AdminDashboard() {
   const canManageTasks = useCanManageTasks();
   const canManagePushNotifications = useCanManagePushNotifications();
   
-  const [showCachePanel, setShowCachePanel] = useState(false);
+  // Removed unused state - cache panel not implemented yet
   const router = useRouter();
 
   const fetchCacheStatus = useCallback(async () => {
@@ -297,6 +298,43 @@ export default function AdminDashboard() {
     checkAuth();
   }, [checkAuth]);
 
+  // Calculate comprehensive statistics - OPTIMIZED: Memoized to prevent recalculation on every render
+  // IMPORTANT: Hooks must be called before any early returns
+  const stats = useMemo(() => ({
+    totalProjects: projects.length,
+    totalTasks: tasks.length,
+    activeTasks: tasks.filter(task => task.isVisible).length,
+    completedTasks: tasks.filter(task => !task.isVisible).length,
+    highPriorityTasks: tasks.filter(task => task.priority >= 1 && task.priority <= 3).length,
+    mediumPriorityTasks: tasks.filter(task => task.priority >= 4 && task.priority <= 6).length,
+    lowPriorityTasks: tasks.filter(task => task.priority >= 7 && task.priority <= 10).length,
+    totalAmount: tasks.reduce((sum, task) => sum + (task.amountNeeded || 0), 0)
+  }), [projects, tasks]);
+
+  const getTaskCountForProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.taskCount !== undefined) {
+      return project.taskCount;
+    }
+    return tasks.filter(task => task.projectId === projectId).length;
+  }, [projects, tasks]);
+
+  const getActiveTasksForProject = useCallback((projectId: string) => {
+    return getTaskCountForProject(projectId);
+  }, [getTaskCountForProject]);
+
+  const getHighPriorityTasksForProject = useCallback((projectId: string) => {
+    const project = projects.find(p => p._id === projectId);
+    if (project && project.highPriorityCount !== undefined) {
+      return project.highPriorityCount;
+    }
+    return tasks.filter(task => 
+      task.projectId === projectId && 
+      task.priority >= 1 && 
+      task.priority <= 3
+    ).length;
+  }, [projects, tasks]);
+
   // Early return if auth hasn't been checked yet
   if (!authChecked) {
     return (
@@ -307,42 +345,6 @@ export default function AdminDashboard() {
       </AdminClientLayout>
     );
   }
-
-  // Calculate comprehensive statistics
-  const stats = {
-    totalProjects: projects.length,
-    totalTasks: tasks.length,
-    activeTasks: tasks.filter(task => task.isVisible).length,
-    completedTasks: tasks.filter(task => !task.isVisible).length,
-    highPriorityTasks: tasks.filter(task => task.priority >= 1 && task.priority <= 3).length,
-    mediumPriorityTasks: tasks.filter(task => task.priority >= 4 && task.priority <= 6).length,
-    lowPriorityTasks: tasks.filter(task => task.priority >= 7 && task.priority <= 10).length,
-    totalAmount: tasks.reduce((sum, task) => sum + (task.amountNeeded || 0), 0)
-  };
-
-  const getTaskCountForProject = (projectId: string) => {
-    const project = projects.find(p => p._id === projectId);
-    if (project && project.taskCount !== undefined) {
-      return project.taskCount;
-    }
-    return tasks.filter(task => task.projectId === projectId).length;
-  };
-
-  const getActiveTasksForProject = (projectId: string) => {
-    return getTaskCountForProject(projectId);
-  };
-
-  const getHighPriorityTasksForProject = (projectId: string) => {
-    const project = projects.find(p => p._id === projectId);
-    if (project && project.highPriorityCount !== undefined) {
-      return project.highPriorityCount;
-    }
-    return tasks.filter(task => 
-      task.projectId === projectId && 
-      task.priority >= 1 && 
-      task.priority <= 3
-    ).length;
-  };
 
   if (loading) {
     return (
@@ -728,15 +730,15 @@ export default function AdminDashboard() {
                     <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">פרויקטים אחרונים</h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">ניהול מהיר של הפרויקטים הפעילים</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => {
-                      console.log('[Dashboard] הצג הכל (View All Projects) button clicked');
-                      debugNavigation('Dashboard Button', 'click', '/admin/projects', router);
-                      debugRouterCall('Dashboard Button', 'push', '/admin/projects');
-                      router.push('/admin/projects');
-                      console.log('[Dashboard] router.push called - waiting for navigation...');
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    logger.info('הצג הכל (View All Projects) button clicked', 'DASHBOARD');
+                    debugNavigation('Dashboard Button', 'click', '/admin/projects', router);
+                    debugRouterCall('Dashboard Button', 'push', '/admin/projects');
+                    router.push('/admin/projects');
+                    logger.info('router.push called - waiting for navigation...', 'DASHBOARD');
                     }}
                     className="hidden sm:flex text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                   >
@@ -769,15 +771,15 @@ export default function AdminDashboard() {
                         const completionRate = taskCount > 0 ? Math.round(((taskCount - activeCount) / taskCount) * 100) : 0;
                         
                         return (
-                          <a 
-                            key={project._id} 
-                            href={`/admin/projects/${project._id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              console.log('[Dashboard] Project card clicked:', project.name);
-                              console.log('[Dashboard] Navigating to /admin/projects/' + project._id);
-                              router.push(`/admin/projects/${project._id}`);
-                              console.log('[Dashboard] router.push called');
+                        <a 
+                          key={project._id} 
+                          href={`/admin/projects/${project._id}`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            logger.info('Project card clicked', 'DASHBOARD', { projectName: project.name });
+                            logger.info('Navigating to project', 'DASHBOARD', { path: `/admin/projects/${project._id}` });
+                            router.push(`/admin/projects/${project._id}`);
+                            logger.info('router.push called', 'DASHBOARD');
                             }}
                             className="block"
                           >

@@ -97,14 +97,17 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // For multiple tasks, return grouped subtasks
+    // For multiple tasks, fetch ALL subtasks in a single query to avoid N+1 problem
     const allSubtasks: SubtaskResponse[] = [];
     const subtasksByTask: Record<string, SubtaskResponse[]> = {};
     
-    for (const tid of taskIdList) {
-      try {
-        const subtasks = await db.getSubtasksByTask(tid, canManageData);
-        const mappedSubtasks = subtasks.map(subtask => ({
+    try {
+      // OPTIMIZED: Single database query instead of N queries
+      const subtasks = await db.getSubtasksByTaskBatch(taskIdList, canManageData);
+      
+      // Group subtasks by task ID
+      for (const subtask of subtasks) {
+        const mappedSubtask: SubtaskResponse = {
           _id: subtask.id || subtask._id?.toString() || '',
           taskId: subtask.taskId,
           title: subtask.title,
@@ -121,12 +124,25 @@ export async function GET(request: NextRequest) {
           isVisible: subtask.isVisible,
           createdAt: subtask.createdAt,
           updatedAt: subtask.updatedAt
-        }));
+        };
         
-        subtasksByTask[tid] = mappedSubtasks;
-        allSubtasks.push(...mappedSubtasks);
-      } catch {
-        // If task doesn't exist or error, skip it
+        if (!subtasksByTask[subtask.taskId]) {
+          subtasksByTask[subtask.taskId] = [];
+        }
+        subtasksByTask[subtask.taskId].push(mappedSubtask);
+        allSubtasks.push(mappedSubtask);
+      }
+      
+      // Ensure all tasks have an entry (even if empty)
+      for (const tid of taskIdList) {
+        if (!subtasksByTask[tid]) {
+          subtasksByTask[tid] = [];
+        }
+      }
+    } catch (error) {
+      logger.error('Error fetching subtasks batch', 'SUBTASKS_API', undefined, error as Error);
+      // Initialize empty arrays for all tasks on error
+      for (const tid of taskIdList) {
         subtasksByTask[tid] = [];
       }
     }

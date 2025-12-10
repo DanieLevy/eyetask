@@ -119,24 +119,24 @@ export async function GET(request: NextRequest) {
       hiddenUserIds = (hiddenUsers || []).map(u => u.id);
     }
     
-    // Fetch recent activity logs
+    // Fetch recent activity logs - OPTIMIZED: reduced from 100 to 20
     const { data: activityLogs, error: logsError } = await supabase
       .from('activity_logs')
       .select('*')
       .gte('timestamp', startDate.toISOString())
       .order('timestamp', { ascending: false })
-      .limit(100);
+      .limit(20); // OPTIMIZED: Fetch only what's displayed
     
     if (logsError) {
       logger.error('Error fetching activity logs', 'ANALYTICS_API', undefined, logsError);
     }
     
-    // Fetch visitor profiles
+    // Fetch visitor profiles - OPTIMIZED: reduced from 50 to 10
     const { data: visitorProfiles } = await supabase
       .from('visitor_profiles')
       .select('*')
       .order('last_seen', { ascending: false })
-      .limit(50);
+      .limit(10); // OPTIMIZED: Fetch only top recent visitors
     
     // Process activity logs for analytics
     const recentActivities = (activityLogs || [])

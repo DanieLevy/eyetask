@@ -4,6 +4,7 @@ import { Lock, User, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import { useAuth } from '@/components/unified-header/AuthContext';
 import { useHebrewFont, useMixedFont } from '@/hooks/useFont';
 
@@ -45,7 +46,7 @@ export default function AdminLoginPage() {
             return;
           }
         } catch (error) {
-          console.error('Error parsing stored user data:', error);
+          logger.error('Error parsing stored user data', 'ADMIN_LOGIN', undefined, error as Error);
           // Clear invalid data
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUser');
@@ -73,15 +74,16 @@ export default function AdminLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[CLIENT LOGIN] ========== LOGIN FORM SUBMIT ==========');
-    console.log('[CLIENT LOGIN] Form submitted at:', new Date().toISOString());
-    console.log('[CLIENT LOGIN] Username:', credentials.username);
+    logger.info('LOGIN FORM SUBMIT', 'ADMIN_LOGIN', { 
+      timestamp: new Date().toISOString(),
+      username: credentials.username 
+    });
     
     setLoading(true);
     setError('');
 
     try {
-      console.log('[CLIENT LOGIN] Sending login request to /api/auth/login');
+      logger.info('Sending login request to /api/auth/login', 'ADMIN_LOGIN');
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -90,14 +92,14 @@ export default function AdminLoginPage() {
         body: JSON.stringify(credentials),
       });
 
-      console.log('[CLIENT LOGIN] Response received:', {
+      logger.info('Response received', 'ADMIN_LOGIN', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok
       });
 
       const data = await response.json();
-      console.log('[CLIENT LOGIN] Response data:', {
+      logger.info('Response data', 'ADMIN_LOGIN', {
         success: data.success,
         hasToken: !!data.token,
         hasUser: !!data.user,
@@ -110,7 +112,7 @@ export default function AdminLoginPage() {
         const user = data.user || data.data?.user;
         const permissions = data.permissions || data.data?.permissions || {};
         
-        console.log('[CLIENT LOGIN] Login successful:', {
+        logger.info('Login successful', 'ADMIN_LOGIN', {
           hasToken: !!token,
           hasUser: !!user,
           userId: user?.id,
@@ -121,18 +123,19 @@ export default function AdminLoginPage() {
         
         if (token && user) {
           toast.success('התחברת בהצלחה');
-          console.log('[CLIENT LOGIN] Toast displayed: "התחברת בהצלחה"');
+          logger.info('Toast displayed: "התחברת בהצלחה"', 'ADMIN_LOGIN');
           
           if (authContext?.login) {
-            console.log('[CLIENT LOGIN] AuthContext available, calling login method');
-            console.log('[CLIENT LOGIN] AuthContext login function:', typeof authContext.login);
+            logger.info('AuthContext available, calling login method', 'ADMIN_LOGIN', { 
+              loginFunctionType: typeof authContext.login 
+            });
             // Use the auth context login method which handles redirect
             authContext.login(token, user, permissions);
-            console.log('[CLIENT LOGIN] AuthContext.login called, waiting for redirect...');
+            logger.info('AuthContext.login called, waiting for redirect...', 'ADMIN_LOGIN');
             // Don't set loading to false - let the redirect happen
             // The loading state will continue until the page navigates
           } else {
-            console.log('[CLIENT LOGIN] WARNING: AuthContext not available, using fallback');
+            logger.warn('AuthContext not available, using fallback', 'ADMIN_LOGIN');
             // Fallback: manual redirect if auth context is not available
             localStorage.setItem('adminToken', token);
             localStorage.setItem('adminUser', JSON.stringify(user));
@@ -150,7 +153,7 @@ export default function AdminLoginPage() {
               redirectPath = '/admin/projects';
             }
             
-            console.log('[CLIENT LOGIN] Fallback: Redirecting to:', redirectPath);
+            logger.info('Fallback: Redirecting to path', 'ADMIN_LOGIN', { redirectPath });
             // Use replace to avoid going back to login page
             router.replace(redirectPath);
           }
@@ -167,7 +170,7 @@ export default function AdminLoginPage() {
         setLoading(false);
       }
     } catch (error) {
-      console.error('Login error:', error);
+      logger.error('Login error', 'ADMIN_LOGIN', undefined, error as Error);
       setError('שגיאה בהתחברות למערכת');
       toast.error('שגיאה בהתחברות למערכת');
       setLoading(false);

@@ -8,9 +8,9 @@ import {
   UserCircle,
   UserCog
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -31,7 +31,7 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
 
   // Debug logging
   useEffect(() => {
-    console.log('[HeaderUserMenu] Component mounted', { user: user?.username, hasRouter: !!router });
+    logger.info('Component mounted', 'HEADER_USER_MENU', { username: user?.username, hasRouter: !!router });
   }, [user, router]);
 
   // Prevent hydration mismatch by only showing after mount
@@ -49,11 +49,10 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
   if (!user) {
     const handleLoginClick = (e: React.MouseEvent) => {
       e.preventDefault();
-      console.log('[HeaderUserMenu] התחבר (Login) button clicked');
-      console.log('[HeaderUserMenu] router object:', router);
-      console.log('[HeaderUserMenu] Navigating to /admin');
+      logger.info('התחבר (Login) button clicked', 'HEADER_USER_MENU', { hasRouter: !!router });
+      logger.info('Navigating to /admin', 'HEADER_USER_MENU');
       router.push('/admin');
-      console.log('[HeaderUserMenu] router.push called');
+      logger.info('router.push called', 'HEADER_USER_MENU');
     };
 
     return (
@@ -99,11 +98,10 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
-              console.log('[HeaderUserMenu] הפרופיל שלי (Profile) clicked');
-              console.log('[HeaderUserMenu] router object:', router);
-              console.log('[HeaderUserMenu] Navigating to /admin/profile');
+              logger.info('הפרופיל שלי (Profile) clicked', 'HEADER_USER_MENU');
+              logger.info('Navigating to /admin/profile', 'HEADER_USER_MENU');
               router.push('/admin/profile');
-              console.log('[HeaderUserMenu] router.push called');
+              logger.info('router.push called', 'HEADER_USER_MENU');
             }}
             className="cursor-pointer"
           >
@@ -112,11 +110,10 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
-              console.log('[HeaderUserMenu] פאנל ניהול (Dashboard) clicked');
-              console.log('[HeaderUserMenu] router object:', router);
-              console.log('[HeaderUserMenu] Navigating to /admin/dashboard');
+              logger.info('פאנל ניהול (Dashboard) clicked', 'HEADER_USER_MENU');
+              logger.info('Navigating to /admin/dashboard', 'HEADER_USER_MENU');
               router.push('/admin/dashboard');
-              console.log('[HeaderUserMenu] router.push called');
+              logger.info('router.push called', 'HEADER_USER_MENU');
             }}
             className="cursor-pointer"
           >
@@ -126,13 +123,12 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onSelect={() => {
-              console.log('[HeaderUserMenu] התנתק (Logout) clicked');
-              console.log('[HeaderUserMenu] onLogout function:', onLogout);
+              logger.info('התנתק (Logout) clicked', 'HEADER_USER_MENU', { hasOnLogout: !!onLogout });
               if (onLogout) {
-                console.log('[HeaderUserMenu] Calling onLogout');
+                logger.info('Calling onLogout', 'HEADER_USER_MENU');
                 onLogout();
               } else {
-                console.error('[HeaderUserMenu] onLogout is not defined!');
+                logger.error('onLogout is not defined', 'HEADER_USER_MENU');
               }
             }} 
             className="text-destructive focus:text-destructive cursor-pointer"

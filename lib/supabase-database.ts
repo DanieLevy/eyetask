@@ -874,6 +874,38 @@ export class SupabaseDatabaseService {
     }
   }
 
+  // OPTIMIZED: Batch fetch subtasks for multiple tasks in a single query (avoids N+1 problem)
+  async getSubtasksByTaskBatch(taskIds: string[], includeHidden = false): Promise<Subtask[]> {
+    try {
+      if (!taskIds || taskIds.length === 0) {
+        return [];
+      }
+
+      let query = this.client
+        .from('subtasks')
+        .select('*')
+        .in('task_id', taskIds)
+        .order('created_at', { ascending: false });
+
+      if (!includeHidden) {
+        query = query.eq('is_visible', true);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        logger.error('Error getting subtasks by task batch', 'SUPABASE_DATABASE', { error: error.message, taskCount: taskIds.length });
+        return [];
+      }
+
+      logger.info('Batch fetched subtasks successfully', 'SUPABASE_DATABASE', { taskCount: taskIds.length, subtaskCount: data?.length || 0 });
+      return data.map(this.mapSubtaskFromDb);
+    } catch (error) {
+      logger.error('Error getting subtasks by task batch', 'SUPABASE_DATABASE', { error: (error as Error).message, taskCount: taskIds.length });
+      return [];
+    }
+  }
+
   async createSubtask(subtask: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
       const { data, error } = await this.client

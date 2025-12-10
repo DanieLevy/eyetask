@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronUp, Trophy, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,6 @@ export const UserLeaderboard = React.memo(function UserLeaderboard({
 }: UserLeaderboardProps) {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const router = useRouter();
-
-  const getRankIcon = (index: number) => {
-    if (index < 3) return <Trophy className="h-4 w-4 text-slate-600" />;
-    return <Star className="h-4 w-4 text-slate-400" />;
-  };
 
   const getRoleLabel = (role: string) => {
     switch (role) {
