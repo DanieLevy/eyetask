@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRight, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -21,6 +22,7 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const { user, isAdmin, logout } = useAuth();
   const { getConfigForCurrentRoute } = useHeaderContext();
+  const router = useRouter();
   const hebrewHeading = useHebrewFont('heading');
   
   // Merge route-based config with passed props
@@ -55,7 +57,7 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
     ...(showBackButton ? [{
       id: 'back',
       label: backLabel || 'חזור',
-      onClick: () => handleBackClick(),
+      onClick: handleBackClick,
       icon: ArrowRight
     }] : []),
     
@@ -119,14 +121,11 @@ export const UnifiedHeader = (props: UnifiedHeaderProps) => {
   }, []);
   
   // Handle back button click
-  function handleBackClick(e?: React.MouseEvent) {
-    if (e) {
-      e.preventDefault();
-    }
+  function handleBackClick() {
     if (backHref) {
-      window.location.href = backHref;
+      router.push(backHref);
     } else {
-      window.history.back();
+      router.back();
     }
   }
   

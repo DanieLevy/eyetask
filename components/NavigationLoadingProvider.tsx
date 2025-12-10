@@ -229,8 +229,6 @@ export function withNavigationLoading<P extends object>(
       if (loadingMessage) {
         startNavigation(window.location.pathname, { message: loadingMessage });
       }
-      // loadingMessage is a prop parameter, not a reactive dependency
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [startNavigation]);
 
     return <Component {...props} />;

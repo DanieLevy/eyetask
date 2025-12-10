@@ -59,7 +59,7 @@ export default function ProjectsPage() {
     // Check authentication
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      router.push('/admin');
+      window.location.href = '/admin';
       return;
     }
 
@@ -201,15 +201,11 @@ export default function ProjectsPage() {
       <DropdownMenuContent align="end" className="w-40">
         <DropdownMenuLabel>פעולות</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/projects/${project._id}`}>
-            <Eye className="mr-2 h-4 w-4" /> צפה
-          </Link>
+        <DropdownMenuItem onSelect={() => router.push(`/admin/projects/${project._id}`)}>
+          <Eye className="mr-2 h-4 w-4" /> צפה
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/projects/${project._id}/edit`}>
-            <Pencil className="mr-2 h-4 w-4" /> ערוך
-          </Link>
+        <DropdownMenuItem onSelect={() => router.push(`/admin/projects/${project._id}/edit`)}>
+          <Pencil className="mr-2 h-4 w-4" /> ערוך
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -279,17 +275,13 @@ export default function ProjectsPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" asChild className="flex-1">
-            <Link href={`/admin/projects/${project._id}`}>
-              <Eye className="h-4 w-4 mr-1" />
-              צפה
-            </Link>
+          <Button size="sm" variant="outline" onClick={() => router.push(`/admin/projects/${project._id}`)} className="flex-1">
+            <Eye className="h-4 w-4 mr-1" />
+            צפה
           </Button>
-          <Button size="sm" variant="outline" asChild className="flex-1">
-            <Link href={`/admin/projects/${project._id}/edit`}>
-              <Pencil className="h-4 w-4 mr-1" />
-              ערוך
-            </Link>
+          <Button size="sm" variant="outline" onClick={() => router.push(`/admin/projects/${project._id}/edit`)} className="flex-1">
+            <Pencil className="h-4 w-4 mr-1" />
+            ערוך
           </Button>
         </div>
       </CardContent>
@@ -329,11 +321,9 @@ export default function ProjectsPage() {
                     </Button>
                   )}
                 </div>
-                <Button asChild>
-                  <Link href="/admin/projects/new">
-                    <Plus className="h-4 w-4 mr-1" />
-                    פרויקט חדש
-                  </Link>
+                <Button onClick={() => router.push('/admin/projects/new')}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  פרויקט חדש
                 </Button>
               </div>
             </div>
@@ -440,12 +430,10 @@ export default function ProjectsPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  asChild
+                                  onClick={() => router.push(`/admin/projects/${project._id}`)}
                                 >
-                                  <Link href={`/admin/projects/${project._id}`}>
-                                    <Eye className="h-4 w-4" />
-                                    <span className="sr-only">צפה</span>
-                                  </Link>
+                                  <Eye className="h-4 w-4" />
+                                  <span className="sr-only">צפה</span>
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>צפה בפרויקט</TooltipContent>
@@ -457,12 +445,10 @@ export default function ProjectsPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  asChild
+                                  onClick={() => router.push(`/admin/projects/${project._id}/edit`)}
                                 >
-                                  <Link href={`/admin/projects/${project._id}/edit`}>
-                                    <Pencil className="h-4 w-4" />
-                                    <span className="sr-only">ערוך</span>
-                                  </Link>
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">ערוך</span>
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>ערוך פרויקט</TooltipContent>

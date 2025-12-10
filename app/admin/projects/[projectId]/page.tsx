@@ -19,7 +19,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
@@ -89,7 +89,6 @@ const TaskSkeleton = () => (
 
 export default function ProjectManagement() {
   const params = useParams();
-  const router = useRouter();
   const projectId = params.projectId as string;
   
   const [project, setProject] = useState<Project | null>(null);
@@ -123,9 +122,9 @@ export default function ProjectManagement() {
       window.location.reload();
     } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === projectId) {
       // Project was deleted, redirect to dashboard
-      router.push('/admin/dashboard');
+      window.location.href = '/admin/dashboard';
     }
-  }, [projectId, router]);
+  }, [projectId]);
 
   const _handleTaskChange = useCallback((_payload: { eventType: string; new?: { projectId: string }; old?: { projectId: string } }) => {
     // Task changes detected - refresh data instead of partial update
@@ -199,7 +198,7 @@ export default function ProjectManagement() {
       } else {
         setError(projectRes.error || 'Failed to fetch project');
         toast.error(projectRes.error || 'Failed to fetch project data.');
-        router.push('/admin/dashboard');
+        window.location.href = '/admin/dashboard';
       }
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -208,7 +207,7 @@ export default function ProjectManagement() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, router, fetchTasks]);
+  }, [projectId, fetchTasks]);
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -232,7 +231,7 @@ export default function ProjectManagement() {
     const userData = localStorage.getItem('adminUser');
     
     if (!token || !userData || userData === 'undefined' || userData === 'null') {
-      router.push('/admin');
+      window.location.href = '/admin';
       return;
     }
 
@@ -243,12 +242,12 @@ export default function ProjectManagement() {
       }
       // User data validated - no need to store in state
     } catch {
-      router.push('/admin');
+      window.location.href = '/admin';
       return;
     }
 
     fetchProjectData();
-  }, [projectId, router, fetchProjectData]);
+  }, [projectId, fetchProjectData]);
 
   const handleToggleVisibility = async (taskId: string, currentVisibility: boolean) => {
     try {
@@ -321,7 +320,7 @@ export default function ProjectManagement() {
 
       if (response.ok) {
         toast.success('הפרויקט נמחק בהצלחה');
-        router.push('/admin/projects');
+        window.location.href = '/admin/projects';
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to delete project');
@@ -407,11 +406,9 @@ export default function ProjectManagement() {
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">שגיאה בטעינת פרויקט</h2>
             <p className="text-muted-foreground mb-4">{error || 'הפרויקט לא נמצא.'}</p>
-            <Button asChild>
-              <Link href="/admin/projects">
-                <ArrowRight className="h-4 w-4 mr-2" />
-                חזור לרשימת הפרויקטים
-              </Link>
+            <Button onClick={() => window.location.href = '/admin/projects'}>
+              <ArrowRight className="h-4 w-4 mr-2" />
+              חזור לרשימת הפרויקטים
             </Button>
           </CardContent>
         </Card>
@@ -483,11 +480,9 @@ export default function ProjectManagement() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>פעולות פרויקט</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={`/admin/projects/${project._id}/edit`}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        ערוך פרויקט
-                      </Link>
+                    <DropdownMenuItem onSelect={() => window.location.href = `/admin/projects/${project._id}/edit`}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      ערוך פרויקט
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -556,11 +551,9 @@ export default function ProjectManagement() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button asChild size="sm">
-                  <Link href={`/admin/tasks/new?projectId=${project._id}`}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    משימה חדשה
-                  </Link>
+                <Button size="sm" onClick={() => window.location.href = `/admin/tasks/new?projectId=${project._id}`}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  משימה חדשה
                 </Button>
               </div>
             </div>
@@ -582,11 +575,9 @@ export default function ProjectManagement() {
                     : 'לא נוצרו משימות עבור פרויקט זה.'}
                 </p>
                 {filteredAndSortedTasks.length === 0 && tasks.length === 0 && (
-                  <Button asChild className="mt-4">
-                    <Link href={`/admin/tasks/new?projectId=${project._id}`}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      צור משימה ראשונה
-                    </Link>
+                  <Button className="mt-4" onClick={() => window.location.href = `/admin/tasks/new?projectId=${project._id}`}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    צור משימה ראשונה
                   </Button>
                 )}
               </div>
@@ -643,11 +634,10 @@ export default function ProjectManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          asChild
+                          onClick={() => window.location.href = `/admin/tasks/${task._id}/edit`}
+                          title="ערוך משימה"
                         >
-                          <Link href={`/admin/tasks/${task._id}/edit`} title="ערוך משימה">
-                            <Edit className="h-4 w-4" />
-                          </Link>
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -656,11 +646,9 @@ export default function ProjectManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/tasks/${task._id}`}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                צפה בפרטים
-                              </Link>
+                            <DropdownMenuItem onSelect={() => window.location.href = `/admin/tasks/${task._id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              צפה בפרטים
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

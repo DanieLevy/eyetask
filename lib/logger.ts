@@ -76,7 +76,6 @@ class Logger {
         console.warn(logMessage);
         break;
       case 'info':
-        // eslint-disable-next-line no-console
         console.info(logMessage);
         break;
       case 'debug':

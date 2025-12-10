@@ -145,7 +145,7 @@ export function usePushNotifications() {
       logger.info('[Push Client] Creating push subscription...', 'PUSH_NOTIFICATIONS');
       const pushSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: applicationServerKey
+        applicationServerKey: applicationServerKey as BufferSource
       });
       logger.info('[Push Client] Push subscription created', 'PUSH_NOTIFICATIONS');
 

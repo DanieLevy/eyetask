@@ -507,13 +507,9 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {/* Project Management - Check permission */}
                 {canManageProjects && (
-                  <a 
-                    href="/admin/projects" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/projects';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/projects')}
                   >
                     <div className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -530,18 +526,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* New Task - Check permission */}
                 {canManageTasks && (
-                  <a 
-                    href="/admin/tasks/new" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/tasks/new';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/tasks/new')}
                   >
                     <div className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 transition-all border border-green-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -558,18 +550,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
               
                 {/* Bulk Import - Check permission */}
                 {canManageTasks && (
-                  <a 
-                    href="/admin/tasks/bulk-import" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/tasks/bulk-import';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/tasks/bulk-import')}
                   >
                     <div className="group p-4 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -586,18 +574,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* Analytics - Check permission */}
                 {canViewAnalytics && (
-                  <a 
-                    href="/admin/analytics" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/analytics';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/analytics')}
                   >
                     <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -614,18 +598,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* Feedback Management - Check permission */}
                 {canViewFeedback && (
-                  <a 
-                    href="/admin/feedback" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/feedback';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/feedback')}
                   >
                     <div className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -642,17 +622,13 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* Daily Updates */}
-                <a 
-                  href="/admin/daily-updates" 
-                  className="block"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.location.href = '/admin/daily-updates';
-                  }}
+                <div 
+                  className="block cursor-pointer"
+                  onClick={() => router.push('/admin/daily-updates')}
                 >
                   <div className="group p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200 active:scale-95">
                     <div className="flex items-center gap-3">
@@ -669,17 +645,13 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
-                </a>
+                </div>
 
                 {/* Cache Management - Check permission */}
                 {canManageCache && (
-                  <a 
-                    href="/admin/cache" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/cache';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/cache')}
                   >
                     <div className="group p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -696,18 +668,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* User Management - Check permission */}
                 {canManageUsers && (
-                  <a 
-                    href="/admin/users" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/users';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/users')}
                   >
                     <div className="group p-4 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all border border-rose-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -724,18 +692,14 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* Push Notifications - Check permission */}
                 {canManagePushNotifications && (
-                  <a 
-                    href="/admin/push-notifications" 
-                    className="block"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = '/admin/push-notifications';
-                    }}
+                  <div 
+                    className="block cursor-pointer"
+                    onClick={() => router.push('/admin/push-notifications')}
                   >
                     <div className="group p-4 rounded-lg bg-pink-50 hover:bg-pink-100 transition-all border border-pink-200 active:scale-95">
                       <div className="flex items-center gap-3">
@@ -752,7 +716,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 )}
 
 

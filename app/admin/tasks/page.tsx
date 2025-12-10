@@ -38,7 +38,7 @@ export default function AdminTasksPage() {
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      router.push('/admin');
+      window.location.href = '/admin';
       return;
     }
 
@@ -213,7 +213,7 @@ export default function AdminTasksPage() {
                 <Card 
                   key={taskId} 
                   className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => router.push(`/admin/tasks/${taskId}`)}
+                  onClick={() => window.location.href = `/admin/tasks/${taskId}`}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">

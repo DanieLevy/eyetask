@@ -9,6 +9,7 @@ import {
   UserCog
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +27,7 @@ import { HeaderUserMenuProps } from './types';
 export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProps) => {
   const [mounted, setMounted] = useState(false);
   const hebrewFont = useHebrewFont('body');
+  const router = useRouter();
 
   // Prevent hydration mismatch by only showing after mount
   useEffect(() => {
@@ -79,29 +81,22 @@ export const HeaderUserMenu = ({ user, className, onLogout }: HeaderUserMenuProp
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={(e) => {
-              e.preventDefault();
-              window.location.href = '/admin/profile';
-            }}
-            className="cursor-pointer flex"
+            onSelect={() => router.push('/admin/profile')}
+            className="cursor-pointer"
           >
             <UserCog className="w-4 h-4 mr-2" />
             <span>הפרופיל שלי</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={(e) => {
-              e.preventDefault();
-              window.location.href = '/admin/dashboard';
-            }}
-            className="cursor-pointer flex"
+            onSelect={() => router.push('/admin/dashboard')}
+            className="cursor-pointer"
           >
             <Settings className="w-4 h-4 mr-2" />
             <span>פאנל ניהול</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem 
-            onSelect={(e) => {
-              e.preventDefault();
+            onSelect={() => {
               if (onLogout) {
                 onLogout();
               }

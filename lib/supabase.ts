@@ -10,7 +10,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE;
 // This prevents 500 errors on Netlify when the module is imported
 if (!supabaseUrl || !supabaseAnonKey) {
   const errorMessage = 'Missing Supabase configuration - please check environment variables';
-  // eslint-disable-next-line no-console
   console.error('[SUPABASE ERROR]', errorMessage, {
     hasUrl: !!supabaseUrl,
     hasAnonKey: !!supabaseAnonKey,
@@ -90,7 +89,6 @@ export function getSupabaseClient(requireAdmin: boolean = false) {
   
   if (!supabase) {
     const error = new Error('Supabase client not initialized - check environment variables');
-    // eslint-disable-next-line no-console
     console.error('[SUPABASE ERROR]', error.message);
     throw error;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -8,7 +9,7 @@ import { HeaderLogoProps } from './types';
 
 /**
  * Header Logo Component
- * Uses Next.js Image for SVG logo with theme-based filter
+ * Uses Next.js Link for proper client-side navigation
  */
 export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) => {
   const { resolvedTheme } = useTheme();
@@ -25,14 +26,10 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
   }, []);
   
   return (
-    <a 
+    <Link 
       href="/" 
-      onClick={(e) => {
-        e.preventDefault();
-        window.location.href = '/';
-      }}
       className={cn(
-        "flex items-center gap-1 sm:gap-1.5 hover:opacity-80 transition-opacity cursor-pointer",
+        "flex items-center gap-1 sm:gap-1.5 hover:opacity-80 transition-opacity",
         className
       )}
     >
@@ -73,7 +70,7 @@ export const HeaderLogo = ({ condensed = false, className }: HeaderLogoProps) =>
           Driver Tasks
         </span>
       )}
-    </a>
+    </Link>
   );
 };
 

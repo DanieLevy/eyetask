@@ -9,6 +9,7 @@ import {
   Bell,
   BellOff
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -64,6 +65,7 @@ export const MobileMenu = ({
   showDebugIcon = true
 }: MobileMenuPropsInternal) => {
   const { isAdmin } = useAuth();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [showPushTooltip, setShowPushTooltip] = useState(false);
@@ -221,10 +223,9 @@ export const MobileMenu = ({
                     item.isActive && "bg-accent/50 text-accent-foreground font-medium",
                     hebrewFont.fontClass
                   )}
-                  onSelect={(e) => {
-                    e.preventDefault();
+                  onSelect={() => {
                     setOpen(false);
-                    window.location.href = item.href;
+                    router.push(item.href);
                   }}
                 >
                   <span>{item.label}</span>
@@ -359,7 +360,7 @@ export const MobileMenu = ({
               {/* Render only functional actions */}
               <div className="py-2">
                 {functionalActions.map((action) => {
-                  // If it has an href, use onSelect for navigation
+                  // If it has an href, use router.push for navigation
                   if (action.href) {
                     return (
                       <DropdownMenuItem
@@ -370,14 +371,10 @@ export const MobileMenu = ({
                           hebrewFont.fontClass
                         )}
                         disabled={action.disabled}
-                        onSelect={(e) => {
-                          e.preventDefault();
+                        onSelect={() => {
                           setOpen(false);
                           if (action.href) {
-                            const href = action.href;
-                            setTimeout(() => {
-                              window.location.href = href;
-                            }, 100);
+                            router.push(action.href);
                           }
                         }}
                       >
@@ -398,14 +395,10 @@ export const MobileMenu = ({
                         hebrewFont.fontClass
                       )}
                       disabled={action.disabled}
-                      onSelect={(e) => {
-                        e.preventDefault();
+                      onSelect={() => {
                         if (action.onClick) {
-                          const clickHandler = action.onClick;
                           setOpen(false);
-                          setTimeout(() => {
-                            clickHandler();
-                          }, 100);
+                          action.onClick();
                         }
                       }}
                     >
