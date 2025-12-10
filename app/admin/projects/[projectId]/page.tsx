@@ -19,7 +19,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { DeleteConfirmationDialog } from '@/components/DeleteConfirmationDialog';
@@ -89,6 +89,7 @@ const TaskSkeleton = () => (
 
 export default function ProjectManagement() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.projectId as string;
   
   const [project, setProject] = useState<Project | null>(null);
@@ -122,9 +123,9 @@ export default function ProjectManagement() {
       window.location.reload();
     } else if (eventType === 'DELETE' && oldRecord && oldRecord.id === projectId) {
       // Project was deleted, redirect to dashboard
-      window.location.href = '/admin/dashboard';
+      router.push('/admin/dashboard');
     }
-  }, [projectId]);
+  }, [projectId, router]);
 
   const _handleTaskChange = useCallback((_payload: { eventType: string; new?: { projectId: string }; old?: { projectId: string } }) => {
     // Task changes detected - refresh data instead of partial update
@@ -198,7 +199,7 @@ export default function ProjectManagement() {
       } else {
         setError(projectRes.error || 'Failed to fetch project');
         toast.error(projectRes.error || 'Failed to fetch project data.');
-        window.location.href = '/admin/dashboard';
+        router.push('/admin/dashboard');
       }
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -207,7 +208,7 @@ export default function ProjectManagement() {
     } finally {
       setLoading(false);
     }
-  }, [projectId, fetchTasks]);
+  }, [projectId, fetchTasks, router]);
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -231,7 +232,7 @@ export default function ProjectManagement() {
     const userData = localStorage.getItem('adminUser');
     
     if (!token || !userData || userData === 'undefined' || userData === 'null') {
-      window.location.href = '/admin';
+      router.push('/admin');
       return;
     }
 
@@ -242,12 +243,12 @@ export default function ProjectManagement() {
       }
       // User data validated - no need to store in state
     } catch {
-      window.location.href = '/admin';
+      router.push('/admin');
       return;
     }
 
     fetchProjectData();
-  }, [projectId, fetchProjectData]);
+  }, [projectId, fetchProjectData, router]);
 
   const handleToggleVisibility = async (taskId: string, currentVisibility: boolean) => {
     try {
@@ -320,7 +321,7 @@ export default function ProjectManagement() {
 
       if (response.ok) {
         toast.success('הפרויקט נמחק בהצלחה');
-        window.location.href = '/admin/projects';
+        router.push('/admin/projects');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to delete project');
@@ -406,7 +407,7 @@ export default function ProjectManagement() {
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">שגיאה בטעינת פרויקט</h2>
             <p className="text-muted-foreground mb-4">{error || 'הפרויקט לא נמצא.'}</p>
-            <Button onClick={() => window.location.href = '/admin/projects'}>
+            <Button onClick={() => router.push('/admin/projects')}>
               <ArrowRight className="h-4 w-4 mr-2" />
               חזור לרשימת הפרויקטים
             </Button>
@@ -480,7 +481,7 @@ export default function ProjectManagement() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>פעולות פרויקט</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => window.location.href = `/admin/projects/${project._id}/edit`}>
+                    <DropdownMenuItem onSelect={() => router.push(`/admin/projects/${project._id}/edit`)}>
                       <Edit className="h-4 w-4 mr-2" />
                       ערוך פרויקט
                     </DropdownMenuItem>
@@ -551,7 +552,7 @@ export default function ProjectManagement() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button size="sm" onClick={() => window.location.href = `/admin/tasks/new?projectId=${project._id}`}>
+                <Button size="sm" onClick={() => router.push(`/admin/tasks/new?projectId=${project._id}`)}>
                   <Plus className="h-4 w-4 mr-1" />
                   משימה חדשה
                 </Button>
@@ -575,7 +576,7 @@ export default function ProjectManagement() {
                     : 'לא נוצרו משימות עבור פרויקט זה.'}
                 </p>
                 {filteredAndSortedTasks.length === 0 && tasks.length === 0 && (
-                  <Button className="mt-4" onClick={() => window.location.href = `/admin/tasks/new?projectId=${project._id}`}>
+                  <Button className="mt-4" onClick={() => router.push(`/admin/tasks/new?projectId=${project._id}`)}>
                     <Plus className="h-4 w-4 mr-1" />
                     צור משימה ראשונה
                   </Button>
@@ -634,7 +635,7 @@ export default function ProjectManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => window.location.href = `/admin/tasks/${task._id}/edit`}
+                          onClick={() => router.push(`/admin/tasks/${task._id}/edit`)}
                           title="ערוך משימה"
                         >
                           <Edit className="h-4 w-4" />
@@ -646,7 +647,7 @@ export default function ProjectManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => window.location.href = `/admin/tasks/${task._id}`}>
+                            <DropdownMenuItem onSelect={() => router.push(`/admin/tasks/${task._id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               צפה בפרטים
                             </DropdownMenuItem>

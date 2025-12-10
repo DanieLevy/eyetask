@@ -59,7 +59,7 @@ export default function ProjectsPage() {
     // Check authentication
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      window.location.href = '/admin';
+      router.push('/admin');
       return;
     }
 

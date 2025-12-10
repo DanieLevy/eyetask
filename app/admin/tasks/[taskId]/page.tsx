@@ -155,7 +155,7 @@ export default function TaskManagement() {
     } catch (error) {
       console.error('Error fetching task data:', error);
       toast.error("שגיאה בטעינת נתוני המשימה.");
-      window.location.href = '/admin/dashboard';
+      router.push('/admin/dashboard');
     }
   }, [taskId, router]);
 
@@ -169,7 +169,7 @@ export default function TaskManagement() {
   useEffect(() => {
       const token = localStorage.getItem('adminToken');
     if (!token) {
-      window.location.href = '/admin';
+      router.push('/admin');
       return;
     }
     setLoading(true);
@@ -197,7 +197,7 @@ export default function TaskManagement() {
       if (result.success) {
         toast.success(successMessage);
         if (type === 'task') {
-          window.location.href = `/admin/projects/${task?.projectId}`;
+          router.push(`/admin/projects/${task?.projectId}`);
         } else {
           setSubtasks(prev => prev.filter(st => st._id !== id));
         }

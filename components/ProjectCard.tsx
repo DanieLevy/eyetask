@@ -1,6 +1,7 @@
 'use client';
 
 import { Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useHebrewFont } from '@/hooks/useFont';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
@@ -19,6 +20,7 @@ interface ProjectCardProps {
 
 export default function ProjectCard({ project, taskCount, highPriorityCount }: ProjectCardProps) {
   const hebrewFont = useHebrewFont('body');
+  const router = useRouter();
   const { status: offlineStatus } = useOfflineStatus();
   const [mounted, setMounted] = useState(false);
 
@@ -29,7 +31,7 @@ export default function ProjectCard({ project, taskCount, highPriorityCount }: P
 
   const handleProjectClick = () => {
     // Simple navigation using URL params
-    window.location.href = `/project/${encodeURIComponent(project.name)}`;
+    router.push(`/project/${encodeURIComponent(project.name)}`);
   };
 
   // Only show offline-specific features after component is mounted

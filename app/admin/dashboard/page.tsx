@@ -739,7 +739,7 @@ export default function AdminDashboard() {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.location.href = '/admin/projects'}
+                    onClick={() => router.push('/admin/projects')}
                     className="hidden sm:flex"
                   >
                     <Eye className="h-4 w-4 mr-1" />
@@ -755,7 +755,7 @@ export default function AdminDashboard() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => window.location.href = '/admin/projects/new'}
+                      onClick={() => router.push('/admin/projects/new')}
                       className="mt-3"
                     >
                       <Plus className="h-4 w-4 mr-1" />
@@ -777,7 +777,7 @@ export default function AdminDashboard() {
                             href={`/admin/projects/${project._id}`}
                             onClick={(e) => {
                               e.preventDefault();
-                              window.location.href = `/admin/projects/${project._id}`;
+                              router.push(`/admin/projects/${project._id}`);
                             }}
                             className="block group"
                           >
@@ -848,7 +848,7 @@ export default function AdminDashboard() {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => window.location.href = '/admin/projects'}
+                        onClick={() => router.push('/admin/projects')}
                         className="w-full"
                       >
                         הצג את כל הפרויקטים
@@ -884,7 +884,7 @@ export default function AdminDashboard() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => window.location.href = '/admin/daily-updates'}
+                      onClick={() => router.push('/admin/daily-updates')}
                       className="mt-3"
                     >
                       <Eye className="h-4 w-4 mr-1" />
