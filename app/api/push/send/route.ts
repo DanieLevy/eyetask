@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       actions,
       targetRoles,
       targetUsers,
+      targetUsernames,
       data
     } = await request.json();
 
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
         success: false
       }, { status: 400 });
     }
+
+    logger.info('Push notification send request', 'PUSH_API', {
+      title,
+      sentBy: user.username,
+      targetRoles,
+      targetUsersCount: targetUsers?.length,
+      targetUsernamesCount: targetUsernames?.length
+    });
 
     // Send notification
     const result = await pushService.sendNotification(
@@ -50,6 +59,7 @@ export async function POST(request: NextRequest) {
       {
         targetRoles,
         targetUsers,
+        targetUsernames,
         saveToHistory: true
       },
       user.id

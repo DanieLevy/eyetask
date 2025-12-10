@@ -1,11 +1,9 @@
 'use client';
 
-import { ChevronDown, ChevronUp, Crown, Medal, ArrowLeft, Trophy, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trophy, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useState, useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { User, Activity } from '../../types/analytics';
 
@@ -24,18 +22,8 @@ export const UserLeaderboard = React.memo(function UserLeaderboard({
   const router = useRouter();
 
   const getRankIcon = (index: number) => {
-    if (index === 0) return <Crown className="h-5 w-5 text-yellow-500 animate-pulse" />;
-    if (index === 1) return <Trophy className="h-5 w-5 text-gray-400" />;
-    if (index === 2) return <Medal className="h-5 w-5 text-orange-600" />;
-    if (index < 5) return <Star className="h-5 w-5 text-gray-400" />;
-    return null;
-  };
-
-  const getRankBackground = (index: number) => {
-    if (index === 0) return 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200/50';
-    if (index === 1) return 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900/20 dark:to-slate-900/20 border-gray-200/50';
-    if (index === 2) return 'bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-200/50';
-    return '';
+    if (index < 3) return <Trophy className="h-4 w-4 text-slate-600" />;
+    return <Star className="h-4 w-4 text-slate-400" />;
   };
 
   const getRoleLabel = (role: string) => {
@@ -44,6 +32,8 @@ export const UserLeaderboard = React.memo(function UserLeaderboard({
         return 'מנהל';
       case 'data_manager':
         return 'מנהל נתונים';
+      case 'visitor':
+        return 'מבקר';
       default:
         return 'משתמש';
     }
@@ -52,7 +42,7 @@ export const UserLeaderboard = React.memo(function UserLeaderboard({
   const getUserActivities = useMemo(() => {
     return (userId: string) => {
       return activities
-        .filter(activity => activity.userId === userId)
+        .filter(activity => activity.userId === userId || activity.visitorId === userId)
         .slice(0, 5);
     };
   }, [activities]);
@@ -71,147 +61,128 @@ export const UserLeaderboard = React.memo(function UserLeaderboard({
     return `לפני ${days} ימים`;
   };
 
-  const topUsers = useMemo(() => users.slice(0, 5), [users]);
+  const topUsers = useMemo(() => users.slice(0, 10), [users]);
 
   return (
-    <Card className={cn("border-0 shadow-lg hover:shadow-xl transition-all duration-300", className)}>
-      <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className={cn("bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm", className)}>
+      {/* Header */}
+      <div className="p-6 border-b border-slate-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            <CardTitle className="text-lg font-medium">מבקרים פעילים ביותר</CardTitle>
+            <Trophy className="h-4 w-4 text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-700">מבקרים פעילים</h3>
           </div>
           {users.length > 0 && (
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
               onClick={() => router.push('/admin/analytics/visitors')}
-              className="gap-1 hover:gap-2 transition-all duration-200"
+              className="text-xs text-slate-600 hover:text-slate-900"
             >
-              צפה בכל המבקרים
-              <ArrowLeft className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              צפה בכל →
             </Button>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-2 pt-6">
-        {topUsers.length > 0 ? (
-          <>
-            <p className="text-xs text-muted-foreground mb-3 animate-fade-in">לחץ על מבקר כדי לראות את הפעילות האחרונה שלו</p>
-            {topUsers.map((user, index) => {
-              const isExpanded = expandedUser === user.userId;
-              const userActivities = getUserActivities(user.userId);
+        <p className="text-xs text-slate-500 mt-1">משתמשים עם הכי הרבה פעילות</p>
+      </div>
 
-              return (
+      {/* Users List */}
+      <div className="p-4 space-y-2">
+        {topUsers.length > 0 ? (
+          topUsers.map((user, index) => {
+            const isExpanded = expandedUser === user.userId;
+            const userActivities = getUserActivities(user.userId);
+
+            return (
+              <div
+                key={user.userId}
+                className={cn(
+                  "rounded-lg border border-slate-200 transition-all duration-200",
+                  isExpanded && "bg-slate-50"
+                )}
+              >
                 <div
-                  key={user.userId}
-                  className={cn(
-                    "rounded-lg border transition-all duration-300 transform hover:scale-[1.02]",
-                    getRankBackground(index),
-                    isExpanded ? "shadow-md" : "hover:shadow-sm",
-                    "animate-slide-up"
-                  )}
-                  style={{
-                    animationDelay: `${index * 50}ms`
-                  }}
+                  className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => setExpandedUser(isExpanded ? null : user.userId)}
                 >
-                  <div
-                    className="p-4 cursor-pointer"
-                    onClick={() => setExpandedUser(isExpanded ? null : user.userId)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "flex items-center justify-center h-10 w-10 rounded-full transition-all duration-300",
-                          index < 3 ? "bg-white dark:bg-gray-800 shadow-sm" : "bg-muted"
-                        )}>
-                          {getRankIcon(index) || (
-                            <span className="text-sm font-semibold text-muted-foreground">
-                              {index + 1}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-100">
+                        <span className="text-xs font-semibold text-slate-700">
+                          {index + 1}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{user.username}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            {getRoleLabel(user.role)}
+                          </span>
+                          {user.isVisitor && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                              מבקר
                             </span>
                           )}
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{user.username}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant="secondary" 
-                              className={cn(
-                                "text-xs transition-all duration-200",
-                                user.role === 'admin' && "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                              )}
-                            >
-                              {getRoleLabel(user.role)}
-                            </Badge>
-                            {user.isVisitor && (
-                              <Badge variant="outline" className="text-xs animate-pulse">
-                                מבקר
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className={cn(
-                            "text-lg font-semibold text-foreground transition-all duration-300",
-                            index === 0 && "text-2xl bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent"
-                          )}>
-                            {user.actionCount}
-                          </p>
-                          <p className="text-xs text-muted-foreground">פעולות</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 transition-transform duration-200 hover:rotate-180"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedUser(isExpanded ? null : user.userId);
-                          }}
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="text-base font-semibold text-slate-900">
+                          {user.actionCount}
+                        </p>
+                        <p className="text-xs text-slate-500">פעולות</p>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedUser(isExpanded ? null : user.userId);
+                        }}
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4 text-slate-600" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-slate-600" />
+                        )}
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Expandable activity list */}
-                  {isExpanded && userActivities.length > 0 && (
-                    <div className="px-4 pb-4 pt-0">
-                      <div className="ml-12 space-y-2 border-t pt-3">
-                        <p className="text-xs text-muted-foreground mb-2">פעולות אחרונות</p>
-                        {userActivities.map((activity) => (
-                          <div
-                            key={activity._id}
-                            className="flex items-start gap-2 text-sm"
-                          >
-                            <span className="text-muted-foreground">•</span>
-                            <div className="flex-1">
-                              <p className="text-foreground">{activity.action}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatTimeAgo(activity.timestamp)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              );
-            })}
-          </>
+
+                {/* Expandable activity list */}
+                {isExpanded && userActivities.length > 0 && (
+                  <div className="px-4 pb-4">
+                    <div className="ml-10 space-y-2 border-t border-slate-200 pt-3">
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">פעולות אחרונות</p>
+                      {userActivities.map((activity) => (
+                        <div
+                          key={activity._id}
+                          className="flex items-start gap-2"
+                        >
+                          <span className="text-slate-400 text-xs mt-0.5">•</span>
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-700">{activity.action}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {formatTimeAgo(activity.timestamp)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>אין משתמשים פעילים להצגה</p>
+          <div className="text-center py-8 text-slate-500">
+            <p className="text-sm">אין משתמשים פעילים להצגה</p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }); 

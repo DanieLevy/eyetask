@@ -5,15 +5,10 @@ import {
   Users, 
   Settings, 
   Activity as ActivityIcon,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Info,
+  Eye,
   Zap
 } from 'lucide-react';
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Activity } from '../../types/analytics';
 
@@ -32,36 +27,10 @@ export const ActivityFeed = React.memo(function ActivityFeed({ activities, class
         return <Users className="h-4 w-4" />;
       case 'system':
         return <Settings className="h-4 w-4" />;
+      case 'view':
+        return <Eye className="h-4 w-4" />;
       default:
         return <ActivityIcon className="h-4 w-4" />;
-    }
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'task':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'subtask':
-        return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'user':
-        return 'bg-green-100 text-green-700 border-green-200';
-      case 'system':
-        return 'bg-gray-100 text-gray-700 border-gray-200';
-      default:
-        return 'bg-orange-100 text-orange-700 border-orange-200';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      case 'error':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Info className="h-4 w-4 text-blue-500" />;
     }
   };
 
@@ -80,63 +49,52 @@ export const ActivityFeed = React.memo(function ActivityFeed({ activities, class
   };
 
   return (
-    <Card className={cn("border-0 shadow-lg hover:shadow-xl transition-all duration-300", className)}>
-      <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className={cn("bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm", className)}>
+      {/* Header */}
+      <div className="p-6 border-b border-slate-200">
         <div className="flex items-center gap-2">
-          <Zap className="h-5 w-5 text-orange-500" />
-          <CardTitle className="text-lg font-medium">פעילות אחרונה</CardTitle>
+          <Zap className="h-4 w-4 text-slate-400" />
+          <h3 className="text-sm font-semibold text-slate-700">פעילות אחרונה</h3>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-6">
+        <p className="text-xs text-slate-500 mt-1">עדכונים ופעולות בזמן אמת</p>
+      </div>
+
+      {/* Activity List */}
+      <div className="p-4 space-y-2">
         {activities.length > 0 ? (
-          activities.slice(0, 10).map((activity, index) => (
+          activities.slice(0, 10).map((activity) => (
             <div
               key={activity._id}
-              className={cn(
-                "flex items-start gap-3 p-3 rounded-lg",
-                "border border-transparent hover:border-gray-200 dark:hover:border-gray-700",
-                "transition-all duration-300 hover:shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800/50",
-                "animate-slide-up transform hover:scale-[1.01]"
-              )}
-              style={{
-                animationDelay: `${index * 50}ms`
-              }}
+              className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors duration-200"
             >
-              <div className="mt-0.5">
-                {getSeverityIcon(activity.severity)}
+              <div className="flex-shrink-0 p-1.5 bg-slate-100 rounded-md">
+                {getCategoryIcon(activity.category)}
               </div>
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge 
-                        variant="outline" 
-                        className={cn(
-                          "text-xs border transition-all duration-200",
-                          getCategoryColor(activity.category)
-                        )}
-                      >
-                        <span className="mr-1">{getCategoryIcon(activity.category)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {activity.category}
-                      </Badge>
-                      <span className="text-sm font-medium text-foreground">
+                      </span>
+                      <span className="text-xs font-medium text-slate-700 truncate">
                         {activity.username || activity.visitorName}
                       </span>
                     </div>
                     
-                    <p className="text-sm text-foreground mt-1">
+                    <p className="text-sm text-slate-700 mt-1">
                       {activity.action}
                     </p>
                     
                     {activity.target && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         {activity.target.type}: {activity.target.name || activity.target.id}
                       </p>
                     )}
                   </div>
                   
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="text-xs text-slate-500 whitespace-nowrap">
                     {formatTimeAgo(activity.timestamp)}
                   </span>
                 </div>
@@ -144,12 +102,12 @@ export const ActivityFeed = React.memo(function ActivityFeed({ activities, class
             </div>
           ))
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-slate-500">
             <ActivityIcon className="h-12 w-12 mx-auto mb-2 opacity-20" />
-            <p>אין פעילות להצגה</p>
+            <p className="text-sm">אין פעילות להצגה</p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }); 

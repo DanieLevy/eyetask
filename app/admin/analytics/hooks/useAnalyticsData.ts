@@ -147,7 +147,8 @@ export function useAnalyticsData() {
         clearInterval(interval);
       }
     };
-  }, [timeRange.value, fetchAnalytics, refresh, refreshing]); // Include all dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRange.value]); // Only depend on timeRange.value to prevent infinite loops
 
   return {
     data,

@@ -179,6 +179,7 @@ export default function PushNotificationsPage() {
         badge: string;
         url: string;
         targetUsers?: string[];
+        targetUsernames?: string[];
       }
       
       const payload: NotificationPayload = {
@@ -191,17 +192,44 @@ export default function PushNotificationsPage() {
 
       // Set target based on selection
       if (targetType === 'authenticated') {
-        payload.targetUsers = subscriptions
-          .filter(sub => !sub.userId.startsWith('anon_'))
+        // Filter authenticated users (those with non-null user_id)
+        const authenticatedUserIds = subscriptions
+          .filter(sub => sub.userId && !sub.userId.startsWith('anon_'))
           .map(sub => sub.userId);
+        
+        if (authenticatedUserIds.length > 0) {
+          payload.targetUsers = authenticatedUserIds;
+        } else {
+          toast.error('לא נמצאו משתמשים מאומתים');
+          setSending(false);
+          return;
+        }
       } else if (targetType === 'anonymous') {
-        payload.targetUsers = subscriptions
-          .filter(sub => sub.userId.startsWith('anon_'))
-          .map(sub => sub.userId);
+        // For anonymous users, we'll send to all users with null user_id
+        // by not specifying targetUsers, but we need a special flag
+        payload.targetUsers = ['anonymous'];
       } else if (targetType === 'specific' && selectedUsers.length > 0) {
         payload.targetUsers = selectedUsers;
       } else if (targetType === 'byName' && selectedUsers.length > 0) {
-        payload.targetUsers = selectedUsers;
+        // NEW: When sending by name, we need to extract unique usernames
+        const targetUsernames = new Set<string>();
+        selectedUsers.forEach(userId => {
+          const user = subscriptions.find(s => s.userId === userId);
+          if (user && user.username && user.username !== 'Anonymous User') {
+            targetUsernames.add(user.username);
+          }
+        });
+        
+        if (targetUsernames.size === 0) {
+          toast.error('לא נמצאו משתמשים עם שמות חוקיים');
+          setSending(false);
+          return;
+        }
+        
+        payload.targetUsernames = Array.from(targetUsernames);
+        logger.info('Sending to users by name', 'PUSH_ADMIN', {
+          usernames: payload.targetUsernames
+        });
       }
 
       const response = await fetch('/api/push/send', {

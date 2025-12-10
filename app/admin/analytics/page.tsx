@@ -26,20 +26,22 @@ function AnalyticsContent() {
   const { timeRange, setTimeRange, refreshing } = useAnalytics();
   const { data, loading, error, refresh } = useAnalyticsData();
 
-  // Check permission
+  // Check permission - only redirect once when auth is loaded and permission is denied
   useEffect(() => {
-    if (!authLoading && !canViewAnalytics) {
+    if (!authLoading && canViewAnalytics === false) {
       toast.error('אין לך הרשאה לצפות באנליטיקה');
       router.push('/admin/dashboard');
     }
   }, [authLoading, canViewAnalytics, router]);
 
+  // Show loading while checking auth or loading data
   if (loading || authLoading) {
     return <AnalyticsPageSkeleton />;
   }
 
+  // Don't render if no permission (will redirect in useEffect)
   if (!canViewAnalytics) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   if (error) {
@@ -69,21 +71,21 @@ function AnalyticsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
         {/* Header */}
-        <div className="mb-6 animate-fade-in">
-          <div className="flex items-center justify-between">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-light text-slate-700">
                 לוח בקרה אנליטיקס
               </h1>
-              <p className="text-muted-foreground mt-1">ניתוח ביצועים ופעילות בזמן אמת</p>
+              <p className="text-sm text-slate-600 mt-1">ניתוח ביצועים ופעילות בזמן אמת</p>
             </div>
             
             <div className="flex items-center gap-3">
               <Select value={timeRange.value} onValueChange={handleTimeRangeChange}>
-                <SelectTrigger className="w-32 border-0 shadow-sm">
+                <SelectTrigger className="w-32 border border-slate-200 shadow-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -100,10 +102,10 @@ function AnalyticsContent() {
                 size="icon"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="shadow-sm hover:shadow-md transition-all duration-200"
+                className="border border-slate-200 shadow-sm hover:bg-slate-100 transition-colors"
               >
                 <RefreshCw className={cn(
-                  "h-4 w-4",
+                  "h-4 w-4 text-slate-600",
                   refreshing && "animate-spin"
                 )} />
               </Button>
@@ -111,7 +113,7 @@ function AnalyticsContent() {
           </div>
         </div>
 
-        {/* Metrics Cards - Now has its own margin */}
+        {/* Metrics Cards */}
         <MetricsCards metrics={data.metrics} />
 
         {/* Main Content Grid */}
@@ -127,8 +129,8 @@ function AnalyticsContent() {
         </div>
 
         {/* Last Updated */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-12 pt-6 border-t border-slate-200">
+          <p className="text-xs text-slate-500 text-center">
             עודכן לאחרונה: {new Date(data.lastUpdated).toLocaleString('he-IL')}
           </p>
         </div>

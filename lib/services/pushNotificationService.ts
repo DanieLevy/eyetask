@@ -93,6 +93,7 @@ export interface PushPayload {
 export interface SendOptions {
   targetRoles?: string[];
   targetUsers?: string[];
+  targetUsernames?: string[];
   saveToHistory?: boolean;
 }
 
@@ -120,6 +121,7 @@ class PushNotificationService {
         body: payload.body,
         targetRoles: options.targetRoles,
         targetUsers: options.targetUsers,
+        targetUsernames: options.targetUsernames,
         sentBy,
         hasVapidKeys: !!vapidPublicKey && !!vapidPrivateKey
       });
@@ -134,12 +136,17 @@ class PushNotificationService {
 
       // Get target subscriptions
       logger.info('Fetching target subscriptions', 'PUSH_SERVICE', {
-        filters: { roles: options.targetRoles, users: options.targetUsers }
+        filters: { 
+          roles: options.targetRoles, 
+          users: options.targetUsers,
+          usernames: options.targetUsernames
+        }
       });
       
       const subscriptions = await db.getActivePushSubscriptions({
         roles: options.targetRoles,
-        userIds: options.targetUsers
+        userIds: options.targetUsers,
+        usernames: options.targetUsernames
       });
 
       logger.info('Subscriptions fetched', 'PUSH_SERVICE', {

@@ -1833,43 +1833,62 @@ export class SupabaseDatabaseService {
       // Use the provided userId directly (it's now always a valid UUID or null)
       const userId = subscription.userId || null;
       
-      // Check if subscription already exists
-      let query = this.client
+      logger.info('Saving push subscription', 'SUPABASE_DATABASE', {
+        userId: userId || 'NULL',
+        username: subscription.username,
+        endpoint: subscription.subscription.endpoint.substring(0, 50) + '...',
+        deviceType: subscription.deviceType
+      });
+      
+      // Check if subscription already exists by endpoint only
+      // This prevents duplicate subscriptions for the same device
+      const { data: existing } = await this.client
         .from('push_subscriptions')
-        .select('id')
-        .eq('endpoint', subscription.subscription.endpoint);
-      
-      // Add user_id condition based on whether it's null or not
-      if (userId) {
-        query = query.eq('user_id', userId);
-      } else {
-        query = query.is('user_id', null);
-      }
-      
-      const { data: existing } = await query.single();
+        .select('id, user_id, username')
+        .eq('endpoint', subscription.subscription.endpoint)
+        .single();
 
       if (existing) {
         // Update existing subscription
+        // Keep the existing user_id if it's already set (authenticated)
+        // Only update user_id if the new one is not null (meaning user authenticated)
+        const updateData: Record<string, unknown> = {
+          is_active: true,
+          last_active: now,
+          user_agent: subscription.userAgent,
+          device_type: subscription.deviceType,
+          subscription: subscription.subscription,
+          endpoint: subscription.subscription.endpoint,
+          p256dh: subscription.subscription.keys?.p256dh || '',
+          auth: subscription.subscription.keys?.auth || '',
+          username: subscription.username || 'Anonymous',
+          role: subscription.role || 'guest',
+          email: subscription.email || ''
+        };
+
+        // Only update user_id if transitioning from anonymous to authenticated
+        if (userId && !existing.user_id) {
+          updateData.user_id = userId;
+          logger.info('Upgrading anonymous subscription to authenticated', 'SUPABASE_DATABASE', {
+            subscriptionId: existing.id,
+            oldUsername: existing.username,
+            newUsername: subscription.username,
+            newUserId: userId
+          });
+        } else if (userId) {
+          updateData.user_id = userId;
+        }
+
         await this.client
           .from('push_subscriptions')
-          .update({
-            is_active: true,
-            last_active: now,
-            user_agent: subscription.userAgent,
-            device_type: subscription.deviceType,
-            subscription: subscription.subscription,
-            endpoint: subscription.subscription.endpoint,
-            p256dh: subscription.subscription.keys?.p256dh || '',
-            auth: subscription.subscription.keys?.auth || '',
-            username: subscription.username || 'Anonymous',
-            role: subscription.role || 'guest',
-            email: subscription.email || ''
-          })
+          .update(updateData)
           .eq('id', existing.id);
         
         logger.info('Updated existing push subscription', 'SUPABASE_DATABASE', { 
           subscriptionId: existing.id,
-          userId: userId || 'anonymous'
+          userId: userId || 'NULL',
+          username: subscription.username,
+          wasUpgraded: !existing.user_id && !!userId
         });
         
         return existing.id;
@@ -1986,6 +2005,7 @@ export class SupabaseDatabaseService {
   async getActivePushSubscriptions(filters?: {
     roles?: string[];
     userIds?: string[];
+    usernames?: string[];
   }): Promise<PushSubscription[]> {
     try {
       let query = this.client
@@ -2004,11 +2024,11 @@ export class SupabaseDatabaseService {
           return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
         });
         
-        const hasAnonymous = filters.userIds.includes('anonymous');
+        const hasAnonymous = filters.userIds.some(id => id === 'anonymous' || id === null);
         
         if (validUUIDs.length > 0 && hasAnonymous) {
           // Include both valid UUIDs and null (for anonymous)
-          query = query.or(`user_id.in.(${validUUIDs.map(id => `"${id}"`).join(',')}),user_id.is.null`);
+          query = query.or(`user_id.in.(${validUUIDs.join(',')}),user_id.is.null`);
         } else if (validUUIDs.length > 0) {
           // Only valid UUIDs
           query = query.in('user_id', validUUIDs);
@@ -2018,12 +2038,29 @@ export class SupabaseDatabaseService {
         }
       }
 
+      // NEW: Filter by usernames if provided
+      if (filters?.usernames?.length) {
+        query = query.in('username', filters.usernames);
+        logger.info('Filtering push subscriptions by usernames', 'SUPABASE_DATABASE', {
+          usernames: filters.usernames
+        });
+      }
+
       const { data, error } = await query;
 
       if (error) {
         logger.error('Error getting active push subscriptions', 'SUPABASE_DATABASE', { error: error.message });
         return [];
       }
+
+      logger.info('Active push subscriptions retrieved', 'SUPABASE_DATABASE', {
+        count: data.length,
+        filters: {
+          roles: filters?.roles,
+          userIdsCount: filters?.userIds?.length,
+          usernamesCount: filters?.usernames?.length
+        }
+      });
 
       return data.map(sub => this.mapPushSubscriptionFromDb(sub));
     } catch (error) {

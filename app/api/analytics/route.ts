@@ -33,10 +33,13 @@ interface DailyStats {
 // GET /api/analytics - Get analytics dashboard data
 export async function GET(request: NextRequest) {
   try {
+    logger.info('Analytics request received', 'ANALYTICS_API');
+    
     // Extract user from request
     const user = authService.extractUserFromRequest(request);
     
     if (!user) {
+      logger.warn('Unauthorized analytics access attempt', 'ANALYTICS_API');
       return NextResponse.json({
         error: 'Unauthorized - Authentication required',
         success: false
@@ -61,6 +64,13 @@ export async function GET(request: NextRequest) {
 
     const isAdmin = user.role === 'admin';
 
+    logger.info('Analytics access granted', 'ANALYTICS_API', {
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      isAdmin
+    });
+
     // Get time range from query params
     const { searchParams } = new URL(request.url);
     const rangeParam = searchParams.get('range');
@@ -78,11 +88,17 @@ export async function GET(request: NextRequest) {
     const analytics = await db.getAnalytics();
     
     if (!analytics) {
+      logger.error('Analytics data not found in database', 'ANALYTICS_API');
       return NextResponse.json({
         error: 'Analytics data not found',
         success: false
       }, { status: 404 });
     }
+    
+    logger.info('Analytics data retrieved successfully', 'ANALYTICS_API', {
+      hasCounters: !!analytics.counters,
+      hasDailyStats: !!analytics.dailyStats
+    });
     
     // Get activity logs
     const supabase = getSupabaseClient(true);
@@ -230,6 +246,15 @@ export async function GET(request: NextRequest) {
     
     const activeSessionsCount = activeSessions?.length || 0;
     
+    logger.info('Analytics data prepared successfully', 'ANALYTICS_API', {
+      periodVisits,
+      uniqueVisitors: periodUniqueVisitors.size,
+      activeSessions: activeSessionsCount,
+      topUsersCount: topUsers.length,
+      recentActivitiesCount: recentActivities.length,
+      rangeDays
+    });
+    
     return NextResponse.json({
       data: {
         visits: periodVisits,
@@ -252,7 +277,10 @@ export async function GET(request: NextRequest) {
       success: true
     });
   } catch (error) {
-    logger.error('Error fetching analytics', 'ANALYTICS_API', undefined, error as Error);
+    logger.error('Error fetching analytics', 'ANALYTICS_API', {
+      error: (error as Error).message,
+      stack: (error as Error).stack
+    });
     return NextResponse.json({
       error: 'Failed to fetch analytics',
       success: false

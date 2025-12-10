@@ -84,12 +84,22 @@ export async function POST(request: NextRequest) {
       userAgent: userAgent.substring(0, 100)
     });
 
-    // Generate unique ID for anonymous users
-    const userId = user?.id || 'anonymous';
+    // Generate unique ID for anonymous users - use visitor_id from session if available
+    // IMPORTANT: For anonymous users, we use NULL for user_id (not a string)
+    // The visitor system tracks them separately via visitor_profiles table
+    const userId = user?.id || null; // NULL for anonymous, UUID for authenticated
     const username = userName || user?.username || 'Anonymous User';
     const email = user?.email || '';
     const role = user?.role || 'guest';
     const isAnonymous = !user;
+    
+    logger.info('[Push Subscribe] User identification resolved', 'PUSH_SUBSCRIBE', {
+      userId: userId || 'NULL',
+      username,
+      isAnonymous,
+      providedUserName: userName,
+      authenticatedUsername: user?.username
+    });
 
     // Save subscription
     await db.savePushSubscription({
@@ -113,43 +123,65 @@ export async function POST(request: NextRequest) {
     
     // Send welcome notification to the subscriber
     try {
-      // Only send welcome notification if we have a valid userId
-      if (userId) {
+      // Send welcome notification using the endpoint directly for both authenticated and anonymous users
       logger.info('[Push Subscribe] Sending welcome notification', 'PUSH_SUBSCRIBE', {
-        userId,
-        isAnonymous
+        userId: userId || 'NULL',
+        username,
+        isAnonymous,
+        endpoint: subscription.endpoint.substring(0, 50) + '...'
       });
 
-      const welcomeResult = await pushService.sendToUser(
-        userId,
-        {
-          title: 'ההרשמה הושלמה! 🔔',
-          body: username !== 'Anonymous User' 
-            ? `שלום ${username}, ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.`
-            : 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
-          icon: '/icons/icon-192x192.png',
-          badge: '/icons/icon-72x72.png',
-          url: '/'
-        },
-        'system' // Sent by system
-      );
+      // For authenticated users, send by userId
+      // For anonymous users, we need to query by the newly created subscription
+      let welcomeResult;
+      
+      if (userId) {
+        // Authenticated user - send by userId
+        welcomeResult = await pushService.sendToUser(
+          userId,
+          {
+            title: 'ההרשמה הושלמה! 🔔',
+            body: username !== 'Anonymous User' 
+              ? `שלום ${username}, ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.`
+              : 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/icon-72x72.png',
+            url: '/'
+          },
+          'system' // Sent by system
+        );
+      } else {
+        // Anonymous user - send by username
+        welcomeResult = await pushService.sendNotification(
+          {
+            title: 'ההרשמה הושלמה! 🔔',
+            body: username !== 'Anonymous User' 
+              ? `שלום ${username}, ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.`
+              : 'ההרשמה להתראות הושלמה בהצלחה. מעכשיו תקבל עדכונים חשובים ישירות למכשיר שלך.',
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/icon-72x72.png',
+            url: '/'
+          },
+          {
+            targetUsernames: [username],
+            saveToHistory: false // Don't save welcome messages to history
+          },
+          'system' // Sent by system
+        );
+      }
 
       if (welcomeResult.success) {
         logger.info('[Push Subscribe] Welcome notification sent', 'PUSH_SUBSCRIBE', {
-          userId,
+          userId: userId || 'NULL',
+          username,
           sent: welcomeResult.sent,
           isAnonymous
         });
       } else {
         logger.warn('[Push Subscribe] Failed to send welcome notification', 'PUSH_SUBSCRIBE', {
-          userId,
-          errors: welcomeResult.errors,
-            isAnonymous
-          });
-        }
-      } else {
-        logger.info('[Push Subscribe] Skipping welcome notification for anonymous user', 'PUSH_SUBSCRIBE', {
+          userId: userId || 'NULL',
           username,
+          errors: welcomeResult.errors,
           isAnonymous
         });
       }

@@ -2,6 +2,7 @@
 
 import { Bell, BellOff, Smartphone, RefreshCw, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,8 +10,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
 
+// Dynamically import the modal to avoid SSR issues
+const PushNotificationNameModal = dynamic(
+  () => import('@/components/PushNotificationNameModal'),
+  { ssr: false }
+);
+
 export function PushNotificationSettings() {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
   const { 
     isSupported, 
     permission, 
@@ -35,11 +43,35 @@ export function PushNotificationSettings() {
         if (isIOS && !isStandalone) {
           showIOSInstallPrompt();
         } else {
-          await subscribe();
+          // Check if user is authenticated
+          const hasToken = typeof window !== 'undefined' && 
+                           (localStorage.getItem('adminToken') || localStorage.getItem('token'));
+          
+          if (hasToken) {
+            // Authenticated users can subscribe directly
+            await subscribe();
+          } else {
+            // Anonymous users need to provide a name first
+            setShowNameModal(true);
+          }
         }
       }
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleNameConfirm = async (name: string) => {
+    try {
+      // Save the name to session storage for the subscription process
+      sessionStorage.setItem('push-subscribe-name', name);
+      
+      // Now subscribe
+      await subscribe();
+      setShowNameModal(false);
+    } catch (err) {
+      console.error('Failed to subscribe with name:', err);
+      throw err; // Re-throw to let modal handle the error
     }
   };
 
@@ -70,82 +102,92 @@ export function PushNotificationSettings() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              התראות Push
-            </CardTitle>
-            <CardDescription>
-              נהל את העדפות ההתראות שלך
-            </CardDescription>
-          </div>
-          {getStatusBadge()}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert className={cn(
-          "border",
-          isSubscribed ? "border-green-200 bg-green-50 dark:bg-green-950/20" : "border-muted"
-        )}>
-          <div className="flex items-start gap-3">
-            {isSubscribed ? (
-              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-            ) : (
-              <Bell className="h-5 w-5 text-muted-foreground mt-0.5" />
-            )}
-            <AlertDescription className="text-sm">
-              {getStatusMessage()}
-            </AlertDescription>
-          </div>
-        </Alert>
-
-        {isSupported && permission !== 'denied' && (
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Smartphone className="h-4 w-4" />
-              <span>התראות למכשיר זה</span>
+    <>
+      <Card className="w-full">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                התראות Push
+              </CardTitle>
+              <CardDescription>
+                נהל את העדפות ההתראות שלך
+              </CardDescription>
             </div>
-            
-            <Button
-              onClick={handleToggle}
-              disabled={isLoading || isProcessing}
-              variant={isSubscribed ? "destructive" : "default"}
-              size="sm"
-            >
-              {isProcessing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  מעבד...
-                </>
-              ) : isSubscribed ? (
-                <>
-                  <BellOff className="h-4 w-4 mr-2" />
-                  בטל התראות
-                </>
+            {getStatusBadge()}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className={cn(
+            "border",
+            isSubscribed ? "border-green-200 bg-green-50 dark:bg-green-950/20" : "border-muted"
+          )}>
+            <div className="flex items-start gap-3">
+              {isSubscribed ? (
+                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
               ) : (
-                <>
-                  <Bell className="h-4 w-4 mr-2" />
-                  הפעל התראות
-                </>
+                <Bell className="h-5 w-5 text-muted-foreground mt-0.5" />
               )}
-            </Button>
-          </div>
-        )}
+              <AlertDescription className="text-sm">
+                {getStatusMessage()}
+              </AlertDescription>
+            </div>
+          </Alert>
 
-        {permission === 'denied' && (
-          <div className="text-sm text-muted-foreground space-y-2 pt-2">
-            <p>כדי להפעיל התראות:</p>
-            <ol className="list-decimal list-inside space-y-1 mr-2">
-              <li>פתח את הגדרות הדפדפן</li>
-              <li>חפש את הגדרות האתר או ההתראות</li>
-              <li>אפשר התראות עבור אתר זה</li>
-            </ol>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {isSupported && permission !== 'denied' && (
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Smartphone className="h-4 w-4" />
+                <span>התראות למכשיר זה</span>
+              </div>
+              
+              <Button
+                onClick={handleToggle}
+                disabled={isLoading || isProcessing}
+                variant={isSubscribed ? "destructive" : "default"}
+                size="sm"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    מעבד...
+                  </>
+                ) : isSubscribed ? (
+                  <>
+                    <BellOff className="h-4 w-4 mr-2" />
+                    בטל התראות
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4 mr-2" />
+                    הפעל התראות
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {permission === 'denied' && (
+            <div className="text-sm text-muted-foreground space-y-2 pt-2">
+              <p>כדי להפעיל התראות:</p>
+              <ol className="list-decimal list-inside space-y-1 mr-2">
+                <li>פתח את הגדרות הדפדפן</li>
+                <li>חפש את הגדרות האתר או ההתראות</li>
+                <li>אפשר התראות עבור אתר זה</li>
+              </ol>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {showNameModal && (
+        <PushNotificationNameModal
+          isOpen={showNameModal}
+          onClose={() => setShowNameModal(false)}
+          onConfirm={handleNameConfirm}
+        />
+      )}
+    </>
   );
 } 
