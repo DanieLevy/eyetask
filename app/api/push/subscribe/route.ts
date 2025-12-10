@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Parse subscription data
     const body = await request.json();
-    const { subscription, userName } = body;
+    const { subscription, userName, visitorId: clientVisitorId } = body;
 
     if (!subscription || !subscription.endpoint) {
       logger.error('[Push Subscribe] Invalid subscription data', 'PUSH_SUBSCRIBE', {
@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
       authLength: subscription.keys?.auth?.length,
       isIOS,
       userAgent,
-      providedUserName: userName || 'Not provided'
+      providedUserName: userName || 'Not provided',
+      clientVisitorId: clientVisitorId || 'Not provided'
     });
 
     // Detect device type
@@ -93,17 +94,36 @@ export async function POST(request: NextRequest) {
     const role = user?.role || 'guest';
     const isAnonymous = !user;
     
+    // Generate or use visitorId for anonymous users
+    let actualVisitorId = clientVisitorId;
+    if (isAnonymous && !actualVisitorId) {
+      actualVisitorId = `visitor_${crypto.randomUUID()}`;
+      logger.info('[Push Subscribe] Generated new visitorId for anonymous user', 'PUSH_SUBSCRIBE', { actualVisitorId });
+    } else if (!isAnonymous) {
+      // If user becomes authenticated, don't use visitorId
+      actualVisitorId = null;
+      logger.info('[Push Subscribe] Clearing visitorId for authenticated user', 'PUSH_SUBSCRIBE', { userId });
+    }
+    
     logger.info('[Push Subscribe] User identification resolved', 'PUSH_SUBSCRIBE', {
       userId: userId || 'NULL',
+      visitorId: actualVisitorId || 'NULL',
       username,
       isAnonymous,
       providedUserName: userName,
       authenticatedUsername: user?.username
     });
 
+    // Create or update visitor profile if we have a visitorId and username
+    if (actualVisitorId && username !== 'Anonymous User') {
+      await db.createOrUpdateVisitorProfile(actualVisitorId, username, { userAgent, deviceType });
+      logger.info('[Push Subscribe] Visitor profile created/updated', 'PUSH_SUBSCRIBE', { actualVisitorId, username });
+    }
+
     // Save subscription
     await db.savePushSubscription({
       userId,
+      visitorId: actualVisitorId,
       username,
       email,
       role,
@@ -194,11 +214,12 @@ export async function POST(request: NextRequest) {
       // Don't fail the subscription if welcome message fails
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: 'Subscription saved successfully',
       deviceType,
-      userId
+      userId,
+      visitorId: actualVisitorId
     });
   } catch (error) {
     logger.error('[Push Subscribe] Error', 'PUSH_SUBSCRIBE', {

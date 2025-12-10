@@ -357,171 +357,164 @@ export default function AdminDashboard() {
 
   return (
     <AdminClientLayout>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
         <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+          {/* Header Section */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-light text-slate-700 dark:text-slate-300">
+              לוח בקרה מנהלים
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              סקירה כללית ופעולות מהירות
+            </p>
+          </div>
+
           {/* Statistics Cards */}
           {userRole !== 'driver_manager' ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               {/* Total Projects */}
-              <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm font-medium text-muted-foreground">
-                      פרויקטים
-                    </p>
-                    <p className="text-lg md:text-2xl font-bold mt-1">
-                      {stats.totalProjects}
-                    </p>
+              <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    PROJECTS
+                  </span>
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <FolderPlus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FolderPlus className="h-4 md:h-5 w-4 md:w-5 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {stats.totalProjects}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">פרויקטים</p>
+                </div>
+              </div>
 
               {/* Active Tasks */}
-              <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm font-medium text-muted-foreground">
-                      משימות פעילות
-                    </p>
-                    <p className="text-lg md:text-2xl font-bold mt-1">
-                      {stats.activeTasks}
-                    </p>
+              <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    ACTIVE
+                  </span>
+                  <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                    <CheckSquare className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <CheckSquare className="h-4 md:h-5 w-4 md:w-5 text-green-600" />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {stats.activeTasks}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">משימות פעילות</p>
+                </div>
+              </div>
 
               {/* High Priority */}
-              <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs md:text-sm font-medium text-muted-foreground">
-                      עדיפות גבוהה
-                    </p>
-                    <p className="text-lg md:text-2xl font-bold mt-1">
-                      {stats.highPriorityTasks}
-                    </p>
+              <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    URGENT
+                  </span>
+                  <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                   </div>
-                  <div className="p-2 bg-red-50 rounded-lg">
-                    <AlertCircle className="h-4 md:h-5 w-4 md:w-5 text-red-600" />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {stats.highPriorityTasks}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">עדיפות גבוהה</p>
+                </div>
+              </div>
 
               {/* Cache Status - Admin Only */}
               {cacheStatus && canManageCache && (
-                <Card className="border-yellow-200 bg-yellow-50 shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 to-amber-500/10" />
-                  <CardHeader className="relative">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Database className="h-5 w-5 text-yellow-600" />
-                        סטטוס מטמון
-                      </CardTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCachePanel(!showCachePanel)}
-                        className="text-yellow-700 hover:bg-yellow-100"
-                      >
-                        {showCachePanel ? 'הסתר' : 'הצג פרטים'}
-                      </Button>
+                <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      CACHE
+                    </span>
+                    <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                      <Database className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                     </div>
-                  </CardHeader>
-                  {showCachePanel && (
-                    <CardContent className="relative">
-                      <div className="p-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm md:text-lg font-bold mt-1">
-                            {cacheStatus ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-600 hover:bg-green-50">פעיל</Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-600 hover:bg-yellow-50">טוען...</Badge>
-                            )}
-                          </p>
-                          {cacheStatus && (
-                            <p className="text-xs text-muted-foreground">
-                              גרסה: {cacheStatus.currentVersion}
-                            </p>
-                          )}
-                        </div>
-                        <div className="p-2 bg-purple-50 rounded-lg">
-                          <Database className="h-4 md:h-5 w-4 md:w-5 text-purple-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
+                        פעיל
+                      </Badge>
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      גרסה {cacheStatus.currentVersion}
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           ) : (
-            // Driver Manager View - Show welcome message with actual permissions
-            <Card>
-              <CardContent className="p-6 text-center">
-                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-full inline-flex mb-4">
+            // Driver Manager View
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+              <div className="text-center">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-full inline-flex mb-4">
                   <Car className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">ברוך הבא, {username || 'משתמש'}</h3>
-                <p className="text-muted-foreground mb-4">
+                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                  ברוך הבא, {username || 'משתמש'}
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   ההרשאות שלך:
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {canViewAnalytics && (
-                    <Badge variant="secondary">אנליטיקה</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">אנליטיקה</Badge>
                   )}
                   {canViewFeedback && (
-                    <Badge variant="secondary">משוב</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">משוב</Badge>
                   )}
                   {canManageProjects && (
-                    <Badge variant="secondary">פרויקטים</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">פרויקטים</Badge>
                   )}
                   {canManageTasks && (
-                    <Badge variant="secondary">משימות</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">משימות</Badge>
                   )}
                   {canManageUsers && (
-                    <Badge variant="secondary">משתמשים</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">משתמשים</Badge>
                   )}
                   {canManageCache && (
-                    <Badge variant="secondary">מטמון</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">מטמון</Badge>
                   )}
                   {canManagePushNotifications && (
-                    <Badge variant="secondary">התראות</Badge>
+                    <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">התראות</Badge>
                   )}
-                  {/* Always show daily updates for driver managers */}
-                  <Badge variant="secondary">עדכונים יומיים</Badge>
+                  <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">עדכונים יומיים</Badge>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>פעולות מהירות</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">פעולות מהירות</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">גישה מהירה לפעולות נפוצות</p>
+            </div>
+            <div className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {/* Project Management - Check permission */}
+                {/* Project Management */}
                 {canManageProjects && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/projects')}
                   >
-                    <div className="group p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all border border-blue-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-500 rounded-lg flex-shrink-0">
-                          <Layers className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex-shrink-0">
+                          <Layers className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-blue-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             ניהול פרויקטים
                           </h3>
-                          <p className="text-xs text-blue-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             עריכה, הוספה ומחיקה
                           </p>
                         </div>
@@ -530,22 +523,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* New Task - Check permission */}
+                {/* New Task */}
                 {canManageTasks && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/tasks/new')}
                   >
-                    <div className="group p-4 rounded-lg bg-green-50 hover:bg-green-100 transition-all border border-green-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-green-300 dark:hover:border-green-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-500 rounded-lg flex-shrink-0">
-                          <Plus className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg flex-shrink-0">
+                          <Plus className="h-4 w-4 text-green-700 dark:text-green-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-green-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             משימה חדשה
                           </h3>
-                          <p className="text-xs text-green-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             הוסף משימה לפרויקט
                           </p>
                         </div>
@@ -554,22 +547,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
               
-                {/* Bulk Import - Check permission */}
+                {/* Bulk Import */}
                 {canManageTasks && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/tasks/bulk-import')}
                   >
-                    <div className="group p-4 rounded-lg bg-amber-50 hover:bg-amber-100 transition-all border border-amber-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-amber-300 dark:hover:border-amber-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-500 rounded-lg flex-shrink-0">
-                          <Upload className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg flex-shrink-0">
+                          <Upload className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-amber-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             ייבוא המוני
                           </h3>
-                          <p className="text-xs text-amber-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             ייבא תת-משימות מ-JIRA
                           </p>
                         </div>
@@ -578,22 +571,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Analytics - Check permission */}
+                {/* Analytics */}
                 {canViewAnalytics && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/analytics')}
                   >
-                    <div className="group p-4 rounded-lg bg-purple-50 hover:bg-purple-100 transition-all border border-purple-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-500 rounded-lg flex-shrink-0">
-                          <BarChart3 className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex-shrink-0">
+                          <BarChart3 className="h-4 w-4 text-purple-700 dark:text-purple-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-purple-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             אנליטיקס
                           </h3>
-                          <p className="text-xs text-purple-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             דוחות ונתונים
                           </p>
                         </div>
@@ -602,22 +595,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Feedback Management - Check permission */}
+                {/* Feedback Management */}
                 {canViewFeedback && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/feedback')}
                   >
-                    <div className="group p-4 rounded-lg bg-orange-50 hover:bg-orange-100 transition-all border border-orange-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-500 rounded-lg flex-shrink-0">
-                          <MessageCircle className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg flex-shrink-0">
+                          <MessageCircle className="h-4 w-4 text-orange-700 dark:text-orange-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-orange-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             ניהול פניות
                           </h3>
-                          <p className="text-xs text-orange-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             תמיכה ודיווחים
                           </p>
                         </div>
@@ -628,19 +621,19 @@ export default function AdminDashboard() {
 
                 {/* Daily Updates */}
                 <div 
-                  className="block cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => router.push('/admin/daily-updates')}
                 >
-                  <div className="group p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-all border border-indigo-200 active:scale-95">
+                  <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-500 rounded-lg flex-shrink-0">
-                        <Eye className="h-4 w-4 text-white" />
+                      <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex-shrink-0">
+                        <Eye className="h-4 w-4 text-indigo-700 dark:text-indigo-400" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-indigo-900 text-sm">
+                        <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                           עדכונים יומיים
                         </h3>
-                        <p className="text-xs text-indigo-700 truncate">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                           הודעות ועדכונים
                         </p>
                       </div>
@@ -648,22 +641,22 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Cache Management - Check permission */}
+                {/* Cache Management */}
                 {canManageCache && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/cache')}
                   >
-                    <div className="group p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gray-500 rounded-lg flex-shrink-0">
-                          <Server className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-slate-200 dark:bg-slate-700 rounded-lg flex-shrink-0">
+                          <Server className="h-4 w-4 text-slate-700 dark:text-slate-300" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             ניהול מטמון
                           </h3>
-                          <p className="text-xs text-gray-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             ביצועים ומטמון
                           </p>
                         </div>
@@ -672,22 +665,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* User Management - Check permission */}
+                {/* User Management */}
                 {canManageUsers && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/users')}
                   >
-                    <div className="group p-4 rounded-lg bg-rose-50 hover:bg-rose-100 transition-all border border-rose-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-rose-500 rounded-lg flex-shrink-0">
-                          <Users className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-rose-100 dark:bg-rose-900/50 rounded-lg flex-shrink-0">
+                          <Users className="h-4 w-4 text-rose-700 dark:text-rose-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-rose-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             ניהול משתמשים
                           </h3>
-                          <p className="text-xs text-rose-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             הוספה ועריכת משתמשים
                           </p>
                         </div>
@@ -696,22 +689,22 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Push Notifications - Check permission */}
+                {/* Push Notifications */}
                 {canManagePushNotifications && (
                   <div 
-                    className="block cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => router.push('/admin/push-notifications')}
                   >
-                    <div className="group p-4 rounded-lg bg-pink-50 hover:bg-pink-100 transition-all border border-pink-200 active:scale-95">
+                    <div className="group p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-pink-300 dark:hover:border-pink-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-pink-500 rounded-lg">
-                          <Bell className="h-4 w-4 text-white" />
+                        <div className="p-2 bg-pink-100 dark:bg-pink-900/50 rounded-lg">
+                          <Bell className="h-4 w-4 text-pink-700 dark:text-pink-400" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-pink-900 text-sm">
+                          <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm">
                             התראות Push
                           </h3>
-                          <p className="text-xs text-pink-700 truncate">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
                             ניהול התראות
                           </p>
                         </div>
@@ -719,26 +712,24 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-
-
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Recent Items and System Status */}
           <div className="space-y-4">
 
-            {/* Recent Projects - Improved UI - Check permission */}
-            {canManageProjects && (
-              <Card className="overflow-hidden">
-              <CardHeader className="pb-4">
+          {/* Recent Projects */}
+          {canManageProjects && (
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg">פרויקטים אחרונים</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">ניהול מהיר של הפרויקטים הפעילים</p>
+                    <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">פרויקטים אחרונים</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">ניהול מהיר של הפרויקטים הפעילים</p>
                   </div>
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm" 
                     onClick={() => {
                       console.log('[Dashboard] הצג הכל (View All Projects) button clicked');
@@ -747,23 +738,22 @@ export default function AdminDashboard() {
                       router.push('/admin/projects');
                       console.log('[Dashboard] router.push called - waiting for navigation...');
                     }}
-                    className="hidden sm:flex"
+                    className="hidden sm:flex text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                   >
-                    <Eye className="h-4 w-4 mr-1" />
-                    הצג הכל
+                    הצג הכל →
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="pb-0">
+              </div>
+              <div className="p-4">
                 {projects.length === 0 ? (
-                  <div className="text-center py-8 pb-6">
-                    <FolderPlus className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                    <p className="text-muted-foreground text-sm">אין פרויקטים עדיין</p>
+                  <div className="text-center py-8">
+                    <FolderPlus className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">אין פרויקטים עדיין</p>
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={() => router.push('/admin/projects/new')}
-                      className="mt-3"
+                      className="border-slate-200 dark:border-slate-700"
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       צור פרויקט ראשון
@@ -771,7 +761,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-3 pb-4">
+                    <div className="space-y-3">
                       {projects.slice(0, 3).map((project) => {
                         const taskCount = getTaskCountForProject(project._id);
                         const activeCount = getActiveTasksForProject(project._id);
@@ -789,24 +779,24 @@ export default function AdminDashboard() {
                               router.push(`/admin/projects/${project._id}`);
                               console.log('[Dashboard] router.push called');
                             }}
-                            className="block group"
+                            className="block"
                           >
-                            <div className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg border border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all hover:shadow-md">
+                            <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all hover:shadow-md bg-slate-50/50 dark:bg-slate-800/50">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
-                                  <h4 className="font-semibold text-foreground text-base truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                  <h4 className="font-medium text-slate-900 dark:text-slate-100 text-base truncate">
                                     {project.name}
                                   </h4>
                                   {project.description && (
-                                    <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1 mt-1">
                                       {project.description}
                                     </p>
                                   )}
                                   
                                   <div className="flex flex-wrap items-center gap-4 mt-3">
                                     <div className="flex items-center gap-1.5">
-                                      <Layers className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                                      <span className="text-sm font-medium">{taskCount} משימות</span>
+                                      <Layers className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                                      <span className="text-sm text-slate-700 dark:text-slate-300">{taskCount} משימות</span>
                                     </div>
                                     
                                     {activeCount > 0 && (
@@ -827,13 +817,13 @@ export default function AdminDashboard() {
                                   {/* Progress bar */}
                                   {taskCount > 0 && (
                                     <div className="mt-3">
-                                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                                      <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 mb-1">
                                         <span>התקדמות</span>
-                                        <span>{completionRate}%</span>
+                                        <span className="font-semibold">{completionRate}%</span>
                                       </div>
-                                      <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5">
                                         <div 
-                                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-500 ease-out"
+                                          className="h-full bg-slate-700 dark:bg-slate-400 rounded-full transition-all duration-500"
                                           style={{ width: `${completionRate}%` }}
                                         />
                                       </div>
@@ -842,8 +832,8 @@ export default function AdminDashboard() {
                                 </div>
                                 
                                 <div className="flex-shrink-0">
-                                  <div className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm group-hover:shadow-md transition-all">
-                                    <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                                  <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                                    <Eye className="h-4 w-4 text-slate-700 dark:text-slate-300" />
                                   </div>
                                 </div>
                               </div>
@@ -854,88 +844,90 @@ export default function AdminDashboard() {
                     </div>
                     
                     {/* Mobile show all button */}
-                    <div className="border-t pt-3 pb-3 sm:hidden">
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3 sm:hidden">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={() => router.push('/admin/projects')}
-                        className="w-full"
+                        className="w-full border-slate-200 dark:border-slate-700"
                       >
                         הצג את כל הפרויקטים
                       </Button>
                     </div>
                   </>
                 )}
-              </CardContent>
-            </Card>
-            )}
+              </div>
+            </div>
+          )}
 
-            {/* System Status */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>מצב המערכת</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {canManageTasks ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="text-lg font-bold text-green-600">{stats.totalTasks}</div>
-                      <div className="text-xs text-green-700">סה&quot;כ משימות</div>
-                    </div>
-                    
-                    <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-lg font-bold text-blue-600">{stats.activeTasks}</div>
-                      <div className="text-xs text-blue-700">משימות פעילות</div>
-                    </div>
+          {/* System Status */}
+          <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">מצב המערכת</h2>
+            </div>
+            <div className="p-4">
+              {canManageTasks ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">{stats.totalTasks}</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">סה&quot;כ משימות</div>
                   </div>
-                ) : (
-                  <div className="text-center p-4">
-                    <p className="text-muted-foreground">לניהול עדכונים יומיים, עבור לדף העדכונים</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => router.push('/admin/daily-updates')}
-                      className="mt-3"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      עדכונים יומיים
-                    </Button>
+                  
+                  <div className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">{stats.activeTasks}</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">משימות פעילות</div>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="text-center p-4">
+                  <p className="text-slate-600 dark:text-slate-400 text-sm mb-3">
+                    לניהול עדכונים יומיים, עבור לדף העדכונים
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => router.push('/admin/daily-updates')}
+                    className="border-slate-200 dark:border-slate-700"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    עדכונים יומיים
+                  </Button>
+                </div>
+              )}
 
-                {cacheStatus && canManageCache && (
-                  <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-purple-900">מצב מטמון</div>
-                        <div className="text-xs text-purple-700">גרסה {cacheStatus.currentVersion}</div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => clearCache('soft')}
-                          disabled={cacheLoading}
-                          className="text-xs bg-purple-100 text-purple-700 hover:bg-purple-200 hover:text-purple-800 border-purple-200"
-                        >
-                          עדכון
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => clearCache('full')}
-                          disabled={cacheLoading}
-                          className="text-xs bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800 border-red-200"
-                        >
-                          נקה
-                        </Button>
-                      </div>
+              {cacheStatus && canManageCache && (
+                <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">מצב מטמון</div>
+                      <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">גרסה {cacheStatus.currentVersion}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => clearCache('soft')}
+                        disabled={cacheLoading}
+                        className="text-xs border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      >
+                        עדכון
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => clearCache('full')}
+                        disabled={cacheLoading}
+                        className="text-xs bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 border-red-200 dark:border-red-800"
+                      >
+                        נקה
+                      </Button>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+              )}
+            </div>
           </div>
+          </div> {/* Close "Recent Items and System Status" div */}
         </div>
       </div>
     </AdminClientLayout>

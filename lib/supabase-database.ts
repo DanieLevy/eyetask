@@ -153,7 +153,8 @@ export interface DailyUpdateSetting {
 export interface PushSubscription {
   id?: string;
   _id?: string | number;
-  userId: string;
+  userId: string | null;  // Allow null for anonymous users
+  visitorId?: string | null;  // For anonymous user tracking
   username: string;
   email: string;
   role: string;
