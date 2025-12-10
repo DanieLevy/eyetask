@@ -118,50 +118,17 @@ function NavigationLoadingCore({ children }: { children: React.ReactNode }) {
     };
   }, [stopLoading]);
 
-  // Override default link behavior to show loading
+  // Monitor route changes to finish loading
   useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      const link = target.closest('a[href]') as HTMLAnchorElement;
-      
-      if (!link) return;
-      
-      const href = link.getAttribute('href');
-      if (!href) return;
-      
-      // Skip external links, hash links, and download links
-      if (
-        href.startsWith('http') ||
-        href.startsWith('mailto:') ||
-        href.startsWith('tel:') ||
-        href.startsWith('#') ||
-        link.hasAttribute('download') ||
-        link.hasAttribute('target') ||
-        href === pathname // Same page
-      ) {
-        return;
-      }
+    // Finish any ongoing navigation when route actually changes
+    if (isNavigating) {
+      const finishTimer = setTimeout(() => {
+        finishNavigation();
+      }, 100); // Small delay to ensure navigation completed
 
-      // Determine loading message based on route
-      let message = 'טוען דף...';
-      if (href.includes('/admin')) {
-        message = 'טוען עמוד ניהול...';
-      } else if (href.includes('/project')) {
-        message = 'טוען פרויקט...';
-      } else if (href.includes('/feedback')) {
-        message = 'טוען טופס פניות...';
-      }
-
-      startNavigation(href, { message });
-    };
-
-    // Add click listener
-    document.addEventListener('click', handleClick, true);
-
-    return () => {
-      document.removeEventListener('click', handleClick, true);
-    };
-  }, [pathname, startNavigation]);
+      return () => clearTimeout(finishTimer);
+    }
+  }, [pathname, searchParams, isNavigating, finishNavigation]);
 
   // Handle browser back/forward navigation
   useEffect(() => {
